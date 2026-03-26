@@ -405,7 +405,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 }
 .panel-close:hover{background:var(--gray-100);color:var(--err-text);}
 
-/* ── NOTES TABLE ─────────────────────────── */
+/* ── NOTES ───────────────────────────────── */
 .notes-section{margin-top:0.5rem;}
 .note-form{display:flex;gap:4px;align-items:end;flex-wrap:wrap;margin-bottom:6px;}
 .note-form select{
@@ -429,23 +429,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
   font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;
 }
 .note-form .btn-note-add:hover{background:var(--teal-dim);}
-.notes-table-wrap{max-height:200px;overflow-y:auto;border:1px solid var(--gray-100);border-radius:var(--radius-sm);}
-.notes-table{width:100%;border-collapse:collapse;font-family:'Courier New',monospace;font-size:11px;}
-.notes-table th{
-  background:var(--gray-50);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;
-  color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;
-  padding:4px 6px;text-align:left;border-bottom:1px solid var(--gray-200);
-  position:sticky;top:0;z-index:1;
-}
-.notes-table td{
-  padding:3px 6px;border-bottom:1px solid var(--gray-100);color:var(--gray-800);
-  vertical-align:top;word-break:break-word;
-}
-.notes-table tr:hover td{background:var(--gray-50);}
-.notes-table .note-date{white-space:nowrap;color:var(--gray-400);width:90px;}
-.notes-table .note-user{white-space:nowrap;color:var(--gray-500);width:50px;}
-.notes-table .note-action{white-space:nowrap;width:90px;}
-.notes-table .note-action-date{white-space:nowrap;color:var(--teal);width:70px;font-size:10px;}
+.notes-list-wrap{max-height:220px;overflow-y:auto;border:1px solid var(--gray-100);border-radius:var(--radius-sm);}
+.note-row{padding:6px 8px;border-bottom:1px solid var(--gray-100);}
+.note-row:last-child{border-bottom:none;}
+.note-row:hover{background:var(--gray-50);}
+.note-row-header{display:flex;gap:6px;align-items:center;margin-bottom:2px;}
+.note-row-header .note-meta{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--gray-400);}
+.note-row-header .note-user{font-size:10px;font-weight:600;color:var(--gray-500);}
+.note-row-body{font-family:'Courier New',monospace;font-size:12px;color:var(--gray-800);line-height:1.4;word-break:break-word;}
 .action-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;text-transform:uppercase;letter-spacing:.03em;}
 .action-tag.at-otp{background:#e8f0fe;color:#1a56db;}
 .action-tag.at-pile{background:#fef3c7;color:#92400e;}
@@ -581,6 +572,12 @@ let clients = [], skips = [], clientNotes = [], selectedWeek = '', activeClient 
 let currentUser = null;
 let lookupRendered = false;
 
+function getBaseId(cid){ return cid.replace(/-\d+$/,''); }
+function getRelatedClients(c){
+  const base=getBaseId(c.client_id);
+  return clients.filter(x=>getBaseId(x.client_id)===base);
+}
+
 // ── AUTH ──────────────────────────────────────────────────────────────
 async function login() {
   const un = document.getElementById('unInput').value.trim().toLowerCase();
@@ -689,8 +686,9 @@ function isSkipped(cid,date){
   return skips.some(s=>s.client_id===cid&&s.skip_week===monday);
 }
 
-async function loadNotes(clientId){
-  const {data,error}=await db.from('notes').select('*').eq('client_id',clientId).order('created_at',{ascending:false});
+async function loadNotes(baseId){
+  // Load notes for base ID (notes are stored against base ID, not suffixed IDs)
+  const {data,error}=await db.from('notes').select('*').eq('client_id',baseId).order('created_at',{ascending:false});
   if(!error) clientNotes=data||[];
   return clientNotes;
 }
@@ -747,20 +745,32 @@ function doSearch(q){
       return {c,score};
     })
     .filter(x=>x.score>0)
-    .sort((a,b)=>b.score-a.score)
-    .slice(0,10)
-    .map(x=>x.c);
+    .sort((a,b)=>b.score-a.score);
 
-  if(!scored.length){res.innerHTML='<div class="empty-state">No clients found</div>';return;}
-  if(scored.length===1){res.innerHTML='';openClient(scored[0]);return;}
-  res.innerHTML='<div class="results-list">'+scored.map((c,i)=>`
+  // Group by base ID so multi-day clients show as one result
+  const grouped={};
+  scored.forEach(({c,score})=>{
+    const base=getBaseId(c.client_id);
+    if(!grouped[base]||score>grouped[base].score){
+      grouped[base]={c,score,base};
+    }
+  });
+  const results=Object.values(grouped).sort((a,b)=>b.score-a.score).slice(0,10);
+
+  if(!results.length){res.innerHTML='<div class="empty-state">No clients found</div>';return;}
+  if(results.length===1){res.innerHTML='';openClient(results[0].c);return;}
+  res.innerHTML='<div class="results-list">'+results.map(({c,base})=>{
+    const related=getRelatedClients(c);
+    const days=related.map(r=>r.service_day).join(', ');
+    return `
     <div class="result-item" tabindex="0" data-cid="${c.client_id}" onclick="pickClient('${c.client_id}')" onkeydown="handleResultKey(event,'${c.client_id}')">
       <div>
-        <div class="result-id">${c.client_name?`${c.client_name} &mdash; `:''}${c.client_id}</div>
+        <div class="result-id">${c.client_name?`${c.client_name} &mdash; `:''}${base}</div>
         <div class="result-addr">${c.address}</div>
       </div>
-      <div class="result-day">${c.service_day}</div>
-    </div>`).join('')+'</div>';
+      <div class="result-day">${days}</div>
+    </div>`;
+  }).join('')+'</div>';
 }
 
 function handleSearchKey(e){
@@ -796,7 +806,7 @@ function pickClient(id){
   const c=clients.find(x=>x.client_id===id);
   if(!c) return;
   document.getElementById('srchResults').innerHTML='';
-  document.getElementById('srch').value=`${c.client_id} — ${c.address}`;
+  document.getElementById('srch').value=`${getBaseId(c.client_id)} — ${c.address}`;
   openClient(c);
 }
 
@@ -816,10 +826,16 @@ async function showPanel(c){
   const panel=document.getElementById('clientPanel');
   panel.classList.add('open');
 
+  const related=getRelatedClients(c);
+  const baseId=getBaseId(c.client_id);
+  const allIds=related.map(r=>r.client_id);
   const paused=c.status==='Paused';
   const ini=(c.client_name||c.address).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  const cSkips=skips.filter(s=>s.client_id===c.client_id).sort((a,b)=>a.skip_week>b.skip_week?1:-1);
-  const displayName=c.client_name||`Client ${c.client_id}`;
+  const displayName=c.client_name||`Client ${baseId}`;
+  const allDays=related.map(r=>r.service_day);
+
+  // Skips across all related IDs
+  const cSkips=skips.filter(s=>allIds.includes(s.client_id)).sort((a,b)=>a.skip_week>b.skip_week?1:-1);
   const skipRanges=groupSkipRanges(cSkips);
   const todayWeek=getMondayISO(new Date());
   const activeSkip=cSkips.some(s=>s.skip_week===todayWeek);
@@ -830,13 +846,13 @@ async function showPanel(c){
         <div class="avatar">${ini}</div>
         <div class="card-header-meta">
           <h2>${displayName}</h2>
-          <p style="opacity:.7;font-size:11px;margin-bottom:1px">ID: ${c.client_id}</p>
+          <p style="opacity:.7;font-size:11px;margin-bottom:1px">ID: ${baseId}${related.length>1?' ('+related.length+' days)':''}</p>
           <p>${c.address}, Nantucket MA &middot; ${c.phone||'No phone'}</p>
         </div>
       </div>
       <div class="card-body">
         <div class="info-grid">
-          <div class="info-tile"><label>Pickup Day</label><span class="day-pill">${c.service_day}</span></div>
+          <div class="info-tile"><label>Pickup Day${allDays.length>1?'s':''}</label>${allDays.map(d=>`<span class="day-pill">${d}</span>`).join(' ')}</div>
           <div class="info-tile"><label>Account Status</label>
             <span class="status-pill ${paused?'s-paused':activeSkip?'s-skipped':'s-active'}">
               ${paused?'Paused':activeSkip?'Skipped':'Active'}
@@ -847,6 +863,13 @@ async function showPanel(c){
         ${!paused?`
         <hr class="divider"/>
         <div class="section-title">Schedule a skip</div>
+        ${related.length>1?`
+        <div style="margin-bottom:6px">
+          <label style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">Skip for</label>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            ${related.map(r=>`<button class="inq-btn skip-day-btn inq-active" data-skipid="${r.client_id}" onclick="this.classList.toggle('inq-active')">${r.service_day}</button>`).join('')}
+          </div>
+        </div>`:''}
         <div class="date-range-grid">
           <div class="date-field">
             <label>Skip from</label>
@@ -867,16 +890,16 @@ async function showPanel(c){
           <button class="inq-btn" id="inq-person" onclick="selectInquiry('person')">In Person</button>
         </div>
 
-        <button class="action-btn a-skip" style="margin-top:0.5rem" onclick="addSkipRange('${c.client_id}')">
+        <button class="action-btn a-skip" style="margin-top:0.5rem" onclick="addSkipRangeAll()">
           &#10003; Confirm Skip
         </button>`:''}
 
         <hr class="divider"/>
         <div class="section-title">Service Control</div>
         ${paused?`
-          <button class="action-btn a-resume" onclick="setStatus('${c.client_id}','Active')">&#9654; Resume Service</button>
+          <button class="action-btn a-resume" onclick="setStatusAll('Active')">&#9654; Resume Service</button>
         `:`
-          <button class="action-btn a-pause" onclick="setStatus('${c.client_id}','Paused')">&#9646;&#9646; Pause Service</button>
+          <button class="action-btn a-pause" onclick="setStatusAll('Paused')">&#9646;&#9646; Pause Service</button>
         `}
 
         ${skipRanges.length?`
@@ -893,7 +916,7 @@ async function showPanel(c){
                 <div style="display:flex;align-items:center;gap:6px">
                   ${r.loggedBy?`<span style="font-size:10px;color:var(--gray-400)">${r.loggedBy}</span>`:''}
                   <span class="skip-tag">SKIP</span>
-                  <button class="remove-skip-btn" onclick="removeSkipRange('${c.client_id}','${r.weeks.join(',')}')">&#10005;</button>
+                  <button class="remove-skip-btn" onclick="removeSkipRange('${r.cid||c.client_id}','${r.weeks.join(',')}')">&#10005;</button>
                 </div>
               </div>`).join('')}
           </div>`:''}
@@ -906,10 +929,10 @@ async function showPanel(c){
               ${ACTION_TYPES.map(a=>`<option value="${a.value}">${a.label}</option>`).join('')}
             </select>
             <input type="date" id="noteActionDate" style="display:none"/>
-            <input type="text" id="noteText" placeholder="Add a note…" onkeydown="if(event.key==='Enter'){event.preventDefault();submitNote('${c.client_id}');}"/>
-            <button class="btn-note-add" onclick="submitNote('${c.client_id}')">Add</button>
+            <input type="text" id="noteText" placeholder="Add a note…" onkeydown="if(event.key==='Enter'){event.preventDefault();submitNote('${baseId}');}"/>
+            <button class="btn-note-add" onclick="submitNote('${baseId}')">Add</button>
           </div>
-          <div id="notesTableWrap" class="notes-table-wrap">
+          <div id="notesTableWrap" class="notes-list-wrap">
             <div class="loading">Loading notes…</div>
           </div>
         </div>
@@ -921,8 +944,8 @@ async function showPanel(c){
   if(sel) sel.value = 'Note';
   toggleNoteDateField();
 
-  // Load notes async
-  const notes = await loadNotes(c.client_id);
+  // Load notes using base ID
+  const notes = await loadNotes(baseId);
   renderNotesTable(notes);
 }
 
@@ -941,27 +964,21 @@ function renderNotesTable(notes){
     wrap.innerHTML='<div style="padding:8px;text-align:center;color:var(--gray-400);font-size:11px">No notes yet</div>';
     return;
   }
-  wrap.innerHTML=`
-    <table class="notes-table">
-      <thead><tr>
-        <th>Date</th><th>User</th><th>Action</th><th>For</th><th>Note</th>
-      </tr></thead>
-      <tbody>
-        ${notes.map(n=>{
-          const at=ACTION_TYPES.find(a=>a.value===n.action)||{tag:'at-note'};
-          return `<tr>
-            <td class="note-date">${fmtTimestamp(n.created_at)}</td>
-            <td class="note-user">${n.user_id||''}</td>
-            <td class="note-action"><span class="action-tag ${at.tag}">${n.action}</span></td>
-            <td class="note-action-date">${n.action_date?fmtDateShort(n.action_date):''}</td>
-            <td>${n.note||''}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>`;
+  wrap.innerHTML=notes.map(n=>{
+    const at=ACTION_TYPES.find(a=>a.value===n.action)||{tag:'at-note'};
+    return `<div class="note-row">
+      <div class="note-row-header">
+        <span class="note-meta">${fmtTimestamp(n.created_at)}</span>
+        <span class="note-user">${n.user_id||''}</span>
+        <span class="action-tag ${at.tag}">${n.action}</span>
+        ${n.action_date?`<span style="font-size:10px;color:var(--teal);font-weight:600">${fmtDate(n.action_date)}</span>`:''}
+      </div>
+      ${n.note?`<div class="note-row-body">${n.note}</div>`:''}
+    </div>`;
+  }).join('');
 }
 
-async function submitNote(cid){
+async function submitNote(baseId){
   const action=document.getElementById('noteAction').value;
   const dateIn=document.getElementById('noteActionDate');
   const textIn=document.getElementById('noteText');
@@ -974,7 +991,7 @@ async function submitNote(cid){
   }
 
   const {error}=await db.from('notes').insert({
-    client_id:cid,
+    client_id:baseId,
     user_id:currentUser?currentUser.display_name:'',
     action:action,
     action_date:actionDate||null,
@@ -984,8 +1001,48 @@ async function submitNote(cid){
   textIn.value='';
   dateIn.value='';
   toast('Note added',true);
-  const notes=await loadNotes(cid);
+  const notes=await loadNotes(baseId);
   renderNotesTable(notes);
+}
+
+async function addSkipRangeAll(){
+  if(!activeClient) return;
+  const start=document.getElementById('skipStart')?.value;
+  const end=document.getElementById('skipEnd')?.value;
+  if(!start||!end){toast('Select start and end dates');return;}
+  const weeks=getDaysInRange(start,end);
+  if(!weeks.length){toast('End date must be on or after start date');return;}
+
+  const related=getRelatedClients(activeClient);
+  // For multi-day clients, check which day buttons are active
+  const dayBtns=[...document.querySelectorAll('.skip-day-btn.inq-active')];
+  const skipIds=dayBtns.length>0?dayBtns.map(b=>b.dataset.skipid):related.map(r=>r.client_id);
+
+  const records=[];
+  skipIds.forEach(cid=>{
+    weeks.forEach(w=>{
+      records.push({client_id:cid,skip_week:w,inquiry_method:selectedInquiry,logged_by:currentUser?currentUser.display_name:null});
+    });
+  });
+
+  const {error}=await db.from('skips').upsert(records,{onConflict:'client_id,skip_week'});
+  if(error){toast('Error: '+error.message);return;}
+  await loadSkips();
+  showPanel(activeClient);
+  toast(`Skip logged — ${weeks.length===1?fmtDate(weeks[0]):weeks.length+' weeks'}`,true);
+}
+
+async function setStatusAll(status){
+  if(!activeClient) return;
+  const related=getRelatedClients(activeClient);
+  for(const r of related){
+    await db.from('clients').update({status}).eq('client_id',r.client_id);
+  }
+  await loadClients();
+  activeClient=clients.find(c=>c.client_id===activeClient.client_id);
+  showPanel(activeClient);
+  updatePausedBadge();
+  toast(status==='Paused'?'Service paused':'Service resumed',status==='Active');
 }
 
 // ── SKIP LOGIC ───────────────────────────────────────────────────────
@@ -993,16 +1050,16 @@ function groupSkipRanges(cSkips){
   if(!cSkips.length) return [];
   const sorted=[...cSkips].sort((a,b)=>a.skip_week>b.skip_week?1:-1);
   const ranges=[];
-  let cur={weeks:[sorted[0].skip_week],method:sorted[0].inquiry_method,loggedBy:sorted[0].logged_by};
+  let cur={weeks:[sorted[0].skip_week],method:sorted[0].inquiry_method,loggedBy:sorted[0].logged_by,cid:sorted[0].client_id};
   for(let i=1;i<sorted.length;i++){
     const prev=new Date(sorted[i-1].skip_week+'T00:00:00');
     const curr=new Date(sorted[i].skip_week+'T00:00:00');
     const diff=(curr-prev)/(1000*60*60*24*7);
-    if(diff===1&&sorted[i].inquiry_method===cur.method&&sorted[i].logged_by===cur.loggedBy){
+    if(diff===1&&sorted[i].inquiry_method===cur.method&&sorted[i].logged_by===cur.loggedBy&&sorted[i].client_id===cur.cid){
       cur.weeks.push(sorted[i].skip_week);
     } else {
       ranges.push(cur);
-      cur={weeks:[sorted[i].skip_week],method:sorted[i].inquiry_method,loggedBy:sorted[i].logged_by};
+      cur={weeks:[sorted[i].skip_week],method:sorted[i].inquiry_method,loggedBy:sorted[i].logged_by,cid:sorted[i].client_id};
     }
   }
   ranges.push(cur);
@@ -1056,27 +1113,6 @@ function selectInquiry(method){
   if(el) el.classList.add('inq-active');
 }
 
-async function addSkipRange(cid){
-  const start=document.getElementById('skipStart')?.value;
-  const end=document.getElementById('skipEnd')?.value;
-  if(!start||!end){toast('Select start and end dates');return;}
-  const weeks=getDaysInRange(start,end);
-  if(!weeks.length){toast('End date must be on or after start date');return;}
-
-  const records=weeks.map(w=>({
-    client_id:cid,
-    skip_week:w,
-    inquiry_method:selectedInquiry,
-    logged_by:currentUser?currentUser.display_name:null
-  }));
-
-  const {error}=await db.from('skips').upsert(records,{onConflict:'client_id,skip_week'});
-  if(error){toast('Error: '+error.message);return;}
-  await loadSkips();
-  showPanel(activeClient);
-  toast(`Skip logged — ${weeks.length===1?fmtDate(weeks[0]):weeks.length+' weeks'}`,true);
-}
-
 async function removeSkipRange(cid, weeksStr){
   const weeks=weeksStr.split(',');
   for(const w of weeks){
@@ -1087,15 +1123,6 @@ async function removeSkipRange(cid, weeksStr){
   toast(`Skip${weeks.length>1?'s':''} removed`);
 }
 
-async function setStatus(cid, status){
-  const {error}=await db.from('clients').update({status}).eq('client_id',cid);
-  if(error){toast('Error: '+error.message);return;}
-  await loadClients();
-  activeClient=clients.find(c=>c.client_id===cid);
-  showPanel(activeClient);
-  updatePausedBadge();
-  toast(status==='Paused'?`Service paused`:`Service resumed`,status==='Active');
-}
 
 // ── ROUTE VIEW ────────────────────────────────────────────────────────
 function renderRoute(){
