@@ -262,19 +262,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .r-addr{color:var(--gray-800);}
 .skip-flag{font-size:10px;font-weight:700;color:var(--warn-text);letter-spacing:.05em;flex-shrink:0;}
 
-/* ── SKIP LOG ────────────────────────────── */
+/* ── SHARED ──────────────────────────────── */
 .log-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;}
 .log-title{font-size:16px;font-weight:600;color:var(--navy);}
 .log-count-badge{background:var(--gray-100);color:var(--gray-500);font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
-.log-item{
-  background:white;border:1px solid var(--gray-200);border-radius:var(--radius-sm);
-  padding:8px 12px;margin-bottom:6px;box-shadow:var(--shadow);
-  display:flex;justify-content:space-between;align-items:center;
-}
-.l-id{font-family:'DM Mono',monospace;font-size:10px;color:var(--gray-400);margin-bottom:2px;}
-.l-addr{font-size:13px;font-weight:500;color:var(--gray-800);}
-.l-day{font-size:11px;font-weight:600;color:var(--teal);margin-bottom:2px;}
-.l-wk{font-size:11px;color:var(--warn-text);font-weight:500;}
 
 .remove-skip-btn{
   background:none;border:none;color:var(--gray-400);font-size:12px;
@@ -522,7 +513,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
   <div class="tab-nav">
     <button class="active" onclick="switchTab('lookup',this)">Client Lookup</button>
     <button onclick="switchTab('add',this)">Add Client</button>
-    <button onclick="switchTab('log',this)">Skip Log</button>
     <button onclick="switchTab('route',this)">Route View</button>
     <button onclick="switchTab('paused',this)">Paused</button>
     <button onclick="switchTab('report',this)">Reports</button>
@@ -532,7 +522,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
   <div class="main">
     <div id="tab-lookup"></div>
     <div id="tab-route"  style="display:none"></div>
-    <div id="tab-log"    style="display:none"></div>
     <div id="tab-add"    style="display:none"></div>
     <div id="tab-paused" style="display:none"></div>
     <div id="tab-report" style="display:none"></div>
@@ -695,7 +684,7 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','route','log','add','paused','report','import'].forEach(t=>{
+  ['lookup','route','add','paused','report','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -703,7 +692,6 @@ function switchTab(name,btn){
   // Only re-render lookup on first visit; preserve state after that
   if(name==='lookup' && !lookupRendered) renderLookup();
   if(name==='route')  renderRoute();
-  if(name==='log')    renderLog();
   if(name==='add')    renderAdd();
   if(name==='paused') renderPaused();
   if(name==='report') renderReport();
@@ -1299,54 +1287,6 @@ function updatePausedBadge(){
       ?`Paused <span style="background:var(--err-bg);color:var(--err-text);font-size:9px;font-weight:700;padding:1px 5px;border-radius:20px;margin-left:3px">${count}</span>`
       :'Paused';
   }
-}
-
-// ── SKIP LOG ──────────────────────────────────────────────────────────
-function renderLog(){
-  const div=document.getElementById('tab-log');
-  if(!skips.length){div.innerHTML='<div class="empty-state">No skips logged yet</div>';return;}
-
-  const byClient={};
-  skips.forEach(s=>{
-    if(!byClient[s.client_id]) byClient[s.client_id]=[];
-    byClient[s.client_id].push(s);
-  });
-
-  const items=Object.entries(byClient).map(([cid,cSkips])=>{
-    const c=clients.find(x=>x.client_id===cid)||{};
-    const ranges=groupSkipRanges([...cSkips].sort((a,b)=>a.skip_week>b.skip_week?1:-1));
-    return {c,cid,ranges,total:cSkips.length};
-  }).sort((a,b)=>a.cid>b.cid?1:-1);
-
-  div.innerHTML=`
-    <div class="log-top">
-      <div class="log-title">Skip Log</div>
-      <div class="log-count-badge">${skips.length} across ${items.length} clients</div>
-    </div>
-    ${items.map(({c,cid,ranges,total})=>`
-      <div class="log-item" style="flex-direction:column;align-items:stretch;gap:6px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div class="l-id">${cid}</div>
-            <div class="l-addr">
-              <span class="log-name-link" onclick="jumpToClient('${cid}')">${c.client_name?`<strong>${c.client_name}</strong> — `:''}${c.address||'—'}</span>
-            </div>
-          </div>
-          <div style="text-align:right">
-            <div class="l-day">${c.service_day||'—'}</div>
-            <div style="font-size:10px;color:var(--gray-400)">${total} wk</div>
-          </div>
-        </div>
-        ${ranges.map(r=>`
-          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--gray-50);border-radius:var(--radius-sm);padding:5px 8px;font-size:12px">
-            <span style="color:var(--gray-600)">${r.label}</span>
-            <div style="display:flex;gap:4px;align-items:center">
-              ${r.method?`<span class="inq-tag">${r.method}</span>`:''}
-              ${r.loggedBy?`<span style="font-size:10px;color:var(--gray-400)">${r.loggedBy}</span>`:''}
-              <span class="skip-tag">SKIP</span>
-            </div>
-          </div>`).join('')}
-      </div>`).join('')}`;
 }
 
 // ── REPORTS ───────────────────────────────────────────────────────────
