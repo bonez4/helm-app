@@ -738,7 +738,7 @@ function doSearch(q){
       else if(idL.includes(q)) score=2;
       if(nameL&&nameL.includes(q)) score=Math.max(score,3);
       if(addrL.includes(q)) score=Math.max(score,1);
-      if(qClean.length>3&&phoneClean.includes(qClean)) score=Math.max(score,1);
+      if(qClean.length>=3&&phoneClean.includes(qClean)) score=Math.max(score,qClean.length>=7?4:2);
       return {c,score};
     })
     .filter(x=>x.score>0)
