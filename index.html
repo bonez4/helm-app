@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>HELM — P&M Reis Trucking</title>
+<title>HELM — Reis Trucking</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -222,15 +222,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 }
 .print-btn:hover{background:rgba(255,255,255,0.22);}
 
-.day-jump-bar{display:flex;gap:6px;margin-bottom:0.75rem;flex-wrap:wrap;}
-.day-jump-btn{
-  flex:1;padding:7px 6px;background:white;border:1px solid var(--gray-200);
-  border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:12px;
-  font-weight:600;color:var(--navy);cursor:pointer;transition:all .15s;
-  display:flex;align-items:center;justify-content:center;gap:4px;
-  box-shadow:var(--shadow);
-}
-.day-jump-btn:hover{background:var(--navy);color:white;border-color:var(--navy);}
 .day-jump-badge{background:var(--warn-bg);color:var(--warn-text);font-size:10px;font-weight:700;padding:1px 5px;border-radius:20px;}
 .route-arrow{color:var(--gray-300);font-size:14px;flex-shrink:0;}
 .route-row:hover .route-arrow{color:var(--teal);}
@@ -240,8 +231,26 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .log-name-link:hover strong{color:var(--teal);}
 
 /* ── ROUTE VIEW ──────────────────────────── */
+.route-layout{display:flex;gap:0.75rem;align-items:flex-start;}
+.route-sidebar{
+  width:120px;flex-shrink:0;position:sticky;top:52px;
+  display:flex;flex-direction:column;gap:4px;
+}
+.route-sidebar-btn{
+  padding:8px 10px;background:white;border:1px solid var(--gray-200);
+  border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:12px;
+  font-weight:600;color:var(--navy);cursor:pointer;transition:all .15s;
+  display:flex;justify-content:space-between;align-items:center;
+  box-shadow:var(--shadow);text-align:left;
+}
+.route-sidebar-btn:hover{background:var(--navy);color:white;border-color:var(--navy);}
+.route-sidebar-btn:hover .day-jump-badge{background:rgba(255,255,255,0.2);color:white;}
+.route-sidebar-btn.rsb-active{background:var(--navy);color:white;border-color:var(--navy);}
+.route-sidebar-btn.rsb-active .day-jump-badge{background:rgba(255,255,255,0.2);color:white;}
+.route-content{flex:1;min-width:0;}
 .week-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0.75rem;align-items:center;}
 .week-bar-label{font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;margin-right:4px;}
+@media(max-width:700px){.route-layout{flex-direction:column;}.route-sidebar{width:100%;position:static;flex-direction:row;flex-wrap:wrap;}}
 .day-block{margin-bottom:0.75rem;border-radius:var(--radius-sm);overflow:hidden;box-shadow:var(--shadow);}
 .day-head{
   background:var(--navy);padding:8px 12px;
@@ -471,12 +480,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
     <div class="login-brand">
       <div class="login-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
         </svg>
       </div>
       <div class="login-brand-text">
         <div class="helm-title">HELM</div>
-        <div class="helm-sub">P&amp;M Reis Trucking</div>
+        <div class="helm-sub">Reis Trucking</div>
       </div>
     </div>
     <label>Username</label>
@@ -495,12 +504,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
     <div class="topbar-left">
       <div class="topbar-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
-          <circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
         </svg>
       </div>
       <div>
         <div class="topbar-name">HELM</div>
-        <div class="topbar-company">P&amp;M Reis Trucking</div>
+        <div class="topbar-company">Reis Trucking</div>
       </div>
     </div>
     <div class="topbar-right">
@@ -1143,17 +1152,34 @@ function renderRoute(){
       <span class="week-bar-label">Week</span>
       ${weeks.map(w=>`<button class="week-btn${selectedWeek===w?' active':''}" onclick="selectedWeek='${w}';renderRoute()">${fmtDate(w)}</button>`).join('')}
     </div>
-    <div class="day-jump-bar">
-      ${DAYS.map(day=>{
-        const dc=clients.filter(c=>c.service_day===day&&c.status!=='Paused');
-        const skCnt=dc.filter(c=>isSkipped(c.client_id,selectedWeek)).length;
-        return `<button class="day-jump-btn" onclick="document.getElementById('route-day-${day}').scrollIntoView({behavior:'smooth',block:'start'})">
-          ${day.slice(0,3)}
-          ${skCnt>0?`<span class="day-jump-badge">${skCnt}</span>`:''}
-        </button>`;
-      }).join('')}
-    </div>
-    ${dayBlocks}`;
+    <div class="route-layout">
+      <div class="route-sidebar">
+        ${DAYS.map(day=>{
+          const dc=clients.filter(c=>c.service_day===day&&c.status!=='Paused');
+          const total=dc.length;
+          const skCnt=dc.filter(c=>isSkipped(c.client_id,selectedWeek)).length;
+          return `<button class="route-sidebar-btn" onclick="scrollToDay('${day}',this)">
+            <span>${day.slice(0,3)}</span>
+            <span style="display:flex;gap:3px;align-items:center">
+              <span style="font-size:10px;font-weight:400;opacity:.6">${total}</span>
+              ${skCnt>0?`<span class="day-jump-badge">${skCnt}</span>`:''}
+            </span>
+          </button>`;
+        }).join('')}
+        <button class="route-sidebar-btn" style="margin-top:4px;background:var(--teal);color:white;border-color:var(--teal);justify-content:center" onclick="document.getElementById('tab-route').scrollIntoView({behavior:'smooth'})">
+          Top
+        </button>
+      </div>
+      <div class="route-content">
+        ${dayBlocks}
+      </div>
+    </div>`;
+}
+
+function scrollToDay(day,btn){
+  document.getElementById('route-day-'+day).scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.route-sidebar-btn').forEach(b=>b.classList.remove('rsb-active'));
+  if(btn) btn.classList.add('rsb-active');
 }
 
 function jumpToClient(cid){
@@ -1185,7 +1211,7 @@ function printDay(day){
 <html>
 <head>
 <meta charset="UTF-8"/>
-<title>P&M Reis — ${day} Route — ${dateLabel}</title>
+<title>Reis — ${day} Route — ${dateLabel}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Courier New',monospace;font-size:11px;color:#000;padding:16px;}
@@ -1209,7 +1235,7 @@ function printDay(day){
 </head>
 <body>
 <div class="header">
-  <h1>P&amp;M Reis Trucking — ${day} Route</h1>
+  <h1>Reis Trucking — ${day} Route</h1>
   <div class="sub">
     <div>Week of <span>${dateLabel}</span></div>
     <div>Stops <span>${active.length}</span></div>
@@ -1221,7 +1247,7 @@ function printDay(day){
   <tbody>${rows}</tbody>
 </table>
 <div class="footer">
-  <span>P&amp;M Reis Trucking — Nantucket, MA</span>
+  <span>Reis Trucking — Nantucket, MA</span>
   <span>HELM</span>
 </div>
 <script>window.onload=function(){window.print();}<\/script>
@@ -1416,7 +1442,7 @@ h2{font-family:Arial,sans-serif;}
 </div>
 ${sections}
 <div class="footer">
-  <span>P&amp;M Reis Trucking — Nantucket, MA</span>
+  <span>Reis Trucking — Nantucket, MA</span>
   <span>HELM</span>
 </div>
 <script>window.onload=function(){window.print();}<\/script>
