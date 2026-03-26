@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HELM — P&M Reis Trucking</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --navy:       #0f1f3d;
+  --navy-mid:   #1a2f52;
+  --navy-light: #243a63;
+  --teal:       #1a9b8a;
+  --teal-dim:   #147a6d;
+  --teal-pale:  #e6f5f3;
+  --gold:       #d4a843;
+  --gold-pale:  #fdf6e3;
+  --white:      #ffffff;
+  --gray-50:    #f7f8fa;
+  --gray-100:   #eef0f4;
+  --gray-200:   #dde1ea;
+  --gray-300:   #c8cdd8;
+  --gray-400:   #9aa3b5;
+  --gray-500:   #6b7385;
+  --gray-600:   #4a5168;
+  --gray-800:   #1e2435;
+  --warn-bg:    #fff8e6;
+  --warn-text:  #8a6200;
+  --warn-border:#f0c040;
+  --ok-bg:      #e8f5f0;
+  --ok-text:    #156b4f;
+  --err-bg:     #fdecea;
+  --err-text:   #b92b2b;
+  --radius:     10px;
+  --radius-sm:  6px;
+  --radius-lg:  14px;
+  --shadow:     0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:  0 4px 16px rgba(0,0,0,0.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray-800);min-height:100vh;font-size:15px;-webkit-font-smoothing:antialiased;}
+
+/* ── LOGIN ───────────────────────────────── */
+#loginScreen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:var(--navy);
+  background-image:repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.03) 39px,rgba(255,255,255,0.03) 40px),
+                   repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.03) 39px,rgba(255,255,255,0.03) 40px);
+}
+.login-box{
+  background:white;border-radius:var(--radius-lg);
+  padding:2.75rem 2.25rem;width:100%;max-width:380px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.3);
+}
+.login-brand{display:flex;align-items:center;gap:12px;margin-bottom:2rem;}
+.login-icon{
+  width:52px;height:52px;border-radius:12px;
+  background:var(--navy);display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.login-icon svg{width:26px;height:26px;}
+.login-brand-text{}
+.helm-title{font-size:26px;font-weight:600;color:var(--navy);letter-spacing:-.02em;line-height:1;}
+.helm-sub{font-size:12px;color:var(--gray-400);margin-top:3px;letter-spacing:.04em;text-transform:uppercase;}
+.login-box label{display:block;font-size:12px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.login-box input[type=password]{
+  width:100%;padding:11px 14px;
+  border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
+  font-family:'DM Sans',sans-serif;font-size:15px;color:var(--gray-800);
+  background:var(--gray-50);margin-bottom:14px;outline:none;transition:border-color .15s,background .15s;
+}
+.login-box input[type=password]:focus{border-color:var(--teal);background:white;}
+.btn-signin{
+  width:100%;padding:12px;background:var(--navy);color:white;
+  border:none;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;
+  font-size:15px;font-weight:600;cursor:pointer;transition:background .15s;letter-spacing:.01em;
+}
+.btn-signin:hover{background:var(--navy-light);}
+.login-err{color:var(--err-text);font-size:13px;margin-top:10px;text-align:center;}
+.login-footer{margin-top:1.75rem;padding-top:1.25rem;border-top:1px solid var(--gray-100);text-align:center;font-size:12px;color:var(--gray-400);}
+
+/* ── APP SHELL ───────────────────────────── */
+#appScreen{display:none;min-height:100vh;flex-direction:column;}
+
+.topbar{
+  background:var(--navy);height:58px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 1.5rem;position:sticky;top:0;z-index:100;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar-icon{width:34px;height:34px;border-radius:8px;background:var(--navy-light);display:flex;align-items:center;justify-content:center;}
+.topbar-icon svg{width:18px;height:18px;}
+.topbar-name{font-size:18px;font-weight:600;color:white;letter-spacing:-.01em;}
+.topbar-company{font-size:11px;color:rgba(255,255,255,0.4);margin-top:1px;letter-spacing:.03em;text-transform:uppercase;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#2dc653;box-shadow:0 0 0 2px rgba(45,198,83,0.25);}
+.live-label{font-size:12px;color:rgba(255,255,255,0.45);}
+.btn-logout{
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.6);font-size:13px;padding:6px 13px;
+  border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;
+}
+.btn-logout:hover{background:rgba(255,255,255,0.15);color:white;}
+
+.tab-nav{
+  background:white;border-bottom:1px solid var(--gray-200);
+  display:flex;padding:0 1.5rem;gap:0;overflow-x:auto;
+}
+.tab-nav::-webkit-scrollbar{display:none;}
+.tab-nav button{
+  background:none;border:none;font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:500;color:var(--gray-400);
+  padding:13px 16px;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  white-space:nowrap;transition:color .15s,border-color .15s;letter-spacing:.01em;
+}
+.tab-nav button.active{color:var(--navy);border-bottom-color:var(--teal);font-weight:600;}
+.tab-nav button:hover:not(.active){color:var(--gray-600);}
+
+.main{padding:1.25rem;max-width:820px;margin:0 auto;width:100%;}
+
+/* ── SEARCH ─────────────────────────────── */
+.search-wrap{position:relative;margin-bottom:1.25rem;}
+.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--gray-400);pointer-events:none;}
+.search-wrap input{
+  width:100%;padding:13px 14px 13px 42px;
+  border:1.5px solid var(--gray-200);border-radius:var(--radius);
+  font-family:'DM Sans',sans-serif;font-size:15px;color:var(--gray-800);
+  background:white;box-shadow:var(--shadow);outline:none;transition:border-color .15s,box-shadow .15s;
+}
+.search-wrap input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(26,155,138,0.1);}
+.search-wrap input::placeholder{color:var(--gray-300);}
+.search-hint{font-size:12px;color:var(--gray-400);margin-top:6px;margin-left:2px;}
+
+/* ── RESULTS LIST ────────────────────────── */
+.results-list{margin-bottom:1rem;}
+.result-item{
+  background:white;border:1px solid var(--gray-200);border-radius:var(--radius);
+  padding:12px 16px;margin-bottom:6px;cursor:pointer;
+  display:flex;justify-content:space-between;align-items:center;
+  box-shadow:var(--shadow);transition:border-color .15s,transform .1s,box-shadow .15s;
+}
+.result-item:hover{border-color:var(--teal);transform:translateY(-1px);box-shadow:var(--shadow-md);}
+.result-id{font-family:'DM Mono',monospace;font-size:11px;color:var(--gray-400);margin-bottom:3px;}
+.result-addr{font-size:14px;font-weight:500;color:var(--gray-800);}
+.result-day{font-size:12px;font-weight:600;color:var(--teal);background:var(--teal-pale);padding:3px 9px;border-radius:20px;}
+
+/* ── CLIENT CARD ─────────────────────────── */
+.client-card{background:white;border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);overflow:hidden;}
+.card-header{background:var(--navy);padding:1.5rem;display:flex;align-items:center;gap:16px;}
+.avatar{
+  width:52px;height:52px;border-radius:12px;
+  background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:600;color:white;flex-shrink:0;letter-spacing:.02em;
+}
+.card-header-meta h2{font-size:17px;font-weight:600;color:white;letter-spacing:-.01em;}
+.card-header-meta p{font-size:13px;color:rgba(255,255,255,0.5);margin-top:3px;}
+.card-body{padding:1.5rem;}
+
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem;}
+.info-tile{background:var(--gray-50);border:1px solid var(--gray-100);border-radius:var(--radius-sm);padding:11px 13px;}
+.info-tile label{font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:5px;}
+.day-pill{display:inline-block;background:var(--teal-pale);color:var(--teal-dim);font-size:13px;font-weight:600;padding:3px 11px;border-radius:20px;}
+.status-pill{display:inline-block;font-size:13px;font-weight:600;padding:3px 11px;border-radius:20px;}
+.s-active{background:var(--ok-bg);color:var(--ok-text);}
+.s-skipped{background:var(--warn-bg);color:var(--warn-text);}
+.s-paused{background:var(--err-bg);color:var(--err-text);}
+
+.inquiry-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.inq-btn{
+  flex:1;min-width:100px;padding:9px 12px;
+  border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
+  background:white;color:var(--gray-600);font-size:13px;font-weight:500;
+  cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;
+}
+.inq-btn:hover{border-color:var(--teal);color:var(--teal);}
+.inq-active{background:var(--teal-pale)!important;border-color:var(--teal)!important;color:var(--teal-dim)!important;font-weight:600!important;}
+.inq-tag{display:inline-block;background:var(--gray-100);color:var(--gray-500);font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;text-transform:capitalize;vertical-align:middle;}
+.a-pause{background:var(--err-bg);color:var(--err-text);border:1.5px solid #f5b8b8;}
+.a-pause:hover{background:#fdd;}
+.a-resume{background:var(--ok-bg);color:var(--ok-text);border:1.5px solid #9de0c4;}
+.a-resume:hover{background:#d0f0e4;}
+
+.section-title{font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;}
+.divider{border:none;border-top:1px solid var(--gray-100);margin:1.25rem 0;}
+
+.week-grid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.1rem;}
+.week-btn{
+  padding:7px 13px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
+  background:white;color:var(--gray-600);font-size:13px;font-weight:500;
+  cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;
+}
+.week-btn:hover{border-color:var(--teal);color:var(--teal);}
+.week-btn.active{background:var(--teal);border-color:var(--teal);color:white;font-weight:600;}
+
+.action-btn{
+  width:100%;padding:13px;border-radius:var(--radius-sm);border:none;
+  font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;
+  cursor:pointer;transition:all .15s;letter-spacing:.01em;
+}
+.a-skip{background:var(--navy);color:white;}
+.a-skip:hover{background:var(--navy-light);}
+.a-unskip{background:var(--warn-bg);color:var(--warn-text);border:1.5px solid var(--warn-border);}
+.a-unskip:hover{background:#fff3cc;}
+
+.skip-history{margin-top:1.25rem;}
+.skip-hist-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--gray-100);font-size:13px;
+}
+.skip-hist-row:last-child{border-bottom:none;}
+.skip-wk-label{color:var(--gray-600);}
+.skip-tag{background:var(--warn-bg);color:var(--warn-text);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.04em;}
+
+.print-btn{
+  background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+  color:white;font-size:12px;font-weight:600;padding:5px 11px;
+  border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:background .15s;letter-spacing:.02em;
+}
+.print-btn:hover{background:rgba(255,255,255,0.22);}
+
+.day-jump-bar{display:flex;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap;}
+.day-jump-btn{
+  flex:1;padding:10px 8px;background:white;border:1px solid var(--gray-200);
+  border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;
+  font-weight:600;color:var(--navy);cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  box-shadow:var(--shadow);
+}
+.day-jump-btn:hover{background:var(--navy);color:white;border-color:var(--navy);}
+.day-jump-badge{background:var(--warn-bg);color:var(--warn-text);font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;}
+.route-arrow{color:var(--gray-300);font-size:16px;flex-shrink:0;}
+.route-row:hover .route-arrow{color:var(--teal);}
+.log-name-link{cursor:pointer;transition:color .15s;}
+.log-name-link:hover{color:var(--teal);}
+.log-name-link strong{color:var(--navy);}
+.log-name-link:hover strong{color:var(--teal);}
+
+/* ── ROUTE VIEW ──────────────────────────── */
+.week-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center;}
+.week-bar-label{font-size:12px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;margin-right:4px;}
+.day-block{margin-bottom:1.25rem;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+.day-head{
+  background:var(--navy);padding:11px 16px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.day-head-name{font-size:14px;font-weight:600;color:white;}
+.day-head-stats{font-size:12px;color:rgba(255,255,255,0.5);}
+.route-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 16px;background:white;
+  border-left:1px solid var(--gray-200);border-right:1px solid var(--gray-200);
+  border-bottom:1px solid var(--gray-100);font-size:14px;
+}
+.route-row:last-child{border-bottom:1px solid var(--gray-200);}
+.route-row.sk{background:var(--warn-bg);}
+.route-row.sk .r-addr{text-decoration:line-through;color:var(--gray-400);}
+.r-id{font-family:'DM Mono',monospace;font-size:11px;color:var(--gray-400);margin-right:12px;flex-shrink:0;}
+.r-addr{color:var(--gray-800);}
+.skip-flag{font-size:11px;font-weight:700;color:var(--warn-text);letter-spacing:.05em;flex-shrink:0;}
+
+/* ── SKIP LOG ────────────────────────────── */
+.log-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;}
+.log-title{font-size:18px;font-weight:600;color:var(--navy);}
+.log-count-badge{background:var(--gray-100);color:var(--gray-500);font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;}
+.log-item{
+  background:white;border:1px solid var(--gray-200);border-radius:var(--radius);
+  padding:12px 16px;margin-bottom:8px;box-shadow:var(--shadow);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.l-id{font-family:'DM Mono',monospace;font-size:11px;color:var(--gray-400);margin-bottom:3px;}
+.l-addr{font-size:14px;font-weight:500;color:var(--gray-800);}
+.l-day{font-size:12px;font-weight:600;color:var(--teal);margin-bottom:3px;}
+.l-wk{font-size:12px;color:var(--warn-text);font-weight:500;}
+
+.remove-skip-btn{
+  background:none;border:none;color:var(--gray-400);font-size:13px;
+  cursor:pointer;padding:2px 4px;border-radius:4px;transition:color .15s;
+}
+.remove-skip-btn:hover{color:var(--err-text);}
+.date-range-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end;margin-bottom:.75rem;}
+.date-range-arrow{font-size:20px;color:var(--gray-300);padding-bottom:10px;text-align:center;}
+.date-field label{display:block;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
+.date-field input[type=date]{
+  width:100%;padding:9px 11px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
+  font-family:'DM Sans',sans-serif;font-size:14px;color:var(--gray-800);
+  background:var(--gray-50);outline:none;transition:border-color .15s;
+}
+.date-field input[type=date]:focus{border-color:var(--teal);background:white;}
+.skip-preview{min-height:28px;margin-bottom:.25rem;}
+.skip-preview-ok{background:var(--ok-bg);color:var(--ok-text);font-size:13px;font-weight:500;padding:8px 12px;border-radius:var(--radius-sm);}
+.skip-preview-warn{background:var(--err-bg);color:var(--err-text);font-size:13px;padding:8px 12px;border-radius:var(--radius-sm);}
+@media(max-width:520px){.date-range-grid{grid-template-columns:1fr;}.date-range-arrow{display:none;}}
+
+/* ── ADD CLIENT ──────────────────────────── */
+.form-card{background:white;border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:1.75rem;box-shadow:var(--shadow);}
+.form-card h2{font-size:17px;font-weight:600;color:var(--navy);margin-bottom:1.5rem;}
+.form-group{margin-bottom:1.1rem;}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--gray-500);letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px;}
+.form-group input,.form-group select{
+  width:100%;padding:10px 13px;
+  border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
+  font-family:'DM Sans',sans-serif;font-size:15px;color:var(--gray-800);
+  background:var(--gray-50);outline:none;transition:border-color .15s,background .15s;
+}
+.form-group input:focus,.form-group select:focus{border-color:var(--teal);background:white;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.btn-add{
+  background:var(--teal);color:white;border:none;border-radius:var(--radius-sm);
+  padding:12px 22px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;
+  cursor:pointer;transition:background .15s;
+}
+.btn-add:hover{background:var(--teal-dim);}
+.day-toggle-grid{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.day-toggle{
+  flex:1;min-width:80px;padding:12px 8px;
+  border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
+  background:white;cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.day-toggle:hover{border-color:var(--teal);background:var(--teal-pale);}
+.day-toggle-active{background:var(--teal)!important;border-color:var(--teal)!important;}
+.day-toggle-active .day-abbr,.day-toggle-active .day-full{color:white!important;}
+.day-abbr{font-size:15px;font-weight:700;color:var(--navy);}
+.day-full{font-size:11px;color:var(--gray-400);}
+
+.paused-item{
+  background:white;border:1px solid var(--gray-200);border-radius:var(--radius);
+  padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  border-left:3px solid var(--err-text);
+}
+.paused-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+.paused-name{font-size:15px;font-weight:600;color:var(--navy);margin-bottom:2px;}
+.paused-meta{font-size:12px;color:var(--gray-400);margin-top:1px;}
+.paused-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
+.paused-resume-btn{
+  background:var(--ok-bg);color:var(--ok-text);border:1px solid #9de0c4;
+  padding:8px 14px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.paused-resume-btn:hover{background:#d0f0e4;}
+.paused-view-btn{
+  background:var(--gray-100);color:var(--gray-600);border:1px solid var(--gray-200);
+  padding:8px 14px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;
+}
+.paused-view-btn:hover{background:var(--gray-200);}
+@media(max-width:520px){.paused-item{flex-direction:column;align-items:flex-start;}.paused-actions{width:100%;}}
+
+/* ── IMPORT ──────────────────────────────── */
+.import-zone{
+  border:2px dashed var(--gray-200);border-radius:var(--radius-lg);
+  padding:3rem 2rem;text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;background:white;
+}
+.import-zone:hover{border-color:var(--teal);background:var(--teal-pale);}
+.import-zone-icon{width:44px;height:44px;margin:0 auto 1rem;color:var(--gray-300);}
+.import-zone h3{font-size:16px;font-weight:600;color:var(--gray-600);margin-bottom:4px;}
+.import-zone p{font-size:13px;color:var(--gray-400);}
+.import-zone span{font-size:12px;color:var(--teal);font-weight:600;margin-top:6px;display:block;}
+.import-preview{background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:1.25rem;margin-top:1rem;box-shadow:var(--shadow);}
+.import-preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;}
+.import-preview h3{font-size:15px;font-weight:600;color:var(--navy);}
+.preview-row{font-size:13px;padding:7px 0;border-bottom:1px solid var(--gray-100);display:flex;gap:14px;align-items:center;}
+.preview-row:last-child{border-bottom:none;}
+.p-id{font-family:'DM Mono',monospace;color:var(--gray-400);font-size:11px;width:40px;flex-shrink:0;}
+.p-addr{color:var(--gray-800);flex:1;}
+.p-day{color:var(--teal);font-weight:600;font-size:12px;}
+
+/* ── TOAST ───────────────────────────────── */
+.toast{
+  position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%) translateY(10px);
+  background:var(--navy);color:white;padding:11px 22px;
+  border-radius:var(--radius);font-size:14px;font-weight:500;
+  box-shadow:var(--shadow-md);opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;z-index:9999;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:var(--teal);}
+
+/* ── MISC ────────────────────────────────── */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--gray-400);font-size:14px;}
+.loading{text-align:center;padding:2rem;color:var(--gray-400);font-size:14px;}
+.chip{display:inline-block;background:var(--gray-100);color:var(--gray-500);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+
+@media(max-width:520px){
+  .info-grid{grid-template-columns:1fr;}
+  .form-row{grid-template-columns:1fr;}
+  .main{padding:1rem;}
+  .topbar{padding:0 1rem;}
+  .topbar-company{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-brand">
+      <div class="login-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+        </svg>
+      </div>
+      <div class="login-brand-text">
+        <div class="helm-title">HELM</div>
+        <div class="helm-sub">P&amp;M Reis Trucking</div>
+      </div>
+    </div>
+    <label>Username</label>
+    <input type="text" id="unInput" placeholder="Enter username…" onkeydown="if(event.key==='Enter')login()" style="margin-bottom:10px"/>
+    <label>Password</label>
+    <input type="password" id="pwInput" placeholder="Enter password…" onkeydown="if(event.key==='Enter')login()"/>
+    <button class="btn-signin" onclick="login()">Sign In</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-footer">Route Management System &nbsp;·&nbsp; Nantucket, MA</div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="appScreen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+          <circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+        </svg>
+      </div>
+      <div>
+        <div class="topbar-name">HELM</div>
+        <div class="topbar-company">P&amp;M Reis Trucking</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-dot"></div>
+      <div class="live-label" id="topbarUser"></div>
+      <button class="btn-logout" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="tab-nav">
+    <button class="active" onclick="switchTab('lookup',this)">Client Lookup</button>
+    <button onclick="switchTab('add',this)">Add Client</button>
+    <button onclick="switchTab('log',this)">Skip Log</button>
+    <button onclick="switchTab('route',this)">Route View</button>
+    <button onclick="switchTab('paused',this)">Paused</button>
+    <button onclick="switchTab('import',this)">Import</button>
+  </div>
+
+  <div class="main">
+    <div id="tab-lookup"></div>
+    <div id="tab-route"  style="display:none"></div>
+    <div id="tab-log"    style="display:none"></div>
+    <div id="tab-add"    style="display:none"></div>
+    <div id="tab-paused" style="display:none"></div>
+    <div id="tab-import" style="display:none"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG — REPLACE THESE THREE VALUES ────────────────────────────────
+const SUPABASE_URL   = 'https://iiqlhqtyyqctgupalrlc.supabase.co';
+const SUPABASE_ANON  = 'sb_publishable_JAASDdg8OERvpDTnEeLd5Q_Re48qR1I';
+const OFFICE_PW      = 'nantucket';
+// ───────────────────────────────────────────────────────────────────────
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+let clients = [], skips = [], selectedWeek = '', activeClient = null;
+let currentUser = null; // {username, display_name}
+
+// ── AUTH ──────────────────────────────────────────────────────────────
+async function login() {
+  const un = document.getElementById('unInput').value.trim().toLowerCase();
+  const pw = document.getElementById('pwInput').value;
+  const errEl = document.getElementById('loginErr');
+  if(!un||!pw){errEl.textContent='Enter username and password.';return;}
+  const {data,error} = await db.from('users').select('*').eq('username',un).eq('password',pw).single();
+  if(error||!data){errEl.textContent='Incorrect username or password.';return;}
+  currentUser = data;
+  sessionStorage.setItem('helm_auth', JSON.stringify(data));
+  show('appScreen'); hide('loginScreen');
+  document.getElementById('appScreen').style.flexDirection='column';
+  document.getElementById('topbarUser').textContent = data.display_name;
+  init();
+}
+function logout() { sessionStorage.removeItem('helm_auth'); location.reload(); }
+function show(id){ document.getElementById(id).style.display='flex'; }
+function hide(id){ document.getElementById(id).style.display='none'; }
+
+// ── INIT ──────────────────────────────────────────────────────────────
+async function init() {
+  selectedWeek = getMondayISO(new Date());
+  renderLookup();
+  await Promise.all([loadClients(), loadSkips()]);
+}
+
+function getMondayISO(d) {
+  const day=d.getDay();
+  // Sunday (0) should look forward to next Monday, not back to last Monday
+  const diff = day===0 ? 1 : 1-day;
+  const m=new Date(d);
+  m.setDate(d.getDate()+diff);
+  m.setHours(0,0,0,0);
+  return m.toISOString().split('T')[0];
+}
+function getWeekOptions() {
+  const today=new Date();
+  const day=today.getDay();
+  const diff=day===0?1:1-day;
+  const mon=new Date(today);
+  mon.setDate(today.getDate()+diff);
+  mon.setHours(0,0,0,0);
+  return Array.from({length:6},(_,i)=>{
+    const d=new Date(mon); d.setDate(mon.getDate()+i*7);
+    return d.toISOString().split('T')[0];
+  });
+}
+function fmtWeek(iso){
+  const d=new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+// ── DATA ──────────────────────────────────────────────────────────────
+async function loadClients() {
+  let all=[], from=0, batch=1000;
+  while(true){
+    const {data,error}=await db.from('clients').select('*').order('client_id').range(from,from+batch-1);
+    if(error||!data||data.length===0) break;
+    all=[...all,...data];
+    if(data.length<batch) break;
+    from+=batch;
+  }
+  clients=all;
+  const hint=document.getElementById('srchHint');
+  if(hint) hint.textContent=`Type at least 2 characters to search across ${clients.length.toLocaleString()} clients`;
+  updatePausedBadge();
+}
+async function loadSkips() {
+  const {data,error}=await db.from('skips').select('*').order('skip_week',{ascending:false});
+  if(!error) skips=data||[];
+}
+function isSkipped(cid,week){ return skips.some(s=>s.client_id===cid&&s.skip_week===week); }
+
+// ── TABS ──────────────────────────────────────────────────────────────
+function switchTab(name,btn){
+  ['lookup','route','log','add','paused','import'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===name?'':'none';
+  });
+  document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(name==='lookup') renderLookup();
+  if(name==='route')  renderRoute();
+  if(name==='log')    renderLog();
+  if(name==='add')    renderAdd();
+  if(name==='paused') renderPaused();
+  if(name==='import') renderImport();
+}
+
+// ── LOOKUP ────────────────────────────────────────────────────────────
+function renderLookup(){
+  document.getElementById('tab-lookup').innerHTML=`
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="srch" placeholder="Search by client ID, address, or phone…" oninput="doSearch(this.value)" autocomplete="off"/>
+    </div>
+    <div class="search-hint" id="srchHint">${clients.length>0?`Type at least 2 characters to search across ${clients.length.toLocaleString()} clients`:'Loading clients…'}</div>
+    <div id="srchResults" style="margin-top:.75rem"></div>
+    <div id="clientCard"  style="margin-top:.25rem"></div>`;
+}
+
+function doSearch(q){
+  q=q.trim().toLowerCase();
+  const res=document.getElementById('srchResults');
+  const card=document.getElementById('clientCard');
+  if(q.length<2){res.innerHTML='';card.innerHTML='';return;}
+
+  const scored=clients
+    .map(c=>{
+      const idL=c.client_id.toLowerCase();
+      const addrL=c.address.toLowerCase();
+      const nameL=(c.client_name||'').toLowerCase();
+      const phoneClean=(c.phone||'').replace(/\D/g,'');
+      const qClean=q.replace(/\D/g,'');
+      let score=0;
+      if(idL===q) score=4;
+      else if(idL.startsWith(q)) score=3;
+      else if(idL.includes(q)) score=2;
+      if(nameL&&nameL.includes(q)) score=Math.max(score,3);
+      if(addrL.includes(q)) score=Math.max(score,1);
+      if(qClean.length>3&&phoneClean.includes(qClean)) score=Math.max(score,1);
+      return {c,score};
+    })
+    .filter(x=>x.score>0)
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,10)
+    .map(x=>x.c);
+
+  if(!scored.length){res.innerHTML='<div class="empty-state">No clients found</div>';card.innerHTML='';return;}
+  if(scored.length===1){res.innerHTML='';showCard(scored[0]);return;}
+  res.innerHTML='<div class="results-list">'+scored.map(c=>`
+    <div class="result-item" onclick="pickClient('${c.client_id}')">
+      <div>
+        <div class="result-id">${c.client_name?`${c.client_name} &mdash; `:''}${c.client_id}</div>
+        <div class="result-addr">${c.address}</div>
+      </div>
+      <div class="result-day">${c.service_day}</div>
+    </div>`).join('')+'</div>';
+  card.innerHTML='';
+}
+
+function pickClient(id){
+  const c=clients.find(x=>x.client_id===id);
+  document.getElementById('srchResults').innerHTML='';
+  document.getElementById('srch').value=`${c.client_id} — ${c.address}`;
+  showCard(c);
+}
+
+function showCard(c){
+  activeClient=c;
+  const paused=c.status==='Paused';
+  const ini=(c.client_name||c.address).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const cSkips=skips.filter(s=>s.client_id===c.client_id).sort((a,b)=>a.skip_week>b.skip_week?1:-1);
+  const displayName=c.client_name||`Client ${c.client_id}`;
+
+  // Group consecutive skips into ranges for display
+  const skipRanges=groupSkipRanges(cSkips);
+
+  // Is any skip active this current week?
+  const todayWeek=getMondayISO(new Date());
+  const activeSkip=cSkips.some(s=>s.skip_week===todayWeek);
+
+  document.getElementById('clientCard').innerHTML=`
+    <div class="client-card">
+      <div class="card-header">
+        <div class="avatar">${ini}</div>
+        <div class="card-header-meta">
+          <h2>${displayName}</h2>
+          <p style="opacity:.7;font-size:12px;margin-bottom:2px">ID: ${c.client_id}</p>
+          <p>${c.address}, Nantucket MA &nbsp;&middot;&nbsp; ${c.phone||'No phone on file'}</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="info-tile"><label>Pickup Day</label><span class="day-pill">${c.service_day}</span></div>
+          <div class="info-tile"><label>Account Status</label>
+            <span class="status-pill ${paused?'s-paused':activeSkip?'s-skipped':'s-active'}">
+              ${paused?'Service Paused':activeSkip?'Skipped this week':'Active'}
+            </span>
+          </div>
+        </div>
+
+        ${!paused?`
+        <hr class="divider"/>
+        <div class="section-title">Schedule a skip</div>
+        <div class="date-range-grid">
+          <div class="date-field">
+            <label>First skip — week of</label>
+            <input type="date" id="skipStart" onchange="updateSkipPreview()"/>
+          </div>
+          <div class="date-range-arrow">&#8594;</div>
+          <div class="date-field">
+            <label>Last skip — week of</label>
+            <input type="date" id="skipEnd" onchange="updateSkipPreview()"/>
+          </div>
+        </div>
+        <div id="skipPreview" class="skip-preview"></div>
+
+        <div class="section-title" style="margin-top:1rem">How did the client contact us?</div>
+        <div class="inquiry-grid">
+          <button class="inq-btn inq-active" id="inq-phone" onclick="selectInquiry('phone')">&#128222; Phone Call</button>
+          <button class="inq-btn" id="inq-email" onclick="selectInquiry('email')">&#9993; Email</button>
+          <button class="inq-btn" id="inq-person" onclick="selectInquiry('person')">&#128100; In Person</button>
+        </div>
+
+        <button class="action-btn a-skip" style="margin-top:1rem" onclick="addSkipRange('${c.client_id}')">
+          &#10003;&nbsp; Confirm Skip
+        </button>`:''}
+
+        <hr class="divider"/>
+        <div class="section-title">Service Control</div>
+        ${paused?`
+          <button class="action-btn a-resume" onclick="setStatus('${c.client_id}','Active')">&#9654;&nbsp; Resume Service</button>
+          <p style="font-size:12px;color:var(--gray-400);margin-top:8px">This client is paused and will not appear on routes until service is resumed.</p>
+        `:`
+          <button class="action-btn a-pause" onclick="setStatus('${c.client_id}','Paused')">&#9646;&#9646;&nbsp; Pause Service</button>
+          <p style="font-size:12px;color:var(--gray-400);margin-top:8px">Pausing removes this client from all routes until you resume their service.</p>
+        `}
+
+        ${skipRanges.length?`
+          <div class="skip-history">
+            <div class="section-title" style="margin-top:1.25rem;display:flex;justify-content:space-between;align-items:center">
+              <span>Skips on file <span class="chip">${cSkips.length} week${cSkips.length!==1?'s':''}</span></span>
+            </div>
+            ${skipRanges.map(r=>`
+              <div class="skip-hist-row">
+                <div>
+                  <span class="skip-wk-label">${r.label}</span>
+                  ${r.method?`<span class="inq-tag">${r.method}</span>`:''}
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  ${r.loggedBy?`<span style="font-size:11px;color:var(--gray-400)">${r.loggedBy}</span>`:''}
+                  <span class="skip-tag">SKIP</span>
+                  <button class="remove-skip-btn" onclick="removeSkipRange('${c.client_id}','${r.weeks.join(',')}')">&#10005;</button>
+                </div>
+              </div>`).join('')}
+          </div>`:''}
+      </div>
+    </div>`;
+
+  // Leave dates blank on load — user must select them
+  document.getElementById('skipStart').value='';
+  document.getElementById('skipEnd').value='';
+  document.getElementById('skipPreview').innerHTML='';
+}
+
+function groupSkipRanges(cSkips){
+  if(!cSkips.length) return [];
+  // Group skips that share same inquiry_method and logged_by and are consecutive weeks
+  const sorted=[...cSkips].sort((a,b)=>a.skip_week>b.skip_week?1:-1);
+  const ranges=[];
+  let cur={weeks:[sorted[0].skip_week],method:sorted[0].inquiry_method,loggedBy:sorted[0].logged_by};
+  for(let i=1;i<sorted.length;i++){
+    const prev=new Date(sorted[i-1].skip_week+'T00:00:00');
+    const curr=new Date(sorted[i].skip_week+'T00:00:00');
+    const diff=(curr-prev)/(1000*60*60*24*7);
+    if(diff===1&&sorted[i].inquiry_method===cur.method&&sorted[i].logged_by===cur.loggedBy){
+      cur.weeks.push(sorted[i].skip_week);
+    } else {
+      ranges.push(cur);
+      cur={weeks:[sorted[i].skip_week],method:sorted[i].inquiry_method,loggedBy:sorted[i].logged_by};
+    }
+  }
+  ranges.push(cur);
+  return ranges.map(r=>({
+    ...r,
+    label: r.weeks.length===1
+      ? `Week of ${fmtWeek(r.weeks[0])}`
+      : `${fmtWeek(r.weeks[0])} — ${fmtWeek(r.weeks[r.weeks.length-1])} (${r.weeks.length} weeks)`
+  }));
+}
+
+function getWeeksInRange(startISO, endISO){
+  const weeks=[];
+  const start=new Date(startISO+'T00:00:00');
+  const end=new Date(endISO+'T00:00:00');
+  // Snap both to Monday
+  const snapMon=d=>{const diff=(d.getDay()===0?-6:1-d.getDay());d.setDate(d.getDate()+diff);return d;};
+  const s=snapMon(new Date(start));
+  const e=snapMon(new Date(end));
+  if(s>e) return [];
+  const cur=new Date(s);
+  while(cur<=e){
+    weeks.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate()+7);
+  }
+  return weeks;
+}
+
+function updateSkipPreview(){
+  const start=document.getElementById('skipStart')?.value;
+  const end=document.getElementById('skipEnd')?.value;
+  const preview=document.getElementById('skipPreview');
+  if(!preview) return;
+  if(!start||!end){preview.innerHTML='';return;}
+  const weeks=getWeeksInRange(start,end);
+  if(!weeks.length){
+    preview.innerHTML=`<div class="skip-preview-warn">End date must be on or after start date</div>`;
+    return;
+  }
+  const label=weeks.length===1
+    ? `Skipping 1 week — ${fmtWeek(weeks[0])}`
+    : `Skipping ${weeks.length} weeks — ${fmtWeek(weeks[0])} through ${fmtWeek(weeks[weeks.length-1])}`;
+  preview.innerHTML=`<div class="skip-preview-ok">&#10003;&nbsp; ${label}</div>`;
+}
+
+let selectedInquiry='phone';
+function selectInquiry(method){
+  selectedInquiry=method;
+  document.querySelectorAll('.inq-btn').forEach(b=>b.classList.remove('inq-active'));
+  const el=document.getElementById('inq-'+method);
+  if(el) el.classList.add('inq-active');
+}
+
+async function addSkipRange(cid){
+  const start=document.getElementById('skipStart')?.value;
+  const end=document.getElementById('skipEnd')?.value;
+  if(!start||!end){toast('Please select a start and end date first');return;}
+  const weeks=getWeeksInRange(start,end);
+  if(!weeks.length){toast('End date must be on or after start date');return;}
+
+  const records=weeks.map(w=>({
+    client_id:cid,
+    skip_week:w,
+    inquiry_method:selectedInquiry,
+    logged_by:currentUser?currentUser.display_name:null
+  }));
+
+  const {error}=await db.from('skips').upsert(records,{onConflict:'client_id,skip_week'});
+  if(error){toast('Error: '+error.message);return;}
+  await loadSkips();
+  showCard(activeClient);
+  const label=weeks.length===1?`week of ${fmtWeek(weeks[0])}`:`${weeks.length} weeks`;
+  toast(`Skip logged for ${label}`,true);
+}
+
+async function removeSkipRange(cid, weeksStr){
+  const weeks=weeksStr.split(',');
+  for(const w of weeks){
+    await db.from('skips').delete().eq('client_id',cid).eq('skip_week',w);
+  }
+  await loadSkips();
+  showCard(activeClient);
+  toast(`Skip${weeks.length>1?'s':''} removed`);
+}
+
+async function setStatus(cid, status){
+  const {error}=await db.from('clients').update({status}).eq('client_id',cid);
+  if(error){toast('Error: '+error.message);return;}
+  await loadClients();
+  activeClient=clients.find(c=>c.client_id===cid);
+  showCard(activeClient);
+  updatePausedBadge();
+  toast(status==='Paused'?`Service paused for Client ${cid}`:`Service resumed for Client ${cid}`,status==='Active');
+}
+
+// ── ROUTE VIEW ────────────────────────────────────────────────────────
+function renderRoute(){
+  const weeks=getWeekOptions();
+  const div=document.getElementById('tab-route');
+  const dayBlocks=DAYS.map(day=>{
+    const dc=clients.filter(c=>c.service_day===day&&c.status!=='Paused');
+    const active=dc.filter(c=>!isSkipped(c.client_id,selectedWeek));
+    const skCnt=dc.length-active.length;
+    const rows=dc.map(c=>{
+      const sk=isSkipped(c.client_id,selectedWeek);
+      return `<div class="route-row${sk?' sk':''}" onclick="jumpToClient('${c.client_id}')" style="cursor:pointer">
+        <span><span class="r-id">${c.client_id}</span><span class="r-addr">${c.client_name?`<strong>${c.client_name}</strong> &mdash; `:''}${c.address}</span></span>
+        ${sk?'<span class="skip-flag">SKIP</span>':'<span class="route-arrow">›</span>'}
+      </div>`;
+    }).join('')||'<div class="route-row" style="color:var(--gray-400);font-size:13px;font-style:italic">No clients assigned</div>';
+    return `<div class="day-block" id="route-day-${day}">
+      <div class="day-head">
+        <span class="day-head-name">${day}</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="day-head-stats">${active.length} stops &nbsp;&middot;&nbsp; ${skCnt} skipped</span>
+          <button class="print-btn" onclick="event.stopPropagation();printDay('${day}')">&#128438; Print</button>
+        </div>
+      </div>${rows}
+    </div>`;
+  }).join('');
+
+  div.innerHTML=`
+    <div class="week-bar">
+      <span class="week-bar-label">Week</span>
+      ${weeks.map(w=>`<button class="week-btn${selectedWeek===w?' active':''}" onclick="selectedWeek='${w}';renderRoute()">${fmtWeek(w)}</button>`).join('')}
+    </div>
+    <div class="day-jump-bar">
+      ${DAYS.map(day=>{
+        const dc=clients.filter(c=>c.service_day===day&&c.status!=='Paused');
+        const skCnt=dc.filter(c=>isSkipped(c.client_id,selectedWeek)).length;
+        return `<button class="day-jump-btn" onclick="document.getElementById('route-day-${day}').scrollIntoView({behavior:'smooth',block:'start'})">
+          ${day.slice(0,3)}
+          ${skCnt>0?`<span class="day-jump-badge">${skCnt}</span>`:''}
+        </button>`;
+      }).join('')}
+    </div>
+    ${dayBlocks}`;
+}
+
+function jumpToClient(cid){
+  const c=clients.find(x=>x.client_id===cid);
+  if(!c) return;
+  // Switch to lookup tab and show card
+  document.querySelectorAll('.tab-nav button').forEach((b,i)=>{
+    b.classList.toggle('active',i===0);
+  });
+  ['lookup','route','log','add','import'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t==='lookup'?'':'none';
+  });
+  renderLookup();
+  setTimeout(()=>{
+    document.getElementById('srch').value=`${c.client_id} — ${c.address}`;
+    showCard(c);
+    window.scrollTo({top:0,behavior:'smooth'});
+  },50);
+}
+
+function printDay(day){
+  const active=clients.filter(c=>
+    c.service_day===day &&
+    c.status!=='Paused' &&
+    !isSkipped(c.client_id,selectedWeek)
+  );
+  const weekLabel=fmtWeek(selectedWeek);
+  const rows=active.map((c,i)=>`
+    <tr>
+      <td class="num">${i+1}</td>
+      <td class="id">${c.client_id}</td>
+      <td class="name">${c.client_name||''}</td>
+      <td class="addr">${c.address}</td>
+      <td class="phone">${c.phone||''}</td>
+      <td class="check"></td>
+    </tr>`).join('');
+
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<title>P&M Reis Trucking — ${day} Route — Week of ${weekLabel}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Arial,sans-serif;font-size:12px;color:#000;padding:20px;}
+  .header{border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:16px;}
+  .header h1{font-size:18px;font-weight:700;letter-spacing:.02em;}
+  .header .sub{font-size:12px;color:#444;margin-top:4px;display:flex;gap:20px;}
+  .header .sub span{font-weight:600;color:#000;}
+  table{width:100%;border-collapse:collapse;}
+  th{background:#0f1f3d;color:white;padding:7px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;}
+  td{padding:6px 8px;border-bottom:1px solid #e0e0e0;vertical-align:middle;}
+  tr:nth-child(even) td{background:#f9f9f9;}
+  .num{width:32px;font-weight:700;color:#666;text-align:center;}
+  .id{width:52px;font-family:monospace;font-size:11px;color:#888;}
+  .name{width:160px;font-weight:600;}
+  .addr{width:auto;}
+  .phone{width:120px;color:#555;}
+  .check{width:48px;text-align:center;}
+  .check-box{width:18px;height:18px;border:1.5px solid #999;display:inline-block;}
+  .footer{margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+  @media print{
+    body{padding:12px;}
+    button{display:none;}
+    @page{margin:1.5cm;}
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>P&amp;M Reis Trucking &mdash; ${day} Route</h1>
+  <div class="sub">
+    <div>Week of <span>${weekLabel}</span></div>
+    <div>Total stops <span>${active.length}</span></div>
+    <div>Printed <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
+  </div>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Address</th>
+      <th>Phone</th>
+      <th>&#10003;</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="footer">
+  <span>P&amp;M Reis Trucking &mdash; Nantucket, MA</span>
+  <span>HELM Route Management System</span>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body>
+</html>`);
+  win.document.close();
+}
+
+// ── PAUSED CLIENTS ────────────────────────────────────────────────────
+function renderPaused(){
+  const div=document.getElementById('tab-paused');
+  const paused=clients.filter(c=>c.status==='Paused').sort((a,b)=>a.client_id>b.client_id?1:-1);
+
+  if(!paused.length){
+    div.innerHTML=`
+      <div class="empty-state">
+        <div style="font-size:32px;margin-bottom:12px">&#10003;</div>
+        <div style="font-weight:600;color:var(--gray-600);margin-bottom:4px">No paused clients</div>
+        <div>All clients are currently active on their routes</div>
+      </div>`;
+    return;
+  }
+
+  div.innerHTML=`
+    <div class="log-top">
+      <div class="log-title">Paused Service</div>
+      <div class="log-count-badge">${paused.length} client${paused.length!==1?'s':''}</div>
+    </div>
+    <p style="font-size:13px;color:var(--gray-400);margin-bottom:1rem">These clients will not appear on any route until service is resumed.</p>
+    ${paused.map(c=>{
+      const ini=(c.client_name||c.address).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      return `
+      <div class="paused-item">
+        <div class="paused-left">
+          <div class="avatar" style="width:42px;height:42px;font-size:13px;border-radius:10px;background:var(--err-bg);color:var(--err-text);display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${ini}</div>
+          <div>
+            <div class="paused-name">${c.client_name||`Client ${c.client_id}`}</div>
+            <div class="paused-meta">ID: ${c.client_id} &nbsp;&middot;&nbsp; ${c.service_day} &nbsp;&middot;&nbsp; ${c.address}</div>
+            ${c.phone?`<div class="paused-meta">${c.phone}</div>`:''}
+          </div>
+        </div>
+        <div class="paused-actions">
+          <button class="paused-view-btn" onclick="jumpToClient('${c.client_id}')">View</button>
+          <button class="paused-resume-btn" onclick="resumeFromPaused('${c.client_id}')">&#9654; Resume Service</button>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+async function resumeFromPaused(cid){
+  const {error}=await db.from('clients').update({status:'Active'}).eq('client_id',cid);
+  if(error){toast('Error: '+error.message);return;}
+  await loadClients();
+  renderPaused();
+  // update paused tab badge
+  updatePausedBadge();
+  toast(`Service resumed`,true);
+}
+
+function updatePausedBadge(){
+  const count=clients.filter(c=>c.status==='Paused').length;
+  const btns=[...document.querySelectorAll('.tab-nav button')];
+  const pausedBtn=btns.find(b=>b.textContent.startsWith('Paused'));
+  if(pausedBtn){
+    pausedBtn.innerHTML=count>0
+      ?`Paused <span style="background:var(--err-bg);color:var(--err-text);font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;margin-left:4px">${count}</span>`
+      :'Paused';
+  }
+}
+
+// ── SKIP LOG ──────────────────────────────────────────────────────────
+function renderLog(){
+  const div=document.getElementById('tab-log');
+  if(!skips.length){div.innerHTML='<div class="empty-state">No skips logged yet</div>';return;}
+
+  // Group by client for display
+  const byClient={};
+  skips.forEach(s=>{
+    if(!byClient[s.client_id]) byClient[s.client_id]=[];
+    byClient[s.client_id].push(s);
+  });
+
+  const items=Object.entries(byClient).map(([cid,cSkips])=>{
+    const c=clients.find(x=>x.client_id===cid)||{};
+    const ranges=groupSkipRanges([...cSkips].sort((a,b)=>a.skip_week>b.skip_week?1:-1));
+    return {c,cid,ranges,total:cSkips.length};
+  }).sort((a,b)=>a.cid>b.cid?1:-1);
+
+  div.innerHTML=`
+    <div class="log-top">
+      <div class="log-title">Skip Log</div>
+      <div class="log-count-badge">${skips.length} week${skips.length!==1?'s':''} across ${items.length} clients</div>
+    </div>
+    ${items.map(({c,cid,ranges,total})=>`
+      <div class="log-item" style="flex-direction:column;align-items:stretch;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="l-id">${cid}</div>
+            <div class="l-addr">
+              <span class="log-name-link" onclick="jumpToClient('${cid}')">${c.client_name?`<strong>${c.client_name}</strong> — `:''}${c.address||'—'}</span>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="l-day">${c.service_day||'—'}</div>
+            <div style="font-size:11px;color:var(--gray-400)">${total} week${total!==1?'s':''}</div>
+          </div>
+        </div>
+        ${ranges.map(r=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--gray-50);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px">
+            <span style="color:var(--gray-600)">${r.label}</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              ${r.method?`<span class="inq-tag">${r.method}</span>`:''}
+              ${r.loggedBy?`<span style="font-size:11px;color:var(--gray-400)">${r.loggedBy}</span>`:''}
+              <span class="skip-tag">SKIP</span>
+            </div>
+          </div>`).join('')}
+      </div>`).join('')}`;
+}
+
+// ── ADD CLIENT ────────────────────────────────────────────────────────
+function renderAdd(){
+  const nextId=clients.length>0
+    ? String(Math.max(...clients.map(c=>parseInt(c.client_id.replace(/-\d+$/,''))||0))+1).padStart(4,'0')
+    : '0001';
+  document.getElementById('tab-add').innerHTML=`
+    <div class="form-card">
+      <h2>Add New Client</h2>
+      <div class="form-row">
+        <div class="form-group"><label>Client ID</label><input id="nId" value="${nextId}"/></div>
+        <div class="form-group"><label>Client Name <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label><input id="nName" placeholder="e.g. John Smith"/></div>
+      </div>
+      <div class="form-group"><label>Street Address</label><input id="nAddr" placeholder="e.g. 47 Polpis Rd"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Phone</label><input id="nPhone" placeholder="(508) 228-0000"/></div>
+        <div class="form-group"><label>Email <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label><input id="nEmail" placeholder="email@example.com"/></div>
+      </div>
+      <div class="form-group">
+        <label>Pickup Day(s)</label>
+        <div class="day-toggle-grid">
+          ${DAYS.map(d=>`
+            <button type="button" class="day-toggle" data-day="${d}" onclick="toggleDay(this)">
+              <span class="day-abbr">${d.slice(0,3)}</span>
+              <span class="day-full">${d}</span>
+            </button>`).join('')}
+        </div>
+        <div style="font-size:12px;color:var(--gray-400);margin-top:8px">Select all days this client gets picked up — one, two, or three times a week</div>
+      </div>
+      <button class="btn-add" onclick="addClient()">Add Client</button>
+      <div id="addMsg" style="margin-top:10px;font-size:13px;min-height:20px;"></div>
+    </div>`;
+}
+
+function toggleDay(btn){ btn.classList.toggle('day-toggle-active'); }
+
+async function addClient(){
+  const id=document.getElementById('nId').value.trim();
+  const name=document.getElementById('nName').value.trim();
+  const addr=document.getElementById('nAddr').value.trim();
+  const phone=document.getElementById('nPhone').value.trim();
+  const email=document.getElementById('nEmail').value.trim();
+  const selectedDays=[...document.querySelectorAll('.day-toggle-active')].map(b=>b.dataset.day);
+  if(!id||!addr){toast('Client ID and address are required');return;}
+  if(!selectedDays.length){toast('Select at least one pickup day');return;}
+
+  // ── Duplicate check ──
+  const addrLower=addr.toLowerCase().trim();
+  const nameLower=name.toLowerCase().trim();
+  const dupes=clients.filter(c=>{
+    const sameAddr=c.address.toLowerCase().trim()===addrLower;
+    const sameName=nameLower&&c.client_name&&c.client_name.toLowerCase().trim()===nameLower;
+    return sameAddr||sameName;
+  });
+
+  if(dupes.length){
+    const dupeList=dupes.map(c=>`${c.client_name||''}${c.client_name?' — ':''}${c.client_id} (${c.service_day})`).join(', ');
+    const msg=document.getElementById('addMsg');
+    msg.style.color='var(--warn-text)';
+    msg.innerHTML=`
+      <div style="background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px">
+        <strong>Possible duplicate detected</strong><br/>
+        <span style="font-size:13px">Existing match: ${dupeList}</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-add" style="flex:1;background:var(--gray-400)" onclick="renderAdd()">Cancel</button>
+        <button class="btn-add" style="flex:2" onclick="forceAddClient('${id}','${selectedDays.join(',')}','${addr.replace(/'/g,"\\'")}','${phone}','${email}','${name.replace(/'/g,"\\'")}')">Add Anyway</button>
+      </div>`;
+    return;
+  }
+
+  await saveClient(id,selectedDays,addr,phone,email,name);
+}
+
+async function forceAddClient(id,daysStr,addr,phone,email,name){
+  await saveClient(id,daysStr.split(','),addr,phone,email,name);
+}
+
+async function saveClient(id,selectedDays,addr,phone,email,name){
+  const msg=document.getElementById('addMsg');
+  if(msg){msg.style.color='var(--gray-400)';msg.textContent='Saving…';}
+  const records=selectedDays.map((day,i)=>({
+    client_id: selectedDays.length===1 ? id : `${id}-${i+1}`,
+    service_day: day,
+    address: addr,
+    phone: phone||null,
+    email: email||null,
+    client_name: name||null,
+  }));
+  const {error}=await db.from('clients').insert(records);
+  if(error){toast('Error: '+error.message);if(msg)msg.textContent='';return;}
+  await loadClients();
+  if(msg){msg.style.color='var(--ok-text)';msg.textContent=`Client ${id} added — pickup on ${selectedDays.join(', ')}`;}
+  toast(`Client ${id} added`,true);
+  setTimeout(()=>renderAdd(), 1800);
+  const hint=document.getElementById('srchHint');
+  if(hint) hint.textContent=`Type at least 2 characters to search across ${clients.length.toLocaleString()} clients`;
+}
+
+// ── IMPORT ────────────────────────────────────────────────────────────
+function renderImport(){
+  document.getElementById('tab-import').innerHTML=`
+    <div class="form-card" style="margin-bottom:1rem">
+      <h2>Import Clients from CSV</h2>
+      <p style="font-size:14px;color:var(--gray-400);margin-bottom:1.5rem">
+        Your CSV must have these column headers:<br/>
+        <code style="font-family:'DM Mono',monospace;font-size:13px;background:var(--gray-100);padding:4px 8px;border-radius:4px;display:inline-block;margin-top:6px">client_id, service_day, address, phone</code>
+      </p>
+      <div class="import-zone" onclick="document.getElementById('csvIn').click()">
+        <svg class="import-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <h3>Click to upload CSV</h3>
+        <p>or drag and drop your file here</p>
+        <span>Supports up to 10,000 clients</span>
+        <input type="file" id="csvIn" accept=".csv" style="display:none" onchange="handleCSV(this)"/>
+      </div>
+    </div>
+    <div id="importPreview"></div>`;
+}
+
+function handleCSV(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.split('\n').filter(l=>l.trim());
+    const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase());
+    const rows=lines.slice(1).map(line=>{
+      const vals=line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+      const obj={};
+      headers.forEach((h,i)=>obj[h]=vals[i]||'');
+      return obj;
+    }).filter(r=>r.client_id&&r.address);
+
+    const preview=document.getElementById('importPreview');
+    const safeRows=JSON.stringify(rows).replace(/'/g,"\\'");
+    preview.innerHTML=`
+      <div class="import-preview">
+        <div class="import-preview-header">
+          <h3>${rows.length.toLocaleString()} clients ready to import</h3>
+          <button class="btn-add" onclick='doImport(${safeRows})'>Import All</button>
+        </div>
+        ${rows.slice(0,6).map(r=>`
+          <div class="preview-row">
+            <span class="p-id">${r.client_id}</span>
+            <span class="p-addr">${r.address}</span>
+            <span class="p-day">${r.service_day}</span>
+          </div>`).join('')}
+        ${rows.length>6?`<p style="font-size:13px;color:var(--gray-400);margin-top:10px">…and ${(rows.length-6).toLocaleString()} more</p>`:''}
+      </div>`;
+  };
+  reader.readAsText(file);
+}
+
+async function doImport(rows){
+  const batchSize=500;
+  let done=0;
+  for(let i=0;i<rows.length;i+=batchSize){
+    const chunk=rows.slice(i,i+batchSize);
+    const {error}=await db.from('clients').upsert(chunk,{onConflict:'client_id'});
+    if(error){toast('Import error: '+error.message);return;}
+    done+=chunk.length;
+  }
+  await loadClients();
+  toast(`${done.toLocaleString()} clients imported`,true);
+  document.getElementById('importPreview').innerHTML=
+    '<div class="empty-state" style="color:var(--ok-text);font-weight:500">Import complete — '+done.toLocaleString()+' clients loaded.</div>';
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────
+function toast(msg,ok=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(ok?' ok':'');
+  clearTimeout(t._to);
+  t._to=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────
+const _saved = sessionStorage.getItem('helm_auth');
+if(_saved && _saved !== '1'){
+  try{
+    currentUser = JSON.parse(_saved);
+    hide('loginScreen'); show('appScreen');
+    document.getElementById('appScreen').style.flexDirection='column';
+    document.getElementById('topbarUser').textContent = currentUser.display_name;
+    init();
+  }catch(e){ sessionStorage.removeItem('helm_auth'); }
+}
+</script>
+</body>
+</html>
