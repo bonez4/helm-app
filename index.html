@@ -588,10 +588,7 @@ async function loadSkips() {
 }
 
 function isSkipped(cid,date){
-  // Check if client has a skip for any day in the week containing this date
-  const d = new Date(date+'T00:00:00');
-  const monday = getMondayISO(d);
-  return skips.some(s=>s.client_id===cid&&s.skip_week===monday);
+  return skips.some(s=>s.client_id===cid&&s.skip_week===date);
 }
 
 async function loadNotes(baseId){
@@ -926,7 +923,7 @@ async function addSkipRangeAll(){
   if(error){toast('Error: '+error.message);return;}
   await loadSkips();
   showPanel(activeClient);
-  toast(`Skip logged — ${weeks.length===1?fmtDate(weeks[0]):weeks.length+' weeks'}`,true);
+  toast(`Skip logged — ${weeks.length===1?fmtDate(weeks[0]):weeks.length+' days'}`,true);
 }
 
 
@@ -939,7 +936,7 @@ function groupSkipRanges(cSkips){
   for(let i=1;i<sorted.length;i++){
     const prev=new Date(sorted[i-1].skip_week+'T00:00:00');
     const curr=new Date(sorted[i].skip_week+'T00:00:00');
-    const diff=(curr-prev)/(1000*60*60*24*7);
+    const diff=(curr-prev)/(1000*60*60*24);
     if(diff===1&&sorted[i].inquiry_method===cur.method&&sorted[i].logged_by===cur.loggedBy&&sorted[i].client_id===cur.cid){
       cur.weeks.push(sorted[i].skip_week);
     } else {
@@ -952,7 +949,7 @@ function groupSkipRanges(cSkips){
     ...r,
     label: r.weeks.length===1
       ? fmtDate(r.weeks[0])
-      : `${fmtDate(r.weeks[0])} — ${fmtDate(r.weeks[r.weeks.length-1])} (${r.weeks.length} wk)`
+      : `${fmtDate(r.weeks[0])} — ${fmtDate(r.weeks[r.weeks.length-1])} (${r.weeks.length} days)`
   }));
 }
 
@@ -961,14 +958,10 @@ function getDaysInRange(startISO, endISO){
   const start=new Date(startISO+'T00:00:00');
   const end=new Date(endISO+'T00:00:00');
   if(start>end) return [];
-  // Snap both to Monday
-  const snapMon=d=>{const diff=(d.getDay()===0?-6:1-d.getDay());d.setDate(d.getDate()+diff);return d;};
-  const s=snapMon(new Date(start));
-  const e=snapMon(new Date(end));
-  const cur=new Date(s);
-  while(cur<=e){
+  const cur=new Date(start);
+  while(cur<=end){
     days.push(cur.toISOString().split('T')[0]);
-    cur.setDate(cur.getDate()+7);
+    cur.setDate(cur.getDate()+1);
   }
   return days;
 }
@@ -986,7 +979,7 @@ function updateSkipPreview(){
   }
   const label=weeks.length===1
     ? `Skipping ${fmtDate(weeks[0])}`
-    : `Skipping ${weeks.length} weeks — ${fmtDate(weeks[0])} through ${fmtDate(weeks[weeks.length-1])}`;
+    : `Skipping ${weeks.length} days — ${fmtDate(weeks[0])} through ${fmtDate(weeks[weeks.length-1])}`;
   preview.innerHTML=`<div class="skip-preview-ok">&#10003; ${label}</div>`;
 }
 
