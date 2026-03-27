@@ -1034,9 +1034,33 @@ async function generateReport(){
   const results=document.getElementById('reportResults');
   results.innerHTML='<div class="loading">Loading…</div>';
 
-  const {data,error}=await db.from('notes').select('*').eq('action_date',date).order('action').order('created_at');
+  // Pull from notes table
+  const {data:notesData,error}=await db.from('notes').select('*').eq('action_date',date).order('action').order('created_at');
   if(error){toast('Error: '+error.message);return;}
-  if(!data||!data.length){
+
+  // Pull from skips table for this date
+  const {data:skipsData}=await db.from('skips').select('*').eq('skip_week',date);
+
+  // Merge: convert skips into the same format as notes
+  const data=[...(notesData||[])];
+  if(skipsData&&skipsData.length){
+    skipsData.forEach(s=>{
+      // Avoid duplicates if a skip note already exists for this client+date
+      const already=data.some(n=>n.client_id===s.client_id&&n.action==='Skip Day');
+      if(!already){
+        data.push({
+          client_id:s.client_id,
+          action:'Skip Day',
+          action_date:date,
+          note: s.inquiry_method ? `via ${s.inquiry_method}` : '',
+          logged_by:s.logged_by||'',
+          created_at:s.created_at||''
+        });
+      }
+    });
+  }
+
+  if(!data.length){
     results.innerHTML='<div class="empty-state">No action items for '+fmtDate(date)+'</div>';
     return;
   }
@@ -1082,9 +1106,21 @@ function printReport(date){
   const results=document.getElementById('reportResults');
   if(!results) return;
 
-  // Re-query for print
-  db.from('notes').select('*').eq('action_date',date).order('action').order('created_at').then(({data})=>{
-    if(!data||!data.length) return;
+  // Re-query for print (notes + skips)
+  Promise.all([
+    db.from('notes').select('*').eq('action_date',date).order('action').order('created_at'),
+    db.from('skips').select('*').eq('skip_week',date)
+  ]).then(([{data:notesData},{data:skipsData}])=>{
+    const data=[...(notesData||[])];
+    if(skipsData&&skipsData.length){
+      skipsData.forEach(s=>{
+        const already=data.some(n=>n.client_id===s.client_id&&n.action==='Skip Day');
+        if(!already){
+          data.push({client_id:s.client_id,action:'Skip Day',action_date:date,note:s.inquiry_method?`via ${s.inquiry_method}`:'',logged_by:s.logged_by||''});
+        }
+      });
+    }
+    if(!data.length) return;
 
     const grouped={};
     data.forEach(n=>{
