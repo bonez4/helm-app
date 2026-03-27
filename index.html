@@ -178,10 +178,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .inq-btn:hover{border-color:var(--teal);color:var(--teal);}
 .inq-active{background:var(--teal-pale)!important;border-color:var(--teal)!important;color:var(--teal-dim)!important;font-weight:600!important;}
 .inq-tag{display:inline-block;background:var(--gray-100);color:var(--gray-500);font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:4px;text-transform:capitalize;vertical-align:middle;}
-.a-pause{background:var(--err-bg);color:var(--err-text);border:1.5px solid #f5b8b8;}
-.a-pause:hover{background:#fdd;}
-.a-resume{background:var(--ok-bg);color:var(--ok-text);border:1.5px solid #9de0c4;}
-.a-resume:hover{background:#d0f0e4;}
 
 .section-title{font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:0.5rem;}
 .divider{border:none;border-top:1px solid var(--gray-100);margin:0.5rem 0;}
@@ -214,62 +210,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .skip-wk-label{color:var(--gray-600);}
 .skip-tag{background:var(--warn-bg);color:var(--warn-text);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;letter-spacing:.04em;}
 
-.print-btn{
-  background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
-  color:white;font-size:11px;font-weight:600;padding:4px 9px;
-  border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;
-  transition:background .15s;letter-spacing:.02em;
-}
-.print-btn:hover{background:rgba(255,255,255,0.22);}
-
-.day-jump-badge{background:var(--warn-bg);color:var(--warn-text);font-size:10px;font-weight:700;padding:1px 5px;border-radius:20px;}
-.route-arrow{color:var(--gray-300);font-size:14px;flex-shrink:0;}
-.route-row:hover .route-arrow{color:var(--teal);}
-.log-name-link{cursor:pointer;transition:color .15s;}
-.log-name-link:hover{color:var(--teal);}
-.log-name-link strong{color:var(--navy);}
-.log-name-link:hover strong{color:var(--teal);}
-
-/* ── ROUTE VIEW ──────────────────────────── */
-.route-layout{display:flex;gap:0.75rem;align-items:flex-start;}
-.route-sidebar{
-  width:120px;flex-shrink:0;position:sticky;top:52px;
-  display:flex;flex-direction:column;gap:4px;
-}
-.route-sidebar-btn{
-  padding:8px 10px;background:white;border:1px solid var(--gray-200);
-  border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:12px;
-  font-weight:600;color:var(--navy);cursor:pointer;transition:all .15s;
-  display:flex;justify-content:space-between;align-items:center;
-  box-shadow:var(--shadow);text-align:left;
-}
-.route-sidebar-btn:hover{background:var(--navy);color:white;border-color:var(--navy);}
-.route-sidebar-btn:hover .day-jump-badge{background:rgba(255,255,255,0.2);color:white;}
-.route-sidebar-btn.rsb-active{background:var(--navy);color:white;border-color:var(--navy);}
-.route-sidebar-btn.rsb-active .day-jump-badge{background:rgba(255,255,255,0.2);color:white;}
-.route-content{flex:1;min-width:0;}
-.week-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0.75rem;align-items:center;}
-.week-bar-label{font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;margin-right:4px;}
-@media(max-width:700px){.route-layout{flex-direction:column;}.route-sidebar{width:100%;position:static;flex-direction:row;flex-wrap:wrap;}}
-.day-block{margin-bottom:0.75rem;border-radius:var(--radius-sm);overflow:hidden;box-shadow:var(--shadow);}
-.day-head{
-  background:var(--navy);padding:8px 12px;
-  display:flex;justify-content:space-between;align-items:center;
-}
-.day-head-name{font-size:13px;font-weight:600;color:white;}
-.day-head-stats{font-size:11px;color:rgba(255,255,255,0.5);}
-.route-row{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:6px 12px;background:white;
-  border-left:1px solid var(--gray-200);border-right:1px solid var(--gray-200);
-  border-bottom:1px solid var(--gray-100);font-size:13px;
-}
-.route-row:last-child{border-bottom:1px solid var(--gray-200);}
-.route-row.sk{background:var(--warn-bg);}
-.route-row.sk .r-addr{text-decoration:line-through;color:var(--gray-400);}
-.r-id{font-family:'DM Mono',monospace;font-size:10px;color:var(--gray-400);margin-right:8px;flex-shrink:0;}
-.r-addr{color:var(--gray-800);}
-.skip-flag{font-size:10px;font-weight:700;color:var(--warn-text);letter-spacing:.05em;flex-shrink:0;}
 
 /* ── SHARED ──────────────────────────────── */
 .log-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;}
@@ -326,30 +266,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .day-toggle-active .day-abbr,.day-toggle-active .day-full{color:white!important;}
 .day-abbr{font-size:13px;font-weight:700;color:var(--navy);}
 .day-full{font-size:10px;color:var(--gray-400);}
-
-.paused-item{
-  background:white;border:1px solid var(--gray-200);border-radius:var(--radius-sm);
-  padding:8px 12px;margin-bottom:6px;box-shadow:var(--shadow);
-  display:flex;justify-content:space-between;align-items:center;gap:10px;
-  border-left:3px solid var(--err-text);
-}
-.paused-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
-.paused-name{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:1px;}
-.paused-meta{font-size:11px;color:var(--gray-400);margin-top:1px;}
-.paused-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
-.paused-resume-btn{
-  background:var(--ok-bg);color:var(--ok-text);border:1px solid #9de0c4;
-  padding:5px 10px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;
-  font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;
-}
-.paused-resume-btn:hover{background:#d0f0e4;}
-.paused-view-btn{
-  background:var(--gray-100);color:var(--gray-600);border:1px solid var(--gray-200);
-  padding:5px 10px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;
-  font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;
-}
-.paused-view-btn:hover{background:var(--gray-200);}
-@media(max-width:520px){.paused-item{flex-direction:column;align-items:flex-start;}.paused-actions{width:100%;}}
 
 /* ── IMPORT ──────────────────────────────── */
 .import-zone{
@@ -522,17 +438,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
   <div class="tab-nav">
     <button class="active" onclick="switchTab('lookup',this)">Client Lookup</button>
     <button onclick="switchTab('add',this)">Add Client</button>
-    <button onclick="switchTab('route',this)">Route View</button>
-    <button onclick="switchTab('paused',this)">Paused</button>
     <button onclick="switchTab('report',this)">Reports</button>
     <button onclick="switchTab('import',this)">Import</button>
   </div>
 
   <div class="main">
     <div id="tab-lookup"></div>
-    <div id="tab-route"  style="display:none"></div>
     <div id="tab-add"    style="display:none"></div>
-    <div id="tab-paused" style="display:none"></div>
     <div id="tab-report" style="display:none"></div>
     <div id="tab-import" style="display:none"></div>
   </div>
@@ -561,7 +473,6 @@ const ACTION_TYPES = [
   {value:'One Time Pickup', label:'One Time Pickup', needsDate:true, tag:'at-otp'},
   {value:'Pile Pickup', label:'Pile Pickup', needsDate:true, tag:'at-pile'},
   {value:'Skip Day', label:'Skip Day', needsDate:true, tag:'at-skip'},
-  {value:'Pause Service', label:'Pause Service', needsDate:true, tag:'at-pause'},
   {value:'Complaint', label:'Complaint', needsDate:false, tag:'at-complaint'},
   {value:'Note', label:'Note', needsDate:false, tag:'at-note'},
 ];
@@ -669,7 +580,6 @@ async function loadClients() {
   clients=all;
   const hint=document.getElementById('srchHint');
   if(hint) hint.textContent=`${clients.length.toLocaleString()} clients loaded — search by ID, name, address, or phone`;
-  updatePausedBadge();
 }
 
 async function loadSkips() {
@@ -693,16 +603,14 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','route','add','paused','report','import'].forEach(t=>{
+  ['lookup','add','report','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   // Only re-render lookup on first visit; preserve state after that
   if(name==='lookup' && !lookupRendered) renderLookup();
-  if(name==='route')  renderRoute();
   if(name==='add')    renderAdd();
-  if(name==='paused') renderPaused();
   if(name==='report') renderReport();
   if(name==='import') renderImport();
 }
@@ -891,14 +799,6 @@ async function showPanel(c){
           &#10003; Confirm Skip
         </button>`:''}
 
-        <hr class="divider"/>
-        <div class="section-title">Service Control</div>
-        ${paused?`
-          <button class="action-btn a-resume" onclick="setStatusAll('Active')">&#9654; Resume Service</button>
-        `:`
-          <button class="action-btn a-pause" onclick="setStatusAll('Paused')">&#9646;&#9646; Pause Service</button>
-        `}
-
         ${skipRanges.length?`
           <div class="skip-history">
             <div class="section-title" style="margin-top:0.75rem;display:flex;justify-content:space-between;align-items:center">
@@ -1029,18 +929,6 @@ async function addSkipRangeAll(){
   toast(`Skip logged — ${weeks.length===1?fmtDate(weeks[0]):weeks.length+' weeks'}`,true);
 }
 
-async function setStatusAll(status){
-  if(!activeClient) return;
-  const related=getRelatedClients(activeClient);
-  for(const r of related){
-    await db.from('clients').update({status}).eq('client_id',r.client_id);
-  }
-  await loadClients();
-  activeClient=clients.find(c=>c.client_id===activeClient.client_id);
-  showPanel(activeClient);
-  updatePausedBadge();
-  toast(status==='Paused'?'Service paused':'Service resumed',status==='Active');
-}
 
 // ── SKIP LOGIC ───────────────────────────────────────────────────────
 function groupSkipRanges(cSkips){
@@ -1121,198 +1009,10 @@ async function removeSkipRange(cid, weeksStr){
 }
 
 
-// ── ROUTE VIEW ────────────────────────────────────────────────────────
-function renderRoute(){
-  const weeks=getWeekOptions();
-  const div=document.getElementById('tab-route');
-  const dayBlocks=DAYS.map(day=>{
-    const dc=clients.filter(c=>c.service_day===day&&c.status!=='Paused');
-    const active=dc.filter(c=>!isSkipped(c.client_id,selectedWeek));
-    const skCnt=dc.length-active.length;
-    const rows=dc.map(c=>{
-      const sk=isSkipped(c.client_id,selectedWeek);
-      return `<div class="route-row${sk?' sk':''}" onclick="jumpToClient('${c.client_id}')" style="cursor:pointer">
-        <span><span class="r-id">${c.client_id}</span><span class="r-addr">${c.client_name?`<strong>${c.client_name}</strong> — `:''}${c.address}</span></span>
-        ${sk?'<span class="skip-flag">SKIP</span>':'<span class="route-arrow">›</span>'}
-      </div>`;
-    }).join('')||'<div class="route-row" style="color:var(--gray-400);font-size:12px;font-style:italic">No clients assigned</div>';
-    return `<div class="day-block" id="route-day-${day}">
-      <div class="day-head">
-        <span class="day-head-name">${day}</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span class="day-head-stats">${active.length} stops · ${skCnt} skip</span>
-          <button class="print-btn" onclick="event.stopPropagation();printDay('${day}')">Print</button>
-        </div>
-      </div>${rows}
-    </div>`;
-  }).join('');
-
-  div.innerHTML=`
-    <div class="week-bar">
-      <span class="week-bar-label">Week</span>
-      ${weeks.map(w=>`<button class="week-btn${selectedWeek===w?' active':''}" onclick="selectedWeek='${w}';renderRoute()">${fmtDate(w)}</button>`).join('')}
-    </div>
-    <div class="route-layout">
-      <div class="route-sidebar">
-        ${DAYS.map(day=>{
-          const dc=clients.filter(c=>c.service_day===day&&c.status!=='Paused');
-          const total=dc.length;
-          const skCnt=dc.filter(c=>isSkipped(c.client_id,selectedWeek)).length;
-          return `<button class="route-sidebar-btn" onclick="scrollToDay('${day}',this)">
-            <span>${day.slice(0,3)}</span>
-            <span style="display:flex;gap:3px;align-items:center">
-              <span style="font-size:10px;font-weight:400;opacity:.6">${total}</span>
-              ${skCnt>0?`<span class="day-jump-badge">${skCnt}</span>`:''}
-            </span>
-          </button>`;
-        }).join('')}
-        <button class="route-sidebar-btn" style="margin-top:4px;background:var(--teal);color:white;border-color:var(--teal);justify-content:center" onclick="document.getElementById('tab-route').scrollIntoView({behavior:'smooth'})">
-          Top
-        </button>
-      </div>
-      <div class="route-content">
-        ${dayBlocks}
-      </div>
-    </div>`;
-}
-
-function scrollToDay(day,btn){
-  document.getElementById('route-day-'+day).scrollIntoView({behavior:'smooth',block:'start'});
-  document.querySelectorAll('.route-sidebar-btn').forEach(b=>b.classList.remove('rsb-active'));
-  if(btn) btn.classList.add('rsb-active');
-}
-
 function jumpToClient(cid){
   const c=clients.find(x=>x.client_id===cid);
   if(!c) return;
   openClient(c);
-}
-
-function printDay(day){
-  const weekMonday = getMondayISO(new Date(selectedWeek+'T00:00:00'));
-  const active=clients.filter(c=>
-    c.service_day===day &&
-    c.status!=='Paused' &&
-    !isSkipped(c.client_id,selectedWeek)
-  );
-  const dateLabel=fmtDate(selectedWeek);
-  const rows=active.map((c,i)=>`
-    <tr>
-      <td class="num">${i+1}</td>
-      <td class="id">${c.client_id}</td>
-      <td class="name">${c.client_name||''}</td>
-      <td class="addr">${c.address}</td>
-      <td class="phone">${c.phone||''}</td>
-      <td class="check"></td>
-    </tr>`).join('');
-
-  const win=window.open('','_blank');
-  win.document.write(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8"/>
-<title>Reis — ${day} Route — ${dateLabel}</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Courier New',monospace;font-size:11px;color:#000;padding:16px;}
-  .header{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px;}
-  .header h1{font-size:16px;font-weight:700;}
-  .header .sub{font-size:11px;color:#444;margin-top:3px;display:flex;gap:16px;}
-  .header .sub span{font-weight:700;color:#000;}
-  table{width:100%;border-collapse:collapse;}
-  th{background:#0f1f3d;color:white;padding:5px 6px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;}
-  td{padding:4px 6px;border-bottom:1px solid #e0e0e0;vertical-align:middle;}
-  tr:nth-child(even) td{background:#f9f9f9;}
-  .num{width:28px;font-weight:700;color:#666;text-align:center;}
-  .id{width:48px;font-size:10px;color:#888;}
-  .name{width:140px;font-weight:600;}
-  .addr{width:auto;}
-  .phone{width:110px;color:#555;}
-  .check{width:40px;text-align:center;}
-  .footer{margin-top:16px;font-size:9px;color:#888;border-top:1px solid #ddd;padding-top:6px;display:flex;justify-content:space-between;}
-  @media print{body{padding:10px;}button{display:none;}@page{margin:1.5cm;}}
-</style>
-</head>
-<body>
-<div class="header">
-  <h1>Reis Trucking — ${day} Route</h1>
-  <div class="sub">
-    <div>Week of <span>${dateLabel}</span></div>
-    <div>Stops <span>${active.length}</span></div>
-    <div>Printed <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
-  </div>
-</div>
-<table>
-  <thead><tr><th>#</th><th>ID</th><th>Name</th><th>Address</th><th>Phone</th><th>&#10003;</th></tr></thead>
-  <tbody>${rows}</tbody>
-</table>
-<div class="footer">
-  <span>Reis Trucking — Nantucket, MA</span>
-  <span>HELM</span>
-</div>
-<script>window.onload=function(){window.print();}<\/script>
-</body>
-</html>`);
-  win.document.close();
-}
-
-// ── PAUSED CLIENTS ────────────────────────────────────────────────────
-function renderPaused(){
-  const div=document.getElementById('tab-paused');
-  const paused=clients.filter(c=>c.status==='Paused').sort((a,b)=>a.client_id>b.client_id?1:-1);
-
-  if(!paused.length){
-    div.innerHTML=`
-      <div class="empty-state">
-        <div style="font-size:24px;margin-bottom:8px">&#10003;</div>
-        <div style="font-weight:600;color:var(--gray-600);margin-bottom:4px">No paused clients</div>
-        <div>All clients are currently active</div>
-      </div>`;
-    return;
-  }
-
-  div.innerHTML=`
-    <div class="log-top">
-      <div class="log-title">Paused Service</div>
-      <div class="log-count-badge">${paused.length} client${paused.length!==1?'s':''}</div>
-    </div>
-    ${paused.map(c=>{
-      const ini=(c.client_name||c.address).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-      return `
-      <div class="paused-item">
-        <div class="paused-left">
-          <div class="avatar" style="width:32px;height:32px;font-size:11px;border-radius:8px;background:var(--err-bg);color:var(--err-text)">${ini}</div>
-          <div>
-            <div class="paused-name">${c.client_name||`Client ${c.client_id}`}</div>
-            <div class="paused-meta">${c.client_id} · ${c.service_day} · ${c.address}</div>
-          </div>
-        </div>
-        <div class="paused-actions">
-          <button class="paused-view-btn" onclick="jumpToClient('${c.client_id}')">View</button>
-          <button class="paused-resume-btn" onclick="resumeFromPaused('${c.client_id}')">Resume</button>
-        </div>
-      </div>`;
-    }).join('')}`;
-}
-
-async function resumeFromPaused(cid){
-  const {error}=await db.from('clients').update({status:'Active'}).eq('client_id',cid);
-  if(error){toast('Error: '+error.message);return;}
-  await loadClients();
-  renderPaused();
-  updatePausedBadge();
-  toast('Service resumed',true);
-}
-
-function updatePausedBadge(){
-  const count=clients.filter(c=>c.status==='Paused').length;
-  const btns=[...document.querySelectorAll('.tab-nav button')];
-  const pausedBtn=btns.find(b=>b.textContent.startsWith('Paused'));
-  if(pausedBtn){
-    pausedBtn.innerHTML=count>0
-      ?`Paused <span style="background:var(--err-bg);color:var(--err-text);font-size:9px;font-weight:700;padding:1px 5px;border-radius:20px;margin-left:3px">${count}</span>`
-      :'Paused';
-  }
 }
 
 // ── REPORTS ───────────────────────────────────────────────────────────
