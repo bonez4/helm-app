@@ -376,6 +376,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .report-row:last-child{border-radius:0 0 var(--radius-sm) var(--radius-sm);}
 .report-row:nth-child(even){background:var(--gray-50);}
 
+.ro-table{width:100%;border-collapse:collapse;font-size:12px;}
+.ro-table th{text-align:left;padding:4px 6px;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--gray-200);white-space:nowrap;}
+.ro-table td{padding:2px 3px;border-bottom:1px solid var(--gray-100);}
+.ro-table tr:hover{background:var(--gray-50);}
+.ro-input{width:100%;border:1px solid transparent;background:transparent;padding:3px 5px;font-size:12px;font-family:inherit;border-radius:4px;outline:none;}
+.ro-input:focus{border-color:var(--teal);background:white;box-shadow:0 0 0 2px rgba(20,184,166,0.15);}
+.ro-input:hover:not(:focus){border-color:var(--gray-200);}
+select.ro-input{cursor:pointer;}
+.ro-del{background:none;border:none;cursor:pointer;font-size:14px;opacity:0.3;padding:2px 4px;}
+.ro-del:hover{opacity:1;color:var(--err-text);}
+
 @media(max-width:900px){
   .client-panel{width:100%;left:0;right:0;}
 }
@@ -439,6 +450,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
     <button class="active" onclick="switchTab('lookup',this)">Client Lookup</button>
     <button onclick="switchTab('add',this)">Add Client</button>
     <button onclick="switchTab('report',this)">Reports</button>
+    <button onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button onclick="switchTab('import',this)">Import</button>
   </div>
 
@@ -446,6 +458,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
     <div id="tab-lookup"></div>
     <div id="tab-add"    style="display:none"></div>
     <div id="tab-report" style="display:none"></div>
+    <div id="tab-rolloffs" style="display:none"></div>
     <div id="tab-import" style="display:none"></div>
   </div>
 </div>
@@ -600,7 +613,7 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','add','report','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -609,6 +622,7 @@ function switchTab(name,btn){
   if(name==='lookup' && !lookupRendered) renderLookup();
   if(name==='add')    renderAdd();
   if(name==='report') renderReport();
+  if(name==='rolloffs') renderRolloffs();
   if(name==='import') renderImport();
 }
 
@@ -1220,6 +1234,148 @@ async function saveClient(id,selectedDays,addr,phone,email,name){
   if(msg){msg.style.color='var(--ok-text)';msg.textContent=`Client ${id} added — ${selectedDays.join(', ')}`;}
   toast(`Client ${id} added`,true);
   setTimeout(()=>renderAdd(), 1800);
+}
+
+// ── ROLL-OFFS ─────────────────────────────────────────────────────────
+let rolloffsData=[];
+let rolloffSort={col:'date',asc:false};
+let showDeleted=false;
+let rolloffUndo=null;
+
+function renderRolloffs(){
+  document.getElementById('tab-rolloffs').innerHTML=`
+    <div class="card" style="max-width:100%">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 style="font-size:15px;font-weight:700;margin:0">Roll-offs</h2>
+        <div style="display:flex;gap:6px;align-items:center">
+          <label style="font-size:11px;color:var(--gray-400);cursor:pointer;display:flex;align-items:center;gap:4px">
+            <input type="checkbox" id="showDeletedToggle" onchange="showDeleted=this.checked;loadRolloffs()" ${showDeleted?'checked':''}/> Show deleted
+          </label>
+          <button class="btn-add" onclick="addRolloffRow()">+ Add Row</button>
+        </div>
+      </div>
+      <div id="rolloffUndo" style="display:none;background:#fef3cd;padding:6px 10px;border-radius:6px;margin-bottom:6px;font-size:12px;display:flex;justify-content:space-between;align-items:center"></div>
+      <div id="rolloffTable" style="overflow-x:auto">
+        <div class="loading">Loading…</div>
+      </div>
+    </div>`;
+  loadRolloffs();
+}
+
+async function loadRolloffs(){
+  let q=db.from('rolloffs').select('*').order(rolloffSort.col,{ascending:rolloffSort.asc});
+  if(!showDeleted) q=q.eq('deleted',false);
+  const {data,error}=await q;
+  if(error){toast('Error: '+error.message);return;}
+  rolloffsData=data||[];
+  renderRolloffTable();
+}
+
+function renderRolloffTable(){
+  const wrap=document.getElementById('rolloffTable');
+  if(!rolloffsData.length){
+    wrap.innerHTML='<div class="empty-state">No roll-offs yet. Click "+ Add Row" to start.</div>';
+    return;
+  }
+  const cols=[
+    {key:'date',label:'Date',width:'100px'},
+    {key:'type',label:'Type',width:'70px'},
+    {key:'customer',label:'Customer',width:'auto'},
+    {key:'address_number',label:'Number',width:'80px'},
+    {key:'street',label:'Street',width:'auto'}
+  ];
+  const sortIcon=(col)=>rolloffSort.col===col?(rolloffSort.asc?'&#9650;':'&#9660;'):'';
+  let html=`<table class="ro-table"><thead><tr>`;
+  cols.forEach(c=>{
+    html+=`<th style="width:${c.width};cursor:pointer;user-select:none" onclick="sortRolloffs('${c.key}')">${c.label} <span style="font-size:9px">${sortIcon(c.key)}</span></th>`;
+  });
+  html+=`<th style="width:36px"></th></tr></thead><tbody>`;
+  rolloffsData.forEach(r=>{
+    const deleted=r.deleted;
+    const rowStyle=deleted?'opacity:0.4;text-decoration:line-through;':'';
+    html+=`<tr style="${rowStyle}" data-roid="${r.id}">`;
+    // Date cell
+    html+=`<td><input type="date" class="ro-input" value="${r.date||''}" onchange="updateRolloff(${r.id},'date',this.value)" ${deleted?'disabled':''}/></td>`;
+    // Type cell - dropdown
+    html+=`<td><select class="ro-input" onchange="updateRolloff(${r.id},'type',this.value)" ${deleted?'disabled':''}>
+      <option value=""${!r.type?' selected':''}></option>
+      <option value="AJ"${r.type==='AJ'?' selected':''}>AJ</option>
+      <option value="REIS"${r.type==='REIS'?' selected':''}>REIS</option>
+    </select></td>`;
+    // Customer cell
+    html+=`<td><input type="text" class="ro-input" value="${(r.customer||'').replace(/"/g,'&quot;')}" onchange="updateRolloff(${r.id},'customer',this.value)" onkeydown="roKeyNav(event,${r.id},'customer')" ${deleted?'disabled':''}/></td>`;
+    // Number cell
+    html+=`<td><input type="text" class="ro-input" value="${(r.address_number||'').replace(/"/g,'&quot;')}" onchange="updateRolloff(${r.id},'address_number',this.value)" onkeydown="roKeyNav(event,${r.id},'address_number')" ${deleted?'disabled':''}/></td>`;
+    // Street cell
+    html+=`<td><input type="text" class="ro-input" value="${(r.street||'').replace(/"/g,'&quot;')}" onchange="updateRolloff(${r.id},'street',this.value)" onkeydown="roKeyNav(event,${r.id},'street')" ${deleted?'disabled':''}/></td>`;
+    // Delete/restore button
+    if(deleted){
+      html+=`<td><button class="ro-del" title="Restore" onclick="restoreRolloff(${r.id})">&#8634;</button></td>`;
+    } else {
+      html+=`<td><button class="ro-del" title="Delete" onclick="softDeleteRolloff(${r.id})">&#128465;</button></td>`;
+    }
+    html+=`</tr>`;
+  });
+  html+=`</tbody></table>`;
+  wrap.innerHTML=html;
+}
+
+function sortRolloffs(col){
+  if(rolloffSort.col===col) rolloffSort.asc=!rolloffSort.asc;
+  else { rolloffSort.col=col; rolloffSort.asc=true; }
+  loadRolloffs();
+}
+
+async function addRolloffRow(){
+  const today=new Date().toISOString().split('T')[0];
+  const {data,error}=await db.from('rolloffs').insert({date:today,type:null,customer:'',address_number:'',street:''}).select();
+  if(error){toast('Error: '+error.message);return;}
+  await loadRolloffs();
+  // Focus the new row's customer field
+  setTimeout(()=>{
+    const rows=document.querySelectorAll('.ro-table tbody tr');
+    if(rows.length){
+      const last=rows[rows.length-1];
+      const inp=last.querySelector('input[type="text"]');
+      if(inp) inp.focus();
+    }
+  },100);
+}
+
+async function updateRolloff(id,col,val){
+  const update={[col]:val||null,updated_at:new Date().toISOString()};
+  const {error}=await db.from('rolloffs').update(update).eq('id',id);
+  if(error) toast('Save error: '+error.message);
+}
+
+async function softDeleteRolloff(id){
+  const row=rolloffsData.find(r=>r.id===id);
+  const {error}=await db.from('rolloffs').update({deleted:true,deleted_at:new Date().toISOString(),deleted_by:currentUser?currentUser.display_name:''}).eq('id',id);
+  if(error){toast('Error: '+error.message);return;}
+  // Show undo
+  rolloffUndo={id,timeout:null};
+  const undoEl=document.getElementById('rolloffUndo');
+  undoEl.style.display='flex';
+  undoEl.innerHTML=`<span>Row deleted (${row?row.customer||'':''})</span><button class="btn-add" style="padding:2px 10px;font-size:11px" onclick="restoreRolloff(${id})">Undo</button>`;
+  clearTimeout(rolloffUndo.timeout);
+  rolloffUndo.timeout=setTimeout(()=>{undoEl.style.display='none';rolloffUndo=null;},8000);
+  await loadRolloffs();
+}
+
+async function restoreRolloff(id){
+  const {error}=await db.from('rolloffs').update({deleted:false,deleted_at:null,deleted_by:null}).eq('id',id);
+  if(error){toast('Error: '+error.message);return;}
+  const undoEl=document.getElementById('rolloffUndo');
+  if(undoEl) undoEl.style.display='none';
+  rolloffUndo=null;
+  toast('Row restored',true);
+  await loadRolloffs();
+}
+
+function roKeyNav(event,id,col){
+  if(event.key==='Tab'||event.key==='Enter'){
+    event.target.blur(); // trigger onchange save
+  }
 }
 
 // ── IMPORT ────────────────────────────────────────────────────────────
