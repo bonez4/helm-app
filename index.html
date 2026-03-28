@@ -1393,7 +1393,22 @@ function renderImport(){
         <input type="file" id="csvIn" accept=".csv" style="display:none" onchange="handleCSV(this)"/>
       </div>
     </div>
-    <div id="importPreview"></div>`;
+    <div id="importPreview"></div>
+
+    <div class="form-card" style="margin-top:1rem">
+      <h2>Import Roll-offs from CSV</h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:1rem">
+        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">date, type, customer, address_number, street</code>
+        <br><span style="margin-top:4px;display:inline-block">Type should be <strong>AJ</strong> or <strong>REIS</strong>. Date format: YYYY-MM-DD or MM/DD/YYYY</span>
+      </p>
+      <div class="import-zone" onclick="document.getElementById('roCsvIn').click()">
+        <svg class="import-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <h3>Click to upload Roll-offs CSV</h3>
+        <p>or drag and drop</p>
+        <input type="file" id="roCsvIn" accept=".csv" style="display:none" onchange="handleRolloffCSV(this)"/>
+      </div>
+    </div>
+    <div id="roImportPreview"></div>`;
 }
 
 function handleCSV(input){
@@ -1442,6 +1457,73 @@ async function doImport(rows){
   toast(`${done.toLocaleString()} clients imported`,true);
   document.getElementById('importPreview').innerHTML=
     '<div class="empty-state" style="color:var(--ok-text);font-weight:500">Import complete — '+done.toLocaleString()+' clients loaded.</div>';
+}
+
+function handleRolloffCSV(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.split('\n').filter(l=>l.trim());
+    const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase().replace(/\s+/g,'_'));
+    const rows=lines.slice(1).map(line=>{
+      const vals=line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+      const obj={};
+      headers.forEach((h,i)=>obj[h]=vals[i]||'');
+      return obj;
+    }).filter(r=>r.customer||r.street);
+
+    // Normalize dates (handle MM/DD/YYYY -> YYYY-MM-DD)
+    rows.forEach(r=>{
+      if(r.date&&r.date.includes('/')){
+        const parts=r.date.split('/');
+        if(parts.length===3){
+          const [m,d,y]=parts;
+          r.date=`${y.length===2?'20'+y:y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+        }
+      }
+      // Normalize type to uppercase
+      if(r.type) r.type=r.type.toUpperCase();
+    });
+
+    const preview=document.getElementById('roImportPreview');
+    const safeRows=JSON.stringify(rows).replace(/'/g,"\\'");
+    preview.innerHTML=`
+      <div class="import-preview">
+        <div class="import-preview-header">
+          <h3>${rows.length.toLocaleString()} roll-offs ready</h3>
+          <button class="btn-add" onclick='doRolloffImport(${safeRows})'>Import All</button>
+        </div>
+        ${rows.slice(0,6).map(r=>`
+          <div class="preview-row">
+            <span class="p-id">${r.type||''}</span>
+            <span class="p-addr">${r.customer||''}</span>
+            <span class="p-day">${r.address_number||''} ${r.street||''}</span>
+          </div>`).join('')}
+        ${rows.length>6?`<p style="font-size:12px;color:var(--gray-400);margin-top:8px">…and ${(rows.length-6).toLocaleString()} more</p>`:''}
+      </div>`;
+  };
+  reader.readAsText(file);
+}
+
+async function doRolloffImport(rows){
+  const records=rows.map(r=>({
+    date:r.date||null,
+    type:r.type||null,
+    customer:r.customer||null,
+    address_number:r.address_number||null,
+    street:r.street||null
+  }));
+  const batchSize=500;
+  let done=0;
+  for(let i=0;i<records.length;i+=batchSize){
+    const chunk=records.slice(i,i+batchSize);
+    const {error}=await db.from('rolloffs').insert(chunk);
+    if(error){toast('Import error: '+error.message);return;}
+    done+=chunk.length;
+  }
+  toast(`${done} roll-offs imported`,true);
+  document.getElementById('roImportPreview').innerHTML=
+    '<div class="empty-state" style="color:var(--ok-text);font-weight:500">Import complete — '+done+' roll-offs loaded.</div>';
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────
