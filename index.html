@@ -762,58 +762,6 @@ async function showPanel(c){
           </div>
         </div>
 
-        ${!paused?`
-        <hr class="divider"/>
-        <div class="section-title">Schedule a skip</div>
-        ${related.length>1?`
-        <div style="margin-bottom:6px">
-          <label style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">Skip for</label>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">
-            ${related.map(r=>`<button class="inq-btn skip-day-btn inq-active" data-skipid="${r.client_id}" onclick="this.classList.toggle('inq-active')">${r.service_day}</button>`).join('')}
-          </div>
-        </div>`:''}
-        <div class="date-range-grid">
-          <div class="date-field">
-            <label>Skip from</label>
-            <input type="date" id="skipStart" onchange="updateSkipPreview()"/>
-          </div>
-          <div class="date-range-arrow">&#8594;</div>
-          <div class="date-field">
-            <label>Skip through</label>
-            <input type="date" id="skipEnd" onchange="updateSkipPreview()"/>
-          </div>
-        </div>
-        <div id="skipPreview" class="skip-preview"></div>
-
-        <div class="section-title" style="margin-top:0.5rem">Contact method</div>
-        <div class="inquiry-grid">
-          <button class="inq-btn inq-active" id="inq-phone" onclick="selectInquiry('phone')">Phone</button>
-          <button class="inq-btn" id="inq-email" onclick="selectInquiry('email')">Email</button>
-          <button class="inq-btn" id="inq-person" onclick="selectInquiry('person')">In Person</button>
-        </div>
-
-        <button class="action-btn a-skip" style="margin-top:0.5rem" onclick="addSkipRangeAll()">
-          &#10003; Confirm Skip
-        </button>`:''}
-
-        ${skipRanges.length?`
-          <div class="skip-history">
-            <div class="section-title" style="margin-top:0.75rem;display:flex;justify-content:space-between;align-items:center">
-              <span>Skips on file <span class="chip">${cSkips.length}</span></span>
-            </div>
-            ${skipRanges.map(r=>`
-              <div class="skip-hist-row">
-                <div>
-                  <span class="skip-wk-label">${r.label}</span>
-                  ${r.method?`<span class="inq-tag">${r.method}</span>`:''}
-                </div>
-                <div style="display:flex;align-items:center;gap:6px">
-                  ${r.loggedBy?`<span style="font-size:10px;color:var(--gray-400)">${r.loggedBy}</span>`:''}
-                  <span class="skip-tag">SKIP</span>
-                  <button class="remove-skip-btn" onclick="removeSkipRange('${r.cid||c.client_id}','${r.weeks.join(',')}')">&#10005;</button>
-                </div>
-              </div>`).join('')}
-          </div>`:''}
 
         <hr class="divider"/>
         <div class="notes-section">
