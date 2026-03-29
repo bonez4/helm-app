@@ -49,8 +49,8 @@ No build step. No npm. No framework. One file.
 ### `clients` table
 | Column | Type | Notes |
 |---|---|---|
-| client_id | TEXT (PK) | e.g. `0001`, `0094`, `2001-1` |
-| service_day | TEXT | Monday–Saturday |
+| client_id | TEXT (PK) | e.g. `0001`, `0094`, `2001` |
+| service_day | TEXT | Comma-separated: `Monday` or `Tuesday,Thursday` |
 | address | TEXT | Street address only, no city/state |
 | phone | TEXT | Optional |
 | email | TEXT | Optional |
@@ -58,14 +58,14 @@ No build step. No npm. No framework. One file.
 | status | TEXT | `Active`, `Paused` |
 | created_at | TIMESTAMP | Auto |
 
-**Multi-day clients:** A client picked up twice a week gets two rows — `0101-1` (Monday) and `0101-2` (Thursday). Same address, same name, different `client_id` suffix and `service_day`. In the UI, these are grouped into a single search result showing all their days.
+**Single row per client.** Multi-day clients store all pickup days comma-separated in `service_day` (e.g. `Tuesday,Thursday`). No suffixed IDs — each client has one unique `client_id`.
 
 ### `skips` table
 | Column | Type | Notes |
 |---|---|---|
 | id | UUID (PK) | Auto |
 | client_id | TEXT (FK) | References clients |
-| skip_week | DATE | The date of the skip |
+| skip_week | DATE | The actual date of the skip |
 | inquiry_method | TEXT | `phone`, `email`, `person` |
 | logged_by | TEXT | Staff display name |
 | created_at | TIMESTAMP | Auto |
@@ -74,14 +74,14 @@ No build step. No npm. No framework. One file.
 | Column | Type | Notes |
 |---|---|---|
 | id | SERIAL (PK) | Auto |
-| client_id | TEXT | Base client ID (e.g. `2003` not `2003-1`) |
+| client_id | TEXT | Client ID (e.g. `2003`) |
 | user_id | TEXT | Display name of staff who added it |
 | action | TEXT | One of: `One Time Pickup`, `Pile Pickup`, `Skip Day`, `Complaint`, `Note` |
 | action_date | DATE | Date the action applies to (for actionable items) |
 | note | TEXT | Free-text note content |
 | created_at | TIMESTAMP | Auto |
 
-**No foreign key constraint** on `notes.client_id` — this was intentionally removed so notes can be stored against base IDs for multi-day clients.
+**No foreign key constraint** on `notes.client_id` — intentionally removed for flexibility.
 
 ### `rolloffs` table
 | Column | Type | Notes |
@@ -112,14 +112,13 @@ No build step. No npm. No framework. One file.
 
 ### Client Lookup
 - Search by client ID, name, address, or phone number
-- Multi-day clients grouped into single results (shows all pickup days)
 - Results ranked by relevance (exact ID match first, then name, then address)
 - Clicking a result opens the client panel on the right side
 - Client panel persists while navigating other tabs
 
 ### Client Panel
-- Shows name, ID, address, phone, all pickup days
-- Account status (Active / Paused)
+- Shows name, ID, address, phone, all pickup days (comma-separated displayed as pills)
+- Account status (Active / Skipped / Paused)
 - **Notes system** — add notes with action types:
   - One Time Pickup (requires date)
   - Pile Pickup (requires date)
@@ -127,21 +126,21 @@ No build step. No npm. No framework. One file.
   - Complaint
   - Note (general)
 - Notes log shows date/time, user, action type, action date, and note text
-- Notes saved against base client ID so they're shared across multi-day entries
 
 ### Add Client
 - Name, address, phone, email fields
 - Day toggle buttons (Mon–Sat) — select multiple for multi-day pickup clients
-- Multi-day clients saved as `ID-1`, `ID-2`, etc.
+- Single row created per client with comma-separated days
 - Auto-suggests next client ID
 - Duplicate detection — warns if address or name already exists
 
 ### Reports
 - **Daily Action Report** — pick a date, see all actionable notes and scheduled skips for that day
 - Pulls from both `notes` table and `skips` table
-- Grouped by action type (One Time Pickup, Skip Day, Pile Pickup, etc.)
+- Summary pills at top showing count per action type
+- Grouped by action type with proper table layout (row numbers, column headers)
 - Shows client ID, name, address, phone, and note text
-- **Print Report** button — opens printer-friendly version
+- **Print Report** button — opens printer-friendly version with compact layout and summary line
 
 ### Roll-offs
 - Editable spreadsheet-style table for tracking construction dumpsters
@@ -156,7 +155,14 @@ No build step. No npm. No framework. One file.
 - **Roll-offs CSV import** — headers: `date, type, customer, address_number, street`
 - Both import in 500-row batches (handles large datasets)
 - Client import uses upsert — re-importing won't create duplicates
+- Client import auto-merges rows with suffixed IDs (e.g. `001-1`, `001-2`) into a single row with comma-separated days
 - Roll-off import handles both MM/DD/YYYY and YYYY-MM-DD date formats
+- CSV parser handles quoted fields with commas (e.g. `"Smith, John"`)
+
+### Security
+- All user-generated content (names, addresses, notes, etc.) is HTML-escaped before rendering to prevent XSS
+- Import data stored in JS variables instead of inline HTML to prevent injection
+- Duplicate confirmation uses stored pending data instead of string interpolation
 
 ---
 
@@ -196,8 +202,9 @@ VALUES ('newname', 'reis2026', 'Display Name');
 
 ```
 helm-app/
-├── index.html       ← The entire application. This is the only file.
-├── README.md        ← This file
+├── index.html                    ← The entire application
+├── client_import_template.xlsx   ← Template for client CSV import
+├── README.md                     ← This file
 ```
 
 That's it. No dependencies to install, no build step, no config files.

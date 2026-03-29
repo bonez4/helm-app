@@ -167,73 +167,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .s-active{background:var(--ok-bg);color:var(--ok-text);}
 .s-skipped{background:var(--warn-bg);color:var(--warn-text);}
 .s-paused{background:var(--err-bg);color:var(--err-text);}
-
-.inquiry-grid{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;}
-.inq-btn{
-  flex:1;min-width:80px;padding:6px 8px;
-  border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
-  background:white;color:var(--gray-600);font-size:12px;font-weight:500;
-  cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;
-}
-.inq-btn:hover{border-color:var(--teal);color:var(--teal);}
-.inq-active{background:var(--teal-pale)!important;border-color:var(--teal)!important;color:var(--teal-dim)!important;font-weight:600!important;}
-.inq-tag{display:inline-block;background:var(--gray-100);color:var(--gray-500);font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:4px;text-transform:capitalize;vertical-align:middle;}
+.autopay-yes{background:var(--ok-bg);color:var(--ok-text);}
+.autopay-no{background:var(--gray-100);color:var(--gray-400);}
 
 .section-title{font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:0.5rem;}
 .divider{border:none;border-top:1px solid var(--gray-100);margin:0.5rem 0;}
-
-.week-grid{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0.75rem;}
-.week-btn{
-  padding:5px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
-  background:white;color:var(--gray-600);font-size:12px;font-weight:500;
-  cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;
-}
-.week-btn:hover{border-color:var(--teal);color:var(--teal);}
-.week-btn.active{background:var(--teal);border-color:var(--teal);color:white;font-weight:600;}
-
-.action-btn{
-  width:100%;padding:8px;border-radius:var(--radius-sm);border:none;
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .15s;letter-spacing:.01em;
-}
-.a-skip{background:var(--navy);color:white;}
-.a-skip:hover{background:var(--navy-light);}
-.a-unskip{background:var(--warn-bg);color:var(--warn-text);border:1.5px solid var(--warn-border);}
-.a-unskip:hover{background:#fff3cc;}
-
-.skip-history{margin-top:0.75rem;}
-.skip-hist-row{
-  display:flex;justify-content:space-between;align-items:center;
-  padding:5px 0;border-bottom:1px solid var(--gray-100);font-size:12px;
-}
-.skip-hist-row:last-child{border-bottom:none;}
-.skip-wk-label{color:var(--gray-600);}
-.skip-tag{background:var(--warn-bg);color:var(--warn-text);font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;letter-spacing:.04em;}
-
-
-/* ── SHARED ──────────────────────────────── */
-.log-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;}
-.log-title{font-size:16px;font-weight:600;color:var(--navy);}
-.log-count-badge{background:var(--gray-100);color:var(--gray-500);font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
-
-.remove-skip-btn{
-  background:none;border:none;color:var(--gray-400);font-size:12px;
-  cursor:pointer;padding:2px 4px;border-radius:4px;transition:color .15s;
-}
-.remove-skip-btn:hover{color:var(--err-text);}
-.date-range-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end;margin-bottom:.5rem;}
-.date-range-arrow{font-size:18px;color:var(--gray-300);padding-bottom:8px;text-align:center;}
-.date-field label{display:block;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;}
-.date-field input[type=date]{
-  width:100%;padding:7px 9px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);
-  font-family:'DM Sans',sans-serif;font-size:13px;color:var(--gray-800);
-  background:var(--gray-50);outline:none;transition:border-color .15s;
-}
-.date-field input[type=date]:focus{border-color:var(--teal);background:white;}
-.skip-preview{min-height:24px;margin-bottom:.25rem;}
-.skip-preview-ok{background:var(--ok-bg);color:var(--ok-text);font-size:12px;font-weight:500;padding:6px 10px;border-radius:var(--radius-sm);}
-.skip-preview-warn{background:var(--err-bg);color:var(--err-text);font-size:12px;padding:6px 10px;border-radius:var(--radius-sm);}
-@media(max-width:520px){.date-range-grid{grid-template-columns:1fr;}.date-range-arrow{display:none;}}
 
 /* ── ADD CLIENT ──────────────────────────── */
 .form-card{background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:1rem;box-shadow:var(--shadow);}
@@ -302,8 +240,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 /* ── MISC ────────────────────────────────── */
 .empty-state{text-align:center;padding:2rem 1rem;color:var(--gray-400);font-size:13px;}
 .loading{text-align:center;padding:1.5rem;color:var(--gray-400);font-size:13px;}
-.chip{display:inline-block;background:var(--gray-100);color:var(--gray-500);font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px;margin-left:4px;vertical-align:middle;}
-
 /* ── FLOATING CLIENT PANEL ───────────────── */
 .client-panel{
   position:fixed;right:0;top:44px;width:420px;height:calc(100vh - 44px);
@@ -352,6 +288,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .note-row-header{display:flex;gap:6px;align-items:center;margin-bottom:2px;}
 .note-row-header .note-meta{font-family:'DM Sans',sans-serif;font-size:10px;color:var(--gray-400);}
 .note-row-header .note-user{font-size:10px;font-weight:600;color:var(--gray-500);}
+.note-del{background:none;border:none;color:var(--gray-300);font-size:12px;cursor:pointer;padding:0 2px;margin-left:auto;line-height:1;transition:color .15s;}
+.note-del:hover{color:var(--err-text);}
+.btn-edit-sm{background:none;border:1px solid var(--gray-200);color:var(--gray-500);font-size:11px;padding:3px 10px;border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.btn-edit-sm:hover{border-color:var(--teal);color:var(--teal);}
 .note-row-body{font-family:'Courier New',monospace;font-size:12px;color:var(--gray-800);line-height:1.4;word-break:break-word;}
 .action-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;text-transform:uppercase;letter-spacing:.03em;}
 .action-tag.at-otp{background:#e8f0fe;color:#1a56db;}
@@ -362,19 +302,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .action-tag.at-note{background:var(--gray-100);color:var(--gray-500);}
 
 /* ── REPORT ──────────────────────────────── */
-.report-section{margin-top:0.75rem;}
-.report-group{margin-bottom:1rem;}
+.report-summary{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0.75rem;}
+.report-summary-pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.report-group{margin-bottom:0.75rem;}
 .report-group-header{
-  background:var(--navy);color:white;padding:6px 10px;
+  background:var(--navy);color:white;padding:5px 10px;
   border-radius:var(--radius-sm) var(--radius-sm) 0 0;
   font-size:12px;font-weight:600;display:flex;justify-content:space-between;
 }
-.report-row{
-  display:flex;gap:8px;padding:5px 10px;border:1px solid var(--gray-200);
-  border-top:none;font-size:12px;align-items:center;background:white;
-}
-.report-row:last-child{border-radius:0 0 var(--radius-sm) var(--radius-sm);}
-.report-row:nth-child(even){background:var(--gray-50);}
+.report-table{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--gray-200);border-top:none;}
+.report-table th{text-align:left;padding:4px 8px;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--gray-200);background:var(--gray-50);}
+.report-table td{padding:4px 8px;border-bottom:1px solid var(--gray-100);}
+.report-table tr:nth-child(even) td{background:var(--gray-50);}
+.report-table tr:hover td{background:var(--teal-pale);}
+.report-table tr:last-child td:first-child{border-radius:0 0 0 var(--radius-sm);}
+.report-table tr:last-child td:last-child{border-radius:0 0 var(--radius-sm) 0;}
+.rt-num{width:28px;text-align:center;font-weight:700;color:var(--gray-300);font-size:10px;}
+.rt-id{width:52px;font-family:'DM Mono',monospace;font-size:10px;color:var(--gray-400);}
+.rt-name{font-weight:600;white-space:nowrap;}
+.rt-addr{color:var(--gray-600);}
+.rt-phone{color:var(--gray-400);white-space:nowrap;font-size:11px;}
+.rt-note{font-size:11px;color:var(--gray-600);font-style:italic;max-width:300px;word-break:break-word;}
 
 .ro-table{width:100%;border-collapse:collapse;font-size:12px;}
 .ro-table th{text-align:left;padding:4px 6px;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--gray-200);white-space:nowrap;}
@@ -493,11 +441,34 @@ const ACTION_TYPES = [
 let clients = [], skips = [], clientNotes = [], selectedWeek = '', activeClient = null;
 let currentUser = null;
 let lookupRendered = false;
+let pendingClient = null;
+let pendingImport = null;
+let pendingRoImport = null;
 
 function getBaseId(cid){ return cid.replace(/-\d+$/,''); }
-function getRelatedClients(c){
-  const base=getBaseId(c.client_id);
-  return clients.filter(x=>getBaseId(x.client_id)===base);
+
+function esc(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function parseCSVLine(line){
+  const fields=[];
+  let field='', inQuotes=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(inQuotes){
+      if(ch==='"'&&line[i+1]==='"'){field+='"';i++;}
+      else if(ch==='"'){inQuotes=false;}
+      else{field+=ch;}
+    } else {
+      if(ch==='"'){inQuotes=true;}
+      else if(ch===','){fields.push(field.trim());field='';}
+      else{field+=ch;}
+    }
+  }
+  fields.push(field.trim());
+  return fields;
 }
 
 // ── AUTH ──────────────────────────────────────────────────────────────
@@ -532,28 +503,6 @@ function getTodayISO() {
   return d.toISOString().split('T')[0];
 }
 
-function getMondayISO(d) {
-  const day=d.getDay();
-  const diff = day===0 ? 1 : 1-day;
-  const m=new Date(d);
-  m.setDate(d.getDate()+diff);
-  m.setHours(0,0,0,0);
-  return m.toISOString().split('T')[0];
-}
-
-function getWeekOptions() {
-  const today=new Date();
-  const day=today.getDay();
-  const diff=day===0?1:1-day;
-  const mon=new Date(today);
-  mon.setDate(today.getDate()+diff);
-  mon.setHours(0,0,0,0);
-  return Array.from({length:6},(_,i)=>{
-    const d=new Date(mon); d.setDate(mon.getDate()+i*7);
-    return d.toISOString().split('T')[0];
-  });
-}
-
 function fmtDate(iso){
   if(!iso) return '';
   const d=new Date(iso+'T00:00:00');
@@ -585,23 +534,22 @@ async function loadClients() {
   let all=[], from=0, batch=1000;
   while(true){
     const {data,error}=await db.from('clients').select('*').order('client_id').range(from,from+batch-1);
-    if(error||!data||data.length===0) break;
+    if(error){toast('Failed to load clients');break;}
+    if(!data||data.length===0) break;
     all=[...all,...data];
     if(data.length<batch) break;
     from+=batch;
   }
   clients=all;
   const hint=document.getElementById('srchHint');
-  if(hint) hint.textContent=`${clients.length.toLocaleString()} clients loaded — search by ID, name, address, or phone`;
+  if(hint) hint.textContent=clients.length>0
+    ?`${clients.length.toLocaleString()} clients loaded — search by ID, name, address, or phone`
+    :'No clients found — import clients to get started';
 }
 
 async function loadSkips() {
   const {data,error}=await db.from('skips').select('*').order('skip_week',{ascending:false});
   if(!error) skips=data||[];
-}
-
-function isSkipped(cid,date){
-  return skips.some(s=>s.client_id===cid&&s.skip_week===date);
 }
 
 async function loadNotes(baseId){
@@ -644,7 +592,7 @@ function doSearch(q){
   const res=document.getElementById('srchResults');
   if(q.length<2){res.innerHTML='';return;}
 
-  const scored=clients
+  const results=clients
     .map(c=>{
       const idL=c.client_id.toLowerCase();
       const addrL=c.address.toLowerCase();
@@ -661,30 +609,19 @@ function doSearch(q){
       return {c,score};
     })
     .filter(x=>x.score>0)
-    .sort((a,b)=>b.score-a.score);
-
-  // Group by base ID so multi-day clients show as one result
-  const grouped={};
-  scored.forEach(({c,score})=>{
-    const base=getBaseId(c.client_id);
-    if(!grouped[base]||score>grouped[base].score){
-      grouped[base]={c,score,base};
-    }
-  });
-  const results=Object.values(grouped).sort((a,b)=>b.score-a.score).slice(0,10);
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,10);
 
   if(!results.length){res.innerHTML='<div class="empty-state">No clients found</div>';return;}
   if(results.length===1){res.innerHTML='';openClient(results[0].c);return;}
-  res.innerHTML='<div class="results-list">'+results.map(({c,base})=>{
-    const related=getRelatedClients(c);
-    const days=related.map(r=>r.service_day).join(', ');
+  res.innerHTML='<div class="results-list">'+results.map(({c})=>{
     return `
-    <div class="result-item" tabindex="0" data-cid="${c.client_id}" onclick="pickClient('${c.client_id}')" onkeydown="handleResultKey(event,'${c.client_id}')">
+    <div class="result-item" tabindex="0" data-cid="${esc(c.client_id)}" onclick="pickClient('${esc(c.client_id)}')" onkeydown="handleResultKey(event,'${esc(c.client_id)}')">
       <div>
-        <div class="result-id">${c.client_name?`${c.client_name} &mdash; `:''}${base}</div>
-        <div class="result-addr">${c.address}</div>
+        <div class="result-id">${c.client_name?`${esc(c.client_name)} &mdash; `:''}${esc(c.client_id)}</div>
+        <div class="result-addr">${esc(c.address)}</div>
       </div>
-      <div class="result-day">${days}</div>
+      <div class="result-day">${esc(c.service_day)}</div>
     </div>`;
   }).join('')+'</div>';
 }
@@ -722,7 +659,7 @@ function pickClient(id){
   const c=clients.find(x=>x.client_id===id);
   if(!c) return;
   document.getElementById('srchResults').innerHTML='';
-  document.getElementById('srch').value=`${getBaseId(c.client_id)} — ${c.address}`;
+  document.getElementById('srch').value=`${c.client_id} — ${c.address}`;
   openClient(c);
 }
 
@@ -742,40 +679,40 @@ async function showPanel(c){
   const panel=document.getElementById('clientPanel');
   panel.classList.add('open');
 
-  const related=getRelatedClients(c);
-  const baseId=getBaseId(c.client_id);
-  const allIds=related.map(r=>r.client_id);
   const paused=c.status==='Paused';
   const ini=(c.client_name||c.address).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  const displayName=c.client_name||`Client ${baseId}`;
-  const allDays=related.map(r=>r.service_day);
+  const displayName=c.client_name||`Client ${c.client_id}`;
+  const allDays=c.service_day?c.service_day.split(',').map(d=>d.trim()):[];
 
-  // Skips across all related IDs
-  const cSkips=skips.filter(s=>allIds.includes(s.client_id)).sort((a,b)=>a.skip_week>b.skip_week?1:-1);
-  const skipRanges=groupSkipRanges(cSkips);
-  const todayWeek=getMondayISO(new Date());
-  const activeSkip=cSkips.some(s=>s.skip_week===todayWeek);
+  const cSkips=skips.filter(s=>s.client_id===c.client_id);
+  const today=getTodayISO();
+  const activeSkip=cSkips.some(s=>s.skip_week===today);
 
   document.getElementById('panelCard').innerHTML=`
     <div class="client-card" style="border:none;border-radius:0;box-shadow:none">
       <div class="card-header">
-        <div class="avatar">${ini}</div>
+        <div class="avatar">${esc(ini)}</div>
         <div class="card-header-meta">
-          <h2>${displayName}</h2>
-          <p style="opacity:.7;font-size:11px;margin-bottom:1px">ID: ${baseId}${related.length>1?' ('+related.length+' days)':''}</p>
-          <p>${c.address}, Nantucket MA &middot; ${c.phone||'No phone'}</p>
+          <h2>${esc(displayName)}</h2>
+          <p style="opacity:.7;font-size:11px;margin-bottom:1px">ID: ${esc(c.client_id)}</p>
+          <p>${esc(c.address)}, Nantucket MA &middot; ${esc(c.phone)||'No phone'}</p>
         </div>
       </div>
       <div class="card-body">
         <div class="info-grid">
-          <div class="info-tile"><label>Pickup Day${allDays.length>1?'s':''}</label>${allDays.map(d=>`<span class="day-pill">${d}</span>`).join(' ')}</div>
+          <div class="info-tile"><label>Pickup Day${allDays.length>1?'s':''}</label>${allDays.map(d=>`<span class="day-pill">${esc(d)}</span>`).join(' ')}</div>
           <div class="info-tile"><label>Account Status</label>
             <span class="status-pill ${paused?'s-paused':activeSkip?'s-skipped':'s-active'}">
               ${paused?'Paused':activeSkip?'Skipped':'Active'}
             </span>
           </div>
+          <div class="info-tile"><label>Autopay</label>
+            <span class="status-pill ${c.autopay?'autopay-yes':'autopay-no'}">${c.autopay?'Yes':'No'}</span>
+          </div>
         </div>
-
+        <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+          <button class="btn-edit-sm" onclick="editClient('${c.client_id}')">Edit Client</button>
+        </div>
 
         <hr class="divider"/>
         <div class="notes-section">
@@ -785,8 +722,8 @@ async function showPanel(c){
               ${ACTION_TYPES.map(a=>`<option value="${a.value}">${a.label}</option>`).join('')}
             </select>
             <input type="date" id="noteActionDate" style="display:none"/>
-            <input type="text" id="noteText" placeholder="Add a note…" onkeydown="if(event.key==='Enter'){event.preventDefault();submitNote('${baseId}');}"/>
-            <button class="btn-note-add" onclick="submitNote('${baseId}')">Add</button>
+            <input type="text" id="noteText" placeholder="Add a note…" onkeydown="if(event.key==='Enter'){event.preventDefault();submitNote('${c.client_id}');}"/>
+            <button class="btn-note-add" onclick="submitNote('${c.client_id}')">Add</button>
           </div>
           <div id="notesTableWrap" class="notes-list-wrap">
             <div class="loading">Loading notes…</div>
@@ -795,13 +732,11 @@ async function showPanel(c){
       </div>
     </div>`;
 
-  // Set default action to Note
   const sel = document.getElementById('noteAction');
   if(sel) sel.value = 'Note';
   toggleNoteDateField();
 
-  // Load notes using base ID
-  const notes = await loadNotes(baseId);
+  const notes = await loadNotes(c.client_id);
   renderNotesTable(notes);
 }
 
@@ -825,11 +760,12 @@ function renderNotesTable(notes){
     return `<div class="note-row">
       <div class="note-row-header">
         <span class="note-meta">${fmtTimestamp(n.created_at)}</span>
-        <span class="note-user">${n.user_id||''}</span>
-        <span class="action-tag ${at.tag}">${n.action}</span>
+        <span class="note-user">${esc(n.user_id)||''}</span>
+        <span class="action-tag ${at.tag}">${esc(n.action)}</span>
         ${n.action_date?`<span style="font-size:10px;color:var(--teal);font-weight:600">${fmtDate(n.action_date)}</span>`:''}
+        <button class="note-del" onclick="deleteNote(${n.id})" title="Delete note">&times;</button>
       </div>
-      ${n.note?`<div class="note-row-body">${n.note}</div>`:''}
+      ${n.note?`<div class="note-row-body">${esc(n.note)}</div>`:''}
     </div>`;
   }).join('');
 }
@@ -861,113 +797,71 @@ async function submitNote(baseId){
   renderNotesTable(notes);
 }
 
-async function addSkipRangeAll(){
-  if(!activeClient) return;
-  const start=document.getElementById('skipStart')?.value;
-  const end=document.getElementById('skipEnd')?.value;
-  if(!start||!end){toast('Select start and end dates');return;}
-  const weeks=getDaysInRange(start,end);
-  if(!weeks.length){toast('End date must be on or after start date');return;}
-
-  const related=getRelatedClients(activeClient);
-  // For multi-day clients, check which day buttons are active
-  const dayBtns=[...document.querySelectorAll('.skip-day-btn.inq-active')];
-  const skipIds=dayBtns.length>0?dayBtns.map(b=>b.dataset.skipid):related.map(r=>r.client_id);
-
-  const records=[];
-  skipIds.forEach(cid=>{
-    weeks.forEach(w=>{
-      records.push({client_id:cid,skip_week:w,inquiry_method:selectedInquiry,logged_by:currentUser?currentUser.display_name:null});
-    });
-  });
-
-  const {error}=await db.from('skips').upsert(records,{onConflict:'client_id,skip_week'});
-  if(error){toast('Error: '+error.message);return;}
-  await loadSkips();
-  showPanel(activeClient);
-  toast(`Skip logged — ${weeks.length===1?fmtDate(weeks[0]):weeks.length+' days'}`,true);
-}
-
-
-// ── SKIP LOGIC ───────────────────────────────────────────────────────
-function groupSkipRanges(cSkips){
-  if(!cSkips.length) return [];
-  const sorted=[...cSkips].sort((a,b)=>a.skip_week>b.skip_week?1:-1);
-  const ranges=[];
-  let cur={weeks:[sorted[0].skip_week],method:sorted[0].inquiry_method,loggedBy:sorted[0].logged_by,cid:sorted[0].client_id};
-  for(let i=1;i<sorted.length;i++){
-    const prev=new Date(sorted[i-1].skip_week+'T00:00:00');
-    const curr=new Date(sorted[i].skip_week+'T00:00:00');
-    const diff=(curr-prev)/(1000*60*60*24);
-    if(diff===1&&sorted[i].inquiry_method===cur.method&&sorted[i].logged_by===cur.loggedBy&&sorted[i].client_id===cur.cid){
-      cur.weeks.push(sorted[i].skip_week);
-    } else {
-      ranges.push(cur);
-      cur={weeks:[sorted[i].skip_week],method:sorted[i].inquiry_method,loggedBy:sorted[i].logged_by,cid:sorted[i].client_id};
-    }
-  }
-  ranges.push(cur);
-  return ranges.map(r=>({
-    ...r,
-    label: r.weeks.length===1
-      ? fmtDate(r.weeks[0])
-      : `${fmtDate(r.weeks[0])} — ${fmtDate(r.weeks[r.weeks.length-1])} (${r.weeks.length} days)`
-  }));
-}
-
-function getDaysInRange(startISO, endISO){
-  const days=[];
-  const start=new Date(startISO+'T00:00:00');
-  const end=new Date(endISO+'T00:00:00');
-  if(start>end) return [];
-  const cur=new Date(start);
-  while(cur<=end){
-    days.push(cur.toISOString().split('T')[0]);
-    cur.setDate(cur.getDate()+1);
-  }
-  return days;
-}
-
-function updateSkipPreview(){
-  const start=document.getElementById('skipStart')?.value;
-  const end=document.getElementById('skipEnd')?.value;
-  const preview=document.getElementById('skipPreview');
-  if(!preview) return;
-  if(!start||!end){preview.innerHTML='';return;}
-  const weeks=getDaysInRange(start,end);
-  if(!weeks.length){
-    preview.innerHTML=`<div class="skip-preview-warn">End date must be on or after start date</div>`;
-    return;
-  }
-  const label=weeks.length===1
-    ? `Skipping ${fmtDate(weeks[0])}`
-    : `Skipping ${weeks.length} days — ${fmtDate(weeks[0])} through ${fmtDate(weeks[weeks.length-1])}`;
-  preview.innerHTML=`<div class="skip-preview-ok">&#10003; ${label}</div>`;
-}
-
-let selectedInquiry='phone';
-function selectInquiry(method){
-  selectedInquiry=method;
-  document.querySelectorAll('.inq-btn').forEach(b=>b.classList.remove('inq-active'));
-  const el=document.getElementById('inq-'+method);
-  if(el) el.classList.add('inq-active');
-}
-
-async function removeSkipRange(cid, weeksStr){
-  const weeks=weeksStr.split(',');
-  for(const w of weeks){
-    await db.from('skips').delete().eq('client_id',cid).eq('skip_week',w);
-  }
-  await loadSkips();
-  showPanel(activeClient);
-  toast(`Skip${weeks.length>1?'s':''} removed`);
-}
-
-
-function jumpToClient(cid){
+function editClient(cid){
   const c=clients.find(x=>x.client_id===cid);
   if(!c) return;
-  openClient(c);
+  const allDays=c.service_day?c.service_day.split(',').map(d=>d.trim()):[];
+  const body=document.querySelector('#panelCard .card-body');
+  if(!body) return;
+  body.innerHTML=`
+    <div class="form-group"><label>Name</label><input id="editName" value="${esc(c.client_name||'')}"/></div>
+    <div class="form-group"><label>Address</label><input id="editAddr" value="${esc(c.address||'')}"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Phone</label><input id="editPhone" value="${esc(c.phone||'')}"/></div>
+      <div class="form-group"><label>Email</label><input id="editEmail" value="${esc(c.email||'')}"/></div>
+    </div>
+    <div class="form-group">
+      <label>Pickup Days</label>
+      <div class="day-toggle-grid" id="editDaysWrap">
+        ${DAYS.map(d=>`
+          <button type="button" class="day-toggle${allDays.includes(d)?' day-toggle-active':''}" data-day="${d}" onclick="toggleDay(this)">
+            <span class="day-abbr">${d.slice(0,3)}</span>
+          </button>`).join('')}
+      </div>
+    </div>
+    <div class="form-group">
+      <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="editAutopay" ${c.autopay?'checked':''}/> Autopay (credit card on file)
+      </label>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <button class="btn-add" style="flex:1;background:var(--gray-400)" onclick="showPanel(activeClient)">Cancel</button>
+      <button class="btn-add" style="flex:2" onclick="saveClientEdit('${esc(cid)}')">Save Changes</button>
+    </div>`;
+  document.getElementById('editName').focus();
+}
+
+async function saveClientEdit(cid){
+  const name=document.getElementById('editName').value.trim();
+  const addr=document.getElementById('editAddr').value.trim();
+  const phone=document.getElementById('editPhone').value.trim();
+  const email=document.getElementById('editEmail').value.trim();
+  const days=[...document.querySelectorAll('#editDaysWrap .day-toggle-active')].map(b=>b.dataset.day);
+  const autopay=document.getElementById('editAutopay')?.checked||false;
+  if(!addr){toast('Address is required');return;}
+  if(!days.length){toast('Select at least one pickup day');return;}
+  const {error}=await db.from('clients').update({
+    client_name:name||null,
+    address:addr,
+    phone:phone||null,
+    email:email||null,
+    service_day:days.join(','),
+    autopay:autopay
+  }).eq('client_id',cid);
+  if(error){toast('Error: '+error.message);return;}
+  await loadClients();
+  const updated=clients.find(x=>x.client_id===cid);
+  if(updated){activeClient=updated;showPanel(updated);}
+  toast('Client updated',true);
+}
+
+async function deleteNote(noteId){
+  if(!activeClient) return;
+  const {error}=await db.from('notes').delete().eq('id',noteId);
+  if(error){toast('Error: '+error.message);return;}
+  toast('Note deleted');
+  const notes=await loadNotes(activeClient.client_id);
+  renderNotesTable(notes);
 }
 
 // ── REPORTS ───────────────────────────────────────────────────────────
@@ -990,119 +884,122 @@ function renderReport(){
     </div>`;
 }
 
-async function generateReport(){
-  const date=document.getElementById('reportDate').value;
-  if(!date){toast('Select a date');return;}
-  const results=document.getElementById('reportResults');
-  results.innerHTML='<div class="loading">Loading…</div>';
+function findClient(cid){
+  return clients.find(x=>x.client_id===cid)||clients.find(x=>x.client_id===getBaseId(cid))||{};
+}
 
-  // Pull from notes table
-  const {data:notesData,error}=await db.from('notes').select('*').eq('action_date',date).order('action').order('created_at');
-  if(error){toast('Error: '+error.message);return;}
-
-  // Pull from skips table for this date
-  const {data:skipsData}=await db.from('skips').select('*').eq('skip_week',date);
-
-  // Merge: convert skips into the same format as notes
+function fetchReportData(notesData,skipsData,date){
   const data=[...(notesData||[])];
   if(skipsData&&skipsData.length){
     skipsData.forEach(s=>{
-      // Avoid duplicates if a skip note already exists for this client+date
-      const already=data.some(n=>n.client_id===s.client_id&&n.action==='Skip Day');
+      const skipId=getBaseId(s.client_id); // handle legacy suffixed IDs
+      const already=data.some(n=>n.client_id===skipId&&n.action==='Skip Day');
       if(!already){
         data.push({
-          client_id:s.client_id,
+          client_id:skipId,
           action:'Skip Day',
           action_date:date,
-          note: s.inquiry_method ? `via ${s.inquiry_method}` : '',
+          note:s.inquiry_method?`via ${s.inquiry_method}`:'',
           logged_by:s.logged_by||'',
           created_at:s.created_at||''
         });
       }
     });
   }
-
-  if(!data.length){
-    results.innerHTML='<div class="empty-state">No action items for '+fmtDate(date)+'</div>';
-    return;
-  }
-
   // Group by action
   const grouped={};
   data.forEach(n=>{
     if(!grouped[n.action]) grouped[n.action]=[];
     grouped[n.action].push(n);
   });
+  return {data,grouped};
+}
+
+async function generateReport(){
+  const date=document.getElementById('reportDate').value;
+  if(!date){toast('Select a date');return;}
+  const results=document.getElementById('reportResults');
+  results.innerHTML='<div class="loading">Loading…</div>';
+
+  const {data:notesData,error}=await db.from('notes').select('*').eq('action_date',date).order('action').order('created_at');
+  if(error){toast('Error: '+error.message);return;}
+  const {data:skipsData}=await db.from('skips').select('*').eq('skip_week',date);
+
+  const {data,grouped}=fetchReportData(notesData,skipsData,date);
+
+  if(!data.length){
+    results.innerHTML='<div class="empty-state">No action items for '+fmtDate(date)+'</div>';
+    return;
+  }
+
+  // Action type pill colors
+  const pillColors={'One Time Pickup':'#e8f0fe;color:#1a56db','Pile Pickup':'#fef3c7;color:#92400e','Skip Day':'var(--warn-bg);color:var(--warn-text)','Complaint':'#fce7f3;color:#9d174d','Note':'var(--gray-100);color:var(--gray-500)'};
 
   let html=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-      <div style="font-size:13px;font-weight:600;color:var(--navy)">${data.length} action item${data.length!==1?'s':''} for ${fmtDate(date)}</div>
-      <button class="btn-add" onclick="printReport('${date}')">Print Report</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)} — ${data.length} item${data.length!==1?'s':''}</div>
+      <button class="btn-add" onclick="printReport('${date}')" style="white-space:nowrap">Print Report</button>
+    </div>
+    <div class="report-summary">
+      ${Object.entries(grouped).map(([action,notes])=>`<span class="report-summary-pill" style="background:${pillColors[action]||'var(--gray-100);color:var(--gray-500)'}">${esc(action)}: ${notes.length}</span>`).join('')}
     </div>`;
 
   Object.entries(grouped).forEach(([action,notes])=>{
-    const at=ACTION_TYPES.find(a=>a.value===action)||{tag:'at-note'};
     html+=`<div class="report-group">
       <div class="report-group-header">
-        <span>${action}</span>
+        <span>${esc(action)}</span>
         <span>${notes.length}</span>
-      </div>`;
-    notes.forEach(n=>{
-      const c=clients.find(x=>x.client_id===n.client_id)||{};
-      html+=`<div class="report-row">
-        <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--gray-400);width:50px;flex-shrink:0">${n.client_id}</span>
-        <span style="font-weight:600;width:120px;flex-shrink:0">${c.client_name||''}</span>
-        <span style="flex:1">${c.address||''}</span>
-        <span style="width:90px;flex-shrink:0;color:var(--gray-500)">${c.phone||''}</span>
-        <span style="flex:1;font-family:'Courier New',monospace;font-size:11px">${n.note||''}</span>
-      </div>`;
+      </div>
+      <table class="report-table"><thead><tr>
+        <th style="width:28px">#</th>
+        <th style="width:52px">ID</th>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Phone</th>
+        ${notes.some(n=>n.note)?'<th>Note</th>':''}
+      </tr></thead><tbody>`;
+    notes.forEach((n,i)=>{
+      const c=findClient(n.client_id);
+      html+=`<tr>
+        <td class="rt-num">${i+1}</td>
+        <td class="rt-id">${esc(n.client_id)}</td>
+        <td class="rt-name">${esc(c.client_name||'—')}</td>
+        <td class="rt-addr">${esc(c.address||'—')}</td>
+        <td class="rt-phone">${esc(c.phone||'')}</td>
+        ${notes.some(n=>n.note)?`<td class="rt-note">${esc(n.note||'')}</td>`:''}
+      </tr>`;
     });
-    html+=`</div>`;
+    html+=`</tbody></table></div>`;
   });
 
   results.innerHTML=html;
 }
 
 function printReport(date){
-  // Gather data from current report
-  const results=document.getElementById('reportResults');
-  if(!results) return;
-
-  // Re-query for print (notes + skips)
   Promise.all([
     db.from('notes').select('*').eq('action_date',date).order('action').order('created_at'),
     db.from('skips').select('*').eq('skip_week',date)
   ]).then(([{data:notesData},{data:skipsData}])=>{
-    const data=[...(notesData||[])];
-    if(skipsData&&skipsData.length){
-      skipsData.forEach(s=>{
-        const already=data.some(n=>n.client_id===s.client_id&&n.action==='Skip Day');
-        if(!already){
-          data.push({client_id:s.client_id,action:'Skip Day',action_date:date,note:s.inquiry_method?`via ${s.inquiry_method}`:'',logged_by:s.logged_by||''});
-        }
-      });
-    }
+    const {data,grouped}=fetchReportData(notesData,skipsData,date);
     if(!data.length) return;
 
-    const grouped={};
-    data.forEach(n=>{
-      if(!grouped[n.action]) grouped[n.action]=[];
-      grouped[n.action].push(n);
-    });
+    // Summary line
+    const summary=Object.entries(grouped).map(([a,n])=>`${a}: ${n.length}`).join(' &nbsp;·&nbsp; ');
 
     let sections='';
     Object.entries(grouped).forEach(([action,notes])=>{
-      sections+=`<h2 style="background:#0f1f3d;color:white;padding:5px 8px;font-size:13px;margin:12px 0 0 0">${action} (${notes.length})</h2>
-      <table><thead><tr><th>#</th><th>ID</th><th>Name</th><th>Address</th><th>Phone</th><th>Note</th></tr></thead><tbody>`;
+      const hasNotes=notes.some(n=>n.note);
+      sections+=`<h2>${esc(action)} (${notes.length})</h2>
+      <table><thead><tr><th style="width:24px">#</th><th style="width:44px">ID</th><th style="width:130px">Name</th><th>Address</th><th style="width:100px">Phone</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
       notes.forEach((n,i)=>{
-        const c=clients.find(x=>x.client_id===n.client_id)||{};
+        const c=findClient(n.client_id);
         sections+=`<tr>
-          <td style="width:28px;text-align:center;font-weight:700;color:#666">${i+1}</td>
-          <td style="width:48px;font-size:10px;color:#888">${n.client_id}</td>
-          <td style="width:130px;font-weight:600">${c.client_name||''}</td>
-          <td>${c.address||''}</td>
-          <td style="width:100px;color:#555">${c.phone||''}</td>
-          <td style="font-style:italic">${n.note||''}</td>
+          <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
+          <td style="font-size:10px;color:#888">${esc(n.client_id)}</td>
+          <td style="font-weight:600">${esc(c.client_name||'—')}</td>
+          <td>${esc(c.address||'—')}</td>
+          <td style="color:#555">${esc(c.phone||'')}</td>
+          ${hasNotes?`<td style="font-style:italic;color:#555">${esc(n.note||'')}</td>`:''}
         </tr>`;
       });
       sections+=`</tbody></table>`;
@@ -1114,27 +1011,29 @@ function printReport(date){
 <title>HELM Action Report — ${fmtDate(date)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Courier New',monospace;font-size:11px;color:#000;padding:16px;}
-.header{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:4px;}
-.header h1{font-size:16px;font-weight:700;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;padding:16px;}
+.header{border-bottom:2px solid #0f1f3d;padding-bottom:8px;margin-bottom:8px;}
+.header h1{font-size:16px;font-weight:700;color:#0f1f3d;}
 .header .sub{font-size:11px;color:#444;margin-top:3px;}
 .header .sub span{font-weight:700;color:#000;}
-table{width:100%;border-collapse:collapse;margin-bottom:4px;}
-th{background:#0f1f3d;color:white;padding:4px 6px;text-align:left;font-size:10px;text-transform:uppercase;}
-td{padding:3px 6px;border-bottom:1px solid #e0e0e0;}
-tr:nth-child(even) td{background:#f9f9f9;}
-h2{font-family:Arial,sans-serif;}
+.summary{font-size:10px;color:#555;margin-bottom:8px;padding:4px 0;border-bottom:1px solid #ddd;}
+table{width:100%;border-collapse:collapse;margin-bottom:2px;}
+th{background:#0f1f3d;color:white;padding:3px 6px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.03em;}
+td{padding:3px 6px;border-bottom:1px solid #e0e0e0;font-size:11px;}
+tr:nth-child(even) td{background:#f7f8fa;}
+h2{background:#0f1f3d;color:white;padding:4px 8px;font-size:11px;margin:10px 0 0 0;font-weight:600;}
 .footer{margin-top:16px;font-size:9px;color:#888;border-top:1px solid #ddd;padding-top:6px;display:flex;justify-content:space-between;}
-@media print{body{padding:10px;}@page{margin:1.5cm;}}
+@media print{body{padding:8px;font-size:10px;}td{padding:2px 5px;font-size:10px;}@page{margin:1cm;}}
 </style></head><body>
 <div class="header">
   <h1>HELM — Daily Action Report</h1>
-  <div class="sub">Date: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Items: <span>${data.length}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
+  <div class="sub">Date: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} items</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
 </div>
+<div class="summary">${summary}</div>
 ${sections}
 <div class="footer">
   <span>Reis Trucking — Nantucket, MA</span>
-  <span>HELM</span>
+  <span>HELM Route Management</span>
 </div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`);
@@ -1145,7 +1044,7 @@ ${sections}
 // ── ADD CLIENT ────────────────────────────────────────────────────────
 function renderAdd(){
   const nextId=clients.length>0
-    ? String(Math.max(...clients.map(c=>parseInt(c.client_id.replace(/-\d+$/,''))||0))+1).padStart(4,'0')
+    ? String(Math.max(...clients.map(c=>parseInt(c.client_id)||0))+1).padStart(4,'0')
     : '0001';
   document.getElementById('tab-add').innerHTML=`
     <div class="form-card">
@@ -1195,7 +1094,8 @@ async function addClient(){
   });
 
   if(dupes.length){
-    const dupeList=dupes.map(c=>`${c.client_name||''}${c.client_name?' — ':''}${c.client_id} (${c.service_day})`).join(', ');
+    pendingClient={id,selectedDays,addr,phone,email,name};
+    const dupeList=dupes.map(c=>`${esc(c.client_name||'')}${c.client_name?' �� ':''}${esc(c.client_id)} (${esc(c.service_day)})`).join(', ');
     const msg=document.getElementById('addMsg');
     msg.style.color='var(--warn-text)';
     msg.innerHTML=`
@@ -1205,7 +1105,7 @@ async function addClient(){
       </div>
       <div style="display:flex;gap:6px">
         <button class="btn-add" style="flex:1;background:var(--gray-400)" onclick="renderAdd()">Cancel</button>
-        <button class="btn-add" style="flex:2" onclick="forceAddClient('${id}','${selectedDays.join(',')}','${addr.replace(/'/g,"\\'")}','${phone}','${email}','${name.replace(/'/g,"\\'")}')">Add Anyway</button>
+        <button class="btn-add" style="flex:2" onclick="confirmAddClient()">Add Anyway</button>
       </div>`;
     return;
   }
@@ -1213,22 +1113,25 @@ async function addClient(){
   await saveClient(id,selectedDays,addr,phone,email,name);
 }
 
-async function forceAddClient(id,daysStr,addr,phone,email,name){
-  await saveClient(id,daysStr.split(','),addr,phone,email,name);
+async function confirmAddClient(){
+  if(!pendingClient) return;
+  const {id,selectedDays,addr,phone,email,name}=pendingClient;
+  pendingClient=null;
+  await saveClient(id,selectedDays,addr,phone,email,name);
 }
 
 async function saveClient(id,selectedDays,addr,phone,email,name){
   const msg=document.getElementById('addMsg');
   if(msg){msg.style.color='var(--gray-400)';msg.textContent='Saving…';}
-  const records=selectedDays.map((day,i)=>({
-    client_id: selectedDays.length===1 ? id : `${id}-${i+1}`,
-    service_day: day,
+  const record={
+    client_id: id,
+    service_day: selectedDays.join(','),
     address: addr,
     phone: phone||null,
     email: email||null,
     client_name: name||null,
-  }));
-  const {error}=await db.from('clients').insert(records);
+  };
+  const {error}=await db.from('clients').insert(record);
   if(error){toast('Error: '+error.message);if(msg)msg.textContent='';return;}
   await loadClients();
   if(msg){msg.style.color='var(--ok-text)';msg.textContent=`Client ${id} added — ${selectedDays.join(', ')}`;}
@@ -1254,7 +1157,7 @@ function renderRolloffs(){
           <button class="btn-add" onclick="addRolloffRow()">+ Add Row</button>
         </div>
       </div>
-      <div id="rolloffUndo" style="display:none;background:#fef3cd;padding:6px 10px;border-radius:6px;margin-bottom:6px;font-size:12px;display:flex;justify-content:space-between;align-items:center"></div>
+      <div id="rolloffUndo" style="display:none;background:#fef3cd;padding:6px 10px;border-radius:6px;margin-bottom:6px;font-size:12px;justify-content:space-between;align-items:center"></div>
       <div id="rolloffTable" style="overflow-x:auto">
         <div class="loading">Loading…</div>
       </div>
@@ -1303,11 +1206,11 @@ function renderRolloffTable(){
       <option value="REIS"${r.type==='REIS'?' selected':''}>REIS</option>
     </select></td>`;
     // Customer cell
-    html+=`<td><input type="text" class="ro-input" value="${(r.customer||'').replace(/"/g,'&quot;')}" onchange="updateRolloff(${r.id},'customer',this.value)" onkeydown="roKeyNav(event,${r.id},'customer')" ${deleted?'disabled':''}/></td>`;
+    html+=`<td><input type="text" class="ro-input" value="${esc(r.customer||'')}" onchange="updateRolloff(${r.id},'customer',this.value)" onkeydown="roKeyNav(event,${r.id},'customer')" ${deleted?'disabled':''}/></td>`;
     // Number cell
-    html+=`<td><input type="text" class="ro-input" value="${(r.address_number||'').replace(/"/g,'&quot;')}" onchange="updateRolloff(${r.id},'address_number',this.value)" onkeydown="roKeyNav(event,${r.id},'address_number')" ${deleted?'disabled':''}/></td>`;
+    html+=`<td><input type="text" class="ro-input" value="${esc(r.address_number||'')}" onchange="updateRolloff(${r.id},'address_number',this.value)" onkeydown="roKeyNav(event,${r.id},'address_number')" ${deleted?'disabled':''}/></td>`;
     // Street cell
-    html+=`<td><input type="text" class="ro-input" value="${(r.street||'').replace(/"/g,'&quot;')}" onchange="updateRolloff(${r.id},'street',this.value)" onkeydown="roKeyNav(event,${r.id},'street')" ${deleted?'disabled':''}/></td>`;
+    html+=`<td><input type="text" class="ro-input" value="${esc(r.street||'')}" onchange="updateRolloff(${r.id},'street',this.value)" onkeydown="roKeyNav(event,${r.id},'street')" ${deleted?'disabled':''}/></td>`;
     // Delete/restore button
     if(deleted){
       html+=`<td><button class="ro-del" title="Restore" onclick="restoreRolloff(${r.id})">&#8634;</button></td>`;
@@ -1330,16 +1233,18 @@ async function addRolloffRow(){
   const today=new Date().toISOString().split('T')[0];
   const {data,error}=await db.from('rolloffs').insert({date:today,type:null,customer:'',address_number:'',street:''}).select();
   if(error){toast('Error: '+error.message);return;}
+  const newId=data&&data[0]?data[0].id:null;
   await loadRolloffs();
-  // Focus the new row's customer field
-  setTimeout(()=>{
-    const rows=document.querySelectorAll('.ro-table tbody tr');
-    if(rows.length){
-      const last=rows[rows.length-1];
-      const inp=last.querySelector('input[type="text"]');
-      if(inp) inp.focus();
-    }
-  },100);
+  // Focus the new row's customer field by ID
+  if(newId){
+    setTimeout(()=>{
+      const row=document.querySelector(`tr[data-roid="${newId}"]`);
+      if(row){
+        const inp=row.querySelector('input[type="text"]');
+        if(inp) inp.focus();
+      }
+    },100);
+  }
 }
 
 async function updateRolloff(id,col,val){
@@ -1356,7 +1261,7 @@ async function softDeleteRolloff(id){
   rolloffUndo={id,timeout:null};
   const undoEl=document.getElementById('rolloffUndo');
   undoEl.style.display='flex';
-  undoEl.innerHTML=`<span>Row deleted (${row?row.customer||'':''})</span><button class="btn-add" style="padding:2px 10px;font-size:11px" onclick="restoreRolloff(${id})">Undo</button>`;
+  undoEl.innerHTML=`<span>Row deleted (${esc(row?row.customer||'':'')})</span><button class="btn-add" style="padding:2px 10px;font-size:11px" onclick="restoreRolloff(${id})">Undo</button>`;
   clearTimeout(rolloffUndo.timeout);
   rolloffUndo.timeout=setTimeout(()=>{undoEl.style.display='none';rolloffUndo=null;},8000);
   await loadRolloffs();
@@ -1384,7 +1289,7 @@ function renderImport(){
     <div class="form-card" style="margin-bottom:0.75rem">
       <h2>Import Clients from CSV</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:1rem">
-        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">client_id, service_day, address, phone</code>
+        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">client_id, service_day, address, phone, client_name</code>
       </p>
       <div class="import-zone" onclick="document.getElementById('csvIn').click()">
         <svg class="import-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1416,27 +1321,43 @@ function handleCSV(input){
   const reader=new FileReader();
   reader.onload=e=>{
     const lines=e.target.result.split('\n').filter(l=>l.trim());
-    const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase());
-    const rows=lines.slice(1).map(line=>{
-      const vals=line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+    const headers=parseCSVLine(lines[0]).map(h=>h.replace(/^"|"$/g,'').toLowerCase());
+    const rawRows=lines.slice(1).map(line=>{
+      const vals=parseCSVLine(line);
       const obj={};
       headers.forEach((h,i)=>obj[h]=vals[i]||'');
       return obj;
     }).filter(r=>r.client_id&&r.address);
 
+    // Merge multi-row clients into single rows with comma-separated days
+    const merged={};
+    rawRows.forEach(r=>{
+      const id=r.client_id.replace(/-\d+$/,''); // strip -1, -2 suffixes
+      if(!merged[id]){
+        merged[id]={...r, client_id:id};
+      } else {
+        const existing=merged[id].service_day.split(',').map(d=>d.trim());
+        const newDay=(r.service_day||'').trim();
+        if(newDay&&!existing.includes(newDay)){
+          merged[id].service_day=[...existing,newDay].join(',');
+        }
+      }
+    });
+    const rows=Object.values(merged);
+
+    pendingImport=rows;
     const preview=document.getElementById('importPreview');
-    const safeRows=JSON.stringify(rows).replace(/'/g,"\\'");
     preview.innerHTML=`
       <div class="import-preview">
         <div class="import-preview-header">
           <h3>${rows.length.toLocaleString()} clients ready</h3>
-          <button class="btn-add" onclick='doImport(${safeRows})'>Import All</button>
+          <button class="btn-add" onclick="doImport(pendingImport)">Import All</button>
         </div>
         ${rows.slice(0,6).map(r=>`
           <div class="preview-row">
-            <span class="p-id">${r.client_id}</span>
-            <span class="p-addr">${r.address}</span>
-            <span class="p-day">${r.service_day}</span>
+            <span class="p-id">${esc(r.client_id)}</span>
+            <span class="p-addr">${esc(r.address)}</span>
+            <span class="p-day">${esc(r.service_day)}</span>
           </div>`).join('')}
         ${rows.length>6?`<p style="font-size:12px;color:var(--gray-400);margin-top:8px">…and ${(rows.length-6).toLocaleString()} more</p>`:''}
       </div>`;
@@ -1464,9 +1385,9 @@ function handleRolloffCSV(input){
   const reader=new FileReader();
   reader.onload=e=>{
     const lines=e.target.result.split('\n').filter(l=>l.trim());
-    const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase().replace(/\s+/g,'_'));
+    const headers=parseCSVLine(lines[0]).map(h=>h.replace(/^"|"$/g,'').toLowerCase().replace(/\s+/g,'_'));
     const rows=lines.slice(1).map(line=>{
-      const vals=line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+      const vals=parseCSVLine(line);
       const obj={};
       headers.forEach((h,i)=>obj[h]=vals[i]||'');
       return obj;
@@ -1485,19 +1406,19 @@ function handleRolloffCSV(input){
       if(r.type) r.type=r.type.toUpperCase();
     });
 
+    pendingRoImport=rows;
     const preview=document.getElementById('roImportPreview');
-    const safeRows=JSON.stringify(rows).replace(/'/g,"\\'");
     preview.innerHTML=`
       <div class="import-preview">
         <div class="import-preview-header">
           <h3>${rows.length.toLocaleString()} roll-offs ready</h3>
-          <button class="btn-add" onclick='doRolloffImport(${safeRows})'>Import All</button>
+          <button class="btn-add" onclick="doRolloffImport(pendingRoImport)">Import All</button>
         </div>
         ${rows.slice(0,6).map(r=>`
           <div class="preview-row">
-            <span class="p-id">${r.type||''}</span>
-            <span class="p-addr">${r.customer||''}</span>
-            <span class="p-day">${r.address_number||''} ${r.street||''}</span>
+            <span class="p-id">${esc(r.type||'')}</span>
+            <span class="p-addr">${esc(r.customer||'')}</span>
+            <span class="p-day">${esc(r.address_number||'')} ${esc(r.street||'')}</span>
           </div>`).join('')}
         ${rows.length>6?`<p style="font-size:12px;color:var(--gray-400);margin-top:8px">…and ${(rows.length-6).toLocaleString()} more</p>`:''}
       </div>`;
@@ -1543,7 +1464,10 @@ if(_saved && _saved !== '1'){
     hide('loginScreen'); show('appScreen');
     document.getElementById('appScreen').style.flexDirection='column';
     document.getElementById('topbarUser').textContent = currentUser.display_name;
-    init();
+    init().catch(err=>{
+      toast('Connection error — please refresh');
+      console.error('Init failed:',err);
+    });
   }catch(e){ sessionStorage.removeItem('helm_auth'); }
 }
 </script>
