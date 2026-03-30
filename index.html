@@ -1316,7 +1316,7 @@ function renderImport(){
     <div class="form-card" style="margin-bottom:0.75rem">
       <h2>Import Clients from CSV</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:1rem">
-        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">client_id, service_day, address, phone, client_name</code>
+        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">client_id, address, phone, client_name</code>
       </p>
       <div class="import-zone" onclick="document.getElementById('csvIn').click()">
         <svg class="import-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1356,21 +1356,13 @@ function handleCSV(input){
       return obj;
     }).filter(r=>r.client_id&&r.address);
 
-    // Merge multi-row clients into single rows with comma-separated days
-    const merged={};
-    rawRows.forEach(r=>{
-      const id=r.client_id.replace(/-\d+$/,''); // strip -1, -2 suffixes
-      if(!merged[id]){
-        merged[id]={...r, client_id:id};
-      } else {
-        const existing=merged[id].service_day.split(',').map(d=>d.trim());
-        const newDay=(r.service_day||'').trim();
-        if(newDay&&!existing.includes(newDay)){
-          merged[id].service_day=[...existing,newDay].join(',');
-        }
-      }
+    // Dedupe by client_id (keep first occurrence)
+    const seen={};
+    const rows=rawRows.filter(r=>{
+      if(seen[r.client_id]) return false;
+      seen[r.client_id]=true;
+      return true;
     });
-    const rows=Object.values(merged);
 
     pendingImport=rows;
     const preview=document.getElementById('importPreview');
@@ -1383,8 +1375,8 @@ function handleCSV(input){
         ${rows.slice(0,6).map(r=>`
           <div class="preview-row">
             <span class="p-id">${esc(r.client_id)}</span>
+            <span class="p-name">${esc(r.client_name||'')}</span>
             <span class="p-addr">${esc(r.address)}</span>
-            <span class="p-day">${esc(r.service_day)}</span>
           </div>`).join('')}
         ${rows.length>6?`<p style="font-size:12px;color:var(--gray-400);margin-top:8px">…and ${(rows.length-6).toLocaleString()} more</p>`:''}
       </div>`;
