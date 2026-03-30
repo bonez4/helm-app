@@ -294,12 +294,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .btn-edit-sm:hover{border-color:var(--teal);color:var(--teal);}
 .note-row-body{font-family:'Courier New',monospace;font-size:12px;color:var(--gray-800);line-height:1.4;word-break:break-word;}
 .action-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;text-transform:uppercase;letter-spacing:.03em;}
-.action-tag.at-otp{background:#e8f0fe;color:#1a56db;}
-.action-tag.at-pile{background:#fef3c7;color:#92400e;}
 .action-tag.at-skip{background:var(--warn-bg);color:var(--warn-text);}
+.action-tag.at-1xer{background:#e8f0fe;color:#1a56db;}
+.action-tag.at-1xwk{background:#dbeafe;color:#1e40af;}
+.action-tag.at-2xwk{background:#c7d2fe;color:#3730a3;}
+.action-tag.at-lpu{background:#fef3c7;color:#92400e;}
+.action-tag.at-special{background:#fce7f3;color:#9d174d;}
+.action-tag.at-misc{background:var(--gray-100);color:var(--gray-500);}
 .action-tag.at-pause{background:var(--err-bg);color:var(--err-text);}
-.action-tag.at-complaint{background:#fce7f3;color:#9d174d;}
-.action-tag.at-note{background:var(--gray-100);color:var(--gray-500);}
 
 /* ── REPORT ──────────────────────────────── */
 .report-summary{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0.75rem;}
@@ -431,11 +433,13 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const ACTION_TYPES = [
-  {value:'One Time Pickup', label:'One Time Pickup', needsDate:true, tag:'at-otp'},
-  {value:'Pile Pickup', label:'Pile Pickup', needsDate:true, tag:'at-pile'},
   {value:'Skip Day', label:'Skip Day', needsDate:true, tag:'at-skip'},
-  {value:'Complaint', label:'Complaint', needsDate:false, tag:'at-complaint'},
-  {value:'Note', label:'Note', needsDate:false, tag:'at-note'},
+  {value:'1XER', label:'1XER', needsDate:true, tag:'at-1xer'},
+  {value:'1X WK', label:'1X WK', needsDate:true, tag:'at-1xwk'},
+  {value:'2X WK', label:'2X WK', needsDate:true, tag:'at-2xwk'},
+  {value:'LPU', label:'LPU', needsDate:true, tag:'at-lpu'},
+  {value:'Special Pickup', label:'Special Pickup', needsDate:true, tag:'at-special'},
+  {value:'Misc', label:'Misc', needsDate:false, tag:'at-misc'},
 ];
 
 let clients = [], skips = [], clientNotes = [], selectedWeek = '', activeClient = null;
