@@ -293,6 +293,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .btn-edit-sm{background:none;border:1px solid var(--gray-200);color:var(--gray-500);font-size:11px;padding:3px 10px;border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
 .btn-edit-sm:hover{border-color:var(--teal);color:var(--teal);}
 .note-row-body{font-family:'Courier New',monospace;font-size:12px;color:var(--gray-800);line-height:1.4;word-break:break-word;}
+.company-tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;margin-left:4px;}
+.co-reis{background:#d1fae5;color:#065f46;}
+.co-santos{background:#dbeafe;color:#1e40af;}
 .action-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;text-transform:uppercase;letter-spacing:.03em;}
 .action-tag.at-skip{background:var(--warn-bg);color:var(--warn-text);}
 .action-tag.at-1xer{background:#e8f0fe;color:#1a56db;}
@@ -432,6 +435,12 @@ const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function getCompany(id){
+  if(!id) return {name:'',tag:'',cls:''};
+  if(id.startsWith('20')) return {name:'REIS',tag:'co-reis',cls:'co-reis'};
+  if(id.startsWith('30')) return {name:'SANTOS',tag:'co-santos',cls:'co-santos'};
+  return {name:'',tag:'',cls:''};
+}
 const ACTION_TYPES = [
   {value:'Skip Day', label:'Skip Day', needsDate:true, tag:'at-skip'},
   {value:'1XER', label:'1XER', needsDate:true, tag:'at-1xer'},
@@ -548,7 +557,7 @@ async function loadClients() {
   clients=all;
   const hint=document.getElementById('srchHint');
   if(hint) hint.textContent=clients.length>0
-    ?`${clients.length.toLocaleString()} clients loaded — search by ID, name, address, or phone`
+    ?`${clients.length.toLocaleString()} clients loaded — search by account #, name, address, or phone`
     :'No clients found — import clients to get started';
 }
 
@@ -587,7 +596,7 @@ function renderLookup(){
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input type="text" id="srch" placeholder="Search by client ID, name, address, or phone…" oninput="doSearch(this.value)" onkeydown="handleSearchKey(event)" autocomplete="off"/>
     </div>
-    <div class="search-hint" id="srchHint">${clients.length>0?`${clients.length.toLocaleString()} clients loaded — search by ID, name, address, or phone`:'Loading clients…'}</div>
+    <div class="search-hint" id="srchHint">${clients.length>0?`${clients.length.toLocaleString()} clients loaded — search by account #, name, address, or phone`:'Loading clients…'}</div>
     <div id="srchResults" style="margin-top:.5rem"></div>`;
   document.getElementById('srch').focus();
 }
@@ -620,13 +629,14 @@ function doSearch(q){
   if(!results.length){res.innerHTML='<div class="empty-state">No clients found</div>';return;}
   if(results.length===1){res.innerHTML='';openClient(results[0].c);return;}
   res.innerHTML='<div class="results-list">'+results.map(({c})=>{
+    const co=getCompany(c.client_id);
     return `
     <div class="result-item" tabindex="0" data-cid="${esc(c.client_id)}" onclick="pickClient('${esc(c.client_id)}')" onkeydown="handleResultKey(event,'${esc(c.client_id)}')">
       <div>
-        <div class="result-id">${c.client_name?`${esc(c.client_name)} &mdash; `:''}${esc(c.client_id)}</div>
+        <div class="result-id">${c.client_name?`${esc(c.client_name)} &mdash; `:''}${esc(c.client_id)}${co.name?` <span class="company-tag ${co.cls}">${co.name}</span>`:''}</div>
         <div class="result-addr">${esc(c.address)}</div>
       </div>
-      <div class="result-day">${esc(c.service_day)}</div>
+      <div class="result-day">${esc(c.service_day||'')}</div>
     </div>`;
   }).join('')+'</div>';
 }
@@ -686,8 +696,9 @@ async function showPanel(c){
 
   const paused=c.status==='Paused';
   const ini=(c.client_name||c.address).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  const displayName=c.client_name||`Client ${c.client_id}`;
+  const displayName=c.client_name||`Account ${c.client_id}`;
   const allDays=c.service_day?c.service_day.split(',').map(d=>d.trim()):[];
+  const co=getCompany(c.client_id);
 
   const cSkips=skips.filter(s=>s.client_id===c.client_id);
   const today=getTodayISO();
@@ -699,7 +710,7 @@ async function showPanel(c){
         <div class="avatar">${esc(ini)}</div>
         <div class="card-header-meta">
           <h2>${esc(displayName)}</h2>
-          <p style="opacity:.7;font-size:11px;margin-bottom:1px">ID: ${esc(c.client_id)}</p>
+          <p style="opacity:.7;font-size:11px;margin-bottom:1px">Acct #: ${esc(c.client_id)}${co.name?` <span class="company-tag ${co.cls}">${co.name}</span>`:''}</p>
           <p>${esc(c.address)}, Nantucket MA &middot; ${esc(c.phone)||'No phone'}</p>
         </div>
       </div>
@@ -937,44 +948,60 @@ async function generateReport(){
     return;
   }
 
-  // Action type pill colors
-  const pillColors={'One Time Pickup':'#e8f0fe;color:#1a56db','Pile Pickup':'#fef3c7;color:#92400e','Skip Day':'var(--warn-bg);color:var(--warn-text)','Complaint':'#fce7f3;color:#9d174d','Note':'var(--gray-100);color:var(--gray-500)'};
+  // Split data by company
+  const companies=[
+    {key:'REIS',label:'REIS',cls:'co-reis',filter:n=>n.client_id&&n.client_id.startsWith('20')},
+    {key:'SANTOS',label:'SANTOS',cls:'co-santos',filter:n=>n.client_id&&n.client_id.startsWith('30')},
+    {key:'OTHER',label:'Other',cls:'',filter:n=>!n.client_id||(!n.client_id.startsWith('20')&&!n.client_id.startsWith('30'))}
+  ];
 
   let html=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
       <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)} — ${data.length} item${data.length!==1?'s':''}</div>
       <button class="btn-add" onclick="printReport('${date}')" style="white-space:nowrap">Print Report</button>
-    </div>
-    <div class="report-summary">
-      ${Object.entries(grouped).map(([action,notes])=>`<span class="report-summary-pill" style="background:${pillColors[action]||'var(--gray-100);color:var(--gray-500)'}">${esc(action)}: ${notes.length}</span>`).join('')}
     </div>`;
 
-  Object.entries(grouped).forEach(([action,notes])=>{
-    html+=`<div class="report-group">
-      <div class="report-group-header">
-        <span>${esc(action)}</span>
-        <span>${notes.length}</span>
-      </div>
-      <table class="report-table"><thead><tr>
-        <th style="width:28px">#</th>
-        <th style="width:52px">ID</th>
-        <th>Name</th>
-        <th>Address</th>
-        <th>Phone</th>
-        ${notes.some(n=>n.note)?'<th>Note</th>':''}
-      </tr></thead><tbody>`;
-    notes.forEach((n,i)=>{
-      const c=findClient(n.client_id);
-      html+=`<tr>
-        <td class="rt-num">${i+1}</td>
-        <td class="rt-id">${esc(n.client_id)}</td>
-        <td class="rt-name">${esc(c.client_name||'—')}</td>
-        <td class="rt-addr">${esc(c.address||'—')}</td>
-        <td class="rt-phone">${esc(c.phone||'')}</td>
-        ${notes.some(n=>n.note)?`<td class="rt-note">${esc(n.note||'')}</td>`:''}
-      </tr>`;
+  companies.forEach(comp=>{
+    const compData=data.filter(comp.filter);
+    if(!compData.length) return;
+    // Group by action within this company
+    const compGrouped={};
+    compData.forEach(n=>{(compGrouped[n.action]=compGrouped[n.action]||[]).push(n);});
+
+    html+=`<div style="margin-bottom:1.5rem">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <h3 style="margin:0;font-size:16px;color:var(--navy)">${comp.label}</h3>
+        ${comp.cls?`<span class="company-tag ${comp.cls}">${compData.length} items</span>`:`<span style="font-size:11px;color:var(--gray-400)">${compData.length} items</span>`}
+      </div>`;
+
+    Object.entries(compGrouped).forEach(([action,notes])=>{
+      html+=`<div class="report-group">
+        <div class="report-group-header">
+          <span>${esc(action)}</span>
+          <span>${notes.length}</span>
+        </div>
+        <table class="report-table"><thead><tr>
+          <th style="width:28px">#</th>
+          <th style="width:52px">Acct</th>
+          <th>Name</th>
+          <th>Address</th>
+          <th>Phone</th>
+          ${notes.some(n=>n.note)?'<th>Note</th>':''}
+        </tr></thead><tbody>`;
+      notes.forEach((n,i)=>{
+        const c=findClient(n.client_id);
+        html+=`<tr>
+          <td class="rt-num">${i+1}</td>
+          <td class="rt-id">${esc(n.client_id)}</td>
+          <td class="rt-name">${esc(c.client_name||'—')}</td>
+          <td class="rt-addr">${esc(c.address||'—')}</td>
+          <td class="rt-phone">${esc(c.phone||'')}</td>
+          ${notes.some(n=>n.note)?`<td class="rt-note">${esc(n.note||'')}</td>`:''}
+        </tr>`;
+      });
+      html+=`</tbody></table></div>`;
     });
-    html+=`</tbody></table></div>`;
+    html+=`</div>`;
   });
 
   results.innerHTML=html;
@@ -988,26 +1015,38 @@ function printReport(date){
     const {data,grouped}=fetchReportData(notesData,skipsData,date);
     if(!data.length) return;
 
-    // Summary line
+    const companies=[
+      {key:'REIS',label:'REIS',filter:n=>n.client_id&&n.client_id.startsWith('20')},
+      {key:'SANTOS',label:'SANTOS',filter:n=>n.client_id&&n.client_id.startsWith('30')},
+      {key:'OTHER',label:'Other',filter:n=>!n.client_id||(!n.client_id.startsWith('20')&&!n.client_id.startsWith('30'))}
+    ];
+
     const summary=Object.entries(grouped).map(([a,n])=>`${a}: ${n.length}`).join(' &nbsp;·&nbsp; ');
 
     let sections='';
-    Object.entries(grouped).forEach(([action,notes])=>{
-      const hasNotes=notes.some(n=>n.note);
-      sections+=`<h2>${esc(action)} (${notes.length})</h2>
-      <table><thead><tr><th style="width:24px">#</th><th style="width:44px">ID</th><th style="width:130px">Name</th><th>Address</th><th style="width:100px">Phone</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
-      notes.forEach((n,i)=>{
-        const c=findClient(n.client_id);
-        sections+=`<tr>
-          <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
-          <td style="font-size:10px;color:#888">${esc(n.client_id)}</td>
-          <td style="font-weight:600">${esc(c.client_name||'—')}</td>
-          <td>${esc(c.address||'—')}</td>
-          <td style="color:#555">${esc(c.phone||'')}</td>
-          ${hasNotes?`<td style="font-style:italic;color:#555">${esc(n.note||'')}</td>`:''}
-        </tr>`;
+    companies.forEach(comp=>{
+      const compData=data.filter(comp.filter);
+      if(!compData.length) return;
+      const compGrouped={};
+      compData.forEach(n=>{(compGrouped[n.action]=compGrouped[n.action]||[]).push(n);});
+      sections+=`<h2 style="background:#2a5a3a;margin-top:16px;font-size:13px;padding:6px 8px;">${comp.label} (${compData.length})</h2>`;
+      Object.entries(compGrouped).forEach(([action,notes])=>{
+        const hasNotes=notes.some(n=>n.note);
+        sections+=`<h2>${esc(action)} (${notes.length})</h2>
+        <table><thead><tr><th style="width:24px">#</th><th style="width:44px">Acct</th><th style="width:130px">Name</th><th>Address</th><th style="width:100px">Phone</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
+        notes.forEach((n,i)=>{
+          const c=findClient(n.client_id);
+          sections+=`<tr>
+            <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
+            <td style="font-size:10px;color:#888">${esc(n.client_id)}</td>
+            <td style="font-weight:600">${esc(c.client_name||'—')}</td>
+            <td>${esc(c.address||'—')}</td>
+            <td style="color:#555">${esc(c.phone||'')}</td>
+            ${hasNotes?`<td style="font-style:italic;color:#555">${esc(n.note||'')}</td>`:''}
+          </tr>`;
+        });
+        sections+=`</tbody></table>`;
       });
-      sections+=`</tbody></table>`;
     });
 
     const win=window.open('','_blank');
@@ -1055,7 +1094,7 @@ function renderAdd(){
     <div class="form-card">
       <h2>Add New Client</h2>
       <div class="form-row">
-        <div class="form-group"><label>Client ID</label><input id="nId" value="${nextId}"/></div>
+        <div class="form-group"><label>Account #</label><input id="nId" value="${nextId}"/></div>
         <div class="form-group"><label>Client Name</label><input id="nName" placeholder="e.g. John Smith"/></div>
       </div>
       <div class="form-group"><label>Street Address</label><input id="nAddr" placeholder="e.g. 47 Polpis Rd"/></div>
@@ -1087,7 +1126,7 @@ async function addClient(){
   const phone=document.getElementById('nPhone').value.trim();
   const email=document.getElementById('nEmail').value.trim();
   const selectedDays=[...document.querySelectorAll('.day-toggle-active')].map(b=>b.dataset.day);
-  if(!id||!addr){toast('Client ID and address are required');return;}
+  if(!id||!addr){toast('Account # and address are required');return;}
   if(!selectedDays.length){toast('Select at least one pickup day');return;}
 
   const addrLower=addr.toLowerCase().trim();
@@ -1316,7 +1355,7 @@ function renderImport(){
     <div class="form-card" style="margin-bottom:0.75rem">
       <h2>Import Clients from CSV</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:1rem">
-        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">client_id, address, phone, client_name</code>
+        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">client_id, address, phone, client_name</code> (client_id = account number)
       </p>
       <div class="import-zone" onclick="document.getElementById('csvIn').click()">
         <svg class="import-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
