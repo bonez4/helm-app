@@ -394,12 +394,12 @@ select.ro-input{cursor:pointer;}
     </div>
   </div>
 
-  <div class="tab-nav">
+  <div class="tab-nav" id="tabNav">
     <button class="active" onclick="switchTab('lookup',this)">Client Lookup</button>
     <button onclick="switchTab('add',this)">Add Client</button>
     <button onclick="switchTab('report',this)">Reports</button>
     <button onclick="switchTab('rolloffs',this)">Roll-offs</button>
-    <button onclick="switchTab('import',this)">Import</button>
+    <button id="importTabBtn" style="display:none" onclick="switchTab('import',this)">Import</button>
   </div>
 
   <div class="main">
@@ -484,6 +484,7 @@ async function login() {
   show('appScreen'); hide('loginScreen');
   document.getElementById('appScreen').style.flexDirection='column';
   document.getElementById('topbarUser').textContent = data.display_name;
+  if(data.role==='admin') document.getElementById('importTabBtn').style.display='';
   init();
 }
 function logout() { sessionStorage.removeItem('helm_auth'); location.reload(); }
@@ -1185,7 +1186,8 @@ function renderRolloffTable(){
     {key:'type',label:'Type',width:'70px'},
     {key:'customer',label:'Customer',width:'auto'},
     {key:'address_number',label:'Number',width:'80px'},
-    {key:'street',label:'Street',width:'auto'}
+    {key:'street',label:'Street',width:'auto'},
+    {key:'notes',label:'Notes',width:'120px'}
   ];
   const sortIcon=(col)=>rolloffSort.col===col?(rolloffSort.asc?'&#9650;':'&#9660;'):'';
   let html=`<table class="ro-table"><thead><tr>`;
@@ -1200,10 +1202,10 @@ function renderRolloffTable(){
     // Date cell
     html+=`<td><input type="date" class="ro-input" value="${r.date||''}" onchange="updateRolloff(${r.id},'date',this.value)" ${deleted?'disabled':''}/></td>`;
     // Type cell - dropdown
+    const roTypes=['AJ','REIS','AJ/REIS','30YD','40YD','30/40YD','SANTOS BOX'];
     html+=`<td><select class="ro-input" onchange="updateRolloff(${r.id},'type',this.value)" ${deleted?'disabled':''}>
       <option value=""${!r.type?' selected':''}></option>
-      <option value="AJ"${r.type==='AJ'?' selected':''}>AJ</option>
-      <option value="REIS"${r.type==='REIS'?' selected':''}>REIS</option>
+      ${roTypes.map(t=>`<option value="${t}"${r.type===t?' selected':''}>${t}</option>`).join('')}
     </select></td>`;
     // Customer cell
     html+=`<td><input type="text" class="ro-input" value="${esc(r.customer||'')}" onchange="updateRolloff(${r.id},'customer',this.value)" onkeydown="roKeyNav(event,${r.id},'customer')" ${deleted?'disabled':''}/></td>`;
@@ -1211,6 +1213,8 @@ function renderRolloffTable(){
     html+=`<td><input type="text" class="ro-input" value="${esc(r.address_number||'')}" onchange="updateRolloff(${r.id},'address_number',this.value)" onkeydown="roKeyNav(event,${r.id},'address_number')" ${deleted?'disabled':''}/></td>`;
     // Street cell
     html+=`<td><input type="text" class="ro-input" value="${esc(r.street||'')}" onchange="updateRolloff(${r.id},'street',this.value)" onkeydown="roKeyNav(event,${r.id},'street')" ${deleted?'disabled':''}/></td>`;
+    // Notes cell
+    html+=`<td><input type="text" class="ro-input" value="${esc(r.notes||'')}" onchange="updateRolloff(${r.id},'notes',this.value)" onkeydown="roKeyNav(event,${r.id},'notes')" ${deleted?'disabled':''}/></td>`;
     // Delete/restore button
     if(deleted){
       html+=`<td><button class="ro-del" title="Restore" onclick="restoreRolloff(${r.id})">&#8634;</button></td>`;
@@ -1285,6 +1289,10 @@ function roKeyNav(event,id,col){
 
 // ── IMPORT ────────────────────────────────────────────────────────────
 function renderImport(){
+  if(!currentUser||currentUser.role!=='admin'){
+    document.getElementById('tab-import').innerHTML='<div class="empty-state">Admin access required for imports.</div>';
+    return;
+  }
   document.getElementById('tab-import').innerHTML=`
     <div class="form-card" style="margin-bottom:0.75rem">
       <h2>Import Clients from CSV</h2>
@@ -1303,7 +1311,7 @@ function renderImport(){
     <div class="form-card" style="margin-top:1rem">
       <h2>Import Roll-offs from CSV</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:1rem">
-        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">date, type, customer, address_number, street</code>
+        CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">date, type, customer, address_number, street, notes</code>
         <br><span style="margin-top:4px;display:inline-block">Type should be <strong>AJ</strong> or <strong>REIS</strong>. Date format: YYYY-MM-DD or MM/DD/YYYY</span>
       </p>
       <div class="import-zone" onclick="document.getElementById('roCsvIn').click()">
@@ -1432,7 +1440,8 @@ async function doRolloffImport(rows){
     type:r.type||null,
     customer:r.customer||null,
     address_number:r.address_number||null,
-    street:r.street||null
+    street:r.street||null,
+    notes:r.notes||null
   }));
   const batchSize=500;
   let done=0;
@@ -1464,6 +1473,7 @@ if(_saved && _saved !== '1'){
     hide('loginScreen'); show('appScreen');
     document.getElementById('appScreen').style.flexDirection='column';
     document.getElementById('topbarUser').textContent = currentUser.display_name;
+    if(currentUser.role==='admin') document.getElementById('importTabBtn').style.display='';
     init().catch(err=>{
       toast('Connection error — please refresh');
       console.error('Init failed:',err);

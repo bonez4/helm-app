@@ -55,6 +55,7 @@ No build step. No npm. No framework. One file.
 | phone | TEXT | Optional |
 | email | TEXT | Optional |
 | client_name | TEXT | Optional — full name |
+| autopay | BOOLEAN | Credit card on file for autopay (default false) |
 | status | TEXT | `Active`, `Paused` |
 | created_at | TIMESTAMP | Auto |
 
@@ -88,10 +89,11 @@ No build step. No npm. No framework. One file.
 |---|---|---|
 | id | SERIAL (PK) | Auto |
 | date | DATE | Date placed/tracked |
-| type | TEXT | `AJ` or `REIS` |
+| type | TEXT | `AJ`, `REIS`, `AJ/REIS`, `30YD`, `40YD`, `30/40YD`, `SANTOS BOX` |
 | customer | TEXT | Customer name |
 | address_number | TEXT | Street number |
 | street | TEXT | Street name |
+| notes | TEXT | Special instructions (e.g. C/C, OWN BOX, 2 BOXES) |
 | deleted | BOOLEAN | Soft delete flag (default false) |
 | deleted_at | TIMESTAMP | When it was deleted |
 | deleted_by | TEXT | Who deleted it |
@@ -103,6 +105,7 @@ No build step. No npm. No framework. One file.
 | username | TEXT (PK) | Lowercase, used to log in |
 | password | TEXT | Plaintext (simple internal tool) |
 | display_name | TEXT | Shown in topbar and notes |
+| role | TEXT | `admin` or `staff` — admins can access Import tab |
 
 **Current users:** admin, david, jackie, esme, hannah, kobie
 
@@ -119,6 +122,8 @@ No build step. No npm. No framework. One file.
 ### Client Panel
 - Shows name, ID, address, phone, all pickup days (comma-separated displayed as pills)
 - Account status (Active / Skipped / Paused)
+- **Autopay indicator** — shows whether client has a credit card on file (Yes/No)
+- **Edit Client** button — inline editing of name, address, phone, email, pickup days, and autopay status
 - **Notes system** — add notes with action types:
   - One Time Pickup (requires date)
   - Pile Pickup (requires date)
@@ -126,6 +131,7 @@ No build step. No npm. No framework. One file.
   - Complaint
   - Note (general)
 - Notes log shows date/time, user, action type, action date, and note text
+- **Delete notes** — each note has a delete button to remove incorrect entries
 
 ### Add Client
 - Name, address, phone, email fields
@@ -144,15 +150,16 @@ No build step. No npm. No framework. One file.
 
 ### Roll-offs
 - Editable spreadsheet-style table for tracking construction dumpsters
-- Columns: Date, Type (AJ/REIS dropdown), Customer, Number, Street
+- Columns: Date, Type (AJ/REIS/30YD/40YD/etc. dropdown), Customer, Number, Street, Notes
 - Click any cell to edit inline, changes auto-save
 - Sort by any column by clicking header
 - Soft delete with 8-second undo bar
 - "Show deleted" toggle to view/restore removed rows
 
-### Import
-- **Client CSV import** — headers: `client_id, service_day, address, phone, client_name`
-- **Roll-offs CSV import** — headers: `date, type, customer, address_number, street`
+### Import (Admin Only)
+- **Visible only to users with `role = 'admin'`** in the users table
+- **Client CSV import** — headers: `client_id, service_day, address, phone, client_name, autopay`
+- **Roll-offs CSV import** — headers: `date, type, customer, address_number, street, notes`
 - Both import in 500-row batches (handles large datasets)
 - Client import uses upsert — re-importing won't create duplicates
 - Client import auto-merges rows with suffixed IDs (e.g. `001-1`, `001-2`) into a single row with comma-separated days
@@ -163,6 +170,7 @@ No build step. No npm. No framework. One file.
 - All user-generated content (names, addresses, notes, etc.) is HTML-escaped before rendering to prevent XSS
 - Import data stored in JS variables instead of inline HTML to prevent injection
 - Duplicate confirmation uses stored pending data instead of string interpolation
+- Import tab restricted to admin users only
 
 ---
 
@@ -178,14 +186,21 @@ No build step. No npm. No framework. One file.
 Run in Supabase SQL Editor:
 ```sql
 TRUNCATE TABLE clients CASCADE;
+TRUNCATE TABLE notes;
+TRUNCATE TABLE skips;
 ```
 Then use the Import tab in HELM.
 
 ### To add a new staff user:
 Run in Supabase SQL Editor:
 ```sql
-INSERT INTO users (username, password, display_name)
-VALUES ('newname', 'reis2026', 'Display Name');
+INSERT INTO users (username, password, display_name, role)
+VALUES ('newname', 'reis2026', 'Display Name', 'staff');
+```
+
+### To make a user admin:
+```sql
+UPDATE users SET role = 'admin' WHERE username = 'david';
 ```
 
 ---
@@ -195,6 +210,7 @@ VALUES ('newname', 'reis2026', 'Display Name');
 - **Authentication** is simple shared password + per-user login. Not enterprise-grade — fine for a small internal team of ~5 users.
 - **No real-time sync** — if two staff members are on the app simultaneously, one won't see the other's changes until they refresh or switch tabs.
 - **Single file** means all CSS, JS, and HTML are in one place. Great for simplicity, but if the app grows significantly a proper build setup would be worth considering.
+- **Autopay** is a simple yes/no flag — billing is handled externally. This field is informational only for customer reps.
 
 ---
 
@@ -203,7 +219,8 @@ VALUES ('newname', 'reis2026', 'Display Name');
 ```
 helm-app/
 ├── index.html                    ← The entire application
-├── client_import_template.xlsx   ← Template for client CSV import
+├── sample_clients.csv            ← Template for client CSV import
+├── rolloffs_clean.csv            ← Cleaned roll-off data ready for import
 ├── README.md                     ← This file
 ```
 
