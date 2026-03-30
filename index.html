@@ -1146,6 +1146,7 @@ let rolloffSort={col:'date',asc:false};
 let showDeleted=false;
 let rolloffUndo=null;
 
+let rolloffSearch='';
 function renderRolloffs(){
   document.getElementById('tab-rolloffs').innerHTML=`
     <div class="card" style="max-width:100%">
@@ -1157,6 +1158,10 @@ function renderRolloffs(){
           </label>
           <button class="btn-add" onclick="addRolloffRow()">+ Add Row</button>
         </div>
+      </div>
+      <div style="position:relative;margin-bottom:8px">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--gray-300);font-size:14px">&#128269;</span>
+        <input type="text" id="rolloffSearchInput" placeholder="Search roll-offs by customer, address, type, notes…" oninput="rolloffSearch=this.value;renderRolloffTable()" style="width:100%;padding:7px 10px 7px 32px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-size:12px;font-family:inherit;outline:none;transition:border-color .15s;" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--gray-200)'"/>
       </div>
       <div id="rolloffUndo" style="display:none;background:#fef3cd;padding:6px 10px;border-radius:6px;margin-bottom:6px;font-size:12px;justify-content:space-between;align-items:center"></div>
       <div id="rolloffTable" style="overflow-x:auto">
@@ -1181,6 +1186,15 @@ function renderRolloffTable(){
     wrap.innerHTML='<div class="empty-state">No roll-offs yet. Click "+ Add Row" to start.</div>';
     return;
   }
+  const q=rolloffSearch.trim().toLowerCase();
+  const filtered=q?rolloffsData.filter(r=>{
+    return [r.customer,r.address_number,r.street,r.type,r.notes,r.date]
+      .filter(Boolean).some(v=>v.toLowerCase().includes(q));
+  }):rolloffsData;
+  if(q&&!filtered.length){
+    wrap.innerHTML=`<div class="empty-state">No roll-offs matching "${esc(rolloffSearch.trim())}"</div>`;
+    return;
+  }
   const cols=[
     {key:'date',label:'Date',width:'100px'},
     {key:'type',label:'Type',width:'70px'},
@@ -1195,7 +1209,7 @@ function renderRolloffTable(){
     html+=`<th style="width:${c.width};cursor:pointer;user-select:none" onclick="sortRolloffs('${c.key}')">${c.label} <span style="font-size:9px">${sortIcon(c.key)}</span></th>`;
   });
   html+=`<th style="width:36px"></th></tr></thead><tbody>`;
-  rolloffsData.forEach(r=>{
+  filtered.forEach(r=>{
     const deleted=r.deleted;
     const rowStyle=deleted?'opacity:0.4;text-decoration:line-through;':'';
     html+=`<tr style="${rowStyle}" data-roid="${r.id}">`;
@@ -1224,7 +1238,8 @@ function renderRolloffTable(){
     html+=`</tr>`;
   });
   html+=`</tbody></table>`;
-  wrap.innerHTML=html;
+  const countLabel=q?`<div style="font-size:11px;color:var(--gray-400);margin-top:4px">${filtered.length} of ${rolloffsData.length} roll-offs shown</div>`:'';
+  wrap.innerHTML=html+countLabel;
 }
 
 function sortRolloffs(col){
