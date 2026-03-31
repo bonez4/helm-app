@@ -119,9 +119,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
   z-index:9999;display:none;overflow:hidden;
 }
 .sticky-panel.s-open{display:block;}
-.sticky-sec-hdr{
-  padding:9px 12px 7px;border-bottom:1px solid rgba(255,255,255,0.07);
+.sticky-drag-handle{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px 6px;border-bottom:1px solid rgba(255,255,255,0.07);
+  cursor:grab;user-select:none;
+}
+.sticky-drag-handle:active{cursor:grabbing;}
+.sticky-drag-title{
   font-size:10px;font-weight:600;color:rgba(255,255,255,0.35);
+  letter-spacing:.07em;text-transform:uppercase;
+}
+.sticky-drag-dots{
+  font-size:13px;color:rgba(255,255,255,0.18);letter-spacing:1px;line-height:1;
+}
+.sticky-close{
+  background:none;border:none;color:rgba(255,255,255,0.25);
+  font-size:16px;cursor:pointer;padding:0 2px;line-height:1;
+  font-family:'DM Sans',sans-serif;
+}
+.sticky-close:hover{color:rgba(255,255,255,0.6);}
+.sticky-sec-hdr{
+  padding:7px 12px 6px;border-bottom:1px solid rgba(255,255,255,0.07);
+  font-size:10px;font-weight:600;color:rgba(255,255,255,0.3);
   letter-spacing:.07em;text-transform:uppercase;
 }
 .sticky-compose{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.07);}
@@ -488,6 +507,10 @@ select.ro-input{cursor:pointer;}
 <div class="toast" id="toast"></div>
 
 <div class="sticky-panel" id="stickyPanel">
+  <div class="sticky-drag-handle" id="stickyHandle">
+    <span class="sticky-drag-title">⠿ Sticky Notes</span>
+    <button class="sticky-close" onclick="toggleStickyPanel()" title="Close">&times;</button>
+  </div>
   <div class="sticky-sec-hdr">New Note</div>
   <div class="sticky-compose">
     <input id="stickyTitle" type="text" placeholder="Title (optional)"/>
@@ -654,16 +677,26 @@ function fmtStickyDate(iso){
     +' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 }
 
-document.addEventListener('click', function(e){
-  if(!stickyOpen) return;
-  const panel = document.getElementById('stickyPanel');
-  const btn   = document.getElementById('stickyBtn');
-  if(!panel.contains(e.target) && !btn.contains(e.target)){
-    panel.classList.remove('s-open');
-    btn.classList.remove('s-open');
-    stickyOpen = false;
-  }
-});
+// ── STICKY DRAG ───────────────────────────────────────────────────────
+(function(){
+  let dragging=false, ox=0, oy=0, pl=0, pt=0;
+  document.addEventListener('mousedown', function(e){
+    const handle = document.getElementById('stickyHandle');
+    if(!handle || !handle.contains(e.target)) return;
+    const panel = document.getElementById('stickyPanel');
+    dragging=true;
+    ox=e.clientX; oy=e.clientY;
+    pl=panel.offsetLeft; pt=panel.offsetTop;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e){
+    if(!dragging) return;
+    const panel = document.getElementById('stickyPanel');
+    panel.style.left = (pl + e.clientX - ox) + 'px';
+    panel.style.top  = (pt + e.clientY - oy) + 'px';
+  });
+  document.addEventListener('mouseup', function(){ dragging=false; });
+})();
 
 // ── AUTH ──────────────────────────────────────────────────────────────
 async function login() {
