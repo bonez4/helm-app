@@ -103,6 +103,68 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 }
 .btn-logout:hover{background:rgba(255,255,255,0.15);color:white;}
 
+/* ── STICKY NOTES ───────────────────────────────────────── */
+.btn-sticky{
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);
+  color:rgba(255,255,255,0.38);font-size:11px;padding:4px 10px;margin-left:22px;
+  border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .15s;letter-spacing:.02em;
+}
+.btn-sticky:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.65);}
+.btn-sticky.s-open{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);}
+.sticky-panel{
+  position:fixed;top:50px;width:300px;
+  background:#1b2233;border:1px solid rgba(255,255,255,0.11);
+  border-radius:8px;box-shadow:0 10px 36px rgba(0,0,0,0.45);
+  z-index:9999;display:none;overflow:hidden;
+}
+.sticky-panel.s-open{display:block;}
+.sticky-sec-hdr{
+  padding:9px 12px 7px;border-bottom:1px solid rgba(255,255,255,0.07);
+  font-size:10px;font-weight:600;color:rgba(255,255,255,0.35);
+  letter-spacing:.07em;text-transform:uppercase;
+}
+.sticky-compose{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.07);}
+.sticky-compose input,.sticky-compose textarea{
+  width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.09);
+  color:rgba(255,255,255,0.85);font-family:'DM Sans',sans-serif;font-size:12px;
+  padding:6px 8px;border-radius:4px;box-sizing:border-box;outline:none;
+}
+.sticky-compose input{margin-bottom:6px;}
+.sticky-compose input::placeholder,.sticky-compose textarea::placeholder{color:rgba(255,255,255,0.25);}
+.sticky-compose textarea{resize:vertical;min-height:74px;line-height:1.45;}
+.sticky-compose input:focus,.sticky-compose textarea:focus{border-color:rgba(255,255,255,0.22);}
+.sticky-actions{display:flex;gap:6px;margin-top:7px;justify-content:flex-end;}
+.s-btn-cancel{
+  background:none;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.35);
+  font-size:11px;padding:4px 10px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;
+}
+.s-btn-cancel:hover{color:rgba(255,255,255,0.6);}
+.s-btn-save{
+  background:var(--teal);border:none;color:white;font-size:11px;
+  padding:4px 13px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;
+}
+.s-btn-save:hover{filter:brightness(1.1);}
+.sticky-list{max-height:230px;overflow-y:auto;}
+.sticky-list::-webkit-scrollbar{width:4px;}
+.sticky-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px;}
+.sticky-item{
+  padding:9px 32px 9px 12px;border-bottom:1px solid rgba(255,255,255,0.05);
+  cursor:pointer;transition:background .1s;position:relative;
+}
+.sticky-item:hover{background:rgba(255,255,255,0.04);}
+.sticky-item.s-expanded{background:rgba(255,255,255,0.05);}
+.sticky-item-title{font-size:12px;font-weight:600;color:rgba(255,255,255,0.75);margin-bottom:2px;}
+.sticky-item-preview{font-size:11px;color:rgba(255,255,255,0.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sticky-item-full{font-size:12px;color:rgba(255,255,255,0.55);margin-top:5px;white-space:pre-wrap;word-break:break-word;line-height:1.5;}
+.sticky-item-date{font-size:10px;color:rgba(255,255,255,0.2);margin-top:4px;}
+.sticky-del{
+  position:absolute;right:8px;top:9px;background:none;border:none;
+  color:rgba(255,255,255,0.2);cursor:pointer;font-size:15px;padding:0 3px;line-height:1;
+}
+.sticky-del:hover{color:rgba(255,100,100,0.65);}
+.sticky-empty{padding:22px;text-align:center;color:rgba(255,255,255,0.2);font-size:12px;}
+
 .tab-nav{
   background:white;border-bottom:1px solid var(--gray-200);
   display:flex;padding:0 1rem;gap:0;overflow-x:auto;
@@ -391,6 +453,7 @@ select.ro-input{cursor:pointer;}
         <div class="topbar-name">HELM</div>
         <div class="topbar-company">Reis Trucking</div>
       </div>
+      <button id="stickyBtn" class="btn-sticky" onclick="toggleStickyPanel()">Sticky</button>
     </div>
     <div class="topbar-right">
       <div class="live-dot"></div>
@@ -423,6 +486,20 @@ select.ro-input{cursor:pointer;}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="sticky-panel" id="stickyPanel">
+  <div class="sticky-sec-hdr">New Note</div>
+  <div class="sticky-compose">
+    <input id="stickyTitle" type="text" placeholder="Title (optional)"/>
+    <textarea id="stickyContent" placeholder="Write a note…"></textarea>
+    <div class="sticky-actions">
+      <button class="s-btn-cancel" onclick="cancelSticky()">Clear</button>
+      <button class="s-btn-save" onclick="saveSticky()">Save</button>
+    </div>
+  </div>
+  <div class="sticky-sec-hdr" style="margin-top:0">Saved Notes</div>
+  <div class="sticky-list" id="stickyList"><div class="sticky-empty">No notes yet</div></div>
+</div>
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────
@@ -483,6 +560,110 @@ function parseCSVLine(line){
   fields.push(field.trim());
   return fields;
 }
+
+// ── STICKY NOTES ──────────────────────────────────────────────────────
+let stickyOpen = false;
+let stickyData = [];
+
+function toggleStickyPanel(){
+  const panel = document.getElementById('stickyPanel');
+  const btn   = document.getElementById('stickyBtn');
+  stickyOpen  = !stickyOpen;
+  if(stickyOpen){
+    const rect = btn.getBoundingClientRect();
+    panel.style.left = rect.left + 'px';
+    panel.classList.add('s-open');
+    btn.classList.add('s-open');
+    loadAndRenderStickies();
+  } else {
+    panel.classList.remove('s-open');
+    btn.classList.remove('s-open');
+  }
+}
+
+async function loadAndRenderStickies(){
+  if(!currentUser) return;
+  const {data,error} = await db.from('stickies')
+    .select('*').eq('user_id', currentUser.display_name)
+    .order('created_at',{ascending:false});
+  if(!error) stickyData = data || [];
+  renderStickies();
+}
+
+function renderStickies(){
+  const list = document.getElementById('stickyList');
+  if(!stickyData.length){ list.innerHTML='<div class="sticky-empty">No notes yet</div>'; return; }
+  list.innerHTML = stickyData.map(s=>`
+    <div class="sticky-item" id="sk-${s.id}" onclick="expandSticky(${s.id})">
+      <button class="sticky-del" onclick="event.stopPropagation();deleteSticky(${s.id})" title="Delete">&times;</button>
+      <div class="sticky-item-title">${esc(s.title||'Untitled')}</div>
+      <div class="sticky-item-preview">${esc(s.content)}</div>
+      <div class="sticky-item-date">${fmtStickyDate(s.created_at)}</div>
+    </div>`).join('');
+}
+
+function expandSticky(id){
+  const s = stickyData.find(x=>x.id===id);
+  if(!s) return;
+  const el = document.getElementById('sk-'+id);
+  const expanded = el.classList.contains('s-expanded');
+  // collapse all
+  document.querySelectorAll('.sticky-item.s-expanded').forEach(e=>e.classList.remove('s-expanded'));
+  renderStickies();
+  if(!expanded){
+    const el2 = document.getElementById('sk-'+id);
+    el2.innerHTML = `
+      <button class="sticky-del" onclick="event.stopPropagation();deleteSticky(${s.id})" title="Delete">&times;</button>
+      <div class="sticky-item-title">${esc(s.title||'Untitled')}</div>
+      <div class="sticky-item-full">${esc(s.content)}</div>
+      <div class="sticky-item-date">${fmtStickyDate(s.created_at)}</div>`;
+    el2.classList.add('s-expanded');
+  }
+}
+
+async function saveSticky(){
+  if(!currentUser) return;
+  const title   = (document.getElementById('stickyTitle').value||'').trim();
+  const content = (document.getElementById('stickyContent').value||'').trim();
+  if(!content){ toast('Write something first'); return; }
+  const {error} = await db.from('stickies').insert({
+    user_id: currentUser.display_name,
+    title:   title||'Untitled',
+    content: content
+  });
+  if(error){ toast('Error: '+error.message); return; }
+  cancelSticky();
+  loadAndRenderStickies();
+}
+
+async function deleteSticky(id){
+  const {error} = await db.from('stickies').delete().eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  stickyData = stickyData.filter(s=>s.id!==id);
+  renderStickies();
+}
+
+function cancelSticky(){
+  document.getElementById('stickyTitle').value   = '';
+  document.getElementById('stickyContent').value = '';
+}
+
+function fmtStickyDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})
+    +' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+document.addEventListener('click', function(e){
+  if(!stickyOpen) return;
+  const panel = document.getElementById('stickyPanel');
+  const btn   = document.getElementById('stickyBtn');
+  if(!panel.contains(e.target) && !btn.contains(e.target)){
+    panel.classList.remove('s-open');
+    btn.classList.remove('s-open');
+    stickyOpen = false;
+  }
+});
 
 // ── AUTH ──────────────────────────────────────────────────────────────
 async function login() {
