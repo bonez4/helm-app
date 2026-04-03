@@ -1086,10 +1086,12 @@ async function saveClientEdit(cid){
 }
 
 async function deleteNote(noteId){
-  if(!activeClient) return;
-  const {error}=await db.from('notes').delete().eq('id',noteId);
+  if(!noteId){toast('Error: missing note ID');return;}
+  if(!activeClient){toast('Error: no active client');return;}
+  if(!confirm('Delete this note?')) return;
+  const {data,error}=await db.from('notes').delete().eq('id',noteId).select();
   if(error){toast('Error: '+error.message);return;}
-  toast('Note deleted');
+  toast('Note deleted',true);
   const notes=await loadNotes(activeClient.client_id);
   renderNotesTable(notes);
 }
