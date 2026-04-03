@@ -993,11 +993,17 @@ function renderNotesTable(notes){
         <span class="note-user">${esc(n.user_id)||''}</span>
         <span class="action-tag ${at.tag}">${esc(n.action)}</span>
         ${n.action_date?`<span style="font-size:10px;color:var(--teal);font-weight:600">${fmtDate(n.action_date)}</span>`:''}
-        <button class="note-del" onclick="deleteNote(${n.id})" title="Delete note">&times;</button>
+        <button class="note-del" data-note-id="${n.id}" title="Delete note">&times;</button>
       </div>
       ${n.note?`<div class="note-row-body">${esc(n.note)}</div>`:''}
     </div>`;
   }).join('');
+  // Event delegation — replaces previous handler each render, no accumulation
+  wrap.onclick=function(e){
+    const btn=e.target.closest('.note-del');
+    if(!btn) return;
+    deleteNote(btn.dataset.noteId);
+  };
 }
 
 async function submitNote(baseId){
