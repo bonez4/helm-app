@@ -435,6 +435,13 @@ select.ro-input{cursor:pointer;}
   .topbar{padding:0 0.5rem;}
   .topbar-company{display:none;}
 }
+/* ── ACTIVITY REPORT ─────────────────────────────────────────────────── */
+.activity-row{padding:10px 12px;border-bottom:1px solid var(--gray-100);display:flex;flex-direction:column;gap:2px;}
+.activity-row:last-child{border-bottom:none;}
+.activity-user{font-weight:600;font-size:13px;color:var(--navy);}
+.activity-time{font-size:12px;color:var(--gray-500);}
+.activity-acts{font-size:11px;color:var(--teal);font-weight:500;}
+.activity-wrap{border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-top:10px;}
 </style>
 </head>
 <body>
@@ -561,8 +568,28 @@ let lookupRendered = false;
 let pendingClient = null;
 let pendingImport = null;
 let pendingRoImport = null;
+let heartbeatTimer = null;
 
 function getBaseId(cid){ return cid.replace(/-\d+$/,''); }
+
+// ── ACTIVITY TRACKING ────────────────────────────────────────────────
+async function logActivity(action, detail=''){
+  if(!currentUser) return;
+  try{ await db.from('activity_log').insert({user_id:currentUser.display_name,action,detail:detail||null}); }catch(e){}
+}
+function startHeartbeat(){
+  if(heartbeatTimer) clearInterval(heartbeatTimer);
+  const beat=()=>{ if(currentUser) db.from('heartbeats').insert({user_id:currentUser.display_name}).then(()=>{}); };
+  beat();
+  heartbeatTimer=setInterval(beat, 5*60*1000);
+}
+function fmtTime(d){
+  if(!(d instanceof Date)) d=new Date(d);
+  let h=d.getHours(), m=d.getMinutes();
+  const ap=h>=12?'pm':'am';
+  h=h%12||12;
+  return `${h}:${String(m).padStart(2,'0')}${ap}`;
+}
 
 function esc(s){
   if(!s) return '';
@@ -716,9 +743,14 @@ async function login() {
   document.getElementById('appScreen').style.flexDirection='column';
   document.getElementById('topbarUser').textContent = data.display_name;
   if(data.role==='admin') document.getElementById('importTabBtn').style.display='';
+  startHeartbeat();
   init();
 }
-function logout() { sessionStorage.removeItem('helm_auth'); location.reload(); }
+function logout() {
+  if(heartbeatTimer) clearInterval(heartbeatTimer);
+  sessionStorage.removeItem('helm_auth');
+  location.reload();
+}
 function show(id){ document.getElementById(id).style.display='flex'; }
 function hide(id){ document.getElementById(id).style.display='none'; }
 
@@ -899,6 +931,7 @@ function pickClient(id){
 function openClient(c){
   activeClient=c;
   showPanel(c);
+  logActivity('client_lookup', c.client_name||c.client_id);
 }
 
 // ── FLOATING PANEL ───────────────────────────────────────────────────
@@ -1042,6 +1075,7 @@ async function submitNote(baseId){
   textIn.value='';
   dateIn.value='';
   toast('Note added',true);
+  logActivity('note_added', action+(baseId?' on '+baseId:''));
   const notes=await loadNotes(baseId);
   renderNotesTable(notes);
 }
@@ -1238,6 +1272,7 @@ async function generateReport(){
   });
 
   results.innerHTML=html;
+  logActivity('report_generated', date);
 }
 
 function printReport(date){
@@ -1546,6 +1581,7 @@ async function updateRolloff(id,col,val){
   const update={[col]:val||null,updated_at:new Date().toISOString()};
   const {error}=await db.from('rolloffs').update(update).eq('id',id);
   if(error) toast('Save error: '+error.message);
+  else logActivity('rolloff_edit','id:'+id+' '+col+'='+val);
 }
 
 async function softDeleteRolloff(id){
@@ -1586,6 +1622,15 @@ function renderImport(){
   }
   document.getElementById('tab-import').innerHTML=`
     <div class="form-card" style="margin-bottom:0.75rem">
+      <h2>Staff Activity Report</h2>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:0">
+        <input type="date" id="activityDate" value="${getTodayISO()}" style="padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;"/>
+        <button class="btn-add" onclick="loadActivityReport()" style="margin:0">View</button>
+      </div>
+      <div id="activityReportWrap"></div>
+    </div>
+
+    <div class="form-card" style="margin-bottom:0.75rem">
       <h2>Import Clients from CSV</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:1rem">
         CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">client_id, address, phone, client_name</code> (client_id = account number)
@@ -1613,6 +1658,52 @@ function renderImport(){
       </div>
     </div>
     <div id="roImportPreview"></div>`;
+}
+
+async function loadActivityReport(){
+  const date=document.getElementById('activityDate').value;
+  if(!date) return;
+  const wrap=document.getElementById('activityReportWrap');
+  wrap.innerHTML='<div class="loading" style="padding:10px 0">Loading…</div>';
+  const start=date+'T00:00:00', end=date+'T23:59:59';
+  const [{data:hb},{data:acts}]=await Promise.all([
+    db.from('heartbeats').select('*').gte('ts',start).lte('ts',end).order('ts'),
+    db.from('activity_log').select('*').gte('ts',start).lte('ts',end).order('ts')
+  ]);
+  if(!hb?.length&&!acts?.length){
+    wrap.innerHTML='<div style="padding:10px 0;color:var(--gray-400);font-size:12px">No activity recorded for this date.</div>';
+    return;
+  }
+  const users=[...new Set([...(hb||[]).map(h=>h.user_id),...(acts||[]).map(a=>a.user_id)])].sort();
+  const ACTION_LABELS={'client_lookup':'lookups','note_added':'notes added','report_generated':'reports run','rolloff_edit':'rolloff edits'};
+  let html='<div class="activity-wrap">';
+  users.forEach(user=>{
+    const userHb=(hb||[]).filter(h=>h.user_id===user).map(h=>new Date(h.ts)).sort((a,b)=>a-b);
+    const userActs=(acts||[]).filter(a=>a.user_id===user);
+    let activeMin=0;
+    let firstSeen=null,lastSeen=null;
+    if(userHb.length){
+      firstSeen=userHb[0]; lastSeen=userHb[userHb.length-1];
+      for(let i=1;i<userHb.length;i++){
+        const gap=(userHb[i]-userHb[i-1])/60000;
+        if(gap<=10) activeMin+=gap;
+      }
+      activeMin+=5;
+    }
+    const counts={};
+    userActs.forEach(a=>{counts[a.action]=(counts[a.action]||0)+1;});
+    const actStr=Object.entries(counts).map(([k,v])=>`${v} ${ACTION_LABELS[k]||k}`).join(' &middot; ')||'No actions logged';
+    const hrs=Math.floor(activeMin/60), mins=Math.round(activeMin%60);
+    const durStr=activeMin>0?(hrs>0?`${hrs}h ${mins}m active`:`${mins}m active`):'';
+    const timeStr=firstSeen?`${fmtTime(firstSeen)} &rarr; ${fmtTime(lastSeen)}`:'No heartbeat data';
+    html+=`<div class="activity-row">
+      <div class="activity-user">${esc(user)}</div>
+      <div class="activity-time">${timeStr}${durStr?' &nbsp;&middot;&nbsp; <strong>'+durStr+'</strong>':''}</div>
+      <div class="activity-acts">${actStr}</div>
+    </div>`;
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
 }
 
 function handleCSV(input){
@@ -1757,6 +1848,7 @@ if(_saved && _saved !== '1'){
     document.getElementById('appScreen').style.flexDirection='column';
     document.getElementById('topbarUser').textContent = currentUser.display_name;
     if(currentUser.role==='admin') document.getElementById('importTabBtn').style.display='';
+    startHeartbeat();
     init().catch(err=>{
       toast('Connection error — please refresh');
       console.error('Init failed:',err);
