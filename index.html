@@ -1000,7 +1000,7 @@ async function showPanel(c){
     </div>`;
 
   const sel = document.getElementById('noteAction');
-  if(sel) sel.value = 'Note';
+  if(sel) sel.value = 'Skip Day';
   toggleNoteDateField();
 
   const notes = await loadNotes(c.client_id);
