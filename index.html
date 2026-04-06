@@ -1560,6 +1560,9 @@ function sortRolloffs(col){
 }
 
 async function addRolloffRow(){
+  // Flush any pending onchange edits before re-rendering
+  if(document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  await new Promise(r=>setTimeout(r,60));
   const today=new Date().toISOString().split('T')[0];
   const {data,error}=await db.from('rolloffs').insert({date:today,type:null,customer:'',address_number:'',street:'',deleted:false}).select();
   if(error){toast('Error: '+error.message);return;}
