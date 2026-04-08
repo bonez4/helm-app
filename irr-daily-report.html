@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRR Daily Scale Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  :root {
+  --navy: #0d1f3c;
+  --navy-mid: #1a3460;
+  --blue: #1565C0;
+  --cyan: #00bae4;
+  --gold: #c9a84c;
+  --green: #2e7d32;
+  --red: #c62828;
+  --white: #f5f7fa;
+  --gray-light: #e8ecf0;
+  --gray-mid: #8a9bb0;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+  background: var(--navy);
+  color: var(--white);
+  font-family: var(--sans);
+  min-height: 100vh;
+  padding: 0;
+  }
+
+  /* Header */
+  .header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+  border-bottom: 2px solid var(--cyan);
+  padding: 24px 40px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  }
+  .header-logo {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.5px;
+  color: var(--white);
+  }
+  .header-logo span { color: var(--cyan); }
+  .header-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gray-mid);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  }
+
+  /* Main layout */
+  .main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+  border: 2px dashed var(--navy-mid);
+  border-radius: 8px;
+  padding: 48px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(255,255,255,0.02);
+  position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--cyan);
+  background: rgba(0,186,228,0.05);
+  }
+  .upload-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  }
+  .upload-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+  }
+  .upload-label {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--gray-mid);
+  letter-spacing: 1px;
+  }
+  .upload-label strong { color: var(--cyan); }
+
+  /* Status bar */
+  .status-bar {
+  display: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan);
+  padding: 12px 16px;
+  background: rgba(0,186,228,0.08);
+  border-left: 3px solid var(--cyan);
+  border-radius: 0 4px 4px 0;
+  margin-top: 16px;
+  }
+
+  /* Report section */
+  #report-section { display: none; margin-top: 40px; }
+
+  .report-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 8px;
+  }
+
+  .report-title {
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: -0.5px;
+  margin-bottom: 32px;
+  }
+  .report-title strong { font-weight: 600; color: var(--cyan); }
+
+  /* Metric table */
+  .metric-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 14px;
+  margin-bottom: 32px;
+  }
+  .metric-table thead tr {
+  border-bottom: 1px solid var(--navy-mid);
+  }
+  .metric-table thead th {
+  padding: 10px 16px;
+  text-align: right;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gray-mid);
+  font-weight: 400;
+  }
+  .metric-table thead th:first-child { text-align: left; }
+  .metric-table tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.15s;
+  }
+  .metric-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+  .metric-table tbody td {
+  padding: 14px 16px;
+  text-align: right;
+  }
+  .metric-table tbody td:first-child { text-align: left; }
+  .metric-table .category-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  }
+  .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  }
+  .dot-reis { background: var(--cyan); }
+  .dot-island { background: var(--gold); }
+  .dot-santos { background: #7c9fc9; }
+  .dot-pile  { background: #a78bfa; }
+  .dot-walkin  { background: var(--gray-mid); }
+  .dot-vinagro  { background: #f97316; }
+
+  .metric-table .sub-row td {
+  padding: 6px 16px 6px 40px;
+  font-size: 12px;
+  color: var(--gray-mid);
+  border-bottom: none;
+  }
+  .metric-table .sub-row td:first-child { padding-left: 40px; }
+
+  .metric-table tfoot tr {
+  border-top: 2px solid var(--cyan);
+  }
+  .metric-table tfoot td {
+  padding: 16px 16px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--white);
+  }
+  .metric-table tfoot td:first-child { text-align: left; color: var(--cyan); }
+
+  .tons-val { color: var(--white); }
+  .rev-val { color: #7ec8a0; }
+  .tickets-val { color: var(--gray-mid); }
+  .avg-val { color: var(--gray-mid); font-size: 12px; }
+
+  /* Rolloff breakdown */
+  .breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+  }
+  .breakdown-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--navy-mid);
+  border-radius: 6px;
+  padding: 16px;
+  }
+  .breakdown-card .bc-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gray-mid);
+  margin-bottom: 6px;
+  }
+  .breakdown-card .bc-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--cyan);
+  }
+  .breakdown-card .bc-sub {
+  font-size: 11px;
+  color: var(--gray-mid);
+  margin-top: 2px;
+  }
+
+  /* Email preview */
+  .section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gray-mid);
+  margin-bottom: 12px;
+  }
+
+  .email-box {
+  background: #0a1628;
+  border: 1px solid var(--navy-mid);
+  border-radius: 8px;
+  overflow: hidden;
+  }
+  .email-header {
+  background: var(--navy-mid);
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  }
+  .email-subject {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--white);
+  }
+  .email-body {
+  padding: 24px 20px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: #c8d8ea;
+  white-space: normal;
+  word-break: break-word;
+  }
+
+  /* Buttons */
+  .btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  }
+  .btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  }
+  .btn-primary {
+  background: var(--cyan);
+  color: var(--navy);
+  font-weight: 700;
+  }
+  .btn-primary:hover { background: #33c8ee; transform: translateY(-1px); }
+  .btn-secondary {
+  background: transparent;
+  color: var(--gray-mid);
+  border: 1px solid var(--navy-mid);
+  }
+  .btn-secondary:hover { border-color: var(--gray-mid); color: var(--white); }
+
+  .copy-toast {
+  display: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  align-items: center;
+  gap: 6px;
+  }
+
+  /* Reset link */
+  .reset-link {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gray-mid);
+  text-decoration: none;
+  cursor: pointer;
+  display: block;
+  margin-top: 24px;
+  text-align: center;
+  letter-spacing: 1px;
+  }
+  .reset-link:hover { color: var(--white); }
+
+  /* Divider */
+  .divider {
+  border: none;
+  border-top: 1px solid var(--navy-mid);
+  margin: 32px 0;
+  }
+
+  @media (max-width: 600px) {
+  .breakdown-grid { grid-template-columns: 1fr 1fr; }
+  .header { padding: 16px 20px; }
+  .main { padding: 24px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+  <div class="header-logo">IRR <span>//</span> Scale</div>
+  <div class="header-sub">Daily Report Generator</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <div id="upload-section">
+  <div class="upload-zone" id="drop-zone">
+  <input type="file" id="file-input" accept=".xls,.xlsx">
+  <div class="upload-icon">📊</div>
+  <div class="upload-label">Drop your <strong>daily .xls export</strong> here<br>or click to browse</div>
+  </div>
+  <div class="status-bar" id="status-bar"></div>
+  </div>
+
+  <div id="report-section">
+  <div class="report-date" id="report-date-label"></div>
+  <div class="report-title">Daily Scale Report — <strong id="report-date-display"></strong></div>
+
+  <!-- KPI Cards -->
+  <div class="breakdown-grid" id="kpi-cards"></div>
+
+  <!-- Main Table -->
+  <table class="metric-table" id="main-table"></table>
+
+  <hr class="divider">
+
+  <!-- Email Preview -->
+  <div class="section-label">Email Draft — Ready to Send</div>
+  <div class="email-box">
+  <div class="email-header">
+  <div class="email-subject" id="email-subject-display"></div>
+  </div>
+  <div class="email-body" id="email-body-display"></div>
+  </div>
+
+  <div class="btn-row">
+  <button class="btn btn-primary" onclick="copyEmail()">Copy Email</button>
+  <button class="btn btn-secondary" onclick="openMailto()">Open in Mail</button>
+  <span class="copy-toast" id="copy-toast">✓ Copied to clipboard</span>
+  </div>
+
+  <a class="reset-link" onclick="resetApp()">↑ Upload a new file</a>
+  </div>
+
+</div>
+
+<script>
+// ─── XML parser for SpreadsheetML ───────────────────────────────────────────
+
+function parseSpreadsheetML(xmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'application/xml');
+  const ns = 'urn:schemas-microsoft-com:office:spreadsheet';
+
+  const rows = doc.getElementsByTagNameNS(ns, 'Row');
+  const result = [];
+  for (const row of rows) {
+  const cells = row.getElementsByTagNameNS(ns, 'Cell');
+  const vals = [];
+  for (const cell of cells) {
+  const data = cell.getElementsByTagNameNS(ns, 'Data')[0];
+  vals.push(data ? data.textContent : '');
+  }
+  result.push(vals);
+  }
+  return result;
+}
+
+// ─── Core parser ────────────────────────────────────────────────────────────
+
+const ROLLOFF_SVC = ['ROLLOFF DELIVERY', 'ROLLOFF DOUBLE DROP', 'EMPTY ROLLOFF', 'EMPTY ROLL-OFF'];
+
+function parseReport(rows) {
+  let reportDate = null;
+  const firstRow = rows[0] ? rows[0].join(' ') : '';
+  const dateMatch = firstRow.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+  if (dateMatch) reportDate = dateMatch[1];
+
+  // Build ticket-level map: ticketNum -> {tons, service, code}
+  // This is the key fix: categorization happens per-ticket, not per-customer.
+  // A customer like HRC01 may have a rolloff ticket AND walk-in tickets on the same day.
+  const tickets = {};
+  let currentCode = null;
+  let parentCode = null;
+  const codeStack = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const vals = rows[i];
+    const nonEmpty = vals.filter(v => v && v.trim());
+    if (!nonEmpty.length) continue;
+    const first = nonEmpty[0];
+
+    const isHeader = (
+      first.includes(' - ') &&
+      !first.includes('Totals') &&
+      !first.includes('Tickets:') &&
+      !first.includes('TIPFEES') &&
+      !first.includes('ROLLOFFS') &&
+      !first.includes('No Order') &&
+      !first.startsWith('Page ') &&
+      !first.includes('Date Range') &&
+      first.trim() !== 'Date' &&
+      !first.includes('Report')
+    );
+    const isTotals = (
+      first.includes(' - ') && first.includes('Totals') &&
+      !first.includes('TIPFEES') && !first.includes('Non Order')
+    );
+
+    if (isHeader) {
+      const code = first.split(' - ')[0].trim();
+      codeStack.push(code);
+      currentCode = code;
+      parentCode = codeStack.length > 1 ? codeStack[0] : null;
+    }
+    if (isTotals) {
+      const code = first.split(' - ')[0].trim();
+      const idx = codeStack.lastIndexOf(code);
+      if (idx !== -1) codeStack.splice(idx, 1);
+      currentCode = codeStack.length > 0 ? codeStack[codeStack.length - 1] : null;
+      parentCode = codeStack.length > 1 ? codeStack[0] : null;
+    }
+
+    // If nested under a ZZ parent, inherit parent's routing
+    const effectiveCode = (parentCode && parentCode.startsWith('ZZ')) ? parentCode : currentCode;
+    if (!effectiveCode) continue;
+
+    const flatUpper = vals.join(' ').toUpperCase();
+    const dataVals = vals.filter(v => v !== null && v !== '' && v !== undefined);
+
+    // Tonnage line
+    if (flatUpper.includes('REIS SITE TRANSFER FEE')) {
+      const fi = dataVals.findIndex(v => v && v.includes('REIS SITE TRANSFER FEE'));
+      if (fi !== -1 && fi + 2 < dataVals.length) {
+        const ticket = dataVals[1] || '?';
+        const net = parseFloat(dataVals[fi + 2]) || 0;
+        if (!tickets[ticket]) tickets[ticket] = { tons: 0, service: null, code: effectiveCode };
+        tickets[ticket].tons += net;
+        if (!tickets[ticket].service) tickets[ticket].code = effectiveCode;
+      }
+    }
+
+    // Service charge line — tag the ticket
+    for (const kw of ROLLOFF_SVC) {
+      if (flatUpper.includes(kw)) {
+        const ticket = dataVals[1] || '?';
+        if (!tickets[ticket]) tickets[ticket] = { tons: 0, service: null, code: effectiveCode };
+        tickets[ticket].service = kw;
+        tickets[ticket].code = effectiveCode;
+        break;
+      }
+    }
+  }
+  // Categorize at ticket level
+  const buckets = {
+  reis:    { label: 'Reis Rolloff', tons: 0, tickets: 0, tipRevenue: 0, rolloffFees: 0, deliveries: 0, empties: 0, doubleDrops: 0 },
+    pile:    { label: 'Pile Pickups (Reis)', tons: 0, tickets: 0, tipRevenue: 0 },
+  island:  { label: 'Island Rubbish', tons: 0, tickets: 0, tipRevenue: 0, rolloffFees: 0 },
+  santos:  { label: 'East End', tons: 0, tickets: 0, tipRevenue: 0, rolloffFees: 0 },
+
+  vinagro: { label: 'VINAGRO Output', tons: 0, tickets: 0 },
+  walkin:  { label: 'Walk-In / Drive-Through', tons: 0, tickets: 0, tipRevenue: 0 },
+  };
+
+  for (const [ticketNum, t] of Object.entries(tickets)) {
+  const code = t.code;
+  if (code === 'ZZISLAND') {
+  buckets.island.tons += t.tons;
+  buckets.island.tickets++;
+  } else if (code === 'ZZEASTEND') {
+  buckets.santos.tons += t.tons;
+  buckets.santos.tickets++;
+    } else if (code === 'ZZDELTA') {
+      buckets.pile.tons += t.tons;
+      buckets.pile.tickets++;
+  } else if (code === 'ZZREIS') {
+  buckets.vinagro.tons += t.tons;
+  buckets.vinagro.tickets++;
+  } else if (code.startsWith('ZZ')) {
+  // ZZTNT etc — walk-in
+  buckets.walkin.tons += t.tons;
+  buckets.walkin.tickets++;
+  } else if (t.service !== null) {
+  // Has a rolloff service charge on THIS ticket = Reis rolloff
+  buckets.reis.tons += t.tons;
+  buckets.reis.tickets++;
+  if (t.service.includes('DELIVERY')) buckets.reis.deliveries++;
+  else if (t.service.includes('DOUBLE DROP')) buckets.reis.doubleDrops++;
+  else if (t.service.includes('EMPTY')) buckets.reis.empties++;
+  } else {
+  // Tonnage only, no service charge = walk-in regardless of customer
+  buckets.walkin.tons += t.tons;
+  buckets.walkin.tickets++;
+  }
+  }
+
+  // Revenue: re-scan for tip fee amounts per bucket
+  // We use the rate * tons already computed in tonnage lines above
+  // Re-derive from tickets map
+  for (const [ticketNum, t] of Object.entries(tickets)) {
+  // Find the revenue from the raw rows for this ticket
+  // We'll handle revenue separately by re-scanning
+  }
+
+  // Revenue pass — re-scan rows to get dollar amounts per ticket
+  currentCode = null;
+  parentCode = null;
+  const revStack = [];
+  for (let i = 0; i < rows.length; i++) {
+    const vals = rows[i];
+    const nonEmpty = vals.filter(v => v && v.trim());
+    if (!nonEmpty.length) continue;
+    const first = nonEmpty[0];
+
+    const isHdr = (first.includes(' - ') && !first.includes('Totals') && !first.includes('Tickets:')
+      && !first.includes('TIPFEES') && !first.includes('ROLLOFFS') && !first.includes('No Order')
+      && !first.startsWith('Page ') && !first.includes('Date Range')
+      && first.trim() !== 'Date' && !first.includes('Report'));
+    const isTot = (first.includes(' - ') && first.includes('Totals')
+      && !first.includes('TIPFEES') && !first.includes('Non Order'));
+
+    if (isHdr) {
+      const code = first.split(' - ')[0].trim();
+      revStack.push(code);
+      currentCode = code;
+      parentCode = revStack.length > 1 ? revStack[0] : null;
+    }
+    if (isTot) {
+      const code = first.split(' - ')[0].trim();
+      const idx = revStack.lastIndexOf(code);
+      if (idx !== -1) revStack.splice(idx, 1);
+      currentCode = revStack.length > 0 ? revStack[revStack.length - 1] : null;
+      parentCode = revStack.length > 1 ? revStack[0] : null;
+    }
+
+    const revCode = (parentCode && parentCode.startsWith('ZZ')) ? parentCode : currentCode;
+    if (!revCode) continue;
+
+    const flatUpper = vals.join(' ').toUpperCase();
+    const dataVals = vals.filter(v => v !== null && v !== '' && v !== undefined);
+
+    // Tip fee revenue
+    if (flatUpper.includes('REIS SITE TRANSFER FEE')) {
+      const fi = dataVals.findIndex(v => v && v.includes('REIS SITE TRANSFER FEE'));
+      if (fi !== -1 && fi + 2 < dataVals.length) {
+        const ticket = dataVals[1] || '?';
+        const net = parseFloat(dataVals[fi + 2]) || 0;
+        const rateStr = dataVals[fi + 3] || '';
+        const rateMatch = rateStr.match(/\$([0-9.]+)/);
+        if (rateMatch && tickets[ticket]) {
+          const rev = net * parseFloat(rateMatch[1]);
+          const code = tickets[ticket].code;
+          const svc = tickets[ticket].service;
+          if (code === 'ZZISLAND') {
+            buckets.island.tipRevenue += rev;
+          } else if (code === 'ZZEASTEND') {
+            buckets.santos.tipRevenue += rev;
+          } else if (code === 'ZZDELTA') {
+            buckets.pile.tipRevenue += rev;
+          } else if (code === 'ZZREIS') {
+            // VINAGRO — no external revenue
+          } else if (code.startsWith('ZZ')) {
+            buckets.walkin.tipRevenue += rev;
+          } else if (svc !== null) {
+            buckets.reis.tipRevenue += rev;
+          } else {
+            buckets.walkin.tipRevenue += rev;
+          }
+        }
+      }
+    }
+
+    // Rolloff service fees for Reis only (not ZZ customers)
+    for (const kw of ROLLOFF_SVC) {
+      if (flatUpper.includes(kw) && !revCode.startsWith('ZZ')) {
+        const ticket = dataVals[1] || '?';
+        for (let j = dataVals.length - 1; j >= 0; j--) {
+          const amt = parseFloat(dataVals[j]);
+          if (!isNaN(amt) && amt > 0) {
+            buckets.reis.rolloffFees += amt;
+            break;
+          }
+        }
+        break;
+      }
+    }
+  }
+  return { date: reportDate, buckets, tickets };
+}
+
+// ─── Email generator ─────────────────────────────────────────────────────────
+
+function formatDate(dateStr) {
+  if (!dateStr) return 'Today';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function fmt(n, decimals = 2) {
+  return n.toFixed(decimals);
+}
+
+function fmtMoney(n) {
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const EMAIL_TO = 'tim@nantucketoasis.com,office@islandrubbishnantucket.com';
+
+function generateEmail(data) {
+  const { date, buckets } = data;
+  const { reis, pile, island, santos, vinagro, walkin } = buckets;
+
+  const totalTons = reis.tons + pile.tons + island.tons + santos.tons + walkin.tons;
+  const totalTickets = reis.tickets + pile.tickets + island.tickets + santos.tickets + walkin.tickets;
+
+  const displayDate = formatDate(date);
+  const subject = `IRR Scale Report \u2014 ${date || 'Today'}`;
+
+  const R = (label, val, bold = false) => `
+    <tr>
+      <td style="padding:3px 0;color:#222;font-size:14px;${bold ? 'font-weight:bold;' : ''}">${label}</td>
+      <td style="padding:3px 0;color:#222;font-size:14px;text-align:right;${bold ? 'font-weight:bold;' : ''}">${val}</td>
+    </tr>`;
+
+  const H = (text) => `
+    <tr><td colspan="2" style="padding:16px 0 4px 0;">
+      <span style="font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;color:#000;">${text}</span>
+    </td></tr>`;
+
+  const S = () => `<tr><td colspan="2" style="padding:6px 0;"></td></tr>`;
+
+  const body = `
+<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:500px;line-height:1.6;">
+  <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
+  <p style="margin:0 0 16px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
+
+  <table style="width:100%;border-collapse:collapse;">
+
+    ${H('IRR Companies')}
+    ${R('Reis Rolloff', `${reis.tickets} tickets &nbsp; ${fmt(reis.tons)} tons`)}
+    ${R('Pile Pickups (Reis)', `${pile.tickets} tickets &nbsp; ${fmt(pile.tons)} tons`)}
+    ${R('Island Rubbish', `${island.tickets} tickets &nbsp; ${fmt(island.tons)} tons`)}
+    ${R('East End', `${santos.tickets} tickets &nbsp; ${fmt(santos.tons)} tons`)}
+
+    ${H('External')}
+    ${R('Walk-In / Drive-Through', `${walkin.tickets} tickets &nbsp; ${fmt(walkin.tons)} tons`)}
+
+    ${S()}
+    <tr>
+      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;border-top:2px solid #000;">Total</td>
+      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;border-top:2px solid #000;">${totalTickets} tickets &nbsp; ${fmt(totalTons)} tons</td>
+    </tr>
+
+    ${H('Vinagro Output (Outbound)')}
+    ${R('Loads', vinagro.tickets)}
+    ${R('Total Tons', fmt(vinagro.tons))}
+
+  </table>
+</div>`;
+
+  return { subject, body };
+}
+
+// ─── UI ──────────────────────────────────────────────────────────────────────
+
+function renderReport(data) {
+  const { date, buckets } = data;
+  const { reis, pile, island, santos, vinagro, walkin } = buckets;
+  const totalTons = reis.tons + pile.tons + island.tons + santos.tons + walkin.tons;
+  const totalTickets = reis.tickets + pile.tickets + island.tickets + santos.tickets + walkin.tickets;
+  const externalRev = reis.tipRevenue + reis.rolloffFees + pile.tipRevenue + walkin.tipRevenue;
+  const internalRev = island.tipRevenue + santos.tipRevenue;
+  const totalRev = externalRev + internalRev; // Total SMS revenue
+
+  // Date labels
+  document.getElementById('report-date-label').textContent = 'Scale Report';
+  document.getElementById('report-date-display').textContent = formatDate(date);
+
+  // KPI cards
+  document.getElementById('kpi-cards').innerHTML = `
+  <div class="breakdown-card">
+  <div class="bc-label">Total Tons</div>
+  <div class="bc-value">${fmt(totalTons)}</div>
+  <div class="bc-sub">across ${totalTickets} tickets</div>
+  </div>
+  <div class="breakdown-card">
+  <div class="bc-label">Scale Revenue</div>
+  <div class="bc-value">$${Math.round(totalRev / 1000)}k</div>
+  <div class="bc-sub">${fmtMoney(totalRev)}</div>
+  </div>
+  <div class="breakdown-card">
+  <div class="bc-label">Reis Rolloff</div>
+  <div class="bc-value">${fmt(reis.tons)}</div>
+  <div class="bc-sub">${reis.deliveries}D / ${reis.empties}E&R / ${reis.doubleDrops}DD</div>
+  </div>
+  `;
+
+  // Main table
+  const rows = [
+  { dot: 'reis',   label: 'Reis Rolloff',                         d: reis,   sub: `${reis.deliveries} del · ${reis.empties} E&R · ${reis.doubleDrops} DD` },
+    { dot: 'pile',   label: 'Pile Pickups (Reis)',                  d: pile,   sub: null },
+  { dot: 'island', label: 'Island Rubbish',  d: island, sub: null, noRev: true },
+  { dot: 'santos', label: 'East End',  d: santos, sub: null, noRev: true },
+  { dot: 'walkin', label: 'Walk-In / Drive-Through',  d: walkin, sub: null },
+  { dot: 'vinagro', label: 'VINAGRO Output (Outbound)',  d: vinagro, sub: null, noRev: true, outbound: true },
+  ];
+
+  let tableHTML = `
+  <thead>
+  <tr>
+  <th>Source</th>
+  <th>Tickets</th>
+  <th>Tons</th>
+  <th>Avg Tons</th>
+  <th>Tip Rev</th>
+  </tr>
+  </thead>
+  <tbody>
+  `;
+
+  for (const r of rows) {
+  const avg = r.d.tickets > 0 ? r.d.tons / r.d.tickets : 0;
+  if (r.outbound) {
+  tableHTML += `<tr><td colspan="5" style="padding:6px 16px;font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gray-mid);border-top:1px solid var(--navy-mid);border-bottom:none;">Outbound</td></tr>`;
+  }
+  tableHTML += `
+  <tr>
+  <td>
+  <div class="category-label">
+  <span class="dot dot-${r.dot}"></span>
+  ${r.label}
+  </div>
+  </td>
+  <td class="tickets-val">${r.d.tickets}</td>
+  <td class="tons-val">${fmt(r.d.tons)}</td>
+  <td class="avg-val">${fmt(avg, 2)}</td>
+  <td class="rev-val">${r.noRev ? '—' : fmtMoney(r.d.tipRevenue + (r.d.rolloffFees || 0))}</td>
+  </tr>
+  `;
+  if (r.sub) {
+  tableHTML += `<tr class="sub-row"><td colspan="5">${r.sub}</td></tr>`;
+  }
+  if (r.outbound) {
+  // Already rendered above — insert divider before this row retroactively via CSS class
+  }
+  }
+
+  tableHTML += `
+  </tbody>
+  <tfoot>
+  <tr>
+  <td>TOTAL</td>
+  <td class="tickets-val">${totalTickets}</td>
+  <td class="tons-val">${fmt(totalTons)}</td>
+  <td></td>
+  <td class="rev-val">${fmtMoney(totalRev)}</td>
+  </tr>
+  </tfoot>
+  `;
+
+  document.getElementById('main-table').innerHTML = tableHTML;
+
+  // Email
+  const { subject, body } = generateEmail(data);
+  document.getElementById('email-subject-display').textContent = subject;
+  const darkBody = body.replace(/color:#222/g, 'color:#c8d8ea').replace(/color:#000/g, 'color:#ffffff').replace(/border-top:2px solid #000/g, 'border-top:2px solid #c8d8ea');
+  document.getElementById('email-body-display').innerHTML = darkBody;
+  window._emailSubject = subject;
+  window._emailBody = body;
+
+  // Show report
+  document.getElementById('upload-section').style.display = 'none';
+  document.getElementById('report-section').style.display = 'block';
+}
+
+// ─── File handling ───────────────────────────────────────────────────────────
+
+function showStatus(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.style.display = 'block';
+  bar.textContent = msg;
+}
+
+function handleFile(file) {
+  if (!file) return;
+  showStatus(`Reading ${file.name}...`);
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+  try {
+  const text = e.target.result;
+  showStatus('Parsing scale data...');
+  const rows = parseSpreadsheetML(text);
+  const data = parseReport(rows);
+  showStatus(`Parsed ${Object.keys(data.tickets).length} tickets.`);
+  setTimeout(() => renderReport(data), 200);
+  } catch (err) {
+  showStatus('Error reading file: ' + err.message);
+  console.error(err);
+  }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('file-input').addEventListener('change', function(e) {
+  handleFile(e.target.files[0]);
+});
+
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+// ─── Actions ─────────────────────────────────────────────────────────────────
+
+function copyEmail() {
+  // _emailBody already has black colors — use as-is for copy
+  const html = window._emailBody;
+  const plain = document.getElementById('email-body-display').innerText;
+  try {
+    const blob = new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([plain], { type: 'text/plain' }),
+    });
+    navigator.clipboard.write([blob]).then(() => {
+      const toast = document.getElementById('copy-toast');
+      toast.style.display = 'flex';
+      setTimeout(() => toast.style.display = 'none', 2500);
+    });
+  } catch(e) {
+    navigator.clipboard.writeText(plain).then(() => {
+      const toast = document.getElementById('copy-toast');
+      toast.style.display = 'flex';
+      setTimeout(() => toast.style.display = 'none', 2500);
+    });
+  }
+}
+
+function openMailto() {
+  const plain = document.getElementById('email-body-display').innerText;
+  const encoded = encodeURIComponent(plain);
+  const sub = encodeURIComponent(window._emailSubject);
+  window.location.href = `mailto:${EMAIL_TO}?subject=${sub}&body=${encoded}`;
+}
+
+function resetApp() {
+  document.getElementById('upload-section').style.display = 'block';
+  document.getElementById('report-section').style.display = 'none';
+  document.getElementById('status-bar').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+</script>
+</body>
+</html>

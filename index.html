@@ -454,6 +454,76 @@ select.ro-input{cursor:pointer;}
 .activity-time{font-size:12px;color:var(--gray-500);}
 .activity-acts{font-size:11px;color:var(--teal);font-weight:500;}
 .activity-wrap{border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-top:10px;}
+
+/* ── IRR SCALE TAB ─────────────────────────────────────────────────── */
+.irr-wrap{max-width:780px;margin:0 auto;padding:1.5rem 0;}
+.irr-drop{
+  border:2px dashed var(--gray-300);border-radius:var(--radius-lg);
+  padding:48px 24px;text-align:center;cursor:pointer;transition:all .2s;
+  background:var(--white);position:relative;
+}
+.irr-drop:hover,.irr-drop.drag-over{border-color:var(--teal);background:var(--teal-pale);}
+.irr-drop input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.irr-drop-icon{font-size:36px;margin-bottom:10px;opacity:.5;}
+.irr-drop-label{font-size:13px;color:var(--gray-500);}
+.irr-drop-label strong{color:var(--teal);}
+.irr-status{
+  display:none;font-family:'DM Mono',monospace;font-size:12px;color:var(--teal);
+  padding:10px 14px;background:var(--teal-pale);border-left:3px solid var(--teal);
+  border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-top:12px;
+}
+.irr-report{margin-top:24px;}
+.irr-section-hdr{
+  font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--gray-400);margin:20px 0 8px;
+}
+.irr-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px;}
+.irr-table th{
+  text-align:left;font-size:10px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--gray-400);padding:8px 12px;
+  border-bottom:1px solid var(--gray-200);
+}
+.irr-table th:not(:first-child){text-align:right;}
+.irr-table td{padding:8px 12px;border-bottom:1px solid var(--gray-100);}
+.irr-table td:not(:first-child){text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
+.irr-table tr.irr-total td{font-weight:700;border-top:2px solid var(--navy);border-bottom:none;}
+.irr-table tr.irr-total td:first-child{color:var(--teal);}
+.irr-ytd-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 24px;}
+.irr-ytd-card{
+  background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);
+  padding:16px;text-align:center;
+}
+.irr-ytd-card .ytd-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:4px;}
+.irr-ytd-card .ytd-val{font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--navy);}
+.irr-ytd-card .ytd-sub{font-size:11px;color:var(--gray-400);margin-top:2px;}
+.irr-email-box{
+  background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);
+  overflow:hidden;margin-top:12px;
+}
+.irr-email-hdr{background:var(--gray-50);padding:10px 16px;border-bottom:1px solid var(--gray-200);font-weight:600;font-size:13px;color:var(--navy);}
+.irr-email-body{padding:16px;font-size:13px;line-height:1.6;color:var(--gray-800);}
+.irr-btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center;}
+.irr-btn{
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:9px 20px;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;
+}
+.irr-btn-primary{background:var(--teal);color:white;}
+.irr-btn-primary:hover{filter:brightness(1.1);}
+.irr-btn-secondary{background:var(--white);color:var(--gray-500);border:1px solid var(--gray-200);}
+.irr-btn-secondary:hover{border-color:var(--gray-400);color:var(--gray-800);}
+.irr-toast{display:none;font-size:11px;color:var(--ok-text);font-weight:600;}
+.irr-history{margin-top:32px;}
+.irr-hist-table{width:100%;border-collapse:collapse;font-size:12px;}
+.irr-hist-table th{
+  text-align:left;font-size:10px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--gray-400);padding:8px 10px;
+  border-bottom:1px solid var(--gray-200);
+}
+.irr-hist-table th:not(:first-child){text-align:right;}
+.irr-hist-table td{padding:7px 10px;border-bottom:1px solid var(--gray-100);color:var(--gray-600);}
+.irr-hist-table td:not(:first-child){text-align:right;font-family:'DM Mono',monospace;}
+.irr-hist-table tr{cursor:pointer;transition:background .1s;}
+.irr-hist-table tr:hover{background:var(--gray-50);}
 </style>
 </head>
 <body>
@@ -509,6 +579,7 @@ select.ro-input{cursor:pointer;}
     <button onclick="switchTab('add',this)">Add Client</button>
     <button onclick="switchTab('report',this)">Reports</button>
     <button onclick="switchTab('rolloffs',this)">Roll-offs</button>
+    <button id="irrTabBtn" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
     <button id="importTabBtn" style="display:none" onclick="switchTab('import',this)">Import</button>
   </div>
 
@@ -517,6 +588,7 @@ select.ro-input{cursor:pointer;}
     <div id="tab-add"    style="display:none"></div>
     <div id="tab-report" style="display:none"></div>
     <div id="tab-rolloffs" style="display:none"></div>
+    <div id="tab-irr"    style="display:none"></div>
     <div id="tab-import" style="display:none"></div>
   </div>
 </div>
@@ -787,6 +859,7 @@ async function login() {
   document.getElementById('appScreen').style.flexDirection='column';
   document.getElementById('topbarUser').textContent = data.display_name;
   if(data.role==='admin') document.getElementById('importTabBtn').style.display='';
+  if(data.username==='david'||data.role==='admin') document.getElementById('irrTabBtn').style.display='';
   startHeartbeat();
   init();
 }
@@ -869,7 +942,7 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','add','report','rolloffs','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','irr','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -879,6 +952,7 @@ function switchTab(name,btn){
   if(name==='add')    renderAdd();
   if(name==='report') renderReport();
   if(name==='rolloffs') renderRolloffs();
+  if(name==='irr')    renderIRR();
   if(name==='import') renderImport();
 }
 
@@ -1877,6 +1951,434 @@ async function doRolloffImport(rows){
     '<div class="empty-state" style="color:var(--ok-text);font-weight:500">Import complete — '+done+' roll-offs loaded.</div>';
 }
 
+// ── IRR SCALE TAB ────────────────────────────────────────────────────
+
+const IRR_ROLLOFF_SVC = ['ROLLOFF DELIVERY','ROLLOFF DOUBLE DROP','EMPTY ROLLOFF','EMPTY ROLL-OFF'];
+let irrCurrentData = null;
+let irrRendered = false;
+
+function irrParseSpreadsheetML(xmlText) {
+  xmlText = xmlText.replace(/<\?[^?]*\?>/g, '');
+  const result = [];
+  const rowRx = /<(?:ss:)?Row[^>]*>([\s\S]*?)<\/(?:ss:)?Row>/gi;
+  let rm;
+  while ((rm = rowRx.exec(xmlText)) !== null) {
+    const rc = rm[1], vals = [];
+    const cellRx = /<(?:ss:)?Cell([^>]*)>([\s\S]*?)<\/(?:ss:)?Cell>/gi;
+    let cm, ci = 0;
+    while ((cm = cellRx.exec(rc)) !== null) {
+      const idxM = cm[1].match(/ss:Index="(\d+)"/);
+      if (idxM) { const t = parseInt(idxM[1])-1; while(ci<t){vals.push('');ci++;} }
+      const dm = cm[2].match(/<(?:ss:)?Data[^>]*>([\s\S]*?)<\/(?:ss:)?Data>/i);
+      vals.push(dm ? dm[1].trim() : '');
+      ci++;
+    }
+    result.push(vals);
+  }
+  return result;
+}
+
+function irrParseReport(rows) {
+  let reportDate = null;
+  const firstRow = rows[0] ? rows[0].join(' ') : '';
+  const dateMatch = firstRow.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+  if (dateMatch) reportDate = dateMatch[1];
+
+  const tickets = {};
+  let currentCode = null, parentCode = null;
+  const codeStack = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const vals = rows[i];
+    const nonEmpty = vals.filter(v => v && v.trim());
+    if (!nonEmpty.length) continue;
+    const first = nonEmpty[0];
+    const isHeader = first.includes(' - ') && !first.includes('Totals') && !first.includes('Tickets:')
+      && !first.includes('TIPFEES') && !first.includes('ROLLOFFS') && !first.includes('No Order')
+      && !first.startsWith('Page ') && !first.includes('Date Range') && first.trim()!=='Date' && !first.includes('Report');
+    const isTotals = first.includes(' - ') && first.includes('Totals') && !first.includes('TIPFEES') && !first.includes('Non Order');
+
+    if (isHeader) { const c=first.split(' - ')[0].trim(); codeStack.push(c); currentCode=c; parentCode=codeStack.length>1?codeStack[0]:null; }
+    if (isTotals) { const c=first.split(' - ')[0].trim(); const idx=codeStack.lastIndexOf(c); if(idx!==-1)codeStack.splice(idx,1); currentCode=codeStack.length>0?codeStack[codeStack.length-1]:null; parentCode=codeStack.length>1?codeStack[0]:null; }
+
+    const effectiveCode = (parentCode && parentCode.startsWith('ZZ')) ? parentCode : currentCode;
+    if (!effectiveCode) continue;
+    const flatUpper = vals.join(' ').toUpperCase();
+    const dataVals = vals.filter(v => v!==null && v!=='' && v!==undefined);
+
+    if (flatUpper.includes('REIS SITE TRANSFER FEE')) {
+      const fi = dataVals.findIndex(v => v && v.includes('REIS SITE TRANSFER FEE'));
+      if (fi!==-1 && fi+2<dataVals.length) {
+        const ticket=dataVals[1]||'?', net=parseFloat(dataVals[fi+2])||0;
+        if(!tickets[ticket]) tickets[ticket]={tons:0,service:null,code:effectiveCode};
+        tickets[ticket].tons+=net;
+        if(!tickets[ticket].service) tickets[ticket].code=effectiveCode;
+      }
+    }
+    for (const kw of IRR_ROLLOFF_SVC) {
+      if (flatUpper.includes(kw)) {
+        const ticket=dataVals[1]||'?';
+        if(!tickets[ticket]) tickets[ticket]={tons:0,service:null,code:effectiveCode};
+        tickets[ticket].service=kw; tickets[ticket].code=effectiveCode; break;
+      }
+    }
+  }
+
+  const buckets = {
+    reis:{label:'Reis Rolloff',tons:0,tickets:0,deliveries:0,empties:0,doubleDrops:0},
+    pile:{label:'Pile Pickups (Reis)',tons:0,tickets:0},
+    island:{label:'Island Rubbish',tons:0,tickets:0},
+    santos:{label:'East End',tons:0,tickets:0},
+    vinagro:{label:'VINAGRO Output',tons:0,tickets:0},
+    walkin:{label:'Walk-In / Drive-Through',tons:0,tickets:0},
+  };
+
+  for (const [tn,t] of Object.entries(tickets)) {
+    const c=t.code;
+    if(c==='ZZISLAND'){buckets.island.tons+=t.tons;buckets.island.tickets++;}
+    else if(c==='ZZEASTEND'){buckets.santos.tons+=t.tons;buckets.santos.tickets++;}
+    else if(c==='ZZDELTA'){buckets.pile.tons+=t.tons;buckets.pile.tickets++;}
+    else if(c==='ZZREIS'){buckets.vinagro.tons+=t.tons;buckets.vinagro.tickets++;}
+    else if(c.startsWith('ZZ')){buckets.walkin.tons+=t.tons;buckets.walkin.tickets++;}
+    else if(t.service!==null){
+      buckets.reis.tons+=t.tons;buckets.reis.tickets++;
+      if(t.service.includes('DELIVERY'))buckets.reis.deliveries++;
+      else if(t.service.includes('DOUBLE DROP'))buckets.reis.doubleDrops++;
+      else if(t.service.includes('EMPTY'))buckets.reis.empties++;
+    } else {buckets.walkin.tons+=t.tons;buckets.walkin.tickets++;}
+  }
+  return {date:reportDate, buckets, tickets};
+}
+
+function irrFmtDate(dateStr) {
+  if(!dateStr) return 'Today';
+  const d=new Date(dateStr);
+  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+function irrFmt(n,dec=2){return n.toFixed(dec);}
+function irrFmtMoney(n){return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+function irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025) {
+  const {date, buckets} = data;
+  const {reis,pile,island,santos,vinagro,walkin} = buckets;
+  const totalTons = reis.tons+pile.tons+island.tons+santos.tons+walkin.tons;
+  const totalTickets = reis.tickets+pile.tickets+island.tickets+santos.tickets+walkin.tickets;
+  const displayDate = irrFmtDate(date);
+  const subject = 'IRR Scale Report \u2014 '+(date||'Today');
+
+  const R=(label,val,bold=false)=>`<tr>
+    <td style="padding:3px 0;color:#222;font-size:14px;${bold?'font-weight:bold;':''}">${label}</td>
+    <td style="padding:3px 0;color:#222;font-size:14px;text-align:right;${bold?'font-weight:bold;':''}">${val}</td></tr>`;
+  const H=(text)=>`<tr><td colspan="2" style="padding:16px 0 4px 0;">
+    <span style="font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;color:#000;">${text}</span></td></tr>`;
+  const S=()=>`<tr><td colspan="2" style="padding:6px 0;"></td></tr>`;
+
+  const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:500px;line-height:1.6;">
+  <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
+  <p style="margin:0 0 16px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
+  <table style="width:100%;border-collapse:collapse;">
+    ${H('IRR Companies')}
+    ${R('Reis Rolloff',reis.tickets+' tickets &nbsp; '+irrFmt(reis.tons)+' tons')}
+    ${R('Pile Pickups (Reis)',pile.tickets+' tickets &nbsp; '+irrFmt(pile.tons)+' tons')}
+    ${R('Island Rubbish',island.tickets+' tickets &nbsp; '+irrFmt(island.tons)+' tons')}
+    ${R('East End',santos.tickets+' tickets &nbsp; '+irrFmt(santos.tons)+' tons')}
+    ${H('External')}
+    ${R('Walk-In / Drive-Through',walkin.tickets+' tickets &nbsp; '+irrFmt(walkin.tons)+' tons')}
+    ${S()}
+    <tr>
+      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;border-top:2px solid #000;">Total</td>
+      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;border-top:2px solid #000;">${totalTickets} tickets &nbsp; ${irrFmt(totalTons)} tons</td>
+    </tr>
+    ${H('Vinagro Output (Outbound)')}
+    ${R('Loads',vinagro.tickets)}
+    ${R('Total Tons',irrFmt(vinagro.tons))}
+    ${H('Year-to-Date Comparison')}
+    ${R('2026 Inbound YTD',irrFmt(ytd2026)+' tons',true)}
+    ${R('2025 Inbound YTD (same period)',irrFmt(ytd2025)+' tons')}
+    ${S()}
+    ${R('2026 Vinagro YTD',irrFmt(vin2026)+' tons',true)}
+    ${R('2025 Vinagro YTD (same period)',irrFmt(vin2025)+' tons')}
+  </table></div>`;
+
+  return {subject, body};
+}
+
+async function irrLoadYTD() {
+  const {data:seeds} = await db.from('irr_ytd_seeds').select('*');
+  let ytd2026=0, ytd2025=0, vin2026=0, vin2025=0;
+  if(seeds){
+    for(const s of seeds){
+      if(s.year===2026){ ytd2026=parseFloat(s.inbound_tons)||0; vin2026=parseFloat(s.vinagro_tons)||0; }
+      if(s.year===2025){ ytd2025=parseFloat(s.inbound_tons)||0; vin2025=parseFloat(s.vinagro_tons)||0; }
+    }
+  }
+  // Add all daily reports after seed date for 2026
+  const seed2026 = seeds?.find(s=>s.year===2026);
+  if(seed2026){
+    const {data:dailies} = await db.from('irr_reports').select('total_inbound_tons,vinagro_tons').gt('report_date',seed2026.through_date);
+    if(dailies) for(const d of dailies){ ytd2026+=parseFloat(d.total_inbound_tons)||0; vin2026+=parseFloat(d.vinagro_tons)||0; }
+  }
+  return {ytd2026, ytd2025, vin2026, vin2025};
+}
+
+async function irrSaveReport(data) {
+  const {date, buckets} = data;
+  if(!date) return;
+  const parts = date.split('/');
+  const isoDate = parts[2]+'-'+parts[0].padStart(2,'0')+'-'+parts[1].padStart(2,'0');
+  const {reis,pile,island,santos,vinagro,walkin} = buckets;
+  const totalTons = reis.tons+pile.tons+island.tons+santos.tons+walkin.tons;
+  const totalTickets = reis.tickets+pile.tickets+island.tickets+santos.tickets+walkin.tickets;
+
+  const row = {
+    report_date: isoDate,
+    reis_tons: reis.tons, reis_tickets: reis.tickets,
+    reis_deliveries: reis.deliveries||0, reis_empties: reis.empties||0, reis_double_drops: reis.doubleDrops||0,
+    pile_tons: pile.tons, pile_tickets: pile.tickets,
+    island_tons: island.tons, island_tickets: island.tickets,
+    santos_tons: santos.tons, santos_tickets: santos.tickets,
+    walkin_tons: walkin.tons, walkin_tickets: walkin.tickets,
+    vinagro_tons: vinagro.tons, vinagro_loads: vinagro.tickets,
+    total_inbound_tons: totalTons, total_inbound_tickets: totalTickets,
+  };
+  const {error} = await db.from('irr_reports').upsert(row, {onConflict:'report_date'});
+  if(error) console.error('IRR save error:', error);
+}
+
+async function irrLoadHistory() {
+  const {data,error} = await db.from('irr_reports').select('*').order('report_date',{ascending:false}).limit(60);
+  return data||[];
+}
+
+function irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025) {
+  const {date, buckets} = data;
+  const {reis,pile,island,santos,vinagro,walkin} = buckets;
+  const totalTons = reis.tons+pile.tons+island.tons+santos.tons+walkin.tons;
+  const totalTickets = reis.tickets+pile.tickets+island.tickets+santos.tickets+walkin.tickets;
+  const email = irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025);
+
+  return `
+    <div class="irr-report">
+      <h3 style="font-size:18px;font-weight:400;color:var(--navy);margin-bottom:4px;">
+        Daily Scale Report &mdash; <strong style="color:var(--teal)">${irrFmtDate(date)}</strong>
+      </h3>
+
+      <div class="irr-ytd-grid">
+        <div class="irr-ytd-card">
+          <div class="ytd-label">2026 Inbound YTD</div>
+          <div class="ytd-val">${irrFmt(ytd2026)}</div>
+          <div class="ytd-sub">tons</div>
+        </div>
+        <div class="irr-ytd-card">
+          <div class="ytd-label">2025 Inbound YTD</div>
+          <div class="ytd-val">${irrFmt(ytd2025)}</div>
+          <div class="ytd-sub">tons</div>
+        </div>
+        <div class="irr-ytd-card">
+          <div class="ytd-label">2026 Vinagro YTD</div>
+          <div class="ytd-val">${irrFmt(vin2026)}</div>
+          <div class="ytd-sub">tons outbound</div>
+        </div>
+        <div class="irr-ytd-card">
+          <div class="ytd-label">2025 Vinagro YTD</div>
+          <div class="ytd-val">${irrFmt(vin2025)}</div>
+          <div class="ytd-sub">tons outbound</div>
+        </div>
+      </div>
+
+      <div class="irr-section-hdr">IRR Companies</div>
+      <table class="irr-table">
+        <thead><tr><th>Source</th><th>Tickets</th><th>Tons</th></tr></thead>
+        <tbody>
+          <tr><td>Reis Rolloff</td><td>${reis.tickets}</td><td>${irrFmt(reis.tons)}</td></tr>
+          <tr><td>Pile Pickups (Reis)</td><td>${pile.tickets}</td><td>${irrFmt(pile.tons)}</td></tr>
+          <tr><td>Island Rubbish</td><td>${island.tickets}</td><td>${irrFmt(island.tons)}</td></tr>
+          <tr><td>East End</td><td>${santos.tickets}</td><td>${irrFmt(santos.tons)}</td></tr>
+        </tbody>
+      </table>
+      <div class="irr-section-hdr">External</div>
+      <table class="irr-table">
+        <tbody>
+          <tr><td>Walk-In / Drive-Through</td><td style="text-align:right">${walkin.tickets}</td><td style="text-align:right">${irrFmt(walkin.tons)}</td></tr>
+          <tr class="irr-total"><td>Total</td><td style="text-align:right">${totalTickets}</td><td style="text-align:right">${irrFmt(totalTons)}</td></tr>
+        </tbody>
+      </table>
+      <div class="irr-section-hdr">Vinagro Output (Outbound)</div>
+      <table class="irr-table">
+        <tbody>
+          <tr><td>Loads</td><td style="text-align:right" colspan="1">${vinagro.tickets}</td><td style="text-align:right">${irrFmt(vinagro.tons)} tons</td></tr>
+        </tbody>
+      </table>
+
+      <hr style="border:none;border-top:1px solid var(--gray-200);margin:24px 0 16px;">
+      <div class="irr-section-hdr">Email Draft</div>
+      <div class="irr-email-box">
+        <div class="irr-email-hdr">${esc(email.subject)}</div>
+        <div class="irr-email-body">${email.body}</div>
+      </div>
+      <div class="irr-btn-row">
+        <button class="irr-btn irr-btn-primary" onclick="irrCopyEmail()">Copy Email</button>
+        <button class="irr-btn irr-btn-secondary" onclick="irrCreateDraft()">Create Gmail Draft</button>
+        <span class="irr-toast" id="irrCopyToast">Copied!</span>
+      </div>
+      <a style="display:block;text-align:center;margin-top:16px;font-size:12px;color:var(--gray-400);cursor:pointer;text-decoration:none;" onclick="irrReset()">Upload a new file</a>
+    </div>`;
+}
+
+function renderIRR() {
+  const tab = document.getElementById('tab-irr');
+  if(irrRendered && irrCurrentData) return; // preserve state
+  irrRendered = true;
+  tab.innerHTML = `<div class="irr-wrap">
+    <h2 style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:16px;">IRR Daily Scale Report</h2>
+    <div id="irrUploadSection">
+      <div class="irr-drop" id="irrDropZone">
+        <input type="file" id="irrFileInput" accept=".xls,.xlsx" onchange="irrHandleFile(this.files[0])">
+        <div class="irr-drop-icon">\ud83d\udcca</div>
+        <div class="irr-drop-label">Drop your <strong>daily .xls export</strong> here or click to browse</div>
+      </div>
+      <div class="irr-status" id="irrStatus"></div>
+    </div>
+    <div id="irrReportView"></div>
+    <div class="irr-history" id="irrHistory"></div>
+  </div>`;
+
+  const dz = document.getElementById('irrDropZone');
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');irrHandleFile(e.dataTransfer.files[0]);});
+
+  irrLoadHistoryView();
+}
+
+async function irrHandleFile(file) {
+  if(!file) return;
+  const status = document.getElementById('irrStatus');
+  status.style.display='block';
+  status.textContent='Reading '+file.name+'...';
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      status.textContent='Parsing scale data...';
+      const rows = irrParseSpreadsheetML(e.target.result);
+      const data = irrParseReport(rows);
+      irrCurrentData = data;
+      status.textContent='Parsed '+Object.keys(data.tickets).length+' tickets. Saving...';
+
+      await irrSaveReport(data);
+      const {ytd2026, ytd2025, vin2026, vin2025} = await irrLoadYTD();
+
+      document.getElementById('irrUploadSection').style.display='none';
+      document.getElementById('irrReportView').innerHTML = irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025);
+
+      // Store for email generation
+      window._irrEmail = irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025);
+
+      irrLoadHistoryView();
+      toast('Scale report processed',true);
+    } catch(err) {
+      status.textContent='Error: '+err.message;
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function irrCopyEmail() {
+  if(!window._irrEmail) return;
+  const html = window._irrEmail.body;
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  const plain = tempDiv.innerText;
+  try {
+    const blob = new ClipboardItem({
+      'text/html': new Blob([html],{type:'text/html'}),
+      'text/plain': new Blob([plain],{type:'text/plain'}),
+    });
+    navigator.clipboard.write([blob]).then(()=>{
+      const t=document.getElementById('irrCopyToast');
+      t.style.display='inline'; setTimeout(()=>t.style.display='none',2500);
+    });
+  } catch(e) {
+    navigator.clipboard.writeText(plain).then(()=>{
+      const t=document.getElementById('irrCopyToast');
+      t.style.display='inline'; setTimeout(()=>t.style.display='none',2500);
+    });
+  }
+}
+
+function irrCreateDraft() {
+  if(!window._irrEmail) return;
+  const sub = encodeURIComponent(window._irrEmail.subject);
+  const to = encodeURIComponent('tim@nantucketoasis.com,office@islandrubbishnantucket.com');
+  // Open Gmail compose with prefilled fields
+  window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+sub, '_blank');
+  toast('Gmail draft opened in new tab',true);
+}
+
+function irrReset() {
+  irrCurrentData = null;
+  irrRendered = false;
+  renderIRR();
+}
+
+async function irrLoadHistoryView() {
+  const history = await irrLoadHistory();
+  const container = document.getElementById('irrHistory');
+  if(!history.length) {
+    container.innerHTML='<div class="irr-section-hdr" style="margin-top:28px;">Report History</div><p style="font-size:12px;color:var(--gray-400);padding:8px 0;">No reports yet.</p>';
+    return;
+  }
+  let rows = '';
+  for(const h of history) {
+    const d = new Date(h.report_date+'T00:00:00');
+    const label = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    rows += `<tr onclick="irrViewHistorical('${h.report_date}')">
+      <td style="color:var(--navy);font-weight:500;">${label}</td>
+      <td>${h.total_inbound_tickets}</td>
+      <td>${parseFloat(h.total_inbound_tons).toFixed(2)}</td>
+      <td>${parseFloat(h.vinagro_tons).toFixed(2)}</td>
+    </tr>`;
+  }
+  container.innerHTML = `
+    <div class="irr-section-hdr" style="margin-top:28px;">Report History</div>
+    <table class="irr-hist-table">
+      <thead><tr><th>Date</th><th style="text-align:right">Tickets</th><th style="text-align:right">Inbound Tons</th><th style="text-align:right">Vinagro Tons</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function irrViewHistorical(isoDate) {
+  const {data,error} = await db.from('irr_reports').select('*').eq('report_date',isoDate).single();
+  if(error||!data){toast('Could not load report');return;}
+
+  // Reconstruct buckets from stored data
+  const buckets = {
+    reis:{label:'Reis Rolloff',tons:parseFloat(data.reis_tons),tickets:data.reis_tickets,deliveries:data.reis_deliveries,empties:data.reis_empties,doubleDrops:data.reis_double_drops},
+    pile:{label:'Pile Pickups (Reis)',tons:parseFloat(data.pile_tons),tickets:data.pile_tickets},
+    island:{label:'Island Rubbish',tons:parseFloat(data.island_tons),tickets:data.island_tickets},
+    santos:{label:'East End',tons:parseFloat(data.santos_tons),tickets:data.santos_tickets},
+    vinagro:{label:'VINAGRO Output',tons:parseFloat(data.vinagro_tons),tickets:data.vinagro_loads},
+    walkin:{label:'Walk-In / Drive-Through',tons:parseFloat(data.walkin_tons),tickets:data.walkin_tickets},
+  };
+
+  // Convert ISO date to M/D/YYYY for display
+  const parts = isoDate.split('-');
+  const displayDate = parseInt(parts[1])+'/'+parseInt(parts[2])+'/'+parts[0];
+  const reportData = {date: displayDate, buckets, tickets:{}};
+  irrCurrentData = reportData;
+
+  const {ytd2026, ytd2025, vin2026, vin2025} = await irrLoadYTD();
+
+  document.getElementById('irrUploadSection').style.display='none';
+  document.getElementById('irrReportView').innerHTML = irrRenderReportView(reportData, ytd2026, ytd2025, vin2026, vin2025);
+  window._irrEmail = irrGenerateEmail(reportData, ytd2026, ytd2025, vin2026, vin2025);
+
+  // Scroll to top of report
+  document.getElementById('tab-irr').scrollIntoView({behavior:'smooth'});
+}
+
 // ── TOAST ─────────────────────────────────────────────────────────────
 function toast(msg,ok=false){
   const t=document.getElementById('toast');
@@ -1895,6 +2397,7 @@ if(_saved && _saved !== '1'){
     document.getElementById('appScreen').style.flexDirection='column';
     document.getElementById('topbarUser').textContent = currentUser.display_name;
     if(currentUser.role==='admin') document.getElementById('importTabBtn').style.display='';
+    if(currentUser.username==='david'||currentUser.role==='admin') document.getElementById('irrTabBtn').style.display='';
     startHeartbeat();
     init().catch(err=>{
       toast('Connection error — please refresh');
