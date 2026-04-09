@@ -2410,8 +2410,8 @@ let irrChart = null;
 let irrDashData = [];
 let irrDashRange = 'wtd';
 let irrChartHeight = 500;
-let irrToggles = {revPerLoad:true, tonsPerLoad:true, hoursPerLoad:false};
-const IRR_COLORS = {revPerLoad:'#1a9b8a', tonsPerLoad:'#0f1f3d', hoursPerLoad:'#d4a843'};
+let irrToggles = {revPerLoad:true, tonsPerLoad:true, hoursPerLoad:false, loadsPerDay:false};
+const IRR_COLORS = {revPerLoad:'#1a9b8a', tonsPerLoad:'#0f1f3d', hoursPerLoad:'#d4a843', loadsPerDay:'#c62828'};
 
 function irrResizeChart(delta) {
   irrChartHeight = Math.max(300, Math.min(900, irrChartHeight + delta));
@@ -2554,12 +2554,18 @@ function irrRenderDashboard() {
         <div class="irr-kpi-val">${avgHoursPerLoad>0?avgHoursPerLoad.toFixed(2):'--'}</div>
         <div class="irr-kpi-sub">${hoursCount>0?hoursCount+' days with data':'No data yet'}</div>
       </div>
+      <div class="irr-kpi">
+        <div class="irr-kpi-label">Avg Loads / Day</div>
+        <div class="irr-kpi-val">${filtered.length>0?(totalReisTickets/filtered.length).toFixed(1):'--'}</div>
+        <div class="irr-kpi-sub">${totalReisTickets} loads over ${filtered.length} days</div>
+      </div>
     </div>
 
     <div class="irr-toggle-row">
       <button class="irr-toggle ${irrToggles.revPerLoad?'on':''}" style="${irrToggles.revPerLoad?'background:'+IRR_COLORS.revPerLoad+';border-color:'+IRR_COLORS.revPerLoad:''}" onclick="irrToggleSeries('revPerLoad')">Rev / Load</button>
       <button class="irr-toggle ${irrToggles.tonsPerLoad?'on':''}" style="${irrToggles.tonsPerLoad?'background:'+IRR_COLORS.tonsPerLoad+';border-color:'+IRR_COLORS.tonsPerLoad:''}" onclick="irrToggleSeries('tonsPerLoad')">Tons / Load</button>
       <button class="irr-toggle ${irrToggles.hoursPerLoad?'on':''}" style="${irrToggles.hoursPerLoad?'background:'+IRR_COLORS.hoursPerLoad+';border-color:'+IRR_COLORS.hoursPerLoad:''}" onclick="irrToggleSeries('hoursPerLoad')">Hours / Load</button>
+      <button class="irr-toggle ${irrToggles.loadsPerDay?'on':''}" style="${irrToggles.loadsPerDay?'background:'+IRR_COLORS.loadsPerDay+';border-color:'+IRR_COLORS.loadsPerDay:''}" onclick="irrToggleSeries('loadsPerDay')">Loads / Day</button>
     </div>
 
     <div class="irr-chart-wrap" id="irrChartWrap" style="height:${irrChartHeight}px;">
@@ -2635,6 +2641,14 @@ function irrDrawChart(filtered) {
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y2',
     });
   }
+  if(irrToggles.loadsPerDay){
+    datasets.push({
+      label:'Loads / Day',
+      data:filtered.map(d=>d.reis_tickets||0),
+      borderColor:IRR_COLORS.loadsPerDay, backgroundColor:IRR_COLORS.loadsPerDay+'20',
+      tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
+    });
+  }
 
   const scales = {
     x:{
@@ -2667,6 +2681,15 @@ function irrDrawChart(filtered) {
       position:axisCount>0?'right':'left',
       title:{display:true,text:'Hours / Load',font:{size:10,family:"'DM Sans',sans-serif"},color:IRR_COLORS.hoursPerLoad},
       ticks:{font:{size:10},color:IRR_COLORS.hoursPerLoad},
+      grid:{display:false}, border:{display:false},
+    };
+    axisCount++;
+  }
+  if(irrToggles.loadsPerDay){
+    scales.y3={
+      position:axisCount>0?'right':'left',
+      title:{display:true,text:'Loads / Day',font:{size:10,family:"'DM Sans',sans-serif"},color:IRR_COLORS.loadsPerDay},
+      ticks:{font:{size:10},color:IRR_COLORS.loadsPerDay, stepSize:1},
       grid:{display:false}, border:{display:false},
     };
   }
@@ -2783,10 +2806,11 @@ function irrGenerateReport() {
   for(const d of irrDashData){
     if((d.reis_tickets||0)<=0) continue;
     const ws=getWeekStart(d.report_date);
-    if(!allWeekMap[ws]) allWeekMap[ws]={tons:0,rev:0,loads:0};
+    if(!allWeekMap[ws]) allWeekMap[ws]={tons:0,rev:0,loads:0,days:0};
     allWeekMap[ws].tons+=parseFloat(d.reis_tons)||0;
     allWeekMap[ws].rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
     allWeekMap[ws].loads+=d.reis_tickets||0;
+    allWeekMap[ws].days++;
   }
 
   const weekKeys=Object.keys(weekMap).sort();
@@ -2813,9 +2837,12 @@ function irrGenerateReport() {
     const pw=allWeekMap[getPriorWeek(ws)];
     const tonsWoW=pw?pctChange(w.tons,pw.tons):'--';
     const revWoW=pw?pctChange(w.rev,pw.rev):'--';
+    const lpd=w.days>0?(w.loads/w.days).toFixed(1):'--';
+    const pwLpd=pw&&pw.days>0?(pw.loads/pw.days):0;
+    const lpdWoW=(pw&&pw.days>0&&w.days>0)?pctChange(w.loads/w.days,pwLpd):'--';
     wowRows+=`<tr>
       <td>${fmtWeek(ws)}</td><td>${w.loads}</td><td>${f2(w.tons)}</td><td>${tonsWoW}</td>
-      <td>${fM(w.rev)}</td><td>${revWoW}</td></tr>`;
+      <td>${fM(w.rev)}</td><td>${revWoW}</td><td>${lpd}</td><td>${lpdWoW}</td></tr>`;
   }
 
   const reportHTML=`
@@ -2827,6 +2854,7 @@ function irrGenerateReport() {
       <div class="rpt-kpi"><div class="rpt-kpi-label">Avg Hours / Load</div><div class="rpt-kpi-val">${avgHours>0?f2(avgHours):'--'}</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">Total Loads</div><div class="rpt-kpi-val">${totalLoads}</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">Total Revenue</div><div class="rpt-kpi-val">${fM(totalRev)}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Avg Loads / Day</div><div class="rpt-kpi-val">${filtered.length>0?(totalLoads/filtered.length).toFixed(1):'--'}</div></div>
     </div>
     <table>
       <thead><tr><th>Date</th><th>Loads</th><th>Tons</th><th>Revenue</th><th>Rev/Load</th><th>Tons/Load</th><th>Hrs/Load</th></tr></thead>
@@ -2835,7 +2863,7 @@ function irrGenerateReport() {
     ${weekKeys.length>0?`
     <h2 style="font-size:14px;font-weight:700;margin-top:28px;margin-bottom:4px;">Week-over-Week</h2>
     <table>
-      <thead><tr><th>Week</th><th>Loads</th><th>Tons</th><th>Tons WoW</th><th>Revenue</th><th>Rev WoW</th></tr></thead>
+      <thead><tr><th>Week</th><th>Loads</th><th>Tons</th><th>Tons WoW</th><th>Revenue</th><th>Rev WoW</th><th>Loads/Day</th><th>L/D WoW</th></tr></thead>
       <tbody>${wowRows}</tbody>
     </table>`:''}`;
 
