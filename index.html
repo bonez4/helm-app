@@ -561,9 +561,18 @@ select.ro-input{cursor:pointer;}
 .irr-kpi-sub{font-size:11px;color:var(--gray-400);margin-top:2px;}
 .irr-chart-wrap{
   background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);
-  padding:16px;margin-bottom:16px;
+  padding:20px;margin-bottom:16px;position:relative;
 }
-.irr-chart-wrap canvas{max-height:320px;}
+.irr-chart-wrap canvas{width:100%!important;}
+.irr-chart-resize{
+  display:flex;gap:4px;position:absolute;top:12px;right:16px;
+}
+.irr-chart-resize button{
+  background:var(--gray-50);border:1px solid var(--gray-200);color:var(--gray-500);
+  font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;
+  padding:3px 8px;border-radius:3px;cursor:pointer;
+}
+.irr-chart-resize button:hover{background:var(--gray-100);color:var(--gray-800);}
 .irr-toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
 .irr-toggle{
   font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
@@ -2353,8 +2362,16 @@ let irrActiveView = 'upload';
 let irrChart = null;
 let irrDashData = [];
 let irrDashRange = 'wtd';
+let irrChartHeight = 500;
 let irrToggles = {revPerLoad:true, tonsPerLoad:true, hoursPerLoad:false};
 const IRR_COLORS = {revPerLoad:'#1a9b8a', tonsPerLoad:'#0f1f3d', hoursPerLoad:'#d4a843'};
+
+function irrResizeChart(delta) {
+  irrChartHeight = Math.max(300, Math.min(900, irrChartHeight + delta));
+  const wrap = document.getElementById('irrChartWrap');
+  if(wrap) wrap.style.height = irrChartHeight + 'px';
+  if(irrChart) irrChart.resize();
+}
 
 function renderIRR() {
   const tab = document.getElementById('tab-irr');
@@ -2497,7 +2514,11 @@ function irrRenderDashboard() {
       <button class="irr-toggle ${irrToggles.hoursPerLoad?'on':''}" style="${irrToggles.hoursPerLoad?'background:'+IRR_COLORS.hoursPerLoad+';border-color:'+IRR_COLORS.hoursPerLoad:''}" onclick="irrToggleSeries('hoursPerLoad')">Hours / Load</button>
     </div>
 
-    <div class="irr-chart-wrap">
+    <div class="irr-chart-wrap" id="irrChartWrap" style="height:${irrChartHeight}px;">
+      <div class="irr-chart-resize">
+        <button onclick="irrResizeChart(-100)">-</button>
+        <button onclick="irrResizeChart(100)">+</button>
+      </div>
       <canvas id="irrChartCanvas"></canvas>
     </div>
 
@@ -2606,7 +2627,7 @@ function irrDrawChart(filtered) {
     type:'line',
     data:{labels, datasets},
     options:{
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:false, aspectRatio:false,
       interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{display:false},
