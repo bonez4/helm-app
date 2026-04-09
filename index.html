@@ -599,6 +599,53 @@ select.ro-input{cursor:pointer;}
   background:var(--teal);color:white;cursor:pointer;
 }
 .irr-hours-row button:hover{filter:brightness(1.1);}
+
+/* IRR Report overlay */
+.irr-report-overlay{
+  position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);
+  display:flex;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto;
+}
+.irr-report-modal{
+  background:white;border-radius:var(--radius);max-width:800px;width:100%;
+  box-shadow:var(--shadow-md);position:relative;
+}
+.irr-report-toolbar{
+  display:flex;gap:8px;align-items:center;padding:12px 20px;
+  border-bottom:1px solid var(--gray-200);flex-wrap:wrap;
+}
+.irr-report-toolbar button{
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;border:none;
+}
+.irr-report-toolbar .rpt-print{background:var(--navy);color:white;}
+.irr-report-toolbar .rpt-email{background:var(--teal);color:white;}
+.irr-report-toolbar .rpt-close{background:var(--gray-100);color:var(--gray-600);margin-left:auto;}
+.irr-report-toolbar input[type="text"]{
+  font-family:'DM Sans',sans-serif;font-size:11px;padding:5px 10px;
+  border:1px solid var(--gray-200);border-radius:var(--radius-sm);color:var(--gray-800);flex:1;min-width:200px;
+}
+.irr-report-body{padding:32px 40px;font-family:Arial,Helvetica,sans-serif;color:#222;}
+.irr-report-body h1{font-size:18px;font-weight:700;margin-bottom:4px;color:#000;}
+.irr-report-body .rpt-period{font-size:13px;color:#666;margin-bottom:24px;}
+.irr-report-body .rpt-kpi-row{display:flex;gap:16px;margin-bottom:24px;}
+.irr-report-body .rpt-kpi{flex:1;border:1px solid #ddd;border-radius:6px;padding:12px;text-align:center;}
+.irr-report-body .rpt-kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:4px;}
+.irr-report-body .rpt-kpi-val{font-size:20px;font-weight:700;color:#000;}
+.irr-report-body table{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px;}
+.irr-report-body th{text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;padding:8px 10px;border-bottom:2px solid #000;}
+.irr-report-body th:first-child{text-align:left;}
+.irr-report-body td{padding:7px 10px;border-bottom:1px solid #eee;text-align:right;font-family:'Courier New',monospace;font-size:11px;}
+.irr-report-body td:first-child{text-align:left;font-family:Arial,Helvetica,sans-serif;}
+.irr-report-body tr:last-child td{border-bottom:none;}
+.irr-report-body .rpt-total td{font-weight:700;border-top:2px solid #000;border-bottom:none;}
+
+@media print{
+  body>*{display:none!important;}
+  .irr-report-overlay{position:static!important;background:none!important;padding:0!important;display:block!important;}
+  .irr-report-modal{box-shadow:none!important;border-radius:0!important;}
+  .irr-report-toolbar{display:none!important;}
+  .irr-report-body{padding:20px!important;}
+}
 </style>
 </head>
 <body>
@@ -2488,6 +2535,7 @@ function irrRenderDashboard() {
         <span style="color:var(--gray-400);font-size:11px;">to</span>
         <input type="date" id="irrCustomEnd" value="${end}" onchange="irrRefreshDash()">
       </div>
+      <button class="irr-range-btn" style="margin-left:auto;background:var(--navy);color:white;border-color:var(--navy);" onclick="irrGenerateReport()">Generate Report</button>
     </div>
 
     <div class="irr-kpi-row">
@@ -2663,6 +2711,108 @@ async function irrSaveHours() {
   const {data} = await db.from('irr_reports').select('*').order('report_date',{ascending:true});
   irrDashData=data||[];
   irrRenderDashboard();
+}
+
+// ── Period Report Generator ───────────────────────────────────────────
+
+function irrGenerateReport() {
+  const {start,end} = irrGetDateRange(irrDashRange,
+    document.getElementById('irrCustomStart')?.value,
+    document.getElementById('irrCustomEnd')?.value);
+  const filtered = irrDashData.filter(d=>d.report_date>=start && d.report_date<=end && (d.reis_tickets||0)>0);
+  if(!filtered.length){toast('No data in selected range');return;}
+
+  let totalLoads=0,totalTons=0,totalRev=0,totalHours=0,hoursCount=0;
+  for(const d of filtered){
+    totalLoads+=d.reis_tickets||0;
+    totalTons+=parseFloat(d.reis_tons)||0;
+    totalRev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+    if(d.driver_hours!=null){totalHours+=parseFloat(d.driver_hours)||0;hoursCount++;}
+  }
+  const avgRev=totalLoads>0?(totalRev/totalLoads):0;
+  const avgTons=totalLoads>0?(totalTons/totalLoads):0;
+  const avgHours=(totalLoads>0&&hoursCount>0)?(totalHours/totalLoads):0;
+
+  const fmtD=iso=>{const d=new Date(iso+'T00:00:00');return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
+  const fmtFull=iso=>{const d=new Date(iso+'T00:00:00');return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});};
+  const f2=n=>n.toFixed(2);
+  const fM=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  let tableRows='';
+  for(const d of filtered){
+    const loads=d.reis_tickets||0;
+    const tons=parseFloat(d.reis_tons)||0;
+    const rev=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+    const rpl=loads>0?fM(rev/loads):'--';
+    const tpl=loads>0?f2(tons/loads):'--';
+    const hpl=(loads>0&&d.driver_hours!=null)?f2(parseFloat(d.driver_hours)/loads):'--';
+    tableRows+=`<tr>
+      <td>${fmtD(d.report_date)}</td><td>${loads}</td><td>${f2(tons)}</td>
+      <td>${fM(rev)}</td><td>${rpl}</td><td>${tpl}</td><td>${hpl}</td></tr>`;
+  }
+  tableRows+=`<tr class="rpt-total">
+    <td>Total / Avg</td><td>${totalLoads}</td><td>${f2(totalTons)}</td>
+    <td>${fM(totalRev)}</td><td>${fM(avgRev)}</td><td>${f2(avgTons)}</td><td>${avgHours>0?f2(avgHours):'--'}</td></tr>`;
+
+  const reportHTML=`
+    <h1>Rolloff Performance Report</h1>
+    <div class="rpt-period">${fmtFull(start)} — ${fmtFull(end)}</div>
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Avg Rev / Load</div><div class="rpt-kpi-val">${fM(avgRev)}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Avg Tons / Load</div><div class="rpt-kpi-val">${f2(avgTons)}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Avg Hours / Load</div><div class="rpt-kpi-val">${avgHours>0?f2(avgHours):'--'}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Total Loads</div><div class="rpt-kpi-val">${totalLoads}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Total Revenue</div><div class="rpt-kpi-val">${fM(totalRev)}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Date</th><th>Loads</th><th>Tons</th><th>Revenue</th><th>Rev/Load</th><th>Tons/Load</th><th>Hrs/Load</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>`;
+
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.className='irr-report-overlay';
+  overlay.id='irrReportOverlay';
+  overlay.innerHTML=`<div class="irr-report-modal">
+    <div class="irr-report-toolbar">
+      <button class="rpt-print" onclick="window.print()">Print</button>
+      <input type="text" id="irrReportEmails" placeholder="Email addresses (comma-separated)">
+      <button class="rpt-email" onclick="irrEmailReport()">Email</button>
+      <button class="rpt-close" onclick="document.getElementById('irrReportOverlay').remove()">Close</button>
+    </div>
+    <div class="irr-report-body">${reportHTML}</div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  // Store HTML for email
+  window._irrReportHTML=reportHTML;
+  window._irrReportSubject='Rolloff Performance Report — '+fmtFull(start)+' to '+fmtFull(end);
+}
+
+function irrEmailReport() {
+  const emails=document.getElementById('irrReportEmails').value.trim();
+  if(!emails){toast('Enter at least one email address');return;}
+  const sub=encodeURIComponent(window._irrReportSubject||'Rolloff Performance Report');
+  const to=encodeURIComponent(emails);
+  // Copy report HTML to clipboard first, then open Gmail compose
+  const html=window._irrReportHTML||'';
+  const tempDiv=document.createElement('div');
+  tempDiv.innerHTML=html;
+  const plain=tempDiv.innerText;
+  try{
+    navigator.clipboard.write([new ClipboardItem({
+      'text/html':new Blob([html],{type:'text/html'}),
+      'text/plain':new Blob([plain],{type:'text/plain'}),
+    })]).then(()=>{
+      window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+sub,'_blank');
+      toast('Report copied — paste into the Gmail compose window',true);
+    });
+  }catch(e){
+    navigator.clipboard.writeText(plain).then(()=>{
+      window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+sub,'_blank');
+      toast('Report copied as text — paste into Gmail',true);
+    });
+  }
 }
 
 // ── Historical bulk import ─────────────────────────────────────────────
