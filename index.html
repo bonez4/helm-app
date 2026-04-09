@@ -2373,6 +2373,17 @@ function renderIRR() {
         <div class="irr-status" id="irrStatus"></div>
       </div>
       <div id="irrReportView"></div>
+      <div id="irrBulkSection" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--gray-200);">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px;">Historical Import</div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <label class="irr-btn irr-btn-secondary" style="cursor:pointer;position:relative;">
+            Import YTD File
+            <input type="file" accept=".xls,.xlsx" onchange="irrHandleBulk(this.files[0])" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+          </label>
+          <span style="font-size:11px;color:var(--gray-400);">Upload a date-range export to populate daily history</span>
+        </div>
+        <div class="irr-status" id="irrBulkStatus" style="margin-top:8px;"></div>
+      </div>
       <div class="irr-history" id="irrHistory"></div>
     </div>
     <div id="irrViewDash" style="display:${irrActiveView==='dashboard'?'':'none'}">
@@ -2631,6 +2642,159 @@ async function irrSaveHours() {
   const {data} = await db.from('irr_reports').select('*').order('report_date',{ascending:true});
   irrDashData=data||[];
   irrRenderDashboard();
+}
+
+// ── Historical bulk import ─────────────────────────────────────────────
+
+function irrParseBulk(rows) {
+  // Same parsing logic as irrParseReport, but tags each ticket with its date
+  // then groups by date to produce daily report rows
+  const tickets = {};
+  let currentCode = null, parentCode = null;
+  const codeStack = [];
+  let lastDate = null;
+
+  for (let i = 0; i < rows.length; i++) {
+    const vals = rows[i];
+    const nonEmpty = vals.filter(v => v && v.trim());
+    if (!nonEmpty.length) continue;
+    const first = nonEmpty[0];
+    const isHeader = first.includes(' - ') && !first.includes('Totals') && !first.includes('Tickets:')
+      && !first.includes('TIPFEES') && !first.includes('ROLLOFFS') && !first.includes('No Order')
+      && !first.startsWith('Page ') && !first.includes('Date Range') && first.trim()!=='Date' && !first.includes('Report');
+    const isTotals = first.includes(' - ') && first.includes('Totals') && !first.includes('TIPFEES') && !first.includes('Non Order');
+
+    if (isHeader) { const c=first.split(' - ')[0].trim(); codeStack.push(c); currentCode=c; parentCode=codeStack.length>1?codeStack[0]:null; }
+    if (isTotals) { const c=first.split(' - ')[0].trim(); const idx=codeStack.lastIndexOf(c); if(idx!==-1)codeStack.splice(idx,1); currentCode=codeStack.length>0?codeStack[codeStack.length-1]:null; parentCode=codeStack.length>1?codeStack[0]:null; }
+
+    const effectiveCode = (parentCode && parentCode.startsWith('ZZ')) ? parentCode : currentCode;
+    if (!effectiveCode) continue;
+    const flatUpper = vals.join(' ').toUpperCase();
+    const dataVals = vals.filter(v => v!==null && v!=='' && v!==undefined);
+
+    // Track date from rows — date appears as M/D/YYYY in data values
+    for (const v of dataVals) {
+      const dm = v.match(/^(\d{1,2}\/\d{1,2}\/\d{4})$/);
+      if (dm) { lastDate = dm[1]; break; }
+    }
+
+    if (flatUpper.includes('REIS SITE TRANSFER FEE')) {
+      const fi = dataVals.findIndex(v => v && v.includes('REIS SITE TRANSFER FEE'));
+      if (fi!==-1 && fi+2<dataVals.length) {
+        const ticket=dataVals[1]||'?', net=parseFloat(dataVals[fi+2])||0;
+        if(!tickets[ticket]) tickets[ticket]={tons:0,service:null,code:effectiveCode,date:lastDate,tipRev:0};
+        tickets[ticket].tons+=net;
+        if(!tickets[ticket].service) tickets[ticket].code=effectiveCode;
+        if(!tickets[ticket].date) tickets[ticket].date=lastDate;
+        // Revenue
+        const rateStr=dataVals[fi+3]||'';
+        const rateMatch=rateStr.match(/\$([0-9.]+)/);
+        if(rateMatch) tickets[ticket].tipRev=net*parseFloat(rateMatch[1]);
+      }
+    }
+    for (const kw of IRR_ROLLOFF_SVC) {
+      if (flatUpper.includes(kw)) {
+        const ticket=dataVals[1]||'?';
+        if(!tickets[ticket]) tickets[ticket]={tons:0,service:null,code:effectiveCode,date:lastDate,tipRev:0};
+        tickets[ticket].service=kw; tickets[ticket].code=effectiveCode;
+        if(!tickets[ticket].date) tickets[ticket].date=lastDate;
+        // Service fee amount
+        let svcFee=0;
+        if(!effectiveCode.startsWith('ZZ')){
+          for(let j=dataVals.length-1;j>=0;j--){
+            const amt=parseFloat(dataVals[j]);
+            if(!isNaN(amt)&&amt>0){svcFee=amt;break;}
+          }
+        }
+        tickets[ticket].svcFee=(tickets[ticket].svcFee||0)+svcFee;
+        break;
+      }
+    }
+  }
+
+  // Group tickets by date
+  const dailyMap = {};
+  for (const [tn,t] of Object.entries(tickets)) {
+    const dt = t.date;
+    if(!dt) continue;
+    if(!dailyMap[dt]) dailyMap[dt]={
+      reis:{tons:0,tickets:0,tipRev:0,svcFees:0,deliveries:0,empties:0,doubleDrops:0},
+      pile:{tons:0,tickets:0}, island:{tons:0,tickets:0}, santos:{tons:0,tickets:0},
+      vinagro:{tons:0,tickets:0}, walkin:{tons:0,tickets:0},
+    };
+    const b=dailyMap[dt], c=t.code;
+    if(c==='ZZISLAND'){b.island.tons+=t.tons;b.island.tickets++;}
+    else if(c==='ZZEASTEND'){b.santos.tons+=t.tons;b.santos.tickets++;}
+    else if(c==='ZZDELTA'){b.pile.tons+=t.tons;b.pile.tickets++;}
+    else if(c==='ZZREIS'){b.vinagro.tons+=t.tons;b.vinagro.tickets++;}
+    else if(c.startsWith('ZZ')){b.walkin.tons+=t.tons;b.walkin.tickets++;}
+    else if(t.service!==null){
+      b.reis.tons+=t.tons;b.reis.tickets++;b.reis.tipRev+=t.tipRev||0;b.reis.svcFees+=t.svcFee||0;
+      if(t.service.includes('DELIVERY'))b.reis.deliveries++;
+      else if(t.service.includes('DOUBLE DROP'))b.reis.doubleDrops++;
+      else if(t.service.includes('EMPTY'))b.reis.empties++;
+    } else {b.walkin.tons+=t.tons;b.walkin.tickets++;}
+  }
+
+  // Convert to array of DB rows
+  const dbRows = [];
+  for (const [dateStr,b] of Object.entries(dailyMap)) {
+    const parts=dateStr.split('/');
+    const isoDate=parts[2]+'-'+parts[0].padStart(2,'0')+'-'+parts[1].padStart(2,'0');
+    const totalTons=b.reis.tons+b.pile.tons+b.island.tons+b.santos.tons+b.walkin.tons;
+    const totalTickets=b.reis.tickets+b.pile.tickets+b.island.tickets+b.santos.tickets+b.walkin.tickets;
+    dbRows.push({
+      report_date:isoDate,
+      reis_tons:b.reis.tons, reis_tickets:b.reis.tickets,
+      reis_deliveries:b.reis.deliveries, reis_empties:b.reis.empties, reis_double_drops:b.reis.doubleDrops,
+      reis_tip_revenue:b.reis.tipRev, reis_svc_revenue:b.reis.svcFees,
+      pile_tons:b.pile.tons, pile_tickets:b.pile.tickets,
+      island_tons:b.island.tons, island_tickets:b.island.tickets,
+      santos_tons:b.santos.tons, santos_tickets:b.santos.tickets,
+      walkin_tons:b.walkin.tons, walkin_tickets:b.walkin.tickets,
+      vinagro_tons:b.vinagro.tons, vinagro_loads:b.vinagro.tickets,
+      total_inbound_tons:totalTons, total_inbound_tickets:totalTickets,
+    });
+  }
+  dbRows.sort((a,b)=>a.report_date.localeCompare(b.report_date));
+  return {ticketCount:Object.keys(tickets).length, days:dbRows};
+}
+
+async function irrHandleBulk(file) {
+  if(!file) return;
+  const status = document.getElementById('irrBulkStatus');
+  status.style.display='block';
+  status.textContent='Reading '+file.name+'...';
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      status.textContent='Parsing historical data...';
+      const rows = irrParseSpreadsheetML(e.target.result);
+      status.textContent='Parsed '+rows.length+' rows, grouping by date...';
+      const result = irrParseBulk(rows);
+      status.textContent=result.ticketCount+' tickets across '+result.days.length+' days. Saving...';
+
+      // Upsert in batches
+      const batchSize=100;
+      let saved=0;
+      for(let i=0;i<result.days.length;i+=batchSize){
+        const chunk=result.days.slice(i,i+batchSize);
+        const {error}=await db.from('irr_reports').upsert(chunk,{onConflict:'report_date'});
+        if(error){status.textContent='Error at batch '+(i/batchSize+1)+': '+error.message;return;}
+        saved+=chunk.length;
+        status.textContent='Saved '+saved+' / '+result.days.length+' days...';
+      }
+
+      status.textContent='Import complete: '+result.days.length+' days, '+result.ticketCount+' tickets.';
+      toast(result.days.length+' days of historical data imported',true);
+      irrLoadHistoryView();
+    } catch(err) {
+      status.textContent='Error: '+err.message;
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
 }
 
 async function irrHandleFile(file) {
