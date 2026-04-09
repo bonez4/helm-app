@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
 <style>
 :root {
@@ -2874,8 +2875,9 @@ function irrGenerateReport() {
   overlay.innerHTML=`<div class="irr-report-modal">
     <div class="irr-report-toolbar">
       <button class="rpt-print" onclick="window.print()">Print</button>
+      <button class="rpt-print" onclick="irrDownloadPDF()">Download PDF</button>
       <input type="text" id="irrReportEmails" placeholder="Email addresses (comma-separated)">
-      <button class="rpt-email" onclick="irrEmailReport()">Email</button>
+      <button class="rpt-email" onclick="irrEmailReport()">Email PDF</button>
       <button class="rpt-close" onclick="document.getElementById('irrReportOverlay').remove()">Close</button>
     </div>
     <div class="irr-report-body">${reportHTML}</div>
@@ -2887,30 +2889,41 @@ function irrGenerateReport() {
   window._irrReportSubject='Rolloff Performance Report — '+fmtFull(start)+' to '+fmtFull(end);
 }
 
+function irrGetPDFFilename() {
+  return (window._irrReportSubject||'Rolloff Performance Report').replace(/[^a-zA-Z0-9 \-]/g,'').replace(/\s+/g,'_')+'.pdf';
+}
+
+function irrGetPDFOptions() {
+  return {
+    margin: [10,12,10,12],
+    filename: irrGetPDFFilename(),
+    image: {type:'jpeg',quality:0.98},
+    html2canvas: {scale:2,useCORS:true},
+    jsPDF: {unit:'mm',format:'letter',orientation:'portrait'},
+  };
+}
+
+function irrDownloadPDF() {
+  const el=document.querySelector('#irrReportOverlay .irr-report-body');
+  if(!el){toast('No report to export');return;}
+  toast('Generating PDF...');
+  html2pdf().set(irrGetPDFOptions()).from(el).save().then(()=>{
+    toast('PDF downloaded',true);
+  });
+}
+
 function irrEmailReport() {
   const emails=document.getElementById('irrReportEmails').value.trim();
   if(!emails){toast('Enter at least one email address');return;}
-  const sub=encodeURIComponent(window._irrReportSubject||'Rolloff Performance Report');
-  const to=encodeURIComponent(emails);
-  // Copy report HTML to clipboard first, then open Gmail compose
-  const html=window._irrReportHTML||'';
-  const tempDiv=document.createElement('div');
-  tempDiv.innerHTML=html;
-  const plain=tempDiv.innerText;
-  try{
-    navigator.clipboard.write([new ClipboardItem({
-      'text/html':new Blob([html],{type:'text/html'}),
-      'text/plain':new Blob([plain],{type:'text/plain'}),
-    })]).then(()=>{
-      window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+sub,'_blank');
-      toast('Report copied — paste into the Gmail compose window',true);
-    });
-  }catch(e){
-    navigator.clipboard.writeText(plain).then(()=>{
-      window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+sub,'_blank');
-      toast('Report copied as text — paste into Gmail',true);
-    });
-  }
+  const el=document.querySelector('#irrReportOverlay .irr-report-body');
+  if(!el){toast('No report to export');return;}
+  toast('Generating PDF and opening Gmail...');
+  html2pdf().set(irrGetPDFOptions()).from(el).save().then(()=>{
+    const sub=encodeURIComponent(window._irrReportSubject||'Rolloff Performance Report');
+    const to=encodeURIComponent(emails);
+    window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+sub,'_blank');
+    toast('PDF downloaded — attach it to the Gmail compose window',true);
+  });
 }
 
 // ── Historical bulk import ─────────────────────────────────────────────
