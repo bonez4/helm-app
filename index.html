@@ -2754,6 +2754,70 @@ function irrGenerateReport() {
     <td>Total / Avg</td><td>${totalLoads}</td><td>${f2(totalTons)}</td>
     <td>${fM(totalRev)}</td><td>${fM(avgRev)}</td><td>${f2(avgTons)}</td><td>${avgHours>0?f2(avgHours):'--'}</td></tr>`;
 
+  // Build week-over-week summary using ALL data for prior-week lookback
+  const allByDate={};
+  for(const d of irrDashData){
+    if((d.reis_tickets||0)>0) allByDate[d.report_date]=d;
+  }
+
+  // Group filtered data into ISO weeks (Mon-Sun)
+  function getWeekStart(iso){
+    const d=new Date(iso+'T00:00:00');
+    const day=d.getDay();
+    const diff=d.getDate()-day+(day===0?-6:1); // Monday
+    const mon=new Date(d);mon.setDate(diff);
+    return mon.toISOString().split('T')[0];
+  }
+
+  const weekMap={};
+  for(const d of filtered){
+    const ws=getWeekStart(d.report_date);
+    if(!weekMap[ws]) weekMap[ws]={tons:0,rev:0,loads:0,days:0};
+    weekMap[ws].tons+=parseFloat(d.reis_tons)||0;
+    weekMap[ws].rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+    weekMap[ws].loads+=d.reis_tickets||0;
+    weekMap[ws].days++;
+  }
+  // Also compute prior weeks from all data for WoW calc
+  const allWeekMap={};
+  for(const d of irrDashData){
+    if((d.reis_tickets||0)<=0) continue;
+    const ws=getWeekStart(d.report_date);
+    if(!allWeekMap[ws]) allWeekMap[ws]={tons:0,rev:0,loads:0};
+    allWeekMap[ws].tons+=parseFloat(d.reis_tons)||0;
+    allWeekMap[ws].rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+    allWeekMap[ws].loads+=d.reis_tickets||0;
+  }
+
+  const weekKeys=Object.keys(weekMap).sort();
+  function getPriorWeek(ws){
+    const d=new Date(ws+'T00:00:00');d.setDate(d.getDate()-7);
+    return d.toISOString().split('T')[0];
+  }
+  function pctChange(curr,prev){
+    if(!prev||prev===0) return '--';
+    const pct=((curr-prev)/prev)*100;
+    const sign=pct>0?'+':'';
+    return sign+pct.toFixed(1)+'%';
+  }
+
+  const fmtWeek=ws=>{
+    const s=new Date(ws+'T00:00:00');
+    const e=new Date(s);e.setDate(s.getDate()+6);
+    return fmtD(ws)+' - '+fmtD(e.toISOString().split('T')[0]);
+  };
+
+  let wowRows='';
+  for(const ws of weekKeys){
+    const w=weekMap[ws];
+    const pw=allWeekMap[getPriorWeek(ws)];
+    const tonsWoW=pw?pctChange(w.tons,pw.tons):'--';
+    const revWoW=pw?pctChange(w.rev,pw.rev):'--';
+    wowRows+=`<tr>
+      <td>${fmtWeek(ws)}</td><td>${w.loads}</td><td>${f2(w.tons)}</td><td>${tonsWoW}</td>
+      <td>${fM(w.rev)}</td><td>${revWoW}</td></tr>`;
+  }
+
   const reportHTML=`
     <h1>Rolloff Performance Report</h1>
     <div class="rpt-period">${fmtFull(start)} — ${fmtFull(end)}</div>
@@ -2767,7 +2831,13 @@ function irrGenerateReport() {
     <table>
       <thead><tr><th>Date</th><th>Loads</th><th>Tons</th><th>Revenue</th><th>Rev/Load</th><th>Tons/Load</th><th>Hrs/Load</th></tr></thead>
       <tbody>${tableRows}</tbody>
-    </table>`;
+    </table>
+    ${weekKeys.length>0?`
+    <h2 style="font-size:14px;font-weight:700;margin-top:28px;margin-bottom:4px;">Week-over-Week</h2>
+    <table>
+      <thead><tr><th>Week</th><th>Loads</th><th>Tons</th><th>Tons WoW</th><th>Revenue</th><th>Rev WoW</th></tr></thead>
+      <tbody>${wowRows}</tbody>
+    </table>`:''}`;
 
   // Create overlay
   const overlay = document.createElement('div');
