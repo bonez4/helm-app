@@ -6,6 +6,8 @@
 <title>HELM — Reis Trucking</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
 <style>
 :root {
   --navy:       #0f1f3d;
@@ -524,6 +526,70 @@ select.ro-input{cursor:pointer;}
 .irr-hist-table td:not(:first-child){text-align:right;font-family:'DM Mono',monospace;}
 .irr-hist-table tr{cursor:pointer;transition:background .1s;}
 .irr-hist-table tr:hover{background:var(--gray-50);}
+
+/* IRR sub-nav */
+.irr-subnav{display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--gray-200);padding-bottom:10px;}
+.irr-subnav button{
+  background:none;border:1px solid var(--gray-200);color:var(--gray-500);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:6px 16px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;
+}
+.irr-subnav button.active{background:var(--navy);color:white;border-color:var(--navy);}
+.irr-subnav button:hover:not(.active){border-color:var(--gray-400);color:var(--gray-800);}
+
+/* Dashboard */
+.irr-dash-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+.irr-range-btn{
+  background:var(--white);border:1px solid var(--gray-200);color:var(--gray-500);
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;
+}
+.irr-range-btn.active{background:var(--navy);color:white;border-color:var(--navy);}
+.irr-range-btn:hover:not(.active){border-color:var(--gray-400);color:var(--gray-800);}
+.irr-dash-custom{display:flex;gap:6px;align-items:center;}
+.irr-dash-custom input[type="date"]{
+  font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;
+  border:1px solid var(--gray-200);border-radius:var(--radius-sm);color:var(--gray-600);
+}
+.irr-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.irr-kpi{
+  background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);
+  padding:14px 16px;
+}
+.irr-kpi-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin-bottom:4px;}
+.irr-kpi-val{font-family:'DM Mono',monospace;font-size:20px;font-weight:700;color:var(--navy);}
+.irr-kpi-sub{font-size:11px;color:var(--gray-400);margin-top:2px;}
+.irr-chart-wrap{
+  background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);
+  padding:16px;margin-bottom:16px;
+}
+.irr-chart-wrap canvas{max-height:320px;}
+.irr-toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.irr-toggle{
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  padding:4px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;
+  border:1px solid var(--gray-200);background:var(--white);color:var(--gray-400);
+}
+.irr-toggle.on{color:white;}
+
+/* Driver hours form */
+.irr-hours-form{
+  background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);
+  padding:16px;margin-top:16px;
+}
+.irr-hours-form h4{font-size:12px;font-weight:600;color:var(--navy);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em;}
+.irr-hours-row{display:flex;gap:10px;align-items:flex-end;}
+.irr-hours-row label{font-size:11px;font-weight:600;color:var(--gray-500);display:flex;flex-direction:column;gap:3px;}
+.irr-hours-row input{
+  font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 10px;
+  border:1px solid var(--gray-200);border-radius:var(--radius-sm);color:var(--gray-800);width:140px;
+}
+.irr-hours-row button{
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  padding:7px 16px;border:none;border-radius:var(--radius-sm);
+  background:var(--teal);color:white;cursor:pointer;
+}
+.irr-hours-row button:hover{filter:brightness(1.1);}
 </style>
 </head>
 <body>
@@ -2025,7 +2091,7 @@ function irrParseReport(rows) {
   }
 
   const buckets = {
-    reis:{label:'Reis Rolloff',tons:0,tickets:0,deliveries:0,empties:0,doubleDrops:0},
+    reis:{label:'Reis Rolloff',tons:0,tickets:0,tipRevenue:0,rolloffFees:0,deliveries:0,empties:0,doubleDrops:0},
     pile:{label:'Pile Pickups (Reis)',tons:0,tickets:0},
     island:{label:'Island Rubbish',tons:0,tickets:0},
     santos:{label:'East End',tons:0,tickets:0},
@@ -2047,6 +2113,53 @@ function irrParseReport(rows) {
       else if(t.service.includes('EMPTY'))buckets.reis.empties++;
     } else {buckets.walkin.tons+=t.tons;buckets.walkin.tickets++;}
   }
+
+  // Revenue pass — scan for tip fee rates and rolloff service fees
+  let revCode2 = null, parentCode2 = null;
+  const revStack2 = [];
+  for (let i = 0; i < rows.length; i++) {
+    const vals = rows[i];
+    const nonEmpty = vals.filter(v => v && v.trim());
+    if (!nonEmpty.length) continue;
+    const first = nonEmpty[0];
+    const isHdr = first.includes(' - ') && !first.includes('Totals') && !first.includes('Tickets:')
+      && !first.includes('TIPFEES') && !first.includes('ROLLOFFS') && !first.includes('No Order')
+      && !first.startsWith('Page ') && !first.includes('Date Range') && first.trim()!=='Date' && !first.includes('Report');
+    const isTot = first.includes(' - ') && first.includes('Totals') && !first.includes('TIPFEES') && !first.includes('Non Order');
+    if (isHdr) { const c=first.split(' - ')[0].trim(); revStack2.push(c); revCode2=c; parentCode2=revStack2.length>1?revStack2[0]:null; }
+    if (isTot) { const c=first.split(' - ')[0].trim(); const idx=revStack2.lastIndexOf(c); if(idx!==-1)revStack2.splice(idx,1); revCode2=revStack2.length>0?revStack2[revStack2.length-1]:null; parentCode2=revStack2.length>1?revStack2[0]:null; }
+    const rc = (parentCode2 && parentCode2.startsWith('ZZ')) ? parentCode2 : revCode2;
+    if (!rc) continue;
+    const flatUpper = vals.join(' ').toUpperCase();
+    const dataVals = vals.filter(v => v!==null && v!=='' && v!==undefined);
+
+    // Tip fee revenue
+    if (flatUpper.includes('REIS SITE TRANSFER FEE')) {
+      const fi = dataVals.findIndex(v => v && v.includes('REIS SITE TRANSFER FEE'));
+      if (fi!==-1 && fi+2<dataVals.length) {
+        const ticket=dataVals[1]||'?';
+        const net=parseFloat(dataVals[fi+2])||0;
+        const rateStr=dataVals[fi+3]||'';
+        const rateMatch=rateStr.match(/\$([0-9.]+)/);
+        if (rateMatch && tickets[ticket]) {
+          const rev=net*parseFloat(rateMatch[1]);
+          const tc=tickets[ticket].code, svc=tickets[ticket].service;
+          if (!tc.startsWith('ZZ') && svc!==null) buckets.reis.tipRevenue+=rev;
+        }
+      }
+    }
+    // Rolloff service fees (Reis only, not ZZ)
+    for (const kw of IRR_ROLLOFF_SVC) {
+      if (flatUpper.includes(kw) && !rc.startsWith('ZZ')) {
+        for (let j=dataVals.length-1;j>=0;j--) {
+          const amt=parseFloat(dataVals[j]);
+          if (!isNaN(amt) && amt>0) { buckets.reis.rolloffFees+=amt; break; }
+        }
+        break;
+      }
+    }
+  }
+
   return {date:reportDate, buckets, tickets};
 }
 
@@ -2089,6 +2202,9 @@ function irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025) {
       <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;border-top:2px solid #000;">Total</td>
       <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;border-top:2px solid #000;">${totalTickets} tickets &nbsp; ${irrFmt(totalTons)} tons</td>
     </tr>
+    ${S()}
+    ${R('Rev / Load (Rolloff)',reis.tickets>0 ? irrFmtMoney((reis.tipRevenue+reis.rolloffFees)/reis.tickets) : '--')}
+    ${R('Tons / Load (Rolloff)',reis.tickets>0 ? irrFmt(reis.tons/reis.tickets) : '--')}
     ${H('Vinagro Output (Outbound)')}
     ${R('Loads',vinagro.tickets)}
     ${R('Total Tons',irrFmt(vinagro.tons))}
@@ -2134,6 +2250,7 @@ async function irrSaveReport(data) {
     report_date: isoDate,
     reis_tons: reis.tons, reis_tickets: reis.tickets,
     reis_deliveries: reis.deliveries||0, reis_empties: reis.empties||0, reis_double_drops: reis.doubleDrops||0,
+    reis_tip_revenue: reis.tipRevenue||0, reis_svc_revenue: reis.rolloffFees||0,
     pile_tons: pile.tons, pile_tickets: pile.tickets,
     island_tons: island.tons, island_tickets: island.tickets,
     santos_tons: santos.tons, santos_tickets: santos.tickets,
@@ -2203,6 +2320,13 @@ function irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025) {
           <tr class="irr-total"><td>Total</td><td style="text-align:right">${totalTickets}</td><td style="text-align:right">${irrFmt(totalTons)}</td></tr>
         </tbody>
       </table>
+      <div class="irr-section-hdr">Rolloff Metrics</div>
+      <table class="irr-table">
+        <tbody>
+          <tr><td>Rev / Load</td><td style="text-align:right" colspan="2">${reis.tickets>0?irrFmtMoney(((reis.tipRevenue||0)+(reis.rolloffFees||0))/reis.tickets):'--'}</td></tr>
+          <tr><td>Tons / Load</td><td style="text-align:right" colspan="2">${reis.tickets>0?irrFmt(reis.tons/reis.tickets):'--'}</td></tr>
+        </tbody>
+      </table>
       <div class="irr-section-hdr">Vinagro Output (Outbound)</div>
       <table class="irr-table">
         <tbody>
@@ -2225,22 +2349,35 @@ function irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025) {
     </div>`;
 }
 
+let irrActiveView = 'upload';
+let irrChart = null;
+let irrDashData = [];
+let irrDashRange = 'wtd';
+let irrToggles = {revPerLoad:true, tonsPerLoad:true, hoursPerLoad:false};
+const IRR_COLORS = {revPerLoad:'#1a9b8a', tonsPerLoad:'#0f1f3d', hoursPerLoad:'#d4a843'};
+
 function renderIRR() {
   const tab = document.getElementById('tab-irr');
-  if(irrRendered && irrCurrentData) return; // preserve state
-  irrRendered = true;
   tab.innerHTML = `<div class="irr-wrap">
-    <h2 style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:16px;">IRR Daily Scale Report</h2>
-    <div id="irrUploadSection">
-      <div class="irr-drop" id="irrDropZone">
-        <input type="file" id="irrFileInput" accept=".xls,.xlsx" onchange="irrHandleFile(this.files[0])">
-        <div class="irr-drop-icon">\ud83d\udcca</div>
-        <div class="irr-drop-label">Drop your <strong>daily .xls export</strong> here or click to browse</div>
-      </div>
-      <div class="irr-status" id="irrStatus"></div>
+    <div class="irr-subnav">
+      <button id="irrSubUpload" class="${irrActiveView==='upload'?'active':''}" onclick="irrSwitchView('upload')">Upload</button>
+      <button id="irrSubDash" class="${irrActiveView==='dashboard'?'active':''}" onclick="irrSwitchView('dashboard')">Dashboard</button>
     </div>
-    <div id="irrReportView"></div>
-    <div class="irr-history" id="irrHistory"></div>
+    <div id="irrViewUpload" style="display:${irrActiveView==='upload'?'':'none'}">
+      <div id="irrUploadSection">
+        <div class="irr-drop" id="irrDropZone">
+          <input type="file" id="irrFileInput" accept=".xls,.xlsx" onchange="irrHandleFile(this.files[0])">
+          <div class="irr-drop-icon" style="font-size:14px;color:var(--gray-400);margin-bottom:8px;">XLS</div>
+          <div class="irr-drop-label">Drop your <strong>daily .xls export</strong> here or click to browse</div>
+        </div>
+        <div class="irr-status" id="irrStatus"></div>
+      </div>
+      <div id="irrReportView"></div>
+      <div class="irr-history" id="irrHistory"></div>
+    </div>
+    <div id="irrViewDash" style="display:${irrActiveView==='dashboard'?'':'none'}">
+      <div id="irrDashContent"></div>
+    </div>
   </div>`;
 
   const dz = document.getElementById('irrDropZone');
@@ -2248,7 +2385,252 @@ function renderIRR() {
   dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
   dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');irrHandleFile(e.dataTransfer.files[0]);});
 
+  if(irrCurrentData) {
+    document.getElementById('irrUploadSection').style.display='none';
+    irrHandleFile._restore && irrHandleFile._restore();
+  }
+
   irrLoadHistoryView();
+  if(irrActiveView==='dashboard') irrLoadDashboard();
+}
+
+function irrSwitchView(view) {
+  irrActiveView = view;
+  document.getElementById('irrViewUpload').style.display = view==='upload'?'':'none';
+  document.getElementById('irrViewDash').style.display = view==='dashboard'?'':'none';
+  document.getElementById('irrSubUpload').className = view==='upload'?'active':'';
+  document.getElementById('irrSubDash').className = view==='dashboard'?'active':'';
+  if(view==='dashboard') irrLoadDashboard();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────
+
+function irrGetDateRange(range, customStart, customEnd) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  let start;
+  if(range==='wtd') { start=new Date(today); start.setDate(today.getDate()-today.getDay()); }
+  else if(range==='mtd') { start=new Date(today.getFullYear(),today.getMonth(),1); }
+  else if(range==='30d') { start=new Date(today); start.setDate(today.getDate()-30); }
+  else if(range==='ytd') { start=new Date(today.getFullYear(),0,1); }
+  else if(range==='custom' && customStart) { start=new Date(customStart+'T00:00:00'); }
+  else { start=new Date(today); start.setDate(today.getDate()-7); }
+  const end = (range==='custom' && customEnd) ? new Date(customEnd+'T00:00:00') : today;
+  const fmt=d=>d.toISOString().split('T')[0];
+  return {start:fmt(start), end:fmt(end)};
+}
+
+async function irrLoadDashboard() {
+  const container = document.getElementById('irrDashContent');
+  container.innerHTML = '<div style="padding:20px;color:var(--gray-400);font-size:12px;">Loading...</div>';
+
+  const {data,error} = await db.from('irr_reports').select('*').order('report_date',{ascending:true});
+  if(error){container.innerHTML='<div style="color:var(--err-text)">Error loading data</div>';return;}
+  irrDashData = data||[];
+
+  irrRenderDashboard();
+}
+
+function irrRenderDashboard() {
+  const container = document.getElementById('irrDashContent');
+  const {start,end} = irrGetDateRange(irrDashRange,
+    document.getElementById('irrCustomStart')?.value,
+    document.getElementById('irrCustomEnd')?.value);
+  const filtered = irrDashData.filter(d=>d.report_date>=start && d.report_date<=end);
+
+  // KPIs
+  let totalReisTickets=0, totalReisTons=0, totalReisRev=0, totalHours=0, hoursCount=0;
+  for(const d of filtered){
+    totalReisTickets+=d.reis_tickets||0;
+    totalReisTons+=parseFloat(d.reis_tons)||0;
+    totalReisRev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+    if(d.driver_hours!=null){totalHours+=parseFloat(d.driver_hours)||0;hoursCount++;}
+  }
+  const avgRevPerLoad = totalReisTickets>0?(totalReisRev/totalReisTickets):0;
+  const avgTonsPerLoad = totalReisTickets>0?(totalReisTons/totalReisTickets):0;
+  const avgHoursPerLoad = (totalReisTickets>0 && hoursCount>0)?(totalHours/totalReisTickets):0;
+
+  const rangeBtn=(id,label)=>`<button class="irr-range-btn ${irrDashRange===id?'active':''}" onclick="irrSetRange('${id}')">${label}</button>`;
+
+  container.innerHTML = `
+    <div class="irr-dash-controls">
+      ${rangeBtn('wtd','WTD')}${rangeBtn('mtd','MTD')}${rangeBtn('30d','30D')}${rangeBtn('ytd','YTD')}${rangeBtn('custom','Custom')}
+      <div class="irr-dash-custom" id="irrCustomRange" style="display:${irrDashRange==='custom'?'flex':'none'}">
+        <input type="date" id="irrCustomStart" value="${start}" onchange="irrRefreshDash()">
+        <span style="color:var(--gray-400);font-size:11px;">to</span>
+        <input type="date" id="irrCustomEnd" value="${end}" onchange="irrRefreshDash()">
+      </div>
+    </div>
+
+    <div class="irr-kpi-row">
+      <div class="irr-kpi">
+        <div class="irr-kpi-label">Avg Rev / Load</div>
+        <div class="irr-kpi-val">${avgRevPerLoad>0?'$'+avgRevPerLoad.toFixed(2):'--'}</div>
+        <div class="irr-kpi-sub">${filtered.length} days, ${totalReisTickets} loads</div>
+      </div>
+      <div class="irr-kpi">
+        <div class="irr-kpi-label">Avg Tons / Load</div>
+        <div class="irr-kpi-val">${avgTonsPerLoad>0?avgTonsPerLoad.toFixed(2):'--'}</div>
+        <div class="irr-kpi-sub">${totalReisTons.toFixed(1)} total tons</div>
+      </div>
+      <div class="irr-kpi">
+        <div class="irr-kpi-label">Avg Hours / Load</div>
+        <div class="irr-kpi-val">${avgHoursPerLoad>0?avgHoursPerLoad.toFixed(2):'--'}</div>
+        <div class="irr-kpi-sub">${hoursCount>0?hoursCount+' days with data':'No data yet'}</div>
+      </div>
+    </div>
+
+    <div class="irr-toggle-row">
+      <button class="irr-toggle ${irrToggles.revPerLoad?'on':''}" style="${irrToggles.revPerLoad?'background:'+IRR_COLORS.revPerLoad+';border-color:'+IRR_COLORS.revPerLoad:''}" onclick="irrToggleSeries('revPerLoad')">Rev / Load</button>
+      <button class="irr-toggle ${irrToggles.tonsPerLoad?'on':''}" style="${irrToggles.tonsPerLoad?'background:'+IRR_COLORS.tonsPerLoad+';border-color:'+IRR_COLORS.tonsPerLoad:''}" onclick="irrToggleSeries('tonsPerLoad')">Tons / Load</button>
+      <button class="irr-toggle ${irrToggles.hoursPerLoad?'on':''}" style="${irrToggles.hoursPerLoad?'background:'+IRR_COLORS.hoursPerLoad+';border-color:'+IRR_COLORS.hoursPerLoad:''}" onclick="irrToggleSeries('hoursPerLoad')">Hours / Load</button>
+    </div>
+
+    <div class="irr-chart-wrap">
+      <canvas id="irrChartCanvas"></canvas>
+    </div>
+
+    <div class="irr-hours-form">
+      <h4>Driver Hours Entry</h4>
+      <div class="irr-hours-row">
+        <label>Date<input type="date" id="irrHoursDate" value="${new Date().toISOString().split('T')[0]}"></label>
+        <label>Total Hours<input type="number" id="irrHoursVal" step="0.25" min="0" placeholder="e.g. 42.5"></label>
+        <button onclick="irrSaveHours()">Save</button>
+      </div>
+    </div>`;
+
+  irrDrawChart(filtered);
+}
+
+function irrSetRange(range) {
+  irrDashRange=range;
+  irrRenderDashboard();
+}
+function irrRefreshDash() { irrRenderDashboard(); }
+
+function irrToggleSeries(key) {
+  irrToggles[key]=!irrToggles[key];
+  irrRenderDashboard();
+}
+
+function irrDrawChart(filtered) {
+  const ctx = document.getElementById('irrChartCanvas');
+  if(!ctx) return;
+  if(irrChart){irrChart.destroy();irrChart=null;}
+
+  const labels = filtered.map(d=>d.report_date);
+  const datasets = [];
+
+  if(irrToggles.revPerLoad){
+    datasets.push({
+      label:'Rev / Load ($)',
+      data:filtered.map(d=>{
+        const t=d.reis_tickets||0;
+        return t>0?((parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0))/t:null;
+      }),
+      borderColor:IRR_COLORS.revPerLoad, backgroundColor:IRR_COLORS.revPerLoad+'20',
+      tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y',
+    });
+  }
+  if(irrToggles.tonsPerLoad){
+    datasets.push({
+      label:'Tons / Load',
+      data:filtered.map(d=>{
+        const t=d.reis_tickets||0;
+        return t>0?parseFloat(d.reis_tons)/t:null;
+      }),
+      borderColor:IRR_COLORS.tonsPerLoad, backgroundColor:IRR_COLORS.tonsPerLoad+'20',
+      tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y1',
+    });
+  }
+  if(irrToggles.hoursPerLoad){
+    datasets.push({
+      label:'Hours / Load',
+      data:filtered.map(d=>{
+        const t=d.reis_tickets||0;
+        const h=d.driver_hours!=null?parseFloat(d.driver_hours):null;
+        return (t>0 && h!==null)?h/t:null;
+      }),
+      borderColor:IRR_COLORS.hoursPerLoad, backgroundColor:IRR_COLORS.hoursPerLoad+'20',
+      tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y2',
+    });
+  }
+
+  const scales = {
+    x:{
+      type:'category',
+      ticks:{font:{size:10,family:"'DM Sans',sans-serif"},color:'#9aa3b5',maxRotation:45},
+      grid:{display:false},
+    }
+  };
+  // Build y axes dynamically based on active toggles
+  let axisCount=0;
+  if(irrToggles.revPerLoad){
+    scales.y={
+      position:'left', title:{display:true,text:'Rev / Load ($)',font:{size:10,family:"'DM Sans',sans-serif"},color:IRR_COLORS.revPerLoad},
+      ticks:{font:{size:10},color:IRR_COLORS.revPerLoad, callback:v=>'$'+v.toFixed(0)},
+      grid:{color:'rgba(0,0,0,0.04)'}, border:{display:false},
+    };
+    axisCount++;
+  }
+  if(irrToggles.tonsPerLoad){
+    scales.y1={
+      position:axisCount>0?'right':'left',
+      title:{display:true,text:'Tons / Load',font:{size:10,family:"'DM Sans',sans-serif"},color:IRR_COLORS.tonsPerLoad},
+      ticks:{font:{size:10},color:IRR_COLORS.tonsPerLoad},
+      grid:{display:false}, border:{display:false},
+    };
+    axisCount++;
+  }
+  if(irrToggles.hoursPerLoad){
+    scales.y2={
+      position:axisCount>0?'right':'left',
+      title:{display:true,text:'Hours / Load',font:{size:10,family:"'DM Sans',sans-serif"},color:IRR_COLORS.hoursPerLoad},
+      ticks:{font:{size:10},color:IRR_COLORS.hoursPerLoad},
+      grid:{display:false}, border:{display:false},
+    };
+  }
+
+  irrChart = new Chart(ctx, {
+    type:'line',
+    data:{labels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#0f1f3d', titleFont:{family:"'DM Sans',sans-serif",size:11},
+          bodyFont:{family:"'DM Mono',monospace",size:11}, cornerRadius:6, padding:10,
+        },
+      },
+      scales,
+    }
+  });
+}
+
+async function irrSaveHours() {
+  const dateVal = document.getElementById('irrHoursDate').value;
+  const hoursVal = parseFloat(document.getElementById('irrHoursVal').value);
+  if(!dateVal||isNaN(hoursVal)){toast('Enter a valid date and hours');return;}
+
+  // Check if report exists for this date
+  const {data:existing} = await db.from('irr_reports').select('report_date').eq('report_date',dateVal).single();
+  if(existing){
+    // Update existing
+    const {error} = await db.from('irr_reports').update({driver_hours:hoursVal}).eq('report_date',dateVal);
+    if(error){toast('Error saving: '+error.message);return;}
+  } else {
+    // Insert minimal row with just hours
+    const {error} = await db.from('irr_reports').insert({report_date:dateVal,driver_hours:hoursVal});
+    if(error){toast('Error saving: '+error.message);return;}
+  }
+  toast('Driver hours saved for '+dateVal,true);
+  document.getElementById('irrHoursVal').value='';
+  // Refresh dashboard data
+  const {data} = await db.from('irr_reports').select('*').order('report_date',{ascending:true});
+  irrDashData=data||[];
+  irrRenderDashboard();
 }
 
 async function irrHandleFile(file) {
@@ -2319,7 +2701,7 @@ function irrCreateDraft() {
 
 function irrReset() {
   irrCurrentData = null;
-  irrRendered = false;
+  irrActiveView = 'upload';
   renderIRR();
 }
 
@@ -2355,7 +2737,7 @@ async function irrViewHistorical(isoDate) {
 
   // Reconstruct buckets from stored data
   const buckets = {
-    reis:{label:'Reis Rolloff',tons:parseFloat(data.reis_tons),tickets:data.reis_tickets,deliveries:data.reis_deliveries,empties:data.reis_empties,doubleDrops:data.reis_double_drops},
+    reis:{label:'Reis Rolloff',tons:parseFloat(data.reis_tons),tickets:data.reis_tickets,deliveries:data.reis_deliveries,empties:data.reis_empties,doubleDrops:data.reis_double_drops,tipRevenue:parseFloat(data.reis_tip_revenue)||0,rolloffFees:parseFloat(data.reis_svc_revenue)||0},
     pile:{label:'Pile Pickups (Reis)',tons:parseFloat(data.pile_tons),tickets:data.pile_tickets},
     island:{label:'Island Rubbish',tons:parseFloat(data.island_tons),tickets:data.island_tickets},
     santos:{label:'East End',tons:parseFloat(data.santos_tons),tickets:data.santos_tickets},
