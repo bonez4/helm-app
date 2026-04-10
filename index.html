@@ -647,6 +647,81 @@ select.ro-input{cursor:pointer;}
   .irr-report-toolbar{display:none!important;}
   .irr-report-body{padding:20px!important;}
 }
+
+/* ── FILES TAB ───────────────────────────────────────────────────── */
+.files-wrap{max-width:1100px;margin:0 auto;padding:1rem 0;}
+.files-subnav{display:flex;gap:6px;margin-bottom:20px;border-bottom:1px solid var(--gray-200);padding-bottom:10px;}
+.files-subnav button{
+  background:none;border:1px solid var(--gray-200);color:var(--gray-500);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:6px 16px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;
+}
+.files-subnav button.active{background:var(--navy);color:white;border-color:var(--navy);}
+.files-subnav button:hover:not(.active){border-color:var(--gray-400);color:var(--gray-800);}
+.files-layout{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:flex-start;}
+.files-sidebar{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);padding:14px;}
+.files-sidebar-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.files-sidebar-hdr h3{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);}
+.files-new-folder-btn{
+  background:var(--teal);color:white;border:none;
+  font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;
+  padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;
+}
+.files-new-folder-btn:hover{filter:brightness(1.1);}
+.files-folder-list{display:flex;flex-direction:column;gap:2px;}
+.files-folder-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;
+  font-size:13px;color:var(--gray-800);transition:background .1s;
+}
+.files-folder-item:hover{background:var(--gray-50);}
+.files-folder-item.active{background:var(--teal-pale);color:var(--teal);font-weight:600;}
+.files-folder-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.files-folder-del{
+  background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:14px;
+  padding:0 4px;display:none;
+}
+.files-folder-item:hover .files-folder-del{display:inline;}
+.files-folder-del:hover{color:var(--err-text);}
+.files-empty{font-size:12px;color:var(--gray-400);padding:10px 4px;}
+
+.files-main{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px;min-height:300px;}
+.files-main-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--gray-100);}
+.files-main-hdr h3{font-size:15px;font-weight:600;color:var(--navy);}
+.files-upload-btn{
+  background:var(--teal);color:white;border:none;
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:7px 16px;border-radius:var(--radius-sm);cursor:pointer;
+  position:relative;overflow:hidden;
+}
+.files-upload-btn input[type="file"]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;
+}
+.files-upload-btn:hover{filter:brightness(1.1);}
+.files-table{width:100%;border-collapse:collapse;font-size:13px;}
+.files-table th{
+  text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--gray-400);padding:8px 10px;border-bottom:1px solid var(--gray-200);
+}
+.files-table th:nth-child(2),.files-table th:nth-child(3),.files-table th:nth-child(4){text-align:right;}
+.files-table td{padding:10px;border-bottom:1px solid var(--gray-100);color:var(--gray-800);}
+.files-table td:nth-child(2),.files-table td:nth-child(3){text-align:right;font-family:'DM Mono',monospace;font-size:12px;color:var(--gray-500);}
+.files-table td:nth-child(4){text-align:right;}
+.files-table tr:hover{background:var(--gray-50);}
+.files-name{font-weight:500;}
+.files-meta{font-size:11px;color:var(--gray-400);}
+.files-action-btn{
+  background:none;border:1px solid var(--gray-200);color:var(--gray-600);
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;margin-left:4px;
+}
+.files-action-btn:hover{border-color:var(--gray-400);color:var(--gray-800);}
+.files-action-btn.danger:hover{border-color:var(--err-text);color:var(--err-text);}
+.files-status{font-size:11px;color:var(--teal);padding:10px;display:none;}
+.files-status.active{display:block;}
+@media(max-width:760px){
+  .files-layout{grid-template-columns:1fr;}
+}
 </style>
 </head>
 <body>
@@ -703,6 +778,7 @@ select.ro-input{cursor:pointer;}
     <button onclick="switchTab('report',this)">Reports</button>
     <button onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button id="irrTabBtn" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
+    <button id="filesTabBtn" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="importTabBtn" style="display:none" onclick="switchTab('import',this)">Import</button>
   </div>
 
@@ -712,6 +788,7 @@ select.ro-input{cursor:pointer;}
     <div id="tab-report" style="display:none"></div>
     <div id="tab-rolloffs" style="display:none"></div>
     <div id="tab-irr"    style="display:none"></div>
+    <div id="tab-files"  style="display:none"></div>
     <div id="tab-import" style="display:none"></div>
   </div>
 </div>
@@ -982,7 +1059,10 @@ async function login() {
   document.getElementById('appScreen').style.flexDirection='column';
   document.getElementById('topbarUser').textContent = data.display_name;
   if(data.role==='admin') document.getElementById('importTabBtn').style.display='';
-  if(data.username==='david'||data.role==='admin') document.getElementById('irrTabBtn').style.display='';
+  if(data.username==='david'||data.role==='admin') {
+    document.getElementById('irrTabBtn').style.display='';
+    document.getElementById('filesTabBtn').style.display='';
+  }
   startHeartbeat();
   init();
 }
@@ -1065,7 +1145,7 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','add','report','rolloffs','irr','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','irr','files','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -1076,6 +1156,7 @@ function switchTab(name,btn){
   if(name==='report') renderReport();
   if(name==='rolloffs') renderRolloffs();
   if(name==='irr')    renderIRR();
+  if(name==='files')  renderFiles();
   if(name==='import') renderImport();
 }
 
@@ -3240,6 +3321,249 @@ async function irrViewHistorical(isoDate) {
   document.getElementById('tab-irr').scrollIntoView({behavior:'smooth'});
 }
 
+// ── FILES TAB ──────────────────────────────────────────────────────────
+
+let filesActiveView = 'shared';   // 'shared' or 'personal'
+let filesFolders = [];
+let filesActiveFolderId = null;
+let filesList = [];
+
+function renderFiles() {
+  const tab = document.getElementById('tab-files');
+  tab.innerHTML = `
+    <div class="files-wrap">
+      <div class="files-subnav">
+        <button id="filesSubShared" class="${filesActiveView==='shared'?'active':''}" onclick="filesSwitchView('shared')">Shared</button>
+        <button id="filesSubPersonal" class="${filesActiveView==='personal'?'active':''}" onclick="filesSwitchView('personal')">My Files</button>
+      </div>
+      <div class="files-layout">
+        <div class="files-sidebar">
+          <div class="files-sidebar-hdr">
+            <h3>Folders</h3>
+            <button class="files-new-folder-btn" onclick="filesCreateFolder()">+ New</button>
+          </div>
+          <div class="files-folder-list" id="filesFolderList"></div>
+        </div>
+        <div class="files-main">
+          <div class="files-main-hdr">
+            <h3 id="filesMainTitle">Select a folder</h3>
+            <label class="files-upload-btn" id="filesUploadBtn" style="display:none">
+              Upload File
+              <input type="file" id="filesUploadInput" onchange="filesHandleUpload(this.files)" multiple>
+            </label>
+          </div>
+          <div class="files-status" id="filesStatus"></div>
+          <div id="filesMainContent"></div>
+        </div>
+      </div>
+    </div>`;
+
+  filesLoadFolders();
+}
+
+function filesSwitchView(view) {
+  filesActiveView = view;
+  filesActiveFolderId = null;
+  document.getElementById('filesSubShared').className = view==='shared'?'active':'';
+  document.getElementById('filesSubPersonal').className = view==='personal'?'active':'';
+  filesLoadFolders();
+}
+
+async function filesLoadFolders() {
+  let q = db.from('helm_folders').select('*').eq('scope', filesActiveView);
+  if (filesActiveView === 'personal') {
+    q = q.eq('owner', currentUser.username);
+  }
+  const {data, error} = await q.order('name', {ascending:true});
+  if (error) { toast('Folder load error: '+error.message); return; }
+  filesFolders = data || [];
+  filesRenderFolderList();
+  // Auto-select first folder
+  if (filesFolders.length > 0 && !filesActiveFolderId) {
+    filesSelectFolder(filesFolders[0].id);
+  } else if (filesFolders.length === 0) {
+    document.getElementById('filesMainTitle').textContent = 'No folders yet';
+    document.getElementById('filesMainContent').innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--gray-400);font-size:13px;">Create a folder to start uploading files.</div>';
+    document.getElementById('filesUploadBtn').style.display = 'none';
+  }
+}
+
+function filesRenderFolderList() {
+  const container = document.getElementById('filesFolderList');
+  if (!filesFolders.length) {
+    container.innerHTML = '<div class="files-empty">No folders yet.</div>';
+    return;
+  }
+  container.innerHTML = filesFolders.map(f =>
+    `<div class="files-folder-item ${f.id===filesActiveFolderId?'active':''}" onclick="filesSelectFolder('${f.id}')">
+      <span class="files-folder-name">${esc(f.name)}</span>
+      <button class="files-folder-del" onclick="event.stopPropagation();filesDeleteFolder('${f.id}','${esc(f.name)}')" title="Delete folder">&times;</button>
+    </div>`).join('');
+}
+
+async function filesCreateFolder() {
+  const name = prompt('New folder name:');
+  if (!name || !name.trim()) return;
+  const row = {
+    name: name.trim(),
+    scope: filesActiveView,
+    owner: filesActiveView==='personal' ? currentUser.username : null,
+    created_by: currentUser.username,
+  };
+  const {data, error} = await db.from('helm_folders').insert(row).select().single();
+  if (error) { toast('Create folder error: '+error.message); return; }
+  toast('Folder created', true);
+  await filesLoadFolders();
+  if (data) filesSelectFolder(data.id);
+}
+
+async function filesDeleteFolder(id, name) {
+  if (!confirm('Delete folder "'+name+'" and all files inside it? This cannot be undone.')) return;
+
+  // Fetch files in folder to delete from storage
+  const {data:files} = await db.from('helm_files').select('storage_path').eq('folder_id', id);
+  if (files && files.length > 0) {
+    const paths = files.map(f => f.storage_path);
+    const {error:sErr} = await db.storage.from('helm-files').remove(paths);
+    if (sErr) { toast('Storage delete error: '+sErr.message); return; }
+  }
+
+  // Delete folder (cascade will remove helm_files rows)
+  const {error} = await db.from('helm_folders').delete().eq('id', id);
+  if (error) { toast('Delete folder error: '+error.message); return; }
+  toast('Folder deleted', true);
+  if (filesActiveFolderId === id) filesActiveFolderId = null;
+  filesLoadFolders();
+}
+
+async function filesSelectFolder(id) {
+  filesActiveFolderId = id;
+  filesRenderFolderList();
+  const folder = filesFolders.find(f => f.id === id);
+  if (!folder) return;
+  document.getElementById('filesMainTitle').textContent = folder.name;
+  document.getElementById('filesUploadBtn').style.display = '';
+  await filesLoadFiles(id);
+}
+
+async function filesLoadFiles(folderId) {
+  const {data, error} = await db.from('helm_files').select('*').eq('folder_id', folderId).order('uploaded_at', {ascending:false});
+  if (error) { toast('File load error: '+error.message); return; }
+  filesList = data || [];
+  filesRenderFileList();
+}
+
+function filesFormatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  if (bytes < 1024*1024*1024) return (bytes/(1024*1024)).toFixed(1) + ' MB';
+  return (bytes/(1024*1024*1024)).toFixed(2) + ' GB';
+}
+
+function filesFormatDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+
+function filesRenderFileList() {
+  const container = document.getElementById('filesMainContent');
+  if (!filesList.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--gray-400);font-size:13px;">No files yet. Click Upload to add one.</div>';
+    return;
+  }
+  let rows = '';
+  for (const f of filesList) {
+    rows += `<tr>
+      <td>
+        <div class="files-name">${esc(f.filename)}</div>
+        <div class="files-meta">Uploaded by ${esc(f.uploaded_by)}</div>
+      </td>
+      <td>${filesFormatSize(f.size_bytes)}</td>
+      <td>${filesFormatDate(f.uploaded_at)}</td>
+      <td>
+        <button class="files-action-btn" onclick="filesDownload('${f.id}')">Download</button>
+        <button class="files-action-btn danger" onclick="filesDeleteFile('${f.id}','${esc(f.filename)}')">Delete</button>
+      </td>
+    </tr>`;
+  }
+  container.innerHTML = `
+    <table class="files-table">
+      <thead><tr><th>Name</th><th>Size</th><th>Uploaded</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function filesHandleUpload(fileList) {
+  if (!filesActiveFolderId) { toast('Select a folder first'); return; }
+  if (!fileList || !fileList.length) return;
+
+  const status = document.getElementById('filesStatus');
+  status.className = 'files-status active';
+
+  let uploaded = 0;
+  for (const file of fileList) {
+    status.textContent = 'Uploading '+file.name+' ('+(uploaded+1)+'/'+fileList.length+')...';
+
+    // Generate storage path: folderId/timestamp-filename
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const storagePath = filesActiveFolderId + '/' + Date.now() + '-' + safeName;
+
+    const {error:sErr} = await db.storage.from('helm-files').upload(storagePath, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: false,
+    });
+    if (sErr) { status.textContent = 'Upload failed: '+sErr.message; toast('Upload failed'); return; }
+
+    const row = {
+      folder_id: filesActiveFolderId,
+      filename: file.name,
+      storage_path: storagePath,
+      size_bytes: file.size,
+      mime_type: file.type || null,
+      uploaded_by: currentUser.username,
+    };
+    const {error:dErr} = await db.from('helm_files').insert(row);
+    if (dErr) { status.textContent = 'DB insert failed: '+dErr.message; toast('Upload failed'); return; }
+    uploaded++;
+  }
+
+  status.textContent = uploaded+' file(s) uploaded.';
+  setTimeout(()=>{status.className='files-status';},3000);
+  toast(uploaded+' file(s) uploaded', true);
+  document.getElementById('filesUploadInput').value = '';
+  await filesLoadFiles(filesActiveFolderId);
+}
+
+async function filesDownload(fileId) {
+  const file = filesList.find(f => f.id === fileId);
+  if (!file) return;
+  const {data, error} = await db.storage.from('helm-files').createSignedUrl(file.storage_path, 300); // 5 min
+  if (error) { toast('Download error: '+error.message); return; }
+  // Trigger download via anchor with download attribute
+  const a = document.createElement('a');
+  a.href = data.signedUrl;
+  a.download = file.filename;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+async function filesDeleteFile(fileId, filename) {
+  if (!confirm('Delete "'+filename+'"? This cannot be undone.')) return;
+  const file = filesList.find(f => f.id === fileId);
+  if (!file) return;
+
+  const {error:sErr} = await db.storage.from('helm-files').remove([file.storage_path]);
+  if (sErr) { toast('Storage delete error: '+sErr.message); return; }
+
+  const {error:dErr} = await db.from('helm_files').delete().eq('id', fileId);
+  if (dErr) { toast('DB delete error: '+dErr.message); return; }
+
+  toast('File deleted', true);
+  await filesLoadFiles(filesActiveFolderId);
+}
+
 // ── TOAST ─────────────────────────────────────────────────────────────
 function toast(msg,ok=false){
   const t=document.getElementById('toast');
@@ -3258,7 +3582,10 @@ if(_saved && _saved !== '1'){
     document.getElementById('appScreen').style.flexDirection='column';
     document.getElementById('topbarUser').textContent = currentUser.display_name;
     if(currentUser.role==='admin') document.getElementById('importTabBtn').style.display='';
-    if(currentUser.username==='david'||currentUser.role==='admin') document.getElementById('irrTabBtn').style.display='';
+    if(currentUser.username==='david'||currentUser.role==='admin') {
+      document.getElementById('irrTabBtn').style.display='';
+      document.getElementById('filesTabBtn').style.display='';
+    }
     startHeartbeat();
     init().catch(err=>{
       toast('Connection error — please refresh');
