@@ -2276,21 +2276,43 @@ function irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025) {
   return {subject, body};
 }
 
-async function irrLoadYTD() {
-  const {data:seeds} = await db.from('irr_ytd_seeds').select('*');
-  let ytd2026=0, ytd2025=0, vin2026=0, vin2025=0;
-  if(seeds){
-    for(const s of seeds){
-      if(s.year===2026){ ytd2026=parseFloat(s.inbound_tons)||0; vin2026=parseFloat(s.vinagro_tons)||0; }
-      if(s.year===2025){ ytd2025=parseFloat(s.inbound_tons)||0; vin2025=parseFloat(s.vinagro_tons)||0; }
-    }
+async function irrLoadYTD(asOfDate) {
+  // asOfDate is a M/D/YYYY string (the report being viewed/generated)
+  // If not provided, use today.
+  let asOf;
+  if(asOfDate){
+    const p=asOfDate.split('/');
+    asOf={year:parseInt(p[2]),month:parseInt(p[0]),day:parseInt(p[1])};
+  } else {
+    const d=new Date();
+    asOf={year:d.getFullYear(),month:d.getMonth()+1,day:d.getDate()};
   }
-  // Add all daily reports after seed date for 2026
-  const seed2026 = seeds?.find(s=>s.year===2026);
-  if(seed2026){
-    const {data:dailies} = await db.from('irr_reports').select('total_inbound_tons,vinagro_tons').gt('report_date',seed2026.through_date);
-    if(dailies) for(const d of dailies){ ytd2026+=parseFloat(d.total_inbound_tons)||0; vin2026+=parseFloat(d.vinagro_tons)||0; }
+  const pad=n=>String(n).padStart(2,'0');
+  const curYearEnd = asOf.year+'-'+pad(asOf.month)+'-'+pad(asOf.day);
+  const curYearStart = asOf.year+'-01-01';
+  const prevYearEnd = (asOf.year-1)+'-'+pad(asOf.month)+'-'+pad(asOf.day);
+  const prevYearStart = (asOf.year-1)+'-01-01';
+
+  // Current year YTD (e.g. 2026-01-01 through asOf)
+  const {data:curData} = await db.from('irr_reports')
+    .select('total_inbound_tons,vinagro_tons')
+    .gte('report_date',curYearStart).lte('report_date',curYearEnd);
+  let ytd2026=0, vin2026=0;
+  if(curData) for(const d of curData){
+    ytd2026+=parseFloat(d.total_inbound_tons)||0;
+    vin2026+=parseFloat(d.vinagro_tons)||0;
   }
+
+  // Prior year same period (e.g. 2025-01-01 through same MM-DD)
+  const {data:prevData} = await db.from('irr_reports')
+    .select('total_inbound_tons,vinagro_tons')
+    .gte('report_date',prevYearStart).lte('report_date',prevYearEnd);
+  let ytd2025=0, vin2025=0;
+  if(prevData) for(const d of prevData){
+    ytd2025+=parseFloat(d.total_inbound_tons)||0;
+    vin2025+=parseFloat(d.vinagro_tons)||0;
+  }
+
   return {ytd2026, ytd2025, vin2026, vin2025};
 }
 
@@ -2877,7 +2899,7 @@ function irrGenerateReport() {
       <button class="rpt-print" onclick="window.print()">Print</button>
       <button class="rpt-print" onclick="irrDownloadPDF()">Download PDF</button>
       <input type="text" id="irrReportEmails" placeholder="Email addresses (comma-separated)">
-      <button class="rpt-email" onclick="irrEmailReport()">Email PDF</button>
+      <button class="rpt-email" onclick="irrEmailReport()">Copy &amp; Open Gmail</button>
       <button class="rpt-close" onclick="document.getElementById('irrReportOverlay').remove()">Close</button>
     </div>
     <div class="irr-report-body">${reportHTML}</div>
@@ -2912,18 +2934,29 @@ function irrDownloadPDF() {
   });
 }
 
-function irrEmailReport() {
+async function irrEmailReport() {
   const emails=document.getElementById('irrReportEmails').value.trim();
   if(!emails){toast('Enter at least one email address');return;}
   const el=document.querySelector('#irrReportOverlay .irr-report-body');
   if(!el){toast('No report to export');return;}
-  toast('Generating PDF and opening Gmail...');
-  html2pdf().set(irrGetPDFOptions()).from(el).save().then(()=>{
-    const sub=encodeURIComponent(window._irrReportSubject||'Rolloff Performance Report');
-    const to=encodeURIComponent(emails);
-    window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+sub,'_blank');
-    toast('PDF downloaded — attach it to the Gmail compose window',true);
-  });
+
+  // Copy report HTML to clipboard so user can paste into Gmail body
+  const html = el.outerHTML;
+  const plain = el.innerText;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], {type:'text/html'}),
+      'text/plain': new Blob([plain], {type:'text/plain'}),
+    })]);
+  } catch(e) {
+    try { await navigator.clipboard.writeText(plain); } catch(e2) {}
+  }
+
+  // Open Gmail compose
+  const sub = encodeURIComponent(window._irrReportSubject||'Rolloff Performance Report');
+  const to = encodeURIComponent(emails);
+  window.open('https://mail.google.com/mail/?view=cm&to='+to+'&su='+sub, '_blank');
+  toast('Report copied to clipboard — press Ctrl+V in Gmail to paste',true);
 }
 
 // ── Historical bulk import ─────────────────────────────────────────────
@@ -3095,7 +3128,7 @@ async function irrHandleFile(file) {
       status.textContent='Parsed '+Object.keys(data.tickets).length+' tickets. Saving...';
 
       await irrSaveReport(data);
-      const {ytd2026, ytd2025, vin2026, vin2025} = await irrLoadYTD();
+      const {ytd2026, ytd2025, vin2026, vin2025} = await irrLoadYTD(data.date);
 
       document.getElementById('irrUploadSection').style.display='none';
       document.getElementById('irrReportView').innerHTML = irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025);
@@ -3197,7 +3230,7 @@ async function irrViewHistorical(isoDate) {
   const reportData = {date: displayDate, buckets, tickets:{}};
   irrCurrentData = reportData;
 
-  const {ytd2026, ytd2025, vin2026, vin2025} = await irrLoadYTD();
+  const {ytd2026, ytd2025, vin2026, vin2025} = await irrLoadYTD(displayDate);
 
   document.getElementById('irrUploadSection').style.display='none';
   document.getElementById('irrReportView').innerHTML = irrRenderReportView(reportData, ytd2026, ytd2025, vin2026, vin2025);
