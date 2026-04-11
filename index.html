@@ -1045,6 +1045,56 @@ select.ro-input{cursor:pointer;}
 }
 .cmd-autosave.saving{color:var(--gold);}
 .cmd-autosave.saved{color:var(--teal);}
+
+/* Org chart */
+.cmd-org-wrap{display:flex;flex-direction:column;gap:14px;margin-top:8px;}
+.cmd-org-group{
+  background:rgba(255,255,255,0.025);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:10px;padding:14px 16px 16px;
+}
+.cmd-org-group-hdr{
+  display:flex;align-items:center;gap:9px;
+  padding-bottom:11px;margin-bottom:12px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.cmd-org-group-dot{width:8px;height:8px;border-radius:50%;}
+.cmd-org-group-label{
+  font-family:'DM Sans',sans-serif;
+  font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+}
+.cmd-org-tone-teal .cmd-org-group-dot{background:var(--teal);box-shadow:0 0 0 3px rgba(26,155,138,0.2);}
+.cmd-org-tone-teal .cmd-org-group-label{color:#3bc8b5;}
+.cmd-org-tone-gold .cmd-org-group-dot{background:var(--gold);box-shadow:0 0 0 3px rgba(212,168,67,0.18);}
+.cmd-org-tone-gold .cmd-org-group-label{color:#e6bc52;}
+.cmd-org-tone-neutral .cmd-org-group-dot{background:#8a9bc7;box-shadow:0 0 0 3px rgba(138,155,199,0.2);}
+.cmd-org-tone-neutral .cmd-org-group-label{color:#a8b8dc;}
+.cmd-org-people{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;
+}
+.cmd-org-person{
+  background:rgba(0,0,0,0.22);
+  border:1px solid rgba(255,255,255,0.06);
+  border-left:3px solid var(--teal);
+  border-radius:7px;padding:11px 13px;
+}
+.cmd-org-tone-gold .cmd-org-person{border-left-color:var(--gold);}
+.cmd-org-tone-neutral .cmd-org-person{border-left-color:#8a9bc7;}
+.cmd-org-person-name{
+  font-size:13px;font-weight:700;color:white;line-height:1.3;
+  letter-spacing:-.01em;
+}
+.cmd-org-person-title{
+  font-family:'DM Mono',monospace;
+  font-size:10.5px;color:var(--teal);
+  margin-top:3px;letter-spacing:.02em;
+}
+.cmd-org-tone-gold .cmd-org-person-title{color:#e6bc52;}
+.cmd-org-tone-neutral .cmd-org-person-title{color:#a8b8dc;}
+.cmd-org-person-note{
+  font-size:11px;color:rgba(255,255,255,0.55);
+  line-height:1.55;margin-top:7px;
+}
 </style>
 </head>
 <body>
@@ -3911,31 +3961,38 @@ async function filesDeleteFile(fileId, filename) {
 const CMD_SEED = {
   priorities: {
     hot: [
-      {id:'p-h1', title:'Pilot HELM order management with at least one CSR', sub:'Office manager going on maternity leave = no blocker. 30-day pilot becomes the new baseline before she returns.', checked:false, notes:''},
-      {id:'p-h2', title:'Get second largest owner to formally introduce me to the new manager as his operational resource', sub:'One conversation changes my standing entirely. This needs to happen before she goes on leave.', checked:false, notes:''},
-      {id:'p-h3', title:'Document every undocumented office workflow before she leaves', sub:'Frame as succession planning, not an attack. We have already had two crises from single points of failure — this is the third.', checked:false, notes:''},
+      {id:'p-h1', title:'Pilot HELM order management with at least one CSR', sub:'Hannah going on maternity leave = no blocker. 30-day pilot becomes the new baseline before she returns.', checked:false, notes:''},
+      {id:'p-h2', title:'Get Tim to formally introduce me to Chris as his operational resource', sub:'One conversation changes my standing entirely. This needs to happen before Hannah goes on leave.', checked:false, notes:''},
+      {id:'p-h3', title:'Document every undocumented office workflow before Hannah leaves', sub:'Frame as succession planning, not an attack. We have already had two crises from single points of failure — this is the third.', checked:false, notes:''},
+      {id:'p-h4', title:'Initiate strategy session with Chris — don\'t wait for a natural moment', sub:'Request it directly. Frame: "I want to make sure I\'m rowing in the same direction and supporting what you\'re trying to do." This is the relationship that unlocks everything with the largest owner.', checked:false, notes:''},
+      {id:'p-h5', title:'Direct conversation with Esmerelda about her role and value — before any leadership transitions', sub:'She needs to feel the security explicitly, not just absorb more work quietly. Losing her mid-transition would be a genuine crisis. Title bump and comp conversation come before the Hannah/Roberta changes, not after.', checked:false, notes:''},
     ],
     soon: [
-      {id:'p-s1', title:'Send first Monday rolloff report to new manager — walk him through it in person', sub:'Don\'t just drop it in his inbox. Use it as a strategic conversation. Plant seeds about conversion pipeline, driver utilization, seasonal pricing.', checked:false, notes:''},
+      {id:'p-s1', title:'Send first Monday rolloff report to Chris — walk him through it in person', sub:'Don\'t just drop it in his inbox. Use it as a strategic conversation. Plant seeds about conversion pipeline, driver utilization, seasonal pricing.', checked:false, notes:''},
       {id:'p-s2', title:'Pull scale ticket data and rank walk-in accounts by tonnage and visit frequency', sub:'Build the rolloff conversion prospect list. This is the owner\'s idea — my execution. Top 20 accounts = proven need already.', checked:false, notes:''},
-      {id:'p-s3', title:'Draft the one-page integration memo', sub:'Three-company structure as business risk, framed around merger as forcing function. Run past my owner before surfacing to manager.', checked:false, notes:''},
+      {id:'p-s3', title:'Draft the one-page integration memo', sub:'Three-company structure as business risk, framed around merger as forcing function. Run past Tim before surfacing to Chris.', checked:false, notes:''},
+      {id:'p-s4', title:'Define the Jarrett role split clearly and have the conversation directly', sub:'Vertical vs. horizontal framing — Jarrett owns everything touching a truck (rolloff ops, driver dev, top 10-15 accounts, seat at weekly ops review). I own the horizontal. Get ahead of ambiguity before the org chart proposal. Title: Director of Field Operations.', checked:false, notes:''},
+      {id:'p-s5', title:'Begin Charlie transition planning with Tim and Chris', sub:'Emeritus framing. Legacy account continuity. Let him feel like he chose it. Market has already delivered the verdict — his clients are self-selecting toward Jarrett at higher prices.', checked:false, notes:''},
     ],
     medium: [
-      {id:'p-m1', title:'Define my own role and draft a job description', sub:'Owner\'s exact words: "carve your own job." Have the answer ready before he asks. Target: Director or VP of Operations — own integration roadmap, data infrastructure, biz dev strategy, owner-to-ground translation layer.', checked:false, notes:''},
+      {id:'p-m1', title:'Define my own role and draft a job description', sub:'Tim\'s exact words: "carve your own job." Have the answer ready before he asks. Target: Chief Operating Officer — own integration roadmap, data infrastructure, biz dev strategy, owner-to-ground translation layer. Horizontal across all three companies.', checked:false, notes:''},
       {id:'p-m2', title:'Present formal org chart proposal at day 90', sub:'Back it with 60 days of results. Not a job application — a business case that includes me as the answer.', checked:false, notes:''},
-      {id:'p-m3', title:'Have role and compensation conversation with second largest owner', sub:'Timing: after the org chart presentation. Don\'t do it before the results are on paper.', checked:false, notes:''},
+      {id:'p-m3', title:'Have role and compensation conversation with Tim', sub:'Timing: after the org chart presentation. Don\'t do it before the results are on paper.', checked:false, notes:''},
+      {id:'p-m4', title:'Draft formal role definitions for Jarrett and David side by side', sub:'So the org chart proposal shows both lanes clearly and there is no perceived overlap. Vertical (Jarrett — trucks, drivers, rolloff, top accounts) vs horizontal (David — integration, data, strategy, owner translation).', checked:false, notes:''},
     ],
     scratch:'',
   },
   people: {
     coalition: [
-      {id:'pe-c1', name:'Second largest owner', role:'Primary sponsor', status:'Close personal relationship. Told me explicitly to carve my own role, not assume the office manager\'s. Fully aligned on change.', notes:''},
-      {id:'pe-c2', name:'Largest owner', role:'Modernization ally', status:'Wants modernization. Communicates directly with new manager. Allied on integration agenda.', notes:''},
-      {id:'pe-c3', name:'New manager', role:'Operator I support', status:'Brought in specifically because ownership wants change. Appalled by current operational state. Needs wins to establish himself — needs an operator. Give him credit publicly, take influence structurally.', notes:''},
+      {id:'pe-c1', name:'Tim Vieth', role:'Primary sponsor · Co-CEO', status:'Close personal relationship. Told me explicitly to carve my own role, not assume Hannah\'s. Fully aligned on change.', notes:''},
+      {id:'pe-c3', name:'Chris', role:'Co-CEO · operator I support', status:'Introduced but have not strategized meaningfully yet. Already aligned that Hannah needs to go. Needs wins to establish himself. I should be the one to request a real strategy session — frame as "I want to make sure I\'m rowing in the same direction and supporting what you\'re trying to do." Give him credit publicly, take influence structurally.', notes:''},
+      {id:'pe-c4', name:'Jarrett Clanton', role:'Close ally · future Director of Field Ops', status:'Friend since Island Rubbish inception. Wants more responsibility — needs a role that signals real authority, not just "rolloff guy." Vertical vs. horizontal framing: Jarrett owns the vertical (trucks, drivers, jobs, rolloffs). David owns the horizontal. Lanes don\'t overlap. Consider adding: driver development/hiring across consolidated fleet, client relationship owner for top 10-15 rolloff accounts, seat in weekly ops review with Chris and me.', notes:''},
+      {id:'pe-c5', name:'Esmerelda', role:'Senior Administrator (future title)', status:'Most important non-obvious asset in the business. Does payroll, billing, client conversations, and general admin across all three companies — effectively three jobs. Holds institutional knowledge nobody else has. If Hannah and Roberta transition out, Esmerelda is the continuity. Needs title bump and comp conversation BEFORE those changes happen, not after. Likely ally for HELM adoption — she feels the analog order pain more than anyone. Flag: has she expressed frustration with current workflow?', notes:''},
     ],
     friction: [
-      {id:'pe-f1', name:'Office manager', role:'Incumbent process owner', status:'Has blocked HELM adoption. Going on maternity leave in the next couple weeks. Window: use her absence to pilot new processes and make them the baseline before she returns. Do not attack her — make the old processes irrelevant.', notes:''},
-      {id:'pe-f2', name:'CEO', role:'30-year tenure', status:'30-year tenure alongside office manager. No succession plan, no operational changes in decades. Same approach: don\'t confront, build around. Let the new structure make the old one obsolete.', notes:''},
+      {id:'pe-f1', name:'Hannah', role:'Office manager · incumbent process owner', status:'Has blocked HELM adoption. Going on maternity leave in the next couple weeks. Window: use her absence to pilot new processes and make them the baseline before she returns. Do not attack her — make the old processes irrelevant. Flagged for replacement as transition proceeds.', notes:''},
+      {id:'pe-f2', name:'Charlie', role:'Founder · future emeritus role', status:'Classic founder who can\'t let go despite saying he wants to retire. Gets frustrated and resistant when things change. Key insight: his clients are self-selecting toward Jarrett at higher prices — the market has already made the verdict. Strategy: let him save face. Emeritus-style role, keep him as relationship figurehead for legacy accounts, let Jarrett run the actual operation. Charlie feels like he chose it. Everyone moves on cleanly.', notes:''},
+      {id:'pe-f3', name:'Roberta', role:'Transition candidate', status:'Flagged for replacement alongside Hannah as the org transition proceeds. Details TBD.', notes:''},
     ],
     rules: [
       {id:'pe-r1', name:'Never make individuals the problem', role:'Make the status quo the problem', status:'', notes:''},
@@ -3985,6 +4042,45 @@ const CMD_SEED = {
           {id:'m3-2', title:'Include my role — backed by 60 days of concrete results.', day:80, checked:false},
           {id:'m3-3', title:'Frame as a business case, not a job application.', day:85, checked:false},
           {id:'m3-4', title:'Have role and compensation conversation with my owner.', day:90, checked:false},
+        ],
+      },
+    ],
+    scratch:'',
+  },
+  orgChart: {
+    groups: [
+      {
+        key:'exec', label:'Ownership / Executive', tone:'teal',
+        people: [
+          {id:'oc-e1', name:'Tim Vieth & Chris', title:'Co-CEOs', note:'Split duty CEO arrangement across all three companies.'},
+        ],
+      },
+      {
+        key:'lead', label:'Leadership', tone:'teal',
+        people: [
+          {id:'oc-l1', name:'David', title:'Chief Operating Officer', note:'Owns integration roadmap, data infrastructure, business development strategy, and owner-to-ground translation. Horizontal across all three companies.'},
+          {id:'oc-l2', name:'Jarrett Clanton', title:'Director of Field Operations', note:'Owns all rolloff operations, driver management, and top account relationships across all three companies. Vertical — everything touching a truck, driver, job, or rolloff.'},
+          {id:'oc-l3', name:'Esmerelda', title:'Senior Administrator', note:'Owns billing, payroll, and office operations. Title and comp reflect actual scope (currently does three jobs).'},
+        ],
+      },
+      {
+        key:'client', label:'Client-Facing', tone:'teal',
+        people: [
+          {id:'oc-c1', name:'Jackie & Kobie', title:'Primary call takers', note:'Client-facing day-to-day across all three companies.'},
+        ],
+      },
+      {
+        key:'trans', label:'Transition', tone:'gold',
+        people: [
+          {id:'oc-t1', name:'Charlie', title:'Emeritus / legacy accounts', note:'Relationship figurehead for legacy accounts. Transitions out of active operations. Let him feel like he chose it.'},
+          {id:'oc-t2', name:'Hannah', title:'Flagged for replacement', note:'Transition out as plan proceeds.'},
+          {id:'oc-t3', name:'Roberta', title:'Flagged for replacement', note:'Transition out as plan proceeds.'},
+        ],
+      },
+      {
+        key:'ext', label:'External', tone:'neutral',
+        people: [
+          {id:'oc-x1', name:'Steve', title:'External bookkeeper', note:'Retained across all entities.'},
         ],
       },
     ],
@@ -4081,6 +4177,7 @@ async function renderCmd(){
         <button class="${cmdActiveSub==='people'?'active':''}" onclick="cmdSwitchSub('people')">People &amp; Politics</button>
         <button class="${cmdActiveSub==='revenue'?'active':''}" onclick="cmdSwitchSub('revenue')">Revenue</button>
         <button class="${cmdActiveSub==='plan'?'active':''}" onclick="cmdSwitchSub('plan')">90-Day Plan</button>
+        <button class="${cmdActiveSub==='org'?'active':''}" onclick="cmdSwitchSub('org')">Org Chart</button>
       </div>
       <div id="cmdBody"></div>
     </div>`;
@@ -4090,7 +4187,7 @@ async function renderCmd(){
 function cmdSwitchSub(sub){
   cmdActiveSub = sub;
   document.querySelectorAll('.cmd-subnav button').forEach((b,i)=>{
-    const subs = ['priorities','people','revenue','plan'];
+    const subs = ['priorities','people','revenue','plan','org'];
     b.classList.toggle('active', subs[i]===sub);
   });
   cmdRenderBody();
@@ -4103,6 +4200,7 @@ function cmdRenderBody(){
   else if(cmdActiveSub==='people') body.innerHTML = cmdRenderPeople();
   else if(cmdActiveSub==='revenue') body.innerHTML = cmdRenderRevenue();
   else if(cmdActiveSub==='plan') body.innerHTML = cmdRenderPlan();
+  else if(cmdActiveSub==='org')  body.innerHTML = cmdRenderOrgChart();
 }
 
 // ── PRIORITIES ───────────────────────────────────────────────────────
@@ -4388,6 +4486,33 @@ function cmdCalendarUrl(title,iso){
     details:'HELM Command Center · 90-day plan milestone',
   });
   return 'https://calendar.google.com/calendar/render?'+params.toString();
+}
+
+// ── ORG CHART ────────────────────────────────────────────────────────
+function cmdRenderOrgChart(){
+  const oc = cmdState.orgChart || CMD_SEED.orgChart;
+  const groups = (oc.groups||[]).map(g=>{
+    const people = (g.people||[]).map(p=>`
+      <div class="cmd-org-person">
+        <div class="cmd-org-person-name">${cmdEsc(p.name)}</div>
+        <div class="cmd-org-person-title">${cmdEsc(p.title||'')}</div>
+        ${p.note?`<div class="cmd-org-person-note">${cmdEsc(p.note)}</div>`:''}
+      </div>`).join('');
+    return `
+      <div class="cmd-org-group cmd-org-tone-${g.tone||'teal'}">
+        <div class="cmd-org-group-hdr">
+          <div class="cmd-org-group-dot"></div>
+          <div class="cmd-org-group-label">${cmdEsc(g.label)}</div>
+        </div>
+        <div class="cmd-org-people">${people}</div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="cmd-section-title">Org Chart — Target State</div>
+    <div class="cmd-section-desc">The structure to propose at day 90. Backed by 60 days of results. Reference view — not editable here.</div>
+    <div class="cmd-org-wrap">${groups}</div>
+    ${cmdScratchBlock('orgChart', oc.scratch||'', 'Scratchpad — org chart')}
+  `;
 }
 
 // ── SCRATCHPAD ───────────────────────────────────────────────────────
