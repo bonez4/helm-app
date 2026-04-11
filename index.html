@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>HELM — Reis Trucking</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
@@ -722,6 +722,329 @@ select.ro-input{cursor:pointer;}
 @media(max-width:760px){
   .files-layout{grid-template-columns:1fr;}
 }
+
+/* ── COMMAND CENTER ───────────────────────────────────────── */
+.cmd-badge-private{
+  display:inline-block;background:var(--teal);color:var(--navy);
+  font-size:8px;font-weight:700;letter-spacing:.1em;
+  padding:1px 5px;border-radius:3px;margin-left:5px;vertical-align:middle;
+}
+.cmd-wrap{
+  background:var(--navy);
+  background-image:
+    radial-gradient(circle at 20% 0%,rgba(26,155,138,0.09),transparent 45%),
+    radial-gradient(circle at 90% 100%,rgba(212,168,67,0.06),transparent 50%),
+    repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.018) 39px,rgba(255,255,255,0.018) 40px),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.018) 39px,rgba(255,255,255,0.018) 40px);
+  border-radius:var(--radius-lg);
+  padding:1.25rem 1.25rem 1.5rem;
+  color:rgba(255,255,255,0.9);
+  box-shadow:0 20px 50px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+}
+.cmd-header{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  padding-bottom:14px;margin-bottom:16px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.cmd-header-left h1{
+  font-family:'DM Serif Display',serif;
+  font-size:30px;font-weight:400;color:white;letter-spacing:-.01em;
+  line-height:1;margin-bottom:6px;
+}
+.cmd-header-sub{
+  font-size:11px;color:rgba(255,255,255,0.4);
+  letter-spacing:.15em;text-transform:uppercase;font-weight:500;
+}
+.cmd-header-right{display:flex;align-items:center;gap:14px;}
+.cmd-status{
+  display:flex;align-items:center;gap:7px;
+  font-size:10px;color:rgba(255,255,255,0.4);
+  letter-spacing:.08em;text-transform:uppercase;
+}
+.cmd-status-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--teal);
+  box-shadow:0 0 0 3px rgba(26,155,138,0.2);animation:cmd-pulse 2.4s ease-in-out infinite;
+}
+@keyframes cmd-pulse{50%{box-shadow:0 0 0 6px rgba(26,155,138,0.08);}}
+
+.cmd-subnav{
+  display:flex;gap:4px;margin-bottom:18px;
+  background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.06);
+  padding:4px;border-radius:8px;width:fit-content;
+}
+.cmd-subnav button{
+  background:none;border:none;color:rgba(255,255,255,0.45);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:8px 16px;border-radius:5px;cursor:pointer;
+  letter-spacing:.02em;transition:all .15s;
+}
+.cmd-subnav button:hover{color:rgba(255,255,255,0.8);}
+.cmd-subnav button.active{background:var(--teal);color:white;box-shadow:0 2px 8px rgba(26,155,138,0.35);}
+
+.cmd-section-title{
+  font-family:'DM Serif Display',serif;
+  font-size:22px;color:white;margin-bottom:2px;font-weight:400;
+}
+.cmd-section-desc{font-size:12px;color:rgba(255,255,255,0.45);margin-bottom:14px;}
+
+.cmd-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:960px){.cmd-grid-3{grid-template-columns:1fr;}}
+
+/* Priority columns */
+.cmd-col{
+  background:rgba(255,255,255,0.025);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:10px;padding:13px 12px;
+  display:flex;flex-direction:column;
+}
+.cmd-col-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-bottom:10px;margin-bottom:10px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.cmd-col-title{
+  font-family:'DM Sans',sans-serif;
+  font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;align-items:center;gap:7px;
+}
+.cmd-col-dot{width:8px;height:8px;border-radius:50%;}
+.cmd-col-hot .cmd-col-dot{background:#ff5b5b;box-shadow:0 0 0 3px rgba(255,91,91,0.15);}
+.cmd-col-hot .cmd-col-title{color:#ff7a7a;}
+.cmd-col-soon .cmd-col-dot{background:var(--gold);box-shadow:0 0 0 3px rgba(212,168,67,0.18);}
+.cmd-col-soon .cmd-col-title{color:#e6bc52;}
+.cmd-col-med .cmd-col-dot{background:var(--teal);box-shadow:0 0 0 3px rgba(26,155,138,0.2);}
+.cmd-col-med .cmd-col-title{color:#3bc8b5;}
+.cmd-col-count{
+  font-size:10px;color:rgba(255,255,255,0.35);
+  background:rgba(255,255,255,0.05);padding:2px 7px;border-radius:10px;
+  font-family:'DM Mono',monospace;
+}
+
+.cmd-card{
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:8px;padding:11px 12px;margin-bottom:8px;
+  cursor:pointer;transition:all .15s;
+  position:relative;
+}
+.cmd-card:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.13);}
+.cmd-card.checked{opacity:.5;}
+.cmd-card.checked .cmd-card-title{text-decoration:line-through;color:rgba(255,255,255,0.5);}
+.cmd-card-head{display:flex;align-items:flex-start;gap:9px;}
+.cmd-check{
+  flex-shrink:0;width:16px;height:16px;margin-top:1px;
+  border:1.5px solid rgba(255,255,255,0.3);border-radius:4px;
+  background:rgba(0,0,0,0.2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.cmd-check:hover{border-color:var(--teal);}
+.cmd-check.on{background:var(--teal);border-color:var(--teal);}
+.cmd-check.on::after{
+  content:'';width:8px;height:4px;border:2px solid white;
+  border-top:none;border-right:none;transform:rotate(-45deg) translate(1px,-1px);
+}
+.cmd-card-body{flex:1;min-width:0;}
+.cmd-card-title{
+  font-size:12.5px;font-weight:600;color:rgba(255,255,255,0.92);
+  line-height:1.35;margin-bottom:4px;
+}
+.cmd-card-sub{
+  font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5;
+}
+.cmd-card-notes{
+  margin-top:9px;padding-top:9px;
+  border-top:1px dashed rgba(255,255,255,0.08);
+  display:none;
+}
+.cmd-card.expanded .cmd-card-notes{display:block;}
+.cmd-card-notes textarea{
+  width:100%;background:rgba(0,0,0,0.25);
+  border:1px solid rgba(255,255,255,0.09);
+  color:rgba(255,255,255,0.85);
+  font-family:'DM Sans',sans-serif;font-size:11px;
+  padding:7px 9px;border-radius:5px;resize:vertical;min-height:60px;
+  outline:none;line-height:1.5;
+}
+.cmd-card-notes textarea:focus{border-color:var(--teal);background:rgba(0,0,0,0.4);}
+.cmd-card-notes-lbl{
+  font-size:9px;letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(255,255,255,0.35);margin-bottom:5px;font-weight:600;
+}
+.cmd-card-del{
+  position:absolute;top:8px;right:8px;
+  background:none;border:none;color:rgba(255,255,255,0.2);
+  cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;
+  display:none;
+}
+.cmd-card:hover .cmd-card-del{display:block;}
+.cmd-card-del:hover{color:#ff6b6b;}
+
+.cmd-add-btn{
+  width:100%;padding:8px;margin-top:4px;
+  background:none;border:1px dashed rgba(255,255,255,0.14);
+  color:rgba(255,255,255,0.4);
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
+  border-radius:6px;cursor:pointer;letter-spacing:.02em;
+}
+.cmd-add-btn:hover{border-color:var(--teal);color:var(--teal);}
+
+/* People */
+.cmd-person{
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:8px;padding:11px 12px;margin-bottom:8px;
+  cursor:pointer;transition:all .15s;position:relative;
+}
+.cmd-person:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.13);}
+.cmd-person-hdr{display:flex;align-items:center;gap:10px;}
+.cmd-person-avatar{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  background:rgba(26,155,138,0.15);border:1px solid rgba(26,155,138,0.3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:var(--teal);letter-spacing:.02em;
+}
+.cmd-col-friction .cmd-person-avatar{background:rgba(255,91,91,0.12);border-color:rgba(255,91,91,0.3);color:#ff7a7a;}
+.cmd-col-rules .cmd-person-avatar{background:rgba(212,168,67,0.12);border-color:rgba(212,168,67,0.3);color:var(--gold);}
+.cmd-person-meta{flex:1;min-width:0;}
+.cmd-person-name{font-size:12.5px;font-weight:600;color:white;line-height:1.2;}
+.cmd-person-role{font-size:10.5px;color:rgba(255,255,255,0.45);margin-top:2px;line-height:1.35;}
+.cmd-person-status{
+  margin-top:7px;font-size:11px;color:rgba(255,255,255,0.62);line-height:1.5;
+}
+.cmd-person .cmd-card-notes{margin-top:8px;padding-top:8px;}
+.cmd-person.expanded .cmd-card-notes{display:block;}
+
+.cmd-col-coalition .cmd-col-dot{background:var(--teal);box-shadow:0 0 0 3px rgba(26,155,138,0.2);}
+.cmd-col-coalition .cmd-col-title{color:#3bc8b5;}
+.cmd-col-friction .cmd-col-dot{background:#ff5b5b;box-shadow:0 0 0 3px rgba(255,91,91,0.15);}
+.cmd-col-friction .cmd-col-title{color:#ff7a7a;}
+.cmd-col-rules .cmd-col-dot{background:var(--gold);box-shadow:0 0 0 3px rgba(212,168,67,0.18);}
+.cmd-col-rules .cmd-col-title{color:#e6bc52;}
+
+/* Revenue kanban */
+.cmd-kanban{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:960px){.cmd-kanban{grid-template-columns:1fr;}}
+.cmd-rev-card{
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:8px;padding:12px;margin-bottom:8px;
+  cursor:pointer;transition:all .15s;position:relative;
+}
+.cmd-rev-card:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.13);}
+.cmd-rev-title{font-size:12.5px;font-weight:600;color:white;line-height:1.35;margin-bottom:5px;}
+.cmd-rev-desc{font-size:11px;color:rgba(255,255,255,0.5);line-height:1.5;}
+.cmd-rev-move{
+  margin-top:10px;display:flex;gap:4px;
+}
+.cmd-rev-move button{
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+  color:rgba(255,255,255,0.5);
+  font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;
+  padding:3px 8px;border-radius:4px;cursor:pointer;
+}
+.cmd-rev-move button:hover{background:var(--teal);border-color:var(--teal);color:white;}
+.cmd-col-idea .cmd-col-dot{background:#8a9bc7;box-shadow:0 0 0 3px rgba(138,155,199,0.2);}
+.cmd-col-idea .cmd-col-title{color:#a8b8dc;}
+.cmd-col-progress .cmd-col-dot{background:var(--gold);box-shadow:0 0 0 3px rgba(212,168,67,0.18);}
+.cmd-col-progress .cmd-col-title{color:#e6bc52;}
+.cmd-col-done .cmd-col-dot{background:var(--teal);box-shadow:0 0 0 3px rgba(26,155,138,0.2);}
+.cmd-col-done .cmd-col-title{color:#3bc8b5;}
+.cmd-col-done .cmd-rev-title{text-decoration:line-through;opacity:.65;}
+
+/* Timeline */
+.cmd-timeline{
+  position:relative;padding:14px 4px 8px;margin-top:8px;
+}
+.cmd-timeline-track{
+  position:absolute;left:0;right:0;top:58px;height:2px;
+  background:linear-gradient(90deg,rgba(255,91,91,0.3),rgba(212,168,67,0.3),rgba(26,155,138,0.3));
+  border-radius:2px;
+}
+.cmd-phases{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;position:relative;}
+.cmd-phase{position:relative;padding-top:30px;}
+.cmd-phase-marker{
+  position:absolute;top:18px;left:50%;transform:translateX(-50%);
+  width:22px;height:22px;border-radius:50%;
+  background:var(--navy);border:2px solid var(--teal);
+  box-shadow:0 0 0 4px rgba(26,155,138,0.15);z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;color:var(--teal);
+}
+.cmd-phase:nth-child(1) .cmd-phase-marker{border-color:#ff5b5b;color:#ff7a7a;box-shadow:0 0 0 4px rgba(255,91,91,0.12);}
+.cmd-phase:nth-child(2) .cmd-phase-marker{border-color:var(--gold);color:var(--gold);box-shadow:0 0 0 4px rgba(212,168,67,0.12);}
+.cmd-phase:nth-child(3) .cmd-phase-marker{border-color:var(--teal);color:var(--teal);box-shadow:0 0 0 4px rgba(26,155,138,0.12);}
+.cmd-phase-body{
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:10px;padding:15px 13px 13px;
+  margin-top:14px;
+}
+.cmd-phase-days{
+  font-family:'DM Mono',monospace;font-size:10px;
+  color:rgba(255,255,255,0.4);letter-spacing:.06em;text-align:center;
+  margin-bottom:3px;
+}
+.cmd-phase-title{
+  font-family:'DM Serif Display',serif;
+  font-size:18px;color:white;text-align:center;
+  margin-bottom:3px;font-weight:400;
+}
+.cmd-phase-sub{
+  font-size:10px;color:rgba(255,255,255,0.4);
+  letter-spacing:.08em;text-transform:uppercase;
+  text-align:center;margin-bottom:13px;font-weight:600;
+}
+.cmd-milestone{
+  background:rgba(0,0,0,0.2);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:6px;padding:8px 10px;margin-bottom:6px;
+  display:flex;align-items:flex-start;gap:8px;
+  cursor:pointer;transition:all .15s;
+}
+.cmd-milestone:hover{background:rgba(0,0,0,0.35);border-color:rgba(255,255,255,0.12);}
+.cmd-milestone.checked .cmd-milestone-title{text-decoration:line-through;opacity:.55;}
+.cmd-milestone-body{flex:1;min-width:0;}
+.cmd-milestone-title{
+  font-size:11.5px;color:rgba(255,255,255,0.85);line-height:1.4;font-weight:500;
+}
+.cmd-milestone-date{
+  font-family:'DM Mono',monospace;font-size:9.5px;
+  color:rgba(255,255,255,0.35);margin-top:2px;
+}
+.cmd-milestone-cal{
+  flex-shrink:0;color:rgba(255,255,255,0.3);
+  text-decoration:none;font-size:11px;padding:2px 4px;
+}
+.cmd-milestone-cal:hover{color:var(--teal);}
+
+/* Section scratchpad */
+.cmd-scratch{
+  margin-top:18px;padding:13px 14px;
+  background:rgba(0,0,0,0.22);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:10px;
+}
+.cmd-scratch-lbl{
+  font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,0.38);margin-bottom:8px;
+  display:flex;align-items:center;gap:8px;
+}
+.cmd-scratch-lbl::before{content:'';width:18px;height:1px;background:rgba(255,255,255,0.2);}
+.cmd-scratch-lbl::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.07);}
+.cmd-scratch textarea{
+  width:100%;background:transparent;border:none;
+  color:rgba(255,255,255,0.8);
+  font-family:'DM Sans',sans-serif;font-size:12.5px;
+  outline:none;resize:vertical;min-height:70px;line-height:1.6;
+}
+.cmd-scratch textarea::placeholder{color:rgba(255,255,255,0.22);font-style:italic;}
+.cmd-autosave{
+  font-size:9px;color:rgba(255,255,255,0.25);
+  letter-spacing:.1em;text-transform:uppercase;margin-left:auto;
+}
+.cmd-autosave.saving{color:var(--gold);}
+.cmd-autosave.saved{color:var(--teal);}
 </style>
 </head>
 <body>
@@ -779,6 +1102,7 @@ select.ro-input{cursor:pointer;}
     <button onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button id="irrTabBtn" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
     <button id="filesTabBtn" style="display:none" onclick="switchTab('files',this)">Files</button>
+    <button id="cmdTabBtn" style="display:none" onclick="switchTab('cmd',this)">Command <span class="cmd-badge-private">PRIVATE</span></button>
     <button id="importTabBtn" style="display:none" onclick="switchTab('import',this)">Import</button>
   </div>
 
@@ -789,6 +1113,7 @@ select.ro-input{cursor:pointer;}
     <div id="tab-rolloffs" style="display:none"></div>
     <div id="tab-irr"    style="display:none"></div>
     <div id="tab-files"  style="display:none"></div>
+    <div id="tab-cmd"    style="display:none"></div>
     <div id="tab-import" style="display:none"></div>
   </div>
 </div>
@@ -1063,6 +1388,9 @@ async function login() {
     document.getElementById('irrTabBtn').style.display='';
     document.getElementById('filesTabBtn').style.display='';
   }
+  if(data.username==='david'){
+    document.getElementById('cmdTabBtn').style.display='';
+  }
   startHeartbeat();
   init();
 }
@@ -1145,7 +1473,7 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','add','report','rolloffs','irr','files','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','irr','files','cmd','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -1157,6 +1485,7 @@ function switchTab(name,btn){
   if(name==='rolloffs') renderRolloffs();
   if(name==='irr')    renderIRR();
   if(name==='files')  renderFiles();
+  if(name==='cmd')    renderCmd();
   if(name==='import') renderImport();
 }
 
@@ -3564,6 +3893,517 @@ async function filesDeleteFile(fileId, filename) {
   await filesLoadFiles(filesActiveFolderId);
 }
 
+// ── COMMAND CENTER ────────────────────────────────────────────────────
+// Private strategic dashboard. Gated to username === 'david'.
+// Persists to Supabase table `helm_command_state` keyed by (user_id, key).
+// If table missing, falls back to in-memory state and warns once.
+//
+// Required Supabase setup (run once in SQL editor):
+//   create table if not exists helm_command_state (
+//     id bigserial primary key,
+//     user_id text not null,
+//     key text not null,
+//     data jsonb not null default '{}'::jsonb,
+//     updated_at timestamptz default now(),
+//     unique(user_id, key)
+//   );
+
+const CMD_SEED = {
+  priorities: {
+    hot: [
+      {id:'p-h1', title:'Pilot HELM order management with at least one CSR', sub:'Office manager going on maternity leave = no blocker. 30-day pilot becomes the new baseline before she returns.', checked:false, notes:''},
+      {id:'p-h2', title:'Get second largest owner to formally introduce me to the new manager as his operational resource', sub:'One conversation changes my standing entirely. This needs to happen before she goes on leave.', checked:false, notes:''},
+      {id:'p-h3', title:'Document every undocumented office workflow before she leaves', sub:'Frame as succession planning, not an attack. We have already had two crises from single points of failure — this is the third.', checked:false, notes:''},
+    ],
+    soon: [
+      {id:'p-s1', title:'Send first Monday rolloff report to new manager — walk him through it in person', sub:'Don\'t just drop it in his inbox. Use it as a strategic conversation. Plant seeds about conversion pipeline, driver utilization, seasonal pricing.', checked:false, notes:''},
+      {id:'p-s2', title:'Pull scale ticket data and rank walk-in accounts by tonnage and visit frequency', sub:'Build the rolloff conversion prospect list. This is the owner\'s idea — my execution. Top 20 accounts = proven need already.', checked:false, notes:''},
+      {id:'p-s3', title:'Draft the one-page integration memo', sub:'Three-company structure as business risk, framed around merger as forcing function. Run past my owner before surfacing to manager.', checked:false, notes:''},
+    ],
+    medium: [
+      {id:'p-m1', title:'Define my own role and draft a job description', sub:'Owner\'s exact words: "carve your own job." Have the answer ready before he asks. Target: Director or VP of Operations — own integration roadmap, data infrastructure, biz dev strategy, owner-to-ground translation layer.', checked:false, notes:''},
+      {id:'p-m2', title:'Present formal org chart proposal at day 90', sub:'Back it with 60 days of results. Not a job application — a business case that includes me as the answer.', checked:false, notes:''},
+      {id:'p-m3', title:'Have role and compensation conversation with second largest owner', sub:'Timing: after the org chart presentation. Don\'t do it before the results are on paper.', checked:false, notes:''},
+    ],
+    scratch:'',
+  },
+  people: {
+    coalition: [
+      {id:'pe-c1', name:'Second largest owner', role:'Primary sponsor', status:'Close personal relationship. Told me explicitly to carve my own role, not assume the office manager\'s. Fully aligned on change.', notes:''},
+      {id:'pe-c2', name:'Largest owner', role:'Modernization ally', status:'Wants modernization. Communicates directly with new manager. Allied on integration agenda.', notes:''},
+      {id:'pe-c3', name:'New manager', role:'Operator I support', status:'Brought in specifically because ownership wants change. Appalled by current operational state. Needs wins to establish himself — needs an operator. Give him credit publicly, take influence structurally.', notes:''},
+    ],
+    friction: [
+      {id:'pe-f1', name:'Office manager', role:'Incumbent process owner', status:'Has blocked HELM adoption. Going on maternity leave in the next couple weeks. Window: use her absence to pilot new processes and make them the baseline before she returns. Do not attack her — make the old processes irrelevant.', notes:''},
+      {id:'pe-f2', name:'CEO', role:'30-year tenure', status:'30-year tenure alongside office manager. No succession plan, no operational changes in decades. Same approach: don\'t confront, build around. Let the new structure make the old one obsolete.', notes:''},
+    ],
+    rules: [
+      {id:'pe-r1', name:'Never make individuals the problem', role:'Make the status quo the problem', status:'', notes:''},
+      {id:'pe-r2', name:'New manager gets public credit', role:'I get structural influence', status:'', notes:''},
+      {id:'pe-r3', name:'Use the merger as a neutral forcing function', role:'For all integration asks', status:'', notes:''},
+      {id:'pe-r4', name:'Quantify friction with real costs', role:'Named problems get solved — vague frustration festers', status:'', notes:''},
+      {id:'pe-r5', name:'Everything I build, I run through the manager first', role:'Rule of engagement', status:'', notes:''},
+    ],
+    scratch:'',
+  },
+  revenue: {
+    items: [
+      {id:'r1', title:'Scale walk-in to rolloff conversion', desc:'Pull scale ticket data, rank by tonnage and frequency, build prospect list. Two segments: self-paying contractors (easy convert — rolloff saves them time and fuel) and companies reselling dump access (harder — they lose their markup. Consider going around them to their end clients). Owner\'s priority.', status:'idea', notes:''},
+      {id:'r2', title:'Seasonal pricing on rolloffs', desc:'Nantucket peak building season. Captive market. Likely leaving money on the table in summer months.', status:'idea', notes:''},
+      {id:'r3', title:'Driver and truck utilization modeling', desc:'Rolloff growth is gated by capacity. Need to know the ceiling before pushing sales hard.', status:'idea', notes:''},
+      {id:'r4', title:'Billing consolidation across three companies', desc:'Revenue leakage in the cracks between entities. Customers who span companies are likely a headache on both sides.', status:'idea', notes:''},
+      {id:'r5', title:'Loads per driver per day metric', desc:'Throughput proxy for the hours-per-load KPI the new manager wants. Actionable, easy to pull, tells the same story without GPS-level complexity.', status:'idea', notes:''},
+    ],
+    scratch:'',
+  },
+  plan: {
+    startDate: null, // set on first load
+    phases: [
+      {
+        key:'p1', title:'Stabilize', days:'Days 1 – 30', dayStart:1, dayEnd:30,
+        milestones: [
+          {id:'m1-1', title:'Cover operational gap during maternity leave. Be visibly present in the office.', day:5, checked:false},
+          {id:'m1-2', title:'Pilot HELM order management with at least one CSR.', day:10, checked:false},
+          {id:'m1-3', title:'Document all undocumented workflows — succession planning framing.', day:15, checked:false},
+          {id:'m1-4', title:'Walk new manager through first 2-3 Monday reports in person, not just email.', day:20, checked:false},
+          {id:'m1-5', title:'Get second owner to make the formal manager introduction.', day:25, checked:false},
+        ],
+      },
+      {
+        key:'p2', title:'Build', days:'Days 31 – 60', dayStart:31, dayEnd:60,
+        milestones: [
+          {id:'m2-1', title:'Deliver the integration memo to owners and manager.', day:35, checked:false},
+          {id:'m2-2', title:'Launch scale data conversion analysis — identify top 20 rolloff prospects.', day:42, checked:false},
+          {id:'m2-3', title:'Establish myself as the manager\'s operational right hand — he gets credit, I get influence.', day:50, checked:false},
+          {id:'m2-4', title:'Begin drafting my own job description and proposed org chart.', day:58, checked:false},
+        ],
+      },
+      {
+        key:'p3', title:'Propose', days:'Days 61 – 90', dayStart:61, dayEnd:90,
+        milestones: [
+          {id:'m3-1', title:'Present formal org chart for the integrated business.', day:75, checked:false},
+          {id:'m3-2', title:'Include my role — backed by 60 days of concrete results.', day:80, checked:false},
+          {id:'m3-3', title:'Frame as a business case, not a job application.', day:85, checked:false},
+          {id:'m3-4', title:'Have role and compensation conversation with my owner.', day:90, checked:false},
+        ],
+      },
+    ],
+    scratch:'',
+  },
+};
+
+let cmdState = null;
+let cmdActiveSub = 'priorities';
+let cmdExpanded = {}; // id -> bool for inline note expansion
+let cmdSaveTimers = {}; // key -> timeoutId
+let cmdPersistDisabled = false;
+
+function cmdDeepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+async function cmdLoad(){
+  cmdState = cmdDeepClone(CMD_SEED);
+  if(!cmdState.plan.startDate) cmdState.plan.startDate = getTodayISO();
+  if(cmdPersistDisabled || !currentUser) return;
+  try{
+    const {data,error} = await db.from('helm_command_state')
+      .select('key,data').eq('user_id', currentUser.username);
+    if(error){
+      cmdPersistDisabled = true;
+      console.warn('[Command Center] Persistence disabled. Run this SQL in Supabase:\n\ncreate table if not exists helm_command_state (\n  id bigserial primary key,\n  user_id text not null,\n  key text not null,\n  data jsonb not null default \'{}\'::jsonb,\n  updated_at timestamptz default now(),\n  unique(user_id, key)\n);');
+      return;
+    }
+    if(data && data.length){
+      for(const row of data){
+        if(cmdState[row.key] && row.data){
+          cmdState[row.key] = Object.assign(cmdState[row.key], row.data);
+        }
+      }
+    }
+    // Ensure plan start date is set and persisted on first run
+    if(!cmdState.plan.startDate){
+      cmdState.plan.startDate = getTodayISO();
+      cmdSaveNow('plan');
+    }
+  }catch(e){ cmdPersistDisabled = true; }
+}
+
+function cmdSave(key){
+  if(cmdSaveTimers[key]) clearTimeout(cmdSaveTimers[key]);
+  cmdMarkStatus(key,'saving');
+  cmdSaveTimers[key] = setTimeout(()=>cmdSaveNow(key), 450);
+}
+
+async function cmdSaveNow(key){
+  if(cmdPersistDisabled || !currentUser){ cmdMarkStatus(key,'saved'); return; }
+  try{
+    const {error} = await db.from('helm_command_state').upsert({
+      user_id: currentUser.username,
+      key,
+      data: cmdState[key],
+      updated_at: new Date().toISOString(),
+    }, {onConflict:'user_id,key'});
+    if(error){ cmdMarkStatus(key,''); return; }
+    cmdMarkStatus(key,'saved');
+  }catch(e){ cmdMarkStatus(key,''); }
+}
+
+function cmdMarkStatus(key,state){
+  const el = document.querySelector(`[data-cmd-save="${key}"]`);
+  if(!el) return;
+  el.className = 'cmd-autosave '+state;
+  el.textContent = state==='saving' ? 'Saving…' : state==='saved' ? 'Saved' : '';
+  if(state==='saved') setTimeout(()=>{ if(el.classList.contains('saved')) el.textContent=''; }, 1600);
+}
+
+function cmdUid(prefix){ return prefix+'-'+Math.random().toString(36).slice(2,9); }
+
+function cmdEsc(s){ return esc(s); }
+
+async function renderCmd(){
+  const tab = document.getElementById('tab-cmd');
+  if(!cmdState){
+    tab.innerHTML = '<div class="cmd-wrap"><div style="text-align:center;padding:40px;color:rgba(255,255,255,0.5);font-size:13px">Loading command center…</div></div>';
+    await cmdLoad();
+  }
+  tab.innerHTML = `
+    <div class="cmd-wrap">
+      <div class="cmd-header">
+        <div class="cmd-header-left">
+          <h1>Command Center</h1>
+          <div class="cmd-header-sub">Strategic War Room &nbsp;·&nbsp; Private</div>
+        </div>
+        <div class="cmd-header-right">
+          <div class="cmd-status"><div class="cmd-status-dot"></div><span>${cmdPersistDisabled?'Local only':'Live'}</span></div>
+        </div>
+      </div>
+      <div class="cmd-subnav">
+        <button class="${cmdActiveSub==='priorities'?'active':''}" onclick="cmdSwitchSub('priorities')">Priorities</button>
+        <button class="${cmdActiveSub==='people'?'active':''}" onclick="cmdSwitchSub('people')">People &amp; Politics</button>
+        <button class="${cmdActiveSub==='revenue'?'active':''}" onclick="cmdSwitchSub('revenue')">Revenue</button>
+        <button class="${cmdActiveSub==='plan'?'active':''}" onclick="cmdSwitchSub('plan')">90-Day Plan</button>
+      </div>
+      <div id="cmdBody"></div>
+    </div>`;
+  cmdRenderBody();
+}
+
+function cmdSwitchSub(sub){
+  cmdActiveSub = sub;
+  document.querySelectorAll('.cmd-subnav button').forEach((b,i)=>{
+    const subs = ['priorities','people','revenue','plan'];
+    b.classList.toggle('active', subs[i]===sub);
+  });
+  cmdRenderBody();
+}
+
+function cmdRenderBody(){
+  const body = document.getElementById('cmdBody');
+  if(!body) return;
+  if(cmdActiveSub==='priorities') body.innerHTML = cmdRenderPriorities();
+  else if(cmdActiveSub==='people') body.innerHTML = cmdRenderPeople();
+  else if(cmdActiveSub==='revenue') body.innerHTML = cmdRenderRevenue();
+  else if(cmdActiveSub==='plan') body.innerHTML = cmdRenderPlan();
+}
+
+// ── PRIORITIES ───────────────────────────────────────────────────────
+function cmdRenderPriorities(){
+  const p = cmdState.priorities;
+  const col = (key,label,cls)=>{
+    const items = p[key]||[];
+    const cards = items.map(it=>`
+      <div class="cmd-card ${it.checked?'checked':''} ${cmdExpanded[it.id]?'expanded':''}" onclick="cmdExpandCard(event,'${it.id}')">
+        <button class="cmd-card-del" onclick="event.stopPropagation();cmdDelPriority('${key}','${it.id}')" title="Delete">&times;</button>
+        <div class="cmd-card-head">
+          <div class="cmd-check ${it.checked?'on':''}" onclick="event.stopPropagation();cmdTogglePriority('${key}','${it.id}')"></div>
+          <div class="cmd-card-body">
+            <div class="cmd-card-title">${cmdEsc(it.title)}</div>
+            ${it.sub?`<div class="cmd-card-sub">${cmdEsc(it.sub)}</div>`:''}
+          </div>
+        </div>
+        <div class="cmd-card-notes" onclick="event.stopPropagation()">
+          <div class="cmd-card-notes-lbl">Private notes</div>
+          <textarea placeholder="Context, progress, next step…" oninput="cmdEditPriorityNotes('${key}','${it.id}',this.value)">${cmdEsc(it.notes||'')}</textarea>
+        </div>
+      </div>`).join('');
+    return `
+      <div class="cmd-col cmd-col-${cls}">
+        <div class="cmd-col-hdr">
+          <div class="cmd-col-title"><span class="cmd-col-dot"></span>${label}</div>
+          <div class="cmd-col-count">${items.filter(i=>!i.checked).length} / ${items.length}</div>
+        </div>
+        ${cards}
+        <button class="cmd-add-btn" onclick="cmdAddPriority('${key}')">+ Add item</button>
+      </div>`;
+  };
+  return `
+    <div class="cmd-section-title">Priority Board</div>
+    <div class="cmd-section-desc">Action items grouped by urgency. Check to mark complete — progress persists.</div>
+    <div class="cmd-grid-3">
+      ${col('hot','Hot — Act Now','hot')}
+      ${col('soon','Soon — Next 30 Days','soon')}
+      ${col('medium','Medium — Strategic','med')}
+    </div>
+    ${cmdScratchBlock('priorities', p.scratch||'', 'Scratchpad — priorities')}
+  `;
+}
+
+function cmdExpandCard(e, id){
+  cmdExpanded[id] = !cmdExpanded[id];
+  const card = e.currentTarget;
+  card.classList.toggle('expanded', cmdExpanded[id]);
+}
+function cmdTogglePriority(group,id){
+  const item = (cmdState.priorities[group]||[]).find(i=>i.id===id);
+  if(!item) return;
+  item.checked = !item.checked;
+  cmdSave('priorities');
+  cmdRenderBody();
+}
+function cmdEditPriorityNotes(group,id,val){
+  const item = (cmdState.priorities[group]||[]).find(i=>i.id===id);
+  if(!item) return;
+  item.notes = val;
+  cmdSave('priorities');
+}
+function cmdAddPriority(group){
+  const title = prompt('Action item title:');
+  if(!title||!title.trim()) return;
+  const sub = prompt('Context / subtitle (optional):') || '';
+  cmdState.priorities[group].push({id:cmdUid('p-'+group[0]), title:title.trim(), sub:sub.trim(), checked:false, notes:''});
+  cmdSave('priorities');
+  cmdRenderBody();
+}
+function cmdDelPriority(group,id){
+  if(!confirm('Delete this item?')) return;
+  cmdState.priorities[group] = cmdState.priorities[group].filter(i=>i.id!==id);
+  cmdSave('priorities');
+  cmdRenderBody();
+}
+
+// ── PEOPLE ───────────────────────────────────────────────────────────
+function cmdRenderPeople(){
+  const p = cmdState.people;
+  const col = (key,label,cls)=>{
+    const items = p[key]||[];
+    const cards = items.map(it=>{
+      const initials = (it.name||'').split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
+      return `
+        <div class="cmd-person ${cmdExpanded[it.id]?'expanded':''}" onclick="cmdExpandCard(event,'${it.id}')">
+          <button class="cmd-card-del" onclick="event.stopPropagation();cmdDelPerson('${key}','${it.id}')" title="Delete">&times;</button>
+          <div class="cmd-person-hdr">
+            <div class="cmd-person-avatar">${cmdEsc(initials||'?')}</div>
+            <div class="cmd-person-meta">
+              <div class="cmd-person-name">${cmdEsc(it.name||'')}</div>
+              ${it.role?`<div class="cmd-person-role">${cmdEsc(it.role)}</div>`:''}
+            </div>
+          </div>
+          ${it.status?`<div class="cmd-person-status">${cmdEsc(it.status)}</div>`:''}
+          <div class="cmd-card-notes" onclick="event.stopPropagation()">
+            <div class="cmd-card-notes-lbl">Private notes</div>
+            <textarea placeholder="Observations, latest conversation, next move…" oninput="cmdEditPersonNotes('${key}','${it.id}',this.value)">${cmdEsc(it.notes||'')}</textarea>
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="cmd-col cmd-col-${cls}">
+        <div class="cmd-col-hdr">
+          <div class="cmd-col-title"><span class="cmd-col-dot"></span>${label}</div>
+          <div class="cmd-col-count">${items.length}</div>
+        </div>
+        ${cards}
+        <button class="cmd-add-btn" onclick="cmdAddPerson('${key}')">+ Add entry</button>
+      </div>`;
+  };
+  return `
+    <div class="cmd-section-title">People &amp; Politics</div>
+    <div class="cmd-section-desc">Coalition, friction, and rules of engagement. Click any card to expand private notes.</div>
+    <div class="cmd-grid-3">
+      ${col('coalition','Coalition','coalition')}
+      ${col('friction','Friction','friction')}
+      ${col('rules','Rules of Engagement','rules')}
+    </div>
+    ${cmdScratchBlock('people', p.scratch||'', 'Scratchpad — people')}
+  `;
+}
+function cmdEditPersonNotes(group,id,val){
+  const item = (cmdState.people[group]||[]).find(i=>i.id===id);
+  if(!item) return;
+  item.notes = val;
+  cmdSave('people');
+}
+function cmdAddPerson(group){
+  const name = prompt(group==='rules'?'Rule text:':'Name:');
+  if(!name||!name.trim()) return;
+  const role = prompt(group==='rules'?'Subtext (optional):':'Role / label:') || '';
+  const status = group==='rules' ? '' : (prompt('Current status / context:') || '');
+  cmdState.people[group].push({id:cmdUid('pe-'+group[0]), name:name.trim(), role:role.trim(), status:status.trim(), notes:''});
+  cmdSave('people');
+  cmdRenderBody();
+}
+function cmdDelPerson(group,id){
+  if(!confirm('Delete this entry?')) return;
+  cmdState.people[group] = cmdState.people[group].filter(i=>i.id!==id);
+  cmdSave('people');
+  cmdRenderBody();
+}
+
+// ── REVENUE ──────────────────────────────────────────────────────────
+function cmdRenderRevenue(){
+  const items = cmdState.revenue.items || [];
+  const col = (key,label,cls)=>{
+    const list = items.filter(i=>i.status===key);
+    const cards = list.map(it=>{
+      const nextStatus = key==='idea'?'progress':key==='progress'?'done':null;
+      const prevStatus = key==='done'?'progress':key==='progress'?'idea':null;
+      return `
+        <div class="cmd-rev-card ${cmdExpanded[it.id]?'expanded':''}" onclick="cmdExpandCard(event,'${it.id}')">
+          <button class="cmd-card-del" onclick="event.stopPropagation();cmdDelRevenue('${it.id}')" title="Delete">&times;</button>
+          <div class="cmd-rev-title">${cmdEsc(it.title)}</div>
+          ${it.desc?`<div class="cmd-rev-desc">${cmdEsc(it.desc)}</div>`:''}
+          <div class="cmd-card-notes" onclick="event.stopPropagation()">
+            <div class="cmd-card-notes-lbl">Private notes</div>
+            <textarea placeholder="Progress, blockers, numbers…" oninput="cmdEditRevenueNotes('${it.id}',this.value)">${cmdEsc(it.notes||'')}</textarea>
+          </div>
+          <div class="cmd-rev-move" onclick="event.stopPropagation()">
+            ${prevStatus?`<button onclick="cmdMoveRevenue('${it.id}','${prevStatus}')">← ${prevStatus==='idea'?'Idea':'In Progress'}</button>`:''}
+            ${nextStatus?`<button onclick="cmdMoveRevenue('${it.id}','${nextStatus}')">${nextStatus==='progress'?'In Progress':'Done'} →</button>`:''}
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="cmd-col cmd-col-${cls}">
+        <div class="cmd-col-hdr">
+          <div class="cmd-col-title"><span class="cmd-col-dot"></span>${label}</div>
+          <div class="cmd-col-count">${list.length}</div>
+        </div>
+        ${cards}
+        ${key==='idea'?'<button class="cmd-add-btn" onclick="cmdAddRevenue()">+ Add opportunity</button>':''}
+      </div>`;
+  };
+  return `
+    <div class="cmd-section-title">Revenue Opportunities</div>
+    <div class="cmd-section-desc">Open ideas moving through the pipeline. Click to expand; use arrows to advance.</div>
+    <div class="cmd-kanban">
+      ${col('idea','Idea','idea')}
+      ${col('progress','In Progress','progress')}
+      ${col('done','Done','done')}
+    </div>
+    ${cmdScratchBlock('revenue', cmdState.revenue.scratch||'', 'Scratchpad — revenue')}
+  `;
+}
+function cmdMoveRevenue(id,newStatus){
+  const item = cmdState.revenue.items.find(i=>i.id===id);
+  if(!item) return;
+  item.status = newStatus;
+  cmdSave('revenue');
+  cmdRenderBody();
+}
+function cmdEditRevenueNotes(id,val){
+  const item = cmdState.revenue.items.find(i=>i.id===id);
+  if(!item) return;
+  item.notes = val;
+  cmdSave('revenue');
+}
+function cmdAddRevenue(){
+  const title = prompt('Opportunity title:');
+  if(!title||!title.trim()) return;
+  const desc = prompt('Description (optional):') || '';
+  cmdState.revenue.items.push({id:cmdUid('r'), title:title.trim(), desc:desc.trim(), status:'idea', notes:''});
+  cmdSave('revenue');
+  cmdRenderBody();
+}
+function cmdDelRevenue(id){
+  if(!confirm('Delete this opportunity?')) return;
+  cmdState.revenue.items = cmdState.revenue.items.filter(i=>i.id!==id);
+  cmdSave('revenue');
+  cmdRenderBody();
+}
+
+// ── 90-DAY PLAN ──────────────────────────────────────────────────────
+function cmdRenderPlan(){
+  const plan = cmdState.plan;
+  if(!plan.startDate) plan.startDate = getTodayISO();
+  const phases = plan.phases.map((phase,idx)=>{
+    const milestones = (phase.milestones||[]).map(m=>{
+      const dateISO = cmdAddDays(plan.startDate, m.day-1);
+      const label = fmtDate(dateISO);
+      const calUrl = cmdCalendarUrl(m.title, dateISO);
+      return `
+        <div class="cmd-milestone ${m.checked?'checked':''}">
+          <div class="cmd-check ${m.checked?'on':''}" onclick="cmdToggleMilestone('${phase.key}','${m.id}')"></div>
+          <div class="cmd-milestone-body">
+            <div class="cmd-milestone-title">${cmdEsc(m.title)}</div>
+            <div class="cmd-milestone-date">Day ${m.day} · ${label}</div>
+          </div>
+          <a class="cmd-milestone-cal" href="${calUrl}" target="_blank" rel="noopener" title="Add to Google Calendar">📅</a>
+        </div>`;
+    }).join('');
+    return `
+      <div class="cmd-phase">
+        <div class="cmd-phase-marker">${idx+1}</div>
+        <div class="cmd-phase-body">
+          <div class="cmd-phase-days">${phase.days}</div>
+          <div class="cmd-phase-title">${cmdEsc(phase.title)}</div>
+          <div class="cmd-phase-sub">Phase ${idx+1}</div>
+          ${milestones}
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="cmd-section-title">90-Day Plan</div>
+    <div class="cmd-section-desc">Day 1 = ${fmtDate(plan.startDate)}. Each milestone links to a pre-filled Google Calendar event.</div>
+    <div class="cmd-timeline">
+      <div class="cmd-timeline-track"></div>
+      <div class="cmd-phases">${phases}</div>
+    </div>
+    ${cmdScratchBlock('plan', plan.scratch||'', 'Scratchpad — 90-day plan')}
+  `;
+}
+function cmdToggleMilestone(phaseKey,id){
+  const phase = cmdState.plan.phases.find(p=>p.key===phaseKey);
+  if(!phase) return;
+  const m = phase.milestones.find(x=>x.id===id);
+  if(!m) return;
+  m.checked = !m.checked;
+  cmdSave('plan');
+  cmdRenderBody();
+}
+function cmdAddDays(iso,days){
+  const d = new Date(iso+'T00:00:00');
+  d.setDate(d.getDate()+days);
+  return d.toISOString().split('T')[0];
+}
+function cmdCalDateStr(iso){
+  // Returns YYYYMMDD (all-day Google Cal format)
+  return iso.replace(/-/g,'');
+}
+function cmdCalendarUrl(title,iso){
+  const start = cmdCalDateStr(iso);
+  const endDate = cmdAddDays(iso,1);
+  const end = cmdCalDateStr(endDate);
+  const params = new URLSearchParams({
+    action:'TEMPLATE',
+    text:title,
+    dates:`${start}/${end}`,
+    details:'HELM Command Center · 90-day plan milestone',
+  });
+  return 'https://calendar.google.com/calendar/render?'+params.toString();
+}
+
+// ── SCRATCHPAD ───────────────────────────────────────────────────────
+function cmdScratchBlock(key, value, label){
+  return `
+    <div class="cmd-scratch">
+      <div class="cmd-scratch-lbl">${label}<span class="cmd-autosave" data-cmd-save="${key}"></span></div>
+      <textarea placeholder="Freeform notes — autosaves as you type." oninput="cmdEditScratch('${key}',this.value)">${cmdEsc(value)}</textarea>
+    </div>`;
+}
+function cmdEditScratch(key,val){
+  if(!cmdState[key]) return;
+  cmdState[key].scratch = val;
+  cmdSave(key);
+}
+
 // ── TOAST ─────────────────────────────────────────────────────────────
 function toast(msg,ok=false){
   const t=document.getElementById('toast');
@@ -3585,6 +4425,9 @@ if(_saved && _saved !== '1'){
     if(currentUser.username==='david'||currentUser.role==='admin') {
       document.getElementById('irrTabBtn').style.display='';
       document.getElementById('filesTabBtn').style.display='';
+    }
+    if(currentUser.username==='david'){
+      document.getElementById('cmdTabBtn').style.display='';
     }
     startHeartbeat();
     init().catch(err=>{
