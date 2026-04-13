@@ -4430,7 +4430,8 @@ function icrRenderReport(allData, container) {
       <button class="icr-nav-btn" onclick="icrNextWeek()">&rarr;</button>
       <input type="date" value="${icrWeekStart}" onchange="icrJumpToWeek(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
       <div style="margin-left:auto;display:flex;gap:4px;">${yearBtn(2025)}${yearBtn(2026)}</div>
-      <button class="icr-nav-btn" style="margin-left:8px;background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
+      <button class="icr-nav-btn" style="margin-left:8px;" onclick="icrPrintWeekly()">Print</button>
+      <button class="icr-nav-btn" style="background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
       <button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
     </div>
     <table class="icr-table">
@@ -4445,6 +4446,32 @@ function icrRenderReport(allData, container) {
         ${companyBlock('TOTALS',null,true)}
       </tbody>
     </table>`;
+}
+
+function icrPrintWeekly(){
+  const table=document.querySelector('#irrICRContent table.icr-table');
+  const title=document.querySelector('#irrICRContent .icr-controls h3');
+  if(!table) return;
+
+  const existing=document.getElementById('icrPrintOverlay');
+  if(existing) existing.remove();
+
+  const overlay=document.createElement('div');
+  overlay.className='irr-report-overlay';
+  overlay.id='icrPrintOverlay';
+  overlay.innerHTML=`<div class="irr-report-modal" style="max-width:1000px;">
+    <div class="irr-report-toolbar">
+      <button class="rpt-print" onclick="window.print()">Print</button>
+      <button class="rpt-print" onclick="irrDownloadPDF()">Download PDF</button>
+      <button class="rpt-close" onclick="document.getElementById('icrPrintOverlay').remove()">Close</button>
+    </div>
+    <div class="irr-report-body" style="padding:24px 20px;overflow-x:auto;">
+      <h1 style="font-size:16px;margin-bottom:4px;">Intercompany Rolloff Report</h1>
+      <div class="rpt-period" style="margin-bottom:16px;">${title?title.textContent:''}</div>
+      ${table.outerHTML}
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 
 function icrPrevWeek(){
