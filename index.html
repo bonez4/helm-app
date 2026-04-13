@@ -4301,6 +4301,9 @@ function icrRenderReport(allData, container) {
   }
 
   const weekEnd = weekDates[5];
+  const today = new Date().toISOString().split('T')[0];
+  const mtdEnd = icrYear===new Date().getFullYear() ? today : icrYear+'-12-31';
+  const ytdEnd = mtdEnd;
   const weekLabel = (()=>{
     const s=new Date(icrWeekStart+'T00:00:00');
     return 'Week of '+s.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
@@ -4310,8 +4313,9 @@ function icrRenderReport(allData, container) {
   const byDate={};
   for(const d of allData) byDate[d.report_date]=d;
 
-  // Calculate MTD and YTD
+  // MTD uses the month of the viewed week, YTD uses full year through today
   const monthStart = icrWeekStart.substring(0,8)+'01';
+  const monthEnd = (()=>{const m=parseInt(icrWeekStart.substring(5,7));const y=parseInt(icrWeekStart.substring(0,4));const last=new Date(y,m,0).getDate();const me=icrWeekStart.substring(0,8)+(last<10?'0':'')+last;return me>mtdEnd?mtdEnd:me;})();
   const yearStart = icrYear+'-01-01';
 
   function getCompanyData(d, company) {
@@ -4377,8 +4381,8 @@ function icrRenderReport(allData, container) {
 
     const daily = weekDates.map(dt=>getCompanyData(byDate[dt],company));
     const wtd = isTotal ? sumRangeAll(allData, icrWeekStart, weekEnd) : sumRange(allData, icrWeekStart, weekEnd, company);
-    const mtd = isTotal ? sumRangeAll(allData, monthStart, weekEnd) : sumRange(allData, monthStart, weekEnd, company);
-    const ytd = isTotal ? sumRangeAll(allData, yearStart, weekEnd) : sumRange(allData, yearStart, weekEnd, company);
+    const mtd = isTotal ? sumRangeAll(allData, monthStart, monthEnd) : sumRange(allData, monthStart, monthEnd, company);
+    const ytd = isTotal ? sumRangeAll(allData, yearStart, ytdEnd) : sumRange(allData, yearStart, ytdEnd, company);
 
     function row(lbl, dailyFn, wtdV, mtdV, ytdV) {
       return `<tr><td>${lbl}</td>${daily.map(d=>'<td>'+dailyFn(d)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${wtdV}</td><td class="icr-spacer"></td><td class="icr-agg">${mtdV}</td><td class="icr-spacer"></td><td class="icr-agg">${ytdV}</td></tr>`;
@@ -4448,19 +4452,20 @@ function icrRenderReport(allData, container) {
           // Vinagro outbound block
           const vDaily = weekDates.map(dt=>{const d=byDate[dt];return d?{loads:d.vinagro_loads||0,tons:parseFloat(d.vinagro_tons)||0}:{loads:0,tons:0};});
           function vSum(start,end){const r={loads:0,tons:0};for(const d of allData){if(d.report_date<start||d.report_date>end)continue;r.loads+=d.vinagro_loads||0;r.tons+=parseFloat(d.vinagro_tons)||0;}return r;}
-          const vWtd=vSum(icrWeekStart,weekEnd),vMtd=vSum(monthStart,weekEnd),vYtd=vSum(yearStart,weekEnd);
+          const vWtd=vSum(icrWeekStart,weekEnd),vMtd=vSum(monthStart,monthEnd),vYtd=vSum(yearStart,ytdEnd);
           function vRow(lbl,dFn,w,m,y){return '<tr><td>'+lbl+'</td>'+vDaily.map(d=>'<td>'+dFn(d)+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+w+'</td><td class="icr-spacer"></td><td class="icr-agg">'+m+'</td><td class="icr-spacer"></td><td class="icr-agg">'+y+'</td></tr>';}
 
-          // Total inbound from the Totals block
-          const iWtd=sumRangeAll(allData,icrWeekStart,weekEnd),iMtd=sumRangeAll(allData,monthStart,weekEnd),iYtd=sumRangeAll(allData,yearStart,weekEnd);
-          const iDaily=weekDates.map(dt=>{const d=byDate[dt];return d?{loads:allLoads(d),tons:allTons(d)}:{loads:0,tons:0};});
+          // Total inbound = ALL inbound (rolloff + walk-in + pile)
+          function totalInboundSum(start,end){let tons=0;for(const d of allData){if(d.report_date<start||d.report_date>end)continue;tons+=parseFloat(d.total_inbound_tons)||0;}return tons;}
+          const tiWtd=totalInboundSum(icrWeekStart,weekEnd),tiMtd=totalInboundSum(monthStart,monthEnd),tiYtd=totalInboundSum(yearStart,ytdEnd);
+          const iDaily=weekDates.map(dt=>{const d=byDate[dt];return d?{tons:parseFloat(d.total_inbound_tons)||0}:{tons:0};});
 
           return '<tr class="icr-company-hdr"><td>VINAGRO (OUTBOUND)</td>'+'<td></td>'.repeat(12)+'</tr>'+
             vRow('Loads',d=>d.loads>0?d.loads:'--',vWtd.loads||'--',vMtd.loads||'--',vYtd.loads||'--')+
             vRow('Total Tons',d=>d.tons>0?f2(d.tons):'--',f2(vWtd.tons),f2(vMtd.tons),f2(vYtd.tons))+
             '<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(12)+'</tr>'+
-            '<tr class="icr-total-hdr"><td>SUMMARY</td>'+'<td></td>'.repeat(12)+'</tr>'+
-            '<tr><td style="font-weight:600">Total Inbound</td>'+iDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(iWtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(iMtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(iYtd.tons)+'</td></tr>'+
+            '<tr class="icr-total-hdr"><td>SUMMARY (ALL SOURCES)</td>'+'<td></td>'.repeat(12)+'</tr>'+
+            '<tr><td style="font-weight:600">Total Inbound (all sources incl. walk-ins)</td>'+iDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(tiWtd)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(tiMtd)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(tiYtd)+'</td></tr>'+
             '<tr><td style="font-weight:600">Total Outbound</td>'+vDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(vWtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(vMtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(vYtd.tons)+'</td></tr>';
         })()}
       </tbody>
