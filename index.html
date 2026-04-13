@@ -4302,8 +4302,7 @@ function icrRenderReport(allData, container) {
 
   const weekEnd = weekDates[5];
   const today = new Date().toISOString().split('T')[0];
-  const mtdEnd = icrYear===new Date().getFullYear() ? today : icrYear+'-12-31';
-  const ytdEnd = mtdEnd;
+  const aggEnd = icrYear===new Date().getFullYear() ? today : icrYear+'-12-31';
   const weekLabel = (()=>{
     const s=new Date(icrWeekStart+'T00:00:00');
     return 'Week of '+s.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
@@ -4313,10 +4312,11 @@ function icrRenderReport(allData, container) {
   const byDate={};
   for(const d of allData) byDate[d.report_date]=d;
 
-  // MTD uses the month of the viewed week, YTD uses full year through today
+  // MTD and YTD always sum through today (or end of year for past years)
   const monthStart = icrWeekStart.substring(0,8)+'01';
-  const monthEnd = (()=>{const m=parseInt(icrWeekStart.substring(5,7));const y=parseInt(icrWeekStart.substring(0,4));const last=new Date(y,m,0).getDate();const me=icrWeekStart.substring(0,8)+(last<10?'0':'')+last;return me>mtdEnd?mtdEnd:me;})();
+  const monthEnd = aggEnd;
   const yearStart = icrYear+'-01-01';
+  const ytdEnd = aggEnd;
 
   function getCompanyData(d, company) {
     if(!d) return {loads:0,tons:0,rev:0,drivers:null,hours:null};
