@@ -3049,17 +3049,17 @@ async function irrLoadDashboard() {
   irrRenderDashboard();
 }
 
+// Rolloff helpers (global scope — used by dashboard, chart, and report generator)
+function allLoads(d){return (d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);}
+function allTons(d){return (parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);}
+function allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);}
+
 function irrRenderDashboard() {
   const container = document.getElementById('irrDashContent');
   const {start,end} = irrGetDateRange(irrDashRange,
     document.getElementById('irrCustomStart')?.value,
     document.getElementById('irrCustomEnd')?.value);
   const filtered = irrDashData.filter(d=>d.report_date>=start && d.report_date<=end);
-
-  // Helper: all loads = reis + pile + island + east end
-  function allLoads(d){return (d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);}
-  function allTons(d){return (parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);}
-  function allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);}
 
   // KPIs
   let totalAllLoads=0, totalAllTons=0, totalAllRev=0, totalHours=0, hoursCount=0;
@@ -3313,12 +3313,7 @@ async function irrSaveHours() {
 
 // ── Period Report Generator ───────────────────────────────────────────
 
-function _allLoads(d){return (d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);}
-function _allTons(d){return (parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);}
-function _allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);}
-
 function irrGenerateReport() {
-  const allLoads=_allLoads, allTons=_allTons, allRev=_allRev;
   const {start,end} = irrGetDateRange(irrDashRange,
     document.getElementById('irrCustomStart')?.value,
     document.getElementById('irrCustomEnd')?.value);
