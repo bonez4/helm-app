@@ -3713,6 +3713,42 @@ async function irrHandleBulk(file) {
   reader.readAsText(file);
 }
 
+// Auto-save uploaded .xls files to shared "Daily Scale Reports" folder
+async function irrAutoSaveFile(file, reportDate) {
+  // Find or create the shared folder
+  const folderName = 'Daily Scale Reports';
+  let {data:folders} = await db.from('helm_folders').select('id').eq('name',folderName).eq('scope','shared').limit(1);
+  let folderId;
+  if (folders && folders.length > 0) {
+    folderId = folders[0].id;
+  } else {
+    const {data:newFolder,error} = await db.from('helm_folders').insert({name:folderName,scope:'shared',owner:null,created_by:currentUser.username}).select().single();
+    if (error || !newFolder) return;
+    folderId = newFolder.id;
+  }
+
+  // Name the file with the report date
+  const dateParts = reportDate ? reportDate.split('/') : [];
+  const dateLabel = dateParts.length===3 ? dateParts[2]+'-'+dateParts[0].padStart(2,'0')+'-'+dateParts[1].padStart(2,'0') : new Date().toISOString().split('T')[0];
+  const fileName = 'Scale_Report_'+dateLabel+'.xls';
+  const storagePath = folderId+'/'+Date.now()+'-'+fileName;
+
+  const {error:sErr} = await db.storage.from('helm-files').upload(storagePath, file, {
+    contentType: file.type || 'application/octet-stream',
+    upsert: false,
+  });
+  if (sErr) { console.warn('File upload failed:', sErr.message); return; }
+
+  await db.from('helm_files').insert({
+    folder_id: folderId,
+    filename: fileName,
+    storage_path: storagePath,
+    size_bytes: file.size,
+    mime_type: file.type || null,
+    uploaded_by: currentUser.username,
+  });
+}
+
 async function irrHandleFile(file) {
   if(!file) return;
   const status = document.getElementById('irrStatus');
@@ -3731,6 +3767,10 @@ async function irrHandleFile(file) {
       status.textContent='Parsed '+Object.keys(data.tickets).length+' tickets. Saving...';
 
       await irrSaveReport(data);
+
+      // Auto-save raw file to Files storage
+      try { await irrAutoSaveFile(file, data.date); } catch(ex) { console.warn('File backup failed:', ex); }
+
       const ytd = await irrLoadYTD(data.date);
 
       document.getElementById('irrUploadSection').style.display='none';
