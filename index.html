@@ -4332,7 +4332,14 @@ function icrRenderReport(allData, container) {
       rev:parseFloat(d.santos_revenue)||0,
       drivers:null, hours:null
     };
-    return {loads:0,tons:0,rev:0,drivers:null,hours:null};
+    // null company = totals (sum all)
+    return {
+      loads:allLoads(d),
+      tons:allTons(d),
+      rev:allRev(d),
+      drivers:d.island_drivers!=null?d.island_drivers:null,
+      hours:d.island_hours!=null?parseFloat(d.island_hours):null
+    };
   }
 
   function sumRange(data, startDate, endDate, company) {
