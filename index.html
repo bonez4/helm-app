@@ -2540,6 +2540,28 @@ const IRR_ROLLOFF_SVC = ['ROLLOFF DELIVERY','ROLLOFF DOUBLE DROP','EMPTY ROLLOFF
 let irrCurrentData = null;
 let irrRendered = false;
 
+// Company rates (loaded from irr_rates table)
+let irrRates = null;
+async function irrLoadRates() {
+  if (irrRates) return irrRates;
+  const {data} = await db.from('irr_rates').select('*');
+  irrRates = {};
+  if (data) for (const r of data) irrRates[r.company] = r;
+  return irrRates;
+}
+
+function irrCalcRevenue(buckets) {
+  if (!irrRates) return;
+  const ir = irrRates.island;
+  const er = irrRates.eastend;
+  if (ir) {
+    buckets.island.revenue = (ir.hook_fee * buckets.island.tickets) + ((ir.per_ton * (1 + (ir.ton_markup||0))) * buckets.island.tons);
+  }
+  if (er) {
+    buckets.santos.revenue = (er.hook_fee * buckets.santos.tickets) + ((er.per_ton * (1 + (er.ton_markup||0))) * buckets.santos.tons);
+  }
+}
+
 function irrParseSpreadsheetML(xmlText) {
   xmlText = xmlText.replace(/<\?[^?]*\?>/g, '');
   const result = [];
@@ -2720,7 +2742,22 @@ function irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025) {
       <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;border-top:2px solid #000;">${totalTickets} tickets &nbsp; ${irrFmt(totalTons)} tons</td>
     </tr>
     ${S()}
-    ${(()=>{const rl=reis.tickets+island.tickets+santos.tickets;const rt=reis.tons+island.tons+santos.tons;const rr=(reis.tipRevenue||0)+(reis.rolloffFees||0);return R('Rev / Load (Rolloff)',rl>0?irrFmtMoney(rr/rl):'--')+R('Tons / Load (Rolloff)',rl>0?irrFmt(rt/rl):'--');})()}
+    ${(()=>{
+      const reisRev=(reis.tipRevenue||0)+(reis.rolloffFees||0);
+      const islandRev=island.revenue||0;
+      const santosRev=santos.revenue||0;
+      const totalRollRev=reisRev+islandRev+santosRev;
+      const rl=reis.tickets+island.tickets+santos.tickets;
+      const rt=reis.tons+island.tons+santos.tons;
+      return H('Revenue by Company')+
+        R('Reis Rolloff',irrFmtMoney(reisRev))+
+        R('Island Rubbish',irrFmtMoney(islandRev))+
+        R('East End',irrFmtMoney(santosRev))+
+        R('Total Rolloff Revenue',irrFmtMoney(totalRollRev),true)+
+        S()+
+        R('Rev / Load',rl>0?irrFmtMoney(totalRollRev/rl):'--')+
+        R('Tons / Load',rl>0?irrFmt(rt/rl):'--');
+    })()}
     ${H('Vinagro Output (Outbound)')}
     ${R('Loads',vinagro.tickets)}
     ${R('Total Tons',irrFmt(vinagro.tons))}
@@ -2790,8 +2827,8 @@ async function irrSaveReport(data) {
     reis_deliveries: reis.deliveries||0, reis_empties: reis.empties||0, reis_double_drops: reis.doubleDrops||0,
     reis_tip_revenue: reis.tipRevenue||0, reis_svc_revenue: reis.rolloffFees||0,
     pile_tons: pile.tons, pile_tickets: pile.tickets,
-    island_tons: island.tons, island_tickets: island.tickets,
-    santos_tons: santos.tons, santos_tickets: santos.tickets,
+    island_tons: island.tons, island_tickets: island.tickets, island_revenue: island.revenue||0,
+    santos_tons: santos.tons, santos_tickets: santos.tickets, santos_revenue: santos.revenue||0,
     walkin_tons: walkin.tons, walkin_tickets: walkin.tickets,
     vinagro_tons: vinagro.tons, vinagro_loads: vinagro.tickets,
     total_inbound_tons: totalTons, total_inbound_tickets: totalTickets,
@@ -2861,7 +2898,21 @@ function irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025) {
       <div class="irr-section-hdr">Rolloff Metrics</div>
       <table class="irr-table">
         <tbody>
-          ${(()=>{const rl=reis.tickets+(island.tickets||0)+(santos.tickets||0);const rt=reis.tons+(island.tons||0)+(santos.tons||0);const rr=(reis.tipRevenue||0)+(reis.rolloffFees||0);return '<tr><td>Rev / Load</td><td style="text-align:right" colspan="2">'+(rl>0?irrFmtMoney(rr/rl):'--')+'</td></tr><tr><td>Tons / Load</td><td style="text-align:right" colspan="2">'+(rl>0?irrFmt(rt/rl):'--')+'</td></tr>';})()}
+          ${(()=>{
+            const reisRev=(reis.tipRevenue||0)+(reis.rolloffFees||0);
+            const islandRev=island.revenue||0;
+            const santosRev=santos.revenue||0;
+            const totalRollRev=reisRev+islandRev+santosRev;
+            const rl=reis.tickets+(island.tickets||0)+(santos.tickets||0);
+            const rt=reis.tons+(island.tons||0)+(santos.tons||0);
+            return '<tr><td style="padding:16px 0 4px;font-weight:bold;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);" colspan="3">Revenue by Company</td></tr>'+
+              '<tr><td>Reis Rolloff</td><td style="text-align:right" colspan="2">'+irrFmtMoney(reisRev)+'</td></tr>'+
+              '<tr><td>Island Rubbish</td><td style="text-align:right" colspan="2">'+irrFmtMoney(islandRev)+'</td></tr>'+
+              '<tr><td>East End</td><td style="text-align:right" colspan="2">'+irrFmtMoney(santosRev)+'</td></tr>'+
+              '<tr class="irr-total"><td>Total Rolloff Revenue</td><td style="text-align:right" colspan="2">'+irrFmtMoney(totalRollRev)+'</td></tr>'+
+              '<tr><td style="padding-top:12px">Rev / Load</td><td style="text-align:right;padding-top:12px" colspan="2">'+(rl>0?irrFmtMoney(totalRollRev/rl):'--')+'</td></tr>'+
+              '<tr><td>Tons / Load</td><td style="text-align:right" colspan="2">'+(rl>0?irrFmt(rt/rl):'--')+'</td></tr>';
+          })()}
         </tbody>
       </table>
       <div class="irr-section-hdr">Vinagro Output (Outbound)</div>
@@ -2997,7 +3048,7 @@ function irrRenderDashboard() {
   // Helper: all loads = reis + pile + island + east end
   function allLoads(d){return (d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);}
   function allTons(d){return (parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);}
-  function allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);}
+  function allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);}
 
   // KPIs
   let totalAllLoads=0, totalAllTons=0, totalAllRev=0, totalHours=0, hoursCount=0;
@@ -3226,7 +3277,7 @@ async function irrSaveHours() {
 
 function _allLoads(d){return (d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);}
 function _allTons(d){return (parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);}
-function _allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);}
+function _allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);}
 
 function irrGenerateReport() {
   const allLoads=_allLoads, allTons=_allTons, allRev=_allRev;
@@ -3532,8 +3583,8 @@ function irrParseBulk(rows) {
       reis_deliveries:b.reis.deliveries, reis_empties:b.reis.empties, reis_double_drops:b.reis.doubleDrops,
       reis_tip_revenue:b.reis.tipRev, reis_svc_revenue:b.reis.svcFees,
       pile_tons:b.pile.tons, pile_tickets:b.pile.tickets,
-      island_tons:b.island.tons, island_tickets:b.island.tickets,
-      santos_tons:b.santos.tons, santos_tickets:b.santos.tickets,
+      island_tons:b.island.tons, island_tickets:b.island.tickets, island_revenue:0,
+      santos_tons:b.santos.tons, santos_tickets:b.santos.tickets, santos_revenue:0,
       walkin_tons:b.walkin.tons, walkin_tickets:b.walkin.tickets,
       vinagro_tons:b.vinagro.tons, vinagro_loads:b.vinagro.tickets,
       total_inbound_tons:totalTons, total_inbound_tickets:totalTickets,
@@ -3556,6 +3607,15 @@ async function irrHandleBulk(file) {
       const rows = irrParseSpreadsheetML(e.target.result);
       status.textContent='Parsed '+rows.length+' rows, grouping by date...';
       const result = irrParseBulk(rows);
+
+      // Calculate Island/East End revenue from rates
+      const rates = await irrLoadRates();
+      const ir = rates.island, er = rates.eastend;
+      for (const d of result.days) {
+        if (ir) d.island_revenue = (ir.hook_fee*(d.island_tickets||0)) + ((ir.per_ton*(1+(ir.ton_markup||0)))*(parseFloat(d.island_tons)||0));
+        if (er) d.santos_revenue = (er.hook_fee*(d.santos_tickets||0)) + ((er.per_ton*(1+(er.ton_markup||0)))*(parseFloat(d.santos_tons)||0));
+      }
+
       status.textContent=result.ticketCount+' tickets across '+result.days.length+' days. Saving...';
 
       // Upsert in batches
@@ -3592,6 +3652,8 @@ async function irrHandleFile(file) {
       status.textContent='Parsing scale data...';
       const rows = irrParseSpreadsheetML(e.target.result);
       const data = irrParseReport(rows);
+      await irrLoadRates();
+      irrCalcRevenue(data.buckets);
       irrCurrentData = data;
       status.textContent='Parsed '+Object.keys(data.tickets).length+' tickets. Saving...';
 
@@ -3686,8 +3748,8 @@ async function irrViewHistorical(isoDate) {
   const buckets = {
     reis:{label:'Reis Rolloff',tons:parseFloat(data.reis_tons),tickets:data.reis_tickets,deliveries:data.reis_deliveries,empties:data.reis_empties,doubleDrops:data.reis_double_drops,tipRevenue:parseFloat(data.reis_tip_revenue)||0,rolloffFees:parseFloat(data.reis_svc_revenue)||0},
     pile:{label:'Pile Pickups (Reis)',tons:parseFloat(data.pile_tons),tickets:data.pile_tickets},
-    island:{label:'Island Rubbish',tons:parseFloat(data.island_tons),tickets:data.island_tickets},
-    santos:{label:'East End',tons:parseFloat(data.santos_tons),tickets:data.santos_tickets},
+    island:{label:'Island Rubbish',tons:parseFloat(data.island_tons),tickets:data.island_tickets,revenue:parseFloat(data.island_revenue)||0},
+    santos:{label:'East End',tons:parseFloat(data.santos_tons),tickets:data.santos_tickets,revenue:parseFloat(data.santos_revenue)||0},
     vinagro:{label:'VINAGRO Output',tons:parseFloat(data.vinagro_tons),tickets:data.vinagro_loads},
     walkin:{label:'Walk-In / Drive-Through',tons:parseFloat(data.walkin_tons),tickets:data.walkin_tickets},
   };
