@@ -3046,6 +3046,18 @@ async function irrLoadDashboard() {
   if(error){container.innerHTML='<div style="color:var(--err-text)">Error loading data</div>';return;}
   irrDashData = data||[];
 
+  // Ensure Island/East End revenue is calculated for all rows (covers pre-rate historical data)
+  const rates = await irrLoadRates();
+  const ir = rates?.island, er = rates?.eastend;
+  for(const d of irrDashData){
+    if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0){
+      d.island_revenue = (ir.hook_fee*(d.island_tickets||0)) + ((ir.per_ton*(1+(ir.ton_markup||0)))*(parseFloat(d.island_tons)||0));
+    }
+    if(er && !(parseFloat(d.santos_revenue)>0) && (d.santos_tickets||0)>0){
+      d.santos_revenue = (er.hook_fee*(d.santos_tickets||0)) + ((er.per_ton*(1+(er.ton_markup||0)))*(parseFloat(d.santos_tons)||0));
+    }
+  }
+
   irrRenderDashboard();
 }
 
@@ -3786,6 +3798,10 @@ async function irrViewHistorical(isoDate) {
     vinagro:{label:'VINAGRO Output',tons:parseFloat(data.vinagro_tons),tickets:data.vinagro_loads},
     walkin:{label:'Walk-In / Drive-Through',tons:parseFloat(data.walkin_tons),tickets:data.walkin_tickets},
   };
+
+  // Always recalculate Island/East End revenue from rates (covers historical data)
+  await irrLoadRates();
+  irrCalcRevenue(buckets);
 
   // Convert ISO date to M/D/YYYY for display
   const parts = isoDate.split('-');
