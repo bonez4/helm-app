@@ -2732,23 +2732,33 @@ function irrGenerateEmail(data, ytd) {
   const S=()=>`<tr><td colspan="2" style="padding:6px 0;"></td></tr>`;
 
   // Company detail block
-  function companyBlock(name, tickets, tons, rev) {
+  function companyBlock(name, tickets, tons, hookRev, tonRev) {
+    const total=hookRev+tonRev;
     return H(name)+
       R('Loads',tickets)+
-      R('Total Revenue',irrFmtMoney(rev))+
-      R('Revenue / Load',tickets>0?irrFmtMoney(rev/tickets):'--')+
+      R('Hook Fee Revenue',irrFmtMoney(hookRev))+
+      R('Tonnage Revenue',irrFmtMoney(tonRev))+
+      R('Total Revenue',irrFmtMoney(total),true)+
+      R('Revenue / Load',tickets>0?irrFmtMoney(total/tickets):'--')+
       R('Total Tons',irrFmt(tons))+
       R('Tons / Load',tickets>0?irrFmt(tons/tickets):'--');
   }
+
+  // Split Island/East End revenue into hook vs tonnage using rates
+  const ir=irrRates?.island, er=irrRates?.eastend;
+  const islandHook=(ir?ir.hook_fee:250)*island.tickets;
+  const islandTonRev=islandRev-islandHook;
+  const santosHook=(er?er.hook_fee:200)*santos.tickets;
+  const santosTonRev=santosRev-santosHook;
 
   const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:500px;line-height:1.6;">
   <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
   <p style="margin:0 0 16px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
   <table style="width:100%;border-collapse:collapse;">
-    ${companyBlock('Reis Rolloff', reis.tickets, reis.tons, reisRev)}
-    ${companyBlock('Island Rubbish', island.tickets, island.tons, islandRev)}
-    ${companyBlock('East End', santos.tickets, santos.tons, santosRev)}
-    ${companyBlock('All Rolloffs Combined', reis.tickets+island.tickets+santos.tickets, reis.tons+island.tons+santos.tons, reisRev+islandRev+santosRev)}
+    ${companyBlock('Reis Rolloff', reis.tickets, reis.tons, reis.rolloffFees||0, reis.tipRevenue||0)}
+    ${companyBlock('Island Rubbish', island.tickets, island.tons, islandHook, islandTonRev)}
+    ${companyBlock('East End', santos.tickets, santos.tons, santosHook, santosTonRev)}
+    ${companyBlock('All Rolloffs Combined', reis.tickets+island.tickets+santos.tickets, reis.tons+island.tons+santos.tons, (reis.rolloffFees||0)+islandHook+santosHook, (reis.tipRevenue||0)+islandTonRev+santosTonRev)}
     ${pile.tickets>0?(H('Pile Pickups (Reis)')+R('Loads / Tons',pile.tickets+' tickets &nbsp; '+irrFmt(pile.tons)+' tons')):''}
     ${H('Walk-In / Drive-Through')}
     ${R('Tickets',walkin.tickets)}
@@ -2862,16 +2872,26 @@ function irrRenderReportView(data, ytd) {
   const santosRev=santos.revenue||0;
   const email = irrGenerateEmail(data, ytd);
 
-  function companyCard(name, tickets, tons, rev) {
+  function companyCard(name, tickets, tons, hookRev, tonRev) {
+    const total=hookRev+tonRev;
     return `<div class="irr-section-hdr">${name}</div>
       <table class="irr-table"><tbody>
         <tr><td>Loads</td><td style="text-align:right" colspan="2">${tickets}</td></tr>
-        <tr><td>Total Revenue</td><td style="text-align:right" colspan="2">${irrFmtMoney(rev)}</td></tr>
-        <tr><td>Revenue / Load</td><td style="text-align:right" colspan="2">${tickets>0?irrFmtMoney(rev/tickets):'--'}</td></tr>
+        <tr><td>Hook Fee Revenue</td><td style="text-align:right" colspan="2">${irrFmtMoney(hookRev)}</td></tr>
+        <tr><td>Tonnage Revenue</td><td style="text-align:right" colspan="2">${irrFmtMoney(tonRev)}</td></tr>
+        <tr><td style="font-weight:700">Total Revenue</td><td style="text-align:right;font-weight:700" colspan="2">${irrFmtMoney(total)}</td></tr>
+        <tr><td>Revenue / Load</td><td style="text-align:right" colspan="2">${tickets>0?irrFmtMoney(total/tickets):'--'}</td></tr>
         <tr><td>Total Tons</td><td style="text-align:right" colspan="2">${irrFmt(tons)}</td></tr>
         <tr><td>Tons / Load</td><td style="text-align:right" colspan="2">${tickets>0?irrFmt(tons/tickets):'--'}</td></tr>
       </tbody></table>`;
   }
+
+  // Split Island/East End revenue into hook vs tonnage using rates
+  const ir=irrRates?.island, er=irrRates?.eastend;
+  const islandHook=(ir?ir.hook_fee:250)*island.tickets;
+  const islandTonRev=islandRev-islandHook;
+  const santosHook=(er?er.hook_fee:200)*santos.tickets;
+  const santosTonRev=santosRev-santosHook;
 
   return `
     <div class="irr-report">
@@ -2879,10 +2899,10 @@ function irrRenderReportView(data, ytd) {
         Daily Scale Report &mdash; <strong style="color:var(--teal)">${irrFmtDate(date)}</strong>
       </h3>
 
-      ${companyCard('Reis Rolloff', reis.tickets, reis.tons, reisRev)}
-      ${companyCard('Island Rubbish', island.tickets, island.tons, islandRev)}
-      ${companyCard('East End', santos.tickets, santos.tons, santosRev)}
-      ${companyCard('All Rolloffs Combined', reis.tickets+(island.tickets||0)+(santos.tickets||0), reis.tons+(island.tons||0)+(santos.tons||0), reisRev+islandRev+santosRev)}
+      ${companyCard('Reis Rolloff', reis.tickets, reis.tons, reis.rolloffFees||0, reis.tipRevenue||0)}
+      ${companyCard('Island Rubbish', island.tickets, island.tons, islandHook, islandTonRev)}
+      ${companyCard('East End', santos.tickets, santos.tons, santosHook, santosTonRev)}
+      ${companyCard('All Rolloffs Combined', reis.tickets+(island.tickets||0)+(santos.tickets||0), reis.tons+(island.tons||0)+(santos.tons||0), (reis.rolloffFees||0)+islandHook+santosHook, (reis.tipRevenue||0)+islandTonRev+santosTonRev)}
 
       ${pile.tickets>0?`<div class="irr-section-hdr">Pile Pickups (Reis)</div>
       <table class="irr-table"><tbody>
