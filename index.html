@@ -2720,8 +2720,7 @@ function irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025) {
       <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;border-top:2px solid #000;">${totalTickets} tickets &nbsp; ${irrFmt(totalTons)} tons</td>
     </tr>
     ${S()}
-    ${R('Rev / Load (Rolloff)',reis.tickets>0 ? irrFmtMoney((reis.tipRevenue+reis.rolloffFees)/reis.tickets) : '--')}
-    ${R('Tons / Load (Rolloff)',reis.tickets>0 ? irrFmt(reis.tons/reis.tickets) : '--')}
+    ${(()=>{const rl=reis.tickets+pile.tickets+island.tickets+santos.tickets;const rt=reis.tons+pile.tons+island.tons+santos.tons;const rr=(reis.tipRevenue||0)+(reis.rolloffFees||0);return R('Rev / Load',rl>0?irrFmtMoney(rr/rl):'--')+R('Tons / Load',rl>0?irrFmt(rt/rl):'--');})()}
     ${H('Vinagro Output (Outbound)')}
     ${R('Loads',vinagro.tickets)}
     ${R('Total Tons',irrFmt(vinagro.tons))}
@@ -2862,8 +2861,7 @@ function irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025) {
       <div class="irr-section-hdr">Rolloff Metrics</div>
       <table class="irr-table">
         <tbody>
-          <tr><td>Rev / Load</td><td style="text-align:right" colspan="2">${reis.tickets>0?irrFmtMoney(((reis.tipRevenue||0)+(reis.rolloffFees||0))/reis.tickets):'--'}</td></tr>
-          <tr><td>Tons / Load</td><td style="text-align:right" colspan="2">${reis.tickets>0?irrFmt(reis.tons/reis.tickets):'--'}</td></tr>
+          ${(()=>{const rl=reis.tickets+(pile.tickets||0)+(island.tickets||0)+(santos.tickets||0);const rt=reis.tons+(pile.tons||0)+(island.tons||0)+(santos.tons||0);const rr=(reis.tipRevenue||0)+(reis.rolloffFees||0);return '<tr><td>Rev / Load</td><td style="text-align:right" colspan="2">'+(rl>0?irrFmtMoney(rr/rl):'--')+'</td></tr><tr><td>Tons / Load</td><td style="text-align:right" colspan="2">'+(rl>0?irrFmt(rt/rl):'--')+'</td></tr>';})()}
         </tbody>
       </table>
       <div class="irr-section-hdr">Vinagro Output (Outbound)</div>
@@ -2996,17 +2994,22 @@ function irrRenderDashboard() {
     document.getElementById('irrCustomEnd')?.value);
   const filtered = irrDashData.filter(d=>d.report_date>=start && d.report_date<=end);
 
+  // Helper: all loads = reis + pile + island + east end
+  function allLoads(d){return (d.reis_tickets||0)+(d.pile_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);}
+  function allTons(d){return (parseFloat(d.reis_tons)||0)+(parseFloat(d.pile_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);}
+  function allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);}
+
   // KPIs
-  let totalReisTickets=0, totalReisTons=0, totalReisRev=0, totalHours=0, hoursCount=0;
+  let totalAllLoads=0, totalAllTons=0, totalAllRev=0, totalHours=0, hoursCount=0;
   for(const d of filtered){
-    totalReisTickets+=d.reis_tickets||0;
-    totalReisTons+=parseFloat(d.reis_tons)||0;
-    totalReisRev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+    totalAllLoads+=allLoads(d);
+    totalAllTons+=allTons(d);
+    totalAllRev+=allRev(d);
     if(d.driver_hours!=null){totalHours+=parseFloat(d.driver_hours)||0;hoursCount++;}
   }
-  const avgRevPerLoad = totalReisTickets>0?(totalReisRev/totalReisTickets):0;
-  const avgTonsPerLoad = totalReisTickets>0?(totalReisTons/totalReisTickets):0;
-  const avgHoursPerLoad = (totalReisTickets>0 && hoursCount>0)?(totalHours/totalReisTickets):0;
+  const avgRevPerLoad = totalAllLoads>0?(totalAllRev/totalAllLoads):0;
+  const avgTonsPerLoad = totalAllLoads>0?(totalAllTons/totalAllLoads):0;
+  const avgHoursPerLoad = (totalAllLoads>0 && hoursCount>0)?(totalHours/totalAllLoads):0;
 
   const rangeBtn=(id,label)=>`<button class="irr-range-btn ${irrDashRange===id?'active':''}" onclick="irrSetRange('${id}')">${label}</button>`;
 
@@ -3025,12 +3028,12 @@ function irrRenderDashboard() {
       <div class="irr-kpi">
         <div class="irr-kpi-label">Avg Rev / Load</div>
         <div class="irr-kpi-val">${avgRevPerLoad>0?'$'+avgRevPerLoad.toFixed(2):'--'}</div>
-        <div class="irr-kpi-sub">${filtered.length} days, ${totalReisTickets} loads</div>
+        <div class="irr-kpi-sub">${filtered.length} days, ${totalAllLoads} loads</div>
       </div>
       <div class="irr-kpi">
         <div class="irr-kpi-label">Avg Tons / Load</div>
         <div class="irr-kpi-val">${avgTonsPerLoad>0?avgTonsPerLoad.toFixed(2):'--'}</div>
-        <div class="irr-kpi-sub">${totalReisTons.toFixed(1)} total tons</div>
+        <div class="irr-kpi-sub">${totalAllTons.toFixed(1)} total tons</div>
       </div>
       <div class="irr-kpi">
         <div class="irr-kpi-label">Avg Hours / Load</div>
@@ -3039,8 +3042,8 @@ function irrRenderDashboard() {
       </div>
       <div class="irr-kpi">
         <div class="irr-kpi-label">Avg Loads / Day</div>
-        <div class="irr-kpi-val">${filtered.length>0?(totalReisTickets/filtered.length).toFixed(1):'--'}</div>
-        <div class="irr-kpi-sub">${totalReisTickets} loads over ${filtered.length} days</div>
+        <div class="irr-kpi-val">${filtered.length>0?(totalAllLoads/filtered.length).toFixed(1):'--'}</div>
+        <div class="irr-kpi-sub">${totalAllLoads} loads over ${filtered.length} days</div>
       </div>
     </div>
 
@@ -3094,8 +3097,8 @@ function irrDrawChart(filtered) {
     datasets.push({
       label:'Rev / Load ($)',
       data:filtered.map(d=>{
-        const t=d.reis_tickets||0;
-        return t>0?((parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0))/t:null;
+        const t=allLoads(d);
+        return t>0?allRev(d)/t:null;
       }),
       borderColor:IRR_COLORS.revPerLoad, backgroundColor:IRR_COLORS.revPerLoad+'20',
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y',
@@ -3105,8 +3108,8 @@ function irrDrawChart(filtered) {
     datasets.push({
       label:'Tons / Load',
       data:filtered.map(d=>{
-        const t=d.reis_tickets||0;
-        return t>0?parseFloat(d.reis_tons)/t:null;
+        const t=allLoads(d);
+        return t>0?allTons(d)/t:null;
       }),
       borderColor:IRR_COLORS.tonsPerLoad, backgroundColor:IRR_COLORS.tonsPerLoad+'20',
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y1',
@@ -3116,7 +3119,7 @@ function irrDrawChart(filtered) {
     datasets.push({
       label:'Hours / Load',
       data:filtered.map(d=>{
-        const t=d.reis_tickets||0;
+        const t=allLoads(d);
         const h=d.driver_hours!=null?parseFloat(d.driver_hours):null;
         return (t>0 && h!==null)?h/t:null;
       }),
@@ -3127,7 +3130,7 @@ function irrDrawChart(filtered) {
   if(irrToggles.loadsPerDay){
     datasets.push({
       label:'Loads / Day',
-      data:filtered.map(d=>d.reis_tickets||0),
+      data:filtered.map(d=>allLoads(d)),
       borderColor:IRR_COLORS.loadsPerDay, backgroundColor:IRR_COLORS.loadsPerDay+'20',
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
     });
@@ -3221,18 +3224,23 @@ async function irrSaveHours() {
 
 // ── Period Report Generator ───────────────────────────────────────────
 
+function _allLoads(d){return (d.reis_tickets||0)+(d.pile_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);}
+function _allTons(d){return (parseFloat(d.reis_tons)||0)+(parseFloat(d.pile_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);}
+function _allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);}
+
 function irrGenerateReport() {
+  const allLoads=_allLoads, allTons=_allTons, allRev=_allRev;
   const {start,end} = irrGetDateRange(irrDashRange,
     document.getElementById('irrCustomStart')?.value,
     document.getElementById('irrCustomEnd')?.value);
-  const filtered = irrDashData.filter(d=>d.report_date>=start && d.report_date<=end && (d.reis_tickets||0)>0);
+  const filtered = irrDashData.filter(d=>d.report_date>=start && d.report_date<=end && allLoads(d)>0);
   if(!filtered.length){toast('No data in selected range');return;}
 
   let totalLoads=0,totalTons=0,totalRev=0,totalHours=0,hoursCount=0;
   for(const d of filtered){
-    totalLoads+=d.reis_tickets||0;
-    totalTons+=parseFloat(d.reis_tons)||0;
-    totalRev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+    totalLoads+=allLoads(d);
+    totalTons+=allTons(d);
+    totalRev+=allRev(d);
     if(d.driver_hours!=null){totalHours+=parseFloat(d.driver_hours)||0;hoursCount++;}
   }
   const avgRev=totalLoads>0?(totalRev/totalLoads):0;
@@ -3246,9 +3254,9 @@ function irrGenerateReport() {
 
   let tableRows='';
   for(const d of filtered){
-    const loads=d.reis_tickets||0;
-    const tons=parseFloat(d.reis_tons)||0;
-    const rev=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+    const loads=allLoads(d);
+    const tons=allTons(d);
+    const rev=allRev(d);
     const rpl=loads>0?fM(rev/loads):'--';
     const tpl=loads>0?f2(tons/loads):'--';
     const hpl=(loads>0&&d.driver_hours!=null)?f2(parseFloat(d.driver_hours)/loads):'--';
@@ -3263,7 +3271,7 @@ function irrGenerateReport() {
   // Build week-over-week summary using ALL data for prior-week lookback
   const allByDate={};
   for(const d of irrDashData){
-    if((d.reis_tickets||0)>0) allByDate[d.report_date]=d;
+    if(allLoads(d)>0) allByDate[d.report_date]=d;
   }
 
   // Group filtered data into ISO weeks (Mon-Sun)
@@ -3279,20 +3287,20 @@ function irrGenerateReport() {
   for(const d of filtered){
     const ws=getWeekStart(d.report_date);
     if(!weekMap[ws]) weekMap[ws]={tons:0,rev:0,loads:0,days:0};
-    weekMap[ws].tons+=parseFloat(d.reis_tons)||0;
-    weekMap[ws].rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
-    weekMap[ws].loads+=d.reis_tickets||0;
+    weekMap[ws].tons+=allTons(d);
+    weekMap[ws].rev+=allRev(d);
+    weekMap[ws].loads+=allLoads(d);
     weekMap[ws].days++;
   }
   // Also compute prior weeks from all data for WoW calc
   const allWeekMap={};
   for(const d of irrDashData){
-    if((d.reis_tickets||0)<=0) continue;
+    if(allLoads(d)<=0) continue;
     const ws=getWeekStart(d.report_date);
     if(!allWeekMap[ws]) allWeekMap[ws]={tons:0,rev:0,loads:0,days:0};
-    allWeekMap[ws].tons+=parseFloat(d.reis_tons)||0;
-    allWeekMap[ws].rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
-    allWeekMap[ws].loads+=d.reis_tickets||0;
+    allWeekMap[ws].tons+=allTons(d);
+    allWeekMap[ws].rev+=allRev(d);
+    allWeekMap[ws].loads+=allLoads(d);
     allWeekMap[ws].days++;
   }
 
