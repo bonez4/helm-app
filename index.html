@@ -2710,13 +2710,17 @@ function irrFmtDate(dateStr) {
 function irrFmt(n,dec=2){return n.toFixed(dec);}
 function irrFmtMoney(n){return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
-function irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025) {
+function irrGenerateEmail(data, ytd) {
   const {date, buckets} = data;
   const {reis,pile,island,santos,vinagro,walkin} = buckets;
   const totalTons = reis.tons+pile.tons+island.tons+santos.tons+walkin.tons;
   const totalTickets = reis.tickets+pile.tickets+island.tickets+santos.tickets+walkin.tickets;
   const displayDate = irrFmtDate(date);
   const subject = 'IRR Scale Report \u2014 '+(date||'Today');
+
+  const reisRev=(reis.tipRevenue||0)+(reis.rolloffFees||0);
+  const islandRev=island.revenue||0;
+  const santosRev=santos.revenue||0;
 
   const R=(label,val,bold=false)=>`<tr>
     <td style="padding:3px 0;color:#222;font-size:14px;${bold?'font-weight:bold;':''}">${label}</td>
@@ -2725,62 +2729,55 @@ function irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025) {
     <span style="font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;color:#000;">${text}</span></td></tr>`;
   const S=()=>`<tr><td colspan="2" style="padding:6px 0;"></td></tr>`;
 
+  // Company detail block
+  function companyBlock(name, tickets, tons, rev) {
+    return H(name)+
+      R('Loads',tickets)+
+      R('Total Revenue',irrFmtMoney(rev))+
+      R('Revenue / Load',tickets>0?irrFmtMoney(rev/tickets):'--')+
+      R('Total Tons',irrFmt(tons))+
+      R('Tons / Load',tickets>0?irrFmt(tons/tickets):'--');
+  }
+
   const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:500px;line-height:1.6;">
   <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
   <p style="margin:0 0 16px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
   <table style="width:100%;border-collapse:collapse;">
-    ${H('IRR Companies')}
-    ${R('Reis Rolloff',reis.tickets+' tickets &nbsp; '+irrFmt(reis.tons)+' tons')}
-    ${R('Pile Pickups (Reis)',pile.tickets+' tickets &nbsp; '+irrFmt(pile.tons)+' tons')}
-    ${R('Island Rubbish',island.tickets+' tickets &nbsp; '+irrFmt(island.tons)+' tons')}
-    ${R('East End',santos.tickets+' tickets &nbsp; '+irrFmt(santos.tons)+' tons')}
-    ${H('External')}
-    ${R('Walk-In / Drive-Through',walkin.tickets+' tickets &nbsp; '+irrFmt(walkin.tons)+' tons')}
+    ${companyBlock('Reis Rolloff', reis.tickets, reis.tons, reisRev)}
+    ${companyBlock('Island Rubbish', island.tickets, island.tons, islandRev)}
+    ${companyBlock('East End', santos.tickets, santos.tons, santosRev)}
+    ${pile.tickets>0?(H('Pile Pickups (Reis)')+R('Loads / Tons',pile.tickets+' tickets &nbsp; '+irrFmt(pile.tons)+' tons')):''}
+    ${H('Walk-In / Drive-Through')}
+    ${R('Tickets / Tons',walkin.tickets+' tickets &nbsp; '+irrFmt(walkin.tons)+' tons')}
     ${S()}
     <tr>
-      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;border-top:2px solid #000;">Total</td>
+      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;border-top:2px solid #000;">Total Inbound</td>
       <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;border-top:2px solid #000;">${totalTickets} tickets &nbsp; ${irrFmt(totalTons)} tons</td>
     </tr>
-    ${S()}
-    ${(()=>{
-      const reisRev=(reis.tipRevenue||0)+(reis.rolloffFees||0);
-      const islandRev=island.revenue||0;
-      const santosRev=santos.revenue||0;
-      const totalRollRev=reisRev+islandRev+santosRev;
-      const rl=reis.tickets+island.tickets+santos.tickets;
-      const rt=reis.tons+island.tons+santos.tons;
-      return H('Revenue by Company')+
-        R('Reis Rolloff',irrFmtMoney(reisRev))+
-        R('Island Rubbish',irrFmtMoney(islandRev))+
-        R('East End',irrFmtMoney(santosRev))+
-        R('Total Rolloff Revenue',irrFmtMoney(totalRollRev),true)+
-        S()+
-        R('Rev / Load',rl>0?irrFmtMoney(totalRollRev/rl):'--')+
-        R('Tons / Load',rl>0?irrFmt(rt/rl):'--')+
-        S()+
-        H('Loads by Company')+
-        R('Reis Rolloff',reis.tickets+' loads')+
-        R('Island Rubbish',island.tickets+' loads')+
-        R('East End',santos.tickets+' loads')+
-        R('Pile Pickups',pile.tickets+' loads');
-    })()}
     ${H('Vinagro Output (Outbound)')}
     ${R('Loads',vinagro.tickets)}
     ${R('Total Tons',irrFmt(vinagro.tons))}
     ${H('Year-to-Date Comparison')}
-    ${R('2026 Inbound YTD',irrFmt(ytd2026)+' tons',true)}
-    ${R('2025 Inbound YTD (same period)',irrFmt(ytd2025)+' tons')}
+    ${R('Reis YTD',irrFmt(ytd.reisYtdCur)+' tons',true)}
+    ${R('Reis Prior Year',irrFmt(ytd.reisYtdPrev)+' tons')}
     ${S()}
-    ${R('2026 Vinagro YTD',irrFmt(vin2026)+' tons',true)}
-    ${R('2025 Vinagro YTD (same period)',irrFmt(vin2025)+' tons')}
+    ${R('Island Rubbish YTD',irrFmt(ytd.islandYtdCur)+' tons',true)}
+    ${R('Island Prior Year',irrFmt(ytd.islandYtdPrev)+' tons')}
+    ${S()}
+    ${R('East End YTD',irrFmt(ytd.santosYtdCur)+' tons',true)}
+    ${R('East End Prior Year',irrFmt(ytd.santosYtdPrev)+' tons')}
+    ${S()}
+    ${R('Total Inbound YTD',irrFmt(ytd.ytd2026)+' tons',true)}
+    ${R('Total Inbound Prior Year',irrFmt(ytd.ytd2025)+' tons')}
+    ${S()}
+    ${R('Vinagro YTD',irrFmt(ytd.vin2026)+' tons',true)}
+    ${R('Vinagro Prior Year',irrFmt(ytd.vin2025)+' tons')}
   </table></div>`;
 
   return {subject, body};
 }
 
 async function irrLoadYTD(asOfDate) {
-  // asOfDate is a M/D/YYYY string (the report being viewed/generated)
-  // If not provided, use today.
   let asOf;
   if(asOfDate){
     const p=asOfDate.split('/');
@@ -2790,32 +2787,34 @@ async function irrLoadYTD(asOfDate) {
     asOf={year:d.getFullYear(),month:d.getMonth()+1,day:d.getDate()};
   }
   const pad=n=>String(n).padStart(2,'0');
-  const curYearEnd = asOf.year+'-'+pad(asOf.month)+'-'+pad(asOf.day);
-  const curYearStart = asOf.year+'-01-01';
-  const prevYearEnd = (asOf.year-1)+'-'+pad(asOf.month)+'-'+pad(asOf.day);
-  const prevYearStart = (asOf.year-1)+'-01-01';
+  const curEnd=asOf.year+'-'+pad(asOf.month)+'-'+pad(asOf.day);
+  const curStart=asOf.year+'-01-01';
+  const prevEnd=(asOf.year-1)+'-'+pad(asOf.month)+'-'+pad(asOf.day);
+  const prevStart=(asOf.year-1)+'-01-01';
+  const fields='total_inbound_tons,vinagro_tons,reis_tons,island_tons,santos_tons';
 
-  // Current year YTD (e.g. 2026-01-01 through asOf)
-  const {data:curData} = await db.from('irr_reports')
-    .select('total_inbound_tons,vinagro_tons')
-    .gte('report_date',curYearStart).lte('report_date',curYearEnd);
-  let ytd2026=0, vin2026=0;
-  if(curData) for(const d of curData){
-    ytd2026+=parseFloat(d.total_inbound_tons)||0;
-    vin2026+=parseFloat(d.vinagro_tons)||0;
+  const {data:curData}=await db.from('irr_reports').select(fields).gte('report_date',curStart).lte('report_date',curEnd);
+  const {data:prevData}=await db.from('irr_reports').select(fields).gte('report_date',prevStart).lte('report_date',prevEnd);
+
+  function sum(rows){
+    const r={total:0,vin:0,reis:0,island:0,santos:0};
+    if(rows) for(const d of rows){
+      r.total+=parseFloat(d.total_inbound_tons)||0;
+      r.vin+=parseFloat(d.vinagro_tons)||0;
+      r.reis+=parseFloat(d.reis_tons)||0;
+      r.island+=parseFloat(d.island_tons)||0;
+      r.santos+=parseFloat(d.santos_tons)||0;
+    }
+    return r;
   }
-
-  // Prior year same period (e.g. 2025-01-01 through same MM-DD)
-  const {data:prevData} = await db.from('irr_reports')
-    .select('total_inbound_tons,vinagro_tons')
-    .gte('report_date',prevYearStart).lte('report_date',prevYearEnd);
-  let ytd2025=0, vin2025=0;
-  if(prevData) for(const d of prevData){
-    ytd2025+=parseFloat(d.total_inbound_tons)||0;
-    vin2025+=parseFloat(d.vinagro_tons)||0;
-  }
-
-  return {ytd2026, ytd2025, vin2026, vin2025};
+  const cur=sum(curData), prev=sum(prevData);
+  return {
+    ytd2026:cur.total, ytd2025:prev.total,
+    vin2026:cur.vin, vin2025:prev.vin,
+    reisYtdCur:cur.reis, reisYtdPrev:prev.reis,
+    islandYtdCur:cur.island, islandYtdPrev:prev.island,
+    santosYtdCur:cur.santos, santosYtdPrev:prev.santos,
+  };
 }
 
 async function irrSaveReport(data) {
@@ -2848,12 +2847,26 @@ async function irrLoadHistory() {
   return data||[];
 }
 
-function irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025) {
+function irrRenderReportView(data, ytd) {
   const {date, buckets} = data;
   const {reis,pile,island,santos,vinagro,walkin} = buckets;
   const totalTons = reis.tons+pile.tons+island.tons+santos.tons+walkin.tons;
   const totalTickets = reis.tickets+pile.tickets+island.tickets+santos.tickets+walkin.tickets;
-  const email = irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025);
+  const reisRev=(reis.tipRevenue||0)+(reis.rolloffFees||0);
+  const islandRev=island.revenue||0;
+  const santosRev=santos.revenue||0;
+  const email = irrGenerateEmail(data, ytd);
+
+  function companyCard(name, tickets, tons, rev) {
+    return `<div class="irr-section-hdr">${name}</div>
+      <table class="irr-table"><tbody>
+        <tr><td>Loads</td><td style="text-align:right" colspan="2">${tickets}</td></tr>
+        <tr><td>Total Revenue</td><td style="text-align:right" colspan="2">${irrFmtMoney(rev)}</td></tr>
+        <tr><td>Revenue / Load</td><td style="text-align:right" colspan="2">${tickets>0?irrFmtMoney(rev/tickets):'--'}</td></tr>
+        <tr><td>Total Tons</td><td style="text-align:right" colspan="2">${irrFmt(tons)}</td></tr>
+        <tr><td>Tons / Load</td><td style="text-align:right" colspan="2">${tickets>0?irrFmt(tons/tickets):'--'}</td></tr>
+      </tbody></table>`;
+  }
 
   return `
     <div class="irr-report">
@@ -2861,77 +2874,28 @@ function irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025) {
         Daily Scale Report &mdash; <strong style="color:var(--teal)">${irrFmtDate(date)}</strong>
       </h3>
 
-      <div class="irr-ytd-grid">
-        <div class="irr-ytd-card">
-          <div class="ytd-label">2026 Inbound YTD</div>
-          <div class="ytd-val">${irrFmt(ytd2026)}</div>
-          <div class="ytd-sub">tons</div>
-        </div>
-        <div class="irr-ytd-card">
-          <div class="ytd-label">2025 Inbound YTD</div>
-          <div class="ytd-val">${irrFmt(ytd2025)}</div>
-          <div class="ytd-sub">tons</div>
-        </div>
-        <div class="irr-ytd-card">
-          <div class="ytd-label">2026 Vinagro YTD</div>
-          <div class="ytd-val">${irrFmt(vin2026)}</div>
-          <div class="ytd-sub">tons outbound</div>
-        </div>
-        <div class="irr-ytd-card">
-          <div class="ytd-label">2025 Vinagro YTD</div>
-          <div class="ytd-val">${irrFmt(vin2025)}</div>
-          <div class="ytd-sub">tons outbound</div>
-        </div>
-      </div>
+      ${companyCard('Reis Rolloff', reis.tickets, reis.tons, reisRev)}
+      ${companyCard('Island Rubbish', island.tickets, island.tons, islandRev)}
+      ${companyCard('East End', santos.tickets, santos.tons, santosRev)}
 
-      <div class="irr-section-hdr">IRR Companies</div>
-      <table class="irr-table">
-        <thead><tr><th>Source</th><th>Tickets</th><th>Tons</th></tr></thead>
-        <tbody>
-          <tr><td>Reis Rolloff</td><td>${reis.tickets}</td><td>${irrFmt(reis.tons)}</td></tr>
-          <tr><td>Pile Pickups (Reis)</td><td>${pile.tickets}</td><td>${irrFmt(pile.tons)}</td></tr>
-          <tr><td>Island Rubbish</td><td>${island.tickets}</td><td>${irrFmt(island.tons)}</td></tr>
-          <tr><td>East End</td><td>${santos.tickets}</td><td>${irrFmt(santos.tons)}</td></tr>
-        </tbody>
-      </table>
-      <div class="irr-section-hdr">External</div>
-      <table class="irr-table">
-        <tbody>
-          <tr><td>Walk-In / Drive-Through</td><td style="text-align:right">${walkin.tickets}</td><td style="text-align:right">${irrFmt(walkin.tons)}</td></tr>
-          <tr class="irr-total"><td>Total</td><td style="text-align:right">${totalTickets}</td><td style="text-align:right">${irrFmt(totalTons)}</td></tr>
-        </tbody>
-      </table>
-      <div class="irr-section-hdr">Rolloff Metrics</div>
-      <table class="irr-table">
-        <tbody>
-          ${(()=>{
-            const reisRev=(reis.tipRevenue||0)+(reis.rolloffFees||0);
-            const islandRev=island.revenue||0;
-            const santosRev=santos.revenue||0;
-            const totalRollRev=reisRev+islandRev+santosRev;
-            const rl=reis.tickets+(island.tickets||0)+(santos.tickets||0);
-            const rt=reis.tons+(island.tons||0)+(santos.tons||0);
-            return '<tr><td style="padding:16px 0 4px;font-weight:bold;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);" colspan="3">Revenue by Company</td></tr>'+
-              '<tr><td>Reis Rolloff</td><td style="text-align:right" colspan="2">'+irrFmtMoney(reisRev)+'</td></tr>'+
-              '<tr><td>Island Rubbish</td><td style="text-align:right" colspan="2">'+irrFmtMoney(islandRev)+'</td></tr>'+
-              '<tr><td>East End</td><td style="text-align:right" colspan="2">'+irrFmtMoney(santosRev)+'</td></tr>'+
-              '<tr class="irr-total"><td>Total Rolloff Revenue</td><td style="text-align:right" colspan="2">'+irrFmtMoney(totalRollRev)+'</td></tr>'+
-              '<tr><td style="padding-top:12px">Rev / Load</td><td style="text-align:right;padding-top:12px" colspan="2">'+(rl>0?irrFmtMoney(totalRollRev/rl):'--')+'</td></tr>'+
-              '<tr><td>Tons / Load</td><td style="text-align:right" colspan="2">'+(rl>0?irrFmt(rt/rl):'--')+'</td></tr>'+
-              '<tr><td style="padding:16px 0 4px;font-weight:bold;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);" colspan="3">Loads by Company</td></tr>'+
-              '<tr><td>Reis Rolloff</td><td style="text-align:right" colspan="2">'+reis.tickets+' loads</td></tr>'+
-              '<tr><td>Island Rubbish</td><td style="text-align:right" colspan="2">'+(island.tickets||0)+' loads</td></tr>'+
-              '<tr><td>East End</td><td style="text-align:right" colspan="2">'+(santos.tickets||0)+' loads</td></tr>'+
-              '<tr><td>Pile Pickups</td><td style="text-align:right" colspan="2">'+(pile.tickets||0)+' loads</td></tr>';
-          })()}
-        </tbody>
-      </table>
+      ${pile.tickets>0?`<div class="irr-section-hdr">Pile Pickups (Reis)</div>
+      <table class="irr-table"><tbody>
+        <tr><td>Loads</td><td style="text-align:right">${pile.tickets}</td><td style="text-align:right">${irrFmt(pile.tons)} tons</td></tr>
+      </tbody></table>`:''}
+
+      <div class="irr-section-hdr">Walk-In / Drive-Through</div>
+      <table class="irr-table"><tbody>
+        <tr><td>Tickets / Tons</td><td style="text-align:right">${walkin.tickets}</td><td style="text-align:right">${irrFmt(walkin.tons)} tons</td></tr>
+      </tbody></table>
+
+      <table class="irr-table"><tbody>
+        <tr class="irr-total"><td>Total Inbound</td><td style="text-align:right">${totalTickets} tickets</td><td style="text-align:right">${irrFmt(totalTons)} tons</td></tr>
+      </tbody></table>
+
       <div class="irr-section-hdr">Vinagro Output (Outbound)</div>
-      <table class="irr-table">
-        <tbody>
-          <tr><td>Loads</td><td style="text-align:right" colspan="1">${vinagro.tickets}</td><td style="text-align:right">${irrFmt(vinagro.tons)} tons</td></tr>
-        </tbody>
-      </table>
+      <table class="irr-table"><tbody>
+        <tr><td>Loads</td><td style="text-align:right">${vinagro.tickets}</td><td style="text-align:right">${irrFmt(vinagro.tons)} tons</td></tr>
+      </tbody></table>
 
       <hr style="border:none;border-top:1px solid var(--gray-200);margin:24px 0 16px;">
       <div class="irr-section-hdr">Email Draft</div>
@@ -3703,13 +3667,13 @@ async function irrHandleFile(file) {
       status.textContent='Parsed '+Object.keys(data.tickets).length+' tickets. Saving...';
 
       await irrSaveReport(data);
-      const {ytd2026, ytd2025, vin2026, vin2025} = await irrLoadYTD(data.date);
+      const ytd = await irrLoadYTD(data.date);
 
       document.getElementById('irrUploadSection').style.display='none';
-      document.getElementById('irrReportView').innerHTML = irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025);
+      document.getElementById('irrReportView').innerHTML = irrRenderReportView(data, ytd);
 
       // Store for email generation
-      window._irrEmail = irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025);
+      window._irrEmail = irrGenerateEmail(data, ytd);
 
       irrLoadHistoryView();
       toast('Scale report processed',true);
@@ -3809,11 +3773,11 @@ async function irrViewHistorical(isoDate) {
   const reportData = {date: displayDate, buckets, tickets:{}};
   irrCurrentData = reportData;
 
-  const {ytd2026, ytd2025, vin2026, vin2025} = await irrLoadYTD(displayDate);
+  const ytd = await irrLoadYTD(displayDate);
 
   document.getElementById('irrUploadSection').style.display='none';
-  document.getElementById('irrReportView').innerHTML = irrRenderReportView(reportData, ytd2026, ytd2025, vin2026, vin2025);
-  window._irrEmail = irrGenerateEmail(reportData, ytd2026, ytd2025, vin2026, vin2025);
+  document.getElementById('irrReportView').innerHTML = irrRenderReportView(reportData, ytd);
+  window._irrEmail = irrGenerateEmail(reportData, ytd);
 
   // Scroll to top of report
   document.getElementById('tab-irr').scrollIntoView({behavior:'smooth'});
