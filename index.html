@@ -2635,7 +2635,7 @@ function irrParseReport(rows) {
     island:{label:'Island Rubbish',tons:0,tickets:0},
     santos:{label:'East End',tons:0,tickets:0},
     vinagro:{label:'VINAGRO Output',tons:0,tickets:0},
-    walkin:{label:'Walk-In / Drive-Through',tons:0,tickets:0},
+    walkin:{label:'Walk-In / Drive-Through',tons:0,tickets:0,tipRevenue:0},
   };
 
   for (const [tn,t] of Object.entries(tickets)) {
@@ -2684,6 +2684,8 @@ function irrParseReport(rows) {
           const rev=net*parseFloat(rateMatch[1]);
           const tc=tickets[ticket].code, svc=tickets[ticket].service;
           if (!tc.startsWith('ZZ') && svc!==null) buckets.reis.tipRevenue+=rev;
+          else if (!tc.startsWith('ZZ') && svc===null) buckets.walkin.tipRevenue+=rev;
+          else if (tc.startsWith('ZZ') && tc!=='ZZISLAND' && tc!=='ZZEASTEND' && tc!=='ZZDELTA' && tc!=='ZZREIS') buckets.walkin.tipRevenue+=rev;
         }
       }
     }
@@ -2749,7 +2751,9 @@ function irrGenerateEmail(data, ytd) {
     ${companyBlock('All Rolloffs Combined', reis.tickets+island.tickets+santos.tickets, reis.tons+island.tons+santos.tons, reisRev+islandRev+santosRev)}
     ${pile.tickets>0?(H('Pile Pickups (Reis)')+R('Loads / Tons',pile.tickets+' tickets &nbsp; '+irrFmt(pile.tons)+' tons')):''}
     ${H('Walk-In / Drive-Through')}
-    ${R('Tickets / Tons',walkin.tickets+' tickets &nbsp; '+irrFmt(walkin.tons)+' tons')}
+    ${R('Tickets',walkin.tickets)}
+    ${R('Total Tons',irrFmt(walkin.tons))}
+    ${R('Total Revenue',irrFmtMoney(walkin.tipRevenue||0))}
     ${S()}
     <tr>
       <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;border-top:2px solid #000;">Total Inbound</td>
@@ -2887,7 +2891,9 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Walk-In / Drive-Through</div>
       <table class="irr-table"><tbody>
-        <tr><td>Tickets / Tons</td><td style="text-align:right">${walkin.tickets}</td><td style="text-align:right">${irrFmt(walkin.tons)} tons</td></tr>
+        <tr><td>Tickets</td><td style="text-align:right" colspan="2">${walkin.tickets}</td></tr>
+        <tr><td>Total Tons</td><td style="text-align:right" colspan="2">${irrFmt(walkin.tons)}</td></tr>
+        <tr><td>Total Revenue</td><td style="text-align:right" colspan="2">${irrFmtMoney(walkin.tipRevenue||0)}</td></tr>
       </tbody></table>
 
       <table class="irr-table"><tbody>
