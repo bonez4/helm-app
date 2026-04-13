@@ -4423,7 +4423,8 @@ function icrRenderReport(allData, container) {
       <button class="icr-nav-btn" onclick="icrNextWeek()">&rarr;</button>
       <input type="date" value="${icrWeekStart}" onchange="icrJumpToWeek(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
       <div style="margin-left:auto;display:flex;gap:4px;">${yearBtn(2025)}${yearBtn(2026)}</div>
-      <button class="icr-nav-btn" style="margin-left:8px;background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
+      <button class="icr-nav-btn" style="margin-left:8px;background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
+      <button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
     </div>
     <table class="icr-table">
       <thead><tr>
@@ -4452,6 +4453,151 @@ function icrJumpToWeek(dateStr){
 }
 
 // ── PROJECTIONS ──────────────────────────────────────────────────────
+
+// ── QUARTERLY REPORT ─────────────────────────────────────────────────
+
+let icrQuarter = Math.ceil((new Date().getMonth()+1)/3); // current quarter
+
+async function icrShowQuarterly() {
+  const {data:d26}=await db.from('irr_reports').select('*').gte('report_date','2026-01-01').lte('report_date','2026-12-31').order('report_date');
+  const {data:d25}=await db.from('irr_reports').select('*').gte('report_date','2025-01-01').lte('report_date','2025-12-31').order('report_date');
+
+  await irrLoadRates();
+  const ir=irrRates?.island, er=irrRates?.eastend;
+  for(const arr of [d25||[],d26||[]]){
+    for(const d of arr){
+      if(ir&&!(parseFloat(d.island_revenue)>0)&&(d.island_tickets||0)>0)
+        d.island_revenue=(ir.hook_fee*d.island_tickets)+((ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0));
+      if(er&&!(parseFloat(d.santos_revenue)>0)&&(d.santos_tickets||0)>0)
+        d.santos_revenue=(er.hook_fee*d.santos_tickets)+((er.per_ton*(1+(er.ton_markup||0)))*parseFloat(d.santos_tons||0));
+    }
+  }
+
+  icrRenderQuarterly(d25||[], d26||[]);
+}
+
+function icrRenderQuarterly(d25, d26) {
+  const q = icrQuarter;
+  const qMonths = [(q-1)*3+1, (q-1)*3+2, (q-1)*3+3];
+  const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const qLabel = 'Q'+q;
+
+  function monthlyByCompany(data, months) {
+    const result = {};
+    for(const m of months) result[m] = {reis:{loads:0,tons:0,rev:0},island:{loads:0,tons:0,rev:0},santos:{loads:0,tons:0,rev:0},total:{loads:0,tons:0,rev:0}};
+    for(const d of data) {
+      const m = parseInt(d.report_date.substring(5,7));
+      if(!months.includes(m)) continue;
+      const r=result[m];
+      r.reis.loads+=d.reis_tickets||0; r.reis.tons+=parseFloat(d.reis_tons)||0; r.reis.rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+      r.island.loads+=d.island_tickets||0; r.island.tons+=parseFloat(d.island_tons)||0; r.island.rev+=parseFloat(d.island_revenue)||0;
+      r.santos.loads+=d.santos_tickets||0; r.santos.tons+=parseFloat(d.santos_tons)||0; r.santos.rev+=parseFloat(d.santos_revenue)||0;
+      r.total.loads+=allLoads(d); r.total.tons+=allTons(d); r.total.rev+=allRev(d);
+    }
+    return result;
+  }
+
+  const cur = monthlyByCompany(d26, qMonths);
+  const prev = monthlyByCompany(d25, qMonths);
+
+  function qTotal(data, months, company) {
+    const r={loads:0,tons:0,rev:0};
+    for(const m of months){const c=data[m]?.[company]; if(c){r.loads+=c.loads;r.tons+=c.tons;r.rev+=c.rev;}}
+    return r;
+  }
+
+  const f2=n=>n.toFixed(2);
+  const fM=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const fPct=(a,b)=>b>0?((a-b)/b*100).toFixed(1)+'%':'--';
+
+  function companySection(label, company, isTotal) {
+    const curQ=qTotal(cur,qMonths,company), prevQ=qTotal(prev,qMonths,company);
+
+    function row(lbl, valFn) {
+      let cells='';
+      for(const m of qMonths) cells+=`<td>${valFn(cur[m]?.[company])}</td>`;
+      cells+=`<td style="font-weight:700">${valFn(curQ)}</td><td class="icr-spacer"></td>`;
+      for(const m of qMonths) cells+=`<td>${valFn(prev[m]?.[company])}</td>`;
+      cells+=`<td style="font-weight:700">${valFn(prevQ)}</td><td class="icr-spacer"></td>`;
+      // YoY on Q total
+      return `<tr><td>${lbl}</td>${cells}</tr>`;
+    }
+    function yoyRow(lbl, curV, prevV, fmt) {
+      return `<td style="color:${curV>=prevV?'#2e7d32':'#c62828'};font-weight:600">${fPct(curV,prevV)}</td>`;
+    }
+    function fullRow(lbl, valFn, numFn) {
+      let cells='';
+      for(const m of qMonths) cells+=`<td>${valFn(cur[m]?.[company])}</td>`;
+      cells+=`<td style="font-weight:700">${valFn(curQ)}</td><td class="icr-spacer"></td>`;
+      for(const m of qMonths) cells+=`<td>${valFn(prev[m]?.[company])}</td>`;
+      cells+=`<td style="font-weight:700">${valFn(prevQ)}</td><td class="icr-spacer"></td>`;
+      cells+=yoyRow(lbl, numFn(curQ), numFn(prevQ));
+      return `<tr><td>${lbl}</td>${cells}</tr>`;
+    }
+
+    const hdrCls = isTotal ? 'icr-total-hdr' : 'icr-company-hdr';
+    let html = `<tr class="${hdrCls}"><td>${label}</td>${'<td></td>'.repeat(10)}</tr>`;
+    html+=fullRow('Rev/Load', c=>c&&c.loads>0?fM(c.rev/c.loads):'--', c=>c.loads>0?c.rev/c.loads:0);
+    html+=fullRow('Total Revenue', c=>c?fM(c.rev):'--', c=>c.rev);
+    html+=fullRow('Loads', c=>c?c.loads||'--':'--', c=>c.loads);
+    html+='<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(10)+'</tr>';
+    html+=fullRow('Tons/Load', c=>c&&c.loads>0?f2(c.tons/c.loads):'--', c=>c.loads>0?c.tons/c.loads:0);
+    html+=fullRow('Total Tons', c=>c?f2(c.tons):'--', c=>c.tons);
+    html+='<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(10)+'</tr>';
+    return html;
+  }
+
+  const qBtn=(n)=>`<button class="icr-year-btn ${icrQuarter===n?'active':''}" onclick="icrQuarter=${n};icrRenderQuarterly(window._icrQD25,window._icrQD26)">Q${n}</button>`;
+
+  // Store data for re-render on quarter change
+  window._icrQD25=d25;window._icrQD26=d26;
+
+  const existingOverlay=document.getElementById('icrQuarterOverlay');
+  if(existingOverlay) existingOverlay.remove();
+
+  const overlay=document.createElement('div');
+  overlay.className='irr-report-overlay';
+  overlay.id='icrQuarterOverlay';
+  overlay.innerHTML=`<div class="irr-report-modal" style="max-width:1100px;">
+    <div class="irr-report-toolbar">
+      <button class="rpt-print" onclick="window.print()">Print</button>
+      <button class="rpt-print" onclick="irrDownloadPDF()">Download PDF</button>
+      <span style="display:flex;gap:4px;margin:0 12px;">${qBtn(1)}${qBtn(2)}${qBtn(3)}${qBtn(4)}</span>
+      <button class="rpt-close" onclick="document.getElementById('icrQuarterOverlay').remove()">Close</button>
+    </div>
+    <div class="irr-report-body" style="overflow-x:auto;">
+      <h1>Intercompany Rolloff Report — ${qLabel} ${icrYear}</h1>
+      <div class="rpt-period" style="margin-bottom:20px;">${monthNames[qMonths[0]]} - ${monthNames[qMonths[2]]} ${icrYear} vs ${icrYear-1}</div>
+      <table class="icr-proj-table" style="font-size:11px;">
+        <thead><tr>
+          <th style="width:110px"></th>
+          <th colspan="3" style="text-align:center;border-bottom:2px solid var(--teal);">${icrYear}</th>
+          <th style="text-align:center;font-weight:700">${qLabel}</th>
+          <th class="icr-spacer" style="border-bottom:none"></th>
+          <th colspan="3" style="text-align:center;border-bottom:2px solid var(--gray-300);">${icrYear-1}</th>
+          <th style="text-align:center;font-weight:700">${qLabel}</th>
+          <th class="icr-spacer" style="border-bottom:none"></th>
+          <th style="text-align:center;">YoY</th>
+        </tr>
+        <tr>
+          <th></th>
+          ${qMonths.map(m=>'<th>'+monthNames[m]+'</th>').join('')}<th>Total</th>
+          <th class="icr-spacer" style="border-bottom:none"></th>
+          ${qMonths.map(m=>'<th>'+monthNames[m]+'</th>').join('')}<th>Total</th>
+          <th class="icr-spacer" style="border-bottom:none"></th>
+          <th>% Chg</th>
+        </tr></thead>
+        <tbody>
+          ${companySection('CONSOLIDATED TOTALS','total',true)}
+          ${companySection('REIS','reis',false)}
+          ${companySection('ISLAND','island',false)}
+          ${companySection('SANTOS (EAST END)','santos',false)}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
 
 // Projection assumptions (editable by user)
 let icrProjAssumptions = null;
