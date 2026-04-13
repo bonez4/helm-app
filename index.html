@@ -1535,7 +1535,7 @@ function switchTab(name,btn){
   if(name==='rolloffs') renderRolloffs();
   if(name==='irr')    renderIRR();
   if(name==='files')  renderFiles();
-  if(name==='cmd')    renderCmd();
+  if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
   if(name==='import') renderImport();
 }
 
@@ -3949,6 +3949,43 @@ async function filesDeleteFile(fileId, filename) {
 
   toast('File deleted', true);
   await filesLoadFiles(filesActiveFolderId);
+}
+
+// ── COMMAND CENTER PIN GATE ───────────────────────────────────────────
+let cmdUnlocked = false;
+const CMD_PIN = '1144';
+
+function promptCmdPin() {
+  const tab = document.getElementById('tab-cmd');
+  tab.innerHTML = `
+    <div style="max-width:340px;margin:60px auto;text-align:center;">
+      <div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:16px;">Enter PIN to access Command Center</div>
+      <input type="password" id="cmdPinInput" maxlength="10" placeholder="PIN"
+        style="font-family:'DM Mono',monospace;font-size:18px;text-align:center;letter-spacing:8px;
+        padding:10px 16px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);
+        width:160px;outline:none;"
+        onkeydown="if(event.key==='Enter')checkCmdPin()">
+      <div style="margin-top:12px;">
+        <button onclick="checkCmdPin()" style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+          padding:8px 24px;border:none;border-radius:var(--radius-sm);background:var(--navy);color:white;cursor:pointer;">
+          Unlock</button>
+      </div>
+      <div id="cmdPinError" style="font-size:12px;color:var(--err-text);margin-top:10px;display:none;">Incorrect PIN</div>
+    </div>`;
+  setTimeout(()=>{const el=document.getElementById('cmdPinInput');if(el)el.focus();},100);
+}
+
+function checkCmdPin() {
+  const val = document.getElementById('cmdPinInput').value;
+  if (val === CMD_PIN) {
+    cmdUnlocked = true;
+    renderCmd();
+  } else {
+    const err = document.getElementById('cmdPinError');
+    err.style.display = 'block';
+    document.getElementById('cmdPinInput').value = '';
+    document.getElementById('cmdPinInput').focus();
+  }
 }
 
 // ── COMMAND CENTER ────────────────────────────────────────────────────
