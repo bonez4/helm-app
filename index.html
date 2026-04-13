@@ -2746,6 +2746,7 @@ function irrGenerateEmail(data, ytd) {
     ${companyBlock('Reis Rolloff', reis.tickets, reis.tons, reisRev)}
     ${companyBlock('Island Rubbish', island.tickets, island.tons, islandRev)}
     ${companyBlock('East End', santos.tickets, santos.tons, santosRev)}
+    ${companyBlock('All Rolloffs Combined', reis.tickets+island.tickets+santos.tickets, reis.tons+island.tons+santos.tons, reisRev+islandRev+santosRev)}
     ${pile.tickets>0?(H('Pile Pickups (Reis)')+R('Loads / Tons',pile.tickets+' tickets &nbsp; '+irrFmt(pile.tons)+' tons')):''}
     ${H('Walk-In / Drive-Through')}
     ${R('Tickets / Tons',walkin.tickets+' tickets &nbsp; '+irrFmt(walkin.tons)+' tons')}
@@ -2877,6 +2878,7 @@ function irrRenderReportView(data, ytd) {
       ${companyCard('Reis Rolloff', reis.tickets, reis.tons, reisRev)}
       ${companyCard('Island Rubbish', island.tickets, island.tons, islandRev)}
       ${companyCard('East End', santos.tickets, santos.tons, santosRev)}
+      ${companyCard('All Rolloffs Combined', reis.tickets+(island.tickets||0)+(santos.tickets||0), reis.tons+(island.tons||0)+(santos.tons||0), reisRev+islandRev+santosRev)}
 
       ${pile.tickets>0?`<div class="irr-section-hdr">Pile Pickups (Reis)</div>
       <table class="irr-table"><tbody>
