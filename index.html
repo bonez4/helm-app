@@ -723,6 +723,77 @@ select.ro-input{cursor:pointer;}
   .files-layout{grid-template-columns:1fr;}
 }
 
+/* ── INTERCOMPANY REPORT ───────────────────────────────────── */
+.icr-controls{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.icr-controls h3{font-size:14px;font-weight:600;color:var(--navy);margin-right:8px;}
+.icr-nav-btn{
+  background:var(--white);border:1px solid var(--gray-200);color:var(--gray-600);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:5px 10px;border-radius:var(--radius-sm);cursor:pointer;
+}
+.icr-nav-btn:hover{border-color:var(--gray-400);color:var(--gray-800);}
+.icr-year-btn{
+  background:var(--white);border:1px solid var(--gray-200);color:var(--gray-500);
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  padding:4px 12px;border-radius:var(--radius-sm);cursor:pointer;
+}
+.icr-year-btn.active{background:var(--navy);color:white;border-color:var(--navy);}
+.icr-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;}
+.icr-table th{
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--gray-400);padding:6px 8px;border-bottom:1px solid var(--gray-200);text-align:right;
+}
+.icr-table th:first-child{text-align:left;width:100px;}
+.icr-table td{padding:5px 8px;text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--gray-700);}
+.icr-table td:first-child{text-align:left;font-family:'DM Sans',sans-serif;font-weight:500;color:var(--gray-600);}
+.icr-company-hdr td{
+  font-family:'DM Sans',sans-serif!important;font-weight:700!important;font-size:12px!important;
+  color:var(--navy)!important;padding:14px 8px 4px!important;border-bottom:none!important;
+}
+.icr-blank td{padding:2px 0!important;border-bottom:none!important;}
+.icr-sep td{border-bottom:1px solid var(--gray-200)!important;padding:0!important;height:8px;}
+.icr-total-hdr td{
+  font-family:'DM Sans',sans-serif!important;font-weight:700!important;font-size:12px!important;
+  color:var(--teal)!important;padding:14px 8px 4px!important;border-top:2px solid var(--navy)!important;
+}
+.icr-spacer{width:8px!important;border-bottom:none!important;}
+.icr-agg{background:var(--gray-50);font-weight:600!important;}
+.icr-proj-section{margin-top:32px;}
+.icr-proj-table{width:100%;border-collapse:collapse;font-size:12px;}
+.icr-proj-table th{
+  font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--gray-400);padding:8px 10px;border-bottom:2px solid var(--navy);text-align:right;
+}
+.icr-proj-table th:first-child{text-align:left;}
+.icr-proj-table td{padding:7px 10px;text-align:right;font-family:'DM Mono',monospace;font-size:11px;border-bottom:1px solid var(--gray-100);}
+.icr-proj-table td:first-child{text-align:left;font-family:'DM Sans',sans-serif;font-weight:500;}
+.icr-proj-table .actual{color:var(--navy);}
+.icr-proj-table .projected{color:var(--teal);font-style:italic;}
+.icr-proj-table .target{color:var(--gray-400);}
+.icr-proj-table tr.annual-total td{font-weight:700;border-top:2px solid var(--navy);font-size:12px;}
+
+/* Driver hours modal */
+.icr-driver-modal{
+  position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.4);
+  display:flex;align-items:center;justify-content:center;
+}
+.icr-driver-box{
+  background:white;border-radius:var(--radius);padding:24px 32px;
+  box-shadow:var(--shadow-md);max-width:360px;width:100%;
+}
+.icr-driver-box h3{font-size:14px;font-weight:600;color:var(--navy);margin-bottom:16px;}
+.icr-driver-row{display:flex;gap:12px;margin-bottom:12px;}
+.icr-driver-row label{font-size:11px;font-weight:600;color:var(--gray-500);display:flex;flex-direction:column;gap:4px;flex:1;}
+.icr-driver-row input{
+  font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;
+  border:1px solid var(--gray-200);border-radius:var(--radius-sm);
+}
+.icr-driver-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.icr-driver-btns button{
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:8px 20px;border:none;border-radius:var(--radius-sm);cursor:pointer;
+}
+
 /* ── COMMAND CENTER ───────────────────────────────────────── */
 .cmd-badge-private{
   display:inline-block;background:var(--teal);color:var(--navy);
@@ -2961,7 +3032,8 @@ function renderIRR() {
   const tab = document.getElementById('tab-irr');
   tab.innerHTML = `<div class="irr-wrap">
     <div class="irr-subnav">
-      <button id="irrSubUpload" class="${irrActiveView==='upload'?'active':''}" onclick="irrSwitchView('upload')">Upload</button>
+      <button id="irrSubUpload" class="${irrActiveView==='upload'?'active':''}" onclick="irrSwitchView('upload')">Daily Scale Report</button>
+      <button id="irrSubICR" class="${irrActiveView==='icr'?'active':''}" onclick="irrSwitchView('icr')">Intercompany Rolloff Report</button>
       <button id="irrSubDash" class="${irrActiveView==='dashboard'?'active':''}" onclick="irrSwitchView('dashboard')">Dashboard</button>
     </div>
     <div id="irrViewUpload" style="display:${irrActiveView==='upload'?'':'none'}">
@@ -2990,6 +3062,9 @@ function renderIRR() {
     <div id="irrViewDash" style="display:${irrActiveView==='dashboard'?'':'none'}">
       <div id="irrDashContent"></div>
     </div>
+    <div id="irrViewICR" style="display:${irrActiveView==='icr'?'':'none'}">
+      <div id="irrICRContent"></div>
+    </div>
   </div>`;
 
   const dz = document.getElementById('irrDropZone');
@@ -3010,9 +3085,12 @@ function irrSwitchView(view) {
   irrActiveView = view;
   document.getElementById('irrViewUpload').style.display = view==='upload'?'':'none';
   document.getElementById('irrViewDash').style.display = view==='dashboard'?'':'none';
+  document.getElementById('irrViewICR').style.display = view==='icr'?'':'none';
   document.getElementById('irrSubUpload').className = view==='upload'?'active':'';
   document.getElementById('irrSubDash').className = view==='dashboard'?'active':'';
+  document.getElementById('irrSubICR').className = view==='icr'?'active':'';
   if(view==='dashboard') irrLoadDashboard();
+  if(view==='icr') icrLoadReport();
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────
@@ -3781,6 +3859,9 @@ async function irrHandleFile(file) {
 
       irrLoadHistoryView();
       toast('Scale report processed',true);
+
+      // Prompt for driver data
+      irrPromptDriverData(data.date);
     } catch(err) {
       status.textContent='Error: '+err.message;
       console.error(err);
@@ -4128,6 +4209,395 @@ async function filesDeleteFile(fileId, filename) {
 
   toast('File deleted', true);
   await filesLoadFiles(filesActiveFolderId);
+}
+
+// ── DRIVER DATA PROMPT ───────────────────────────────────────────────
+
+function irrPromptDriverData(reportDate) {
+  const overlay = document.createElement('div');
+  overlay.className='icr-driver-modal';
+  overlay.id='icrDriverModal';
+  overlay.innerHTML=`<div class="icr-driver-box">
+    <h3>Island Rubbish Driver Data — ${reportDate||'Today'}</h3>
+    <div class="icr-driver-row">
+      <label>Drivers<input type="number" id="icrDriverCount" min="0" step="1" placeholder="e.g. 3"></label>
+      <label>Total Hours<input type="number" id="icrDriverHours" min="0" step="0.25" placeholder="e.g. 24.5"></label>
+    </div>
+    <div class="icr-driver-btns">
+      <button style="background:var(--gray-100);color:var(--gray-600);" onclick="document.getElementById('icrDriverModal').remove()">Skip</button>
+      <button style="background:var(--teal);color:white;" onclick="irrSaveDriverData('${reportDate}')">Save</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function irrSaveDriverData(reportDate) {
+  const drivers=parseInt(document.getElementById('icrDriverCount').value)||null;
+  const hours=parseFloat(document.getElementById('icrDriverHours').value)||null;
+  if(!reportDate) return;
+  const parts=reportDate.split('/');
+  const isoDate=parts[2]+'-'+parts[0].padStart(2,'0')+'-'+parts[1].padStart(2,'0');
+  const update={};
+  if(drivers!==null) update.island_drivers=drivers;
+  if(hours!==null) update.island_hours=hours;
+  if(Object.keys(update).length>0){
+    await db.from('irr_reports').update(update).eq('report_date',isoDate);
+  }
+  document.getElementById('icrDriverModal').remove();
+  toast('Driver data saved',true);
+}
+
+// ── INTERCOMPANY ROLLOFF REPORT ──────────────────────────────────────
+
+let icrYear = new Date().getFullYear();
+let icrWeekStart = null; // ISO date string for Monday of current week
+
+function icrGetMonday(d) {
+  const dt = new Date(d);
+  const day = dt.getDay();
+  const diff = dt.getDate() - day + (day===0?-6:1);
+  dt.setDate(diff);
+  return dt.toISOString().split('T')[0];
+}
+
+function icrInit() {
+  if(!icrWeekStart) icrWeekStart = icrGetMonday(new Date());
+}
+
+async function icrLoadReport() {
+  icrInit();
+  const container = document.getElementById('irrICRContent');
+  container.innerHTML = '<div style="padding:20px;color:var(--gray-400);font-size:12px;">Loading...</div>';
+
+  // Load all data for the selected year
+  const {data,error} = await db.from('irr_reports').select('*')
+    .gte('report_date', icrYear+'-01-01')
+    .lte('report_date', icrYear+'-12-31')
+    .order('report_date',{ascending:true});
+  if(error){container.innerHTML='Error loading data';return;}
+
+  await irrLoadRates();
+  const allData = data||[];
+
+  // Fill in Island/East End revenue if missing
+  const ir=irrRates?.island, er=irrRates?.eastend;
+  for(const d of allData){
+    if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0)
+      d.island_revenue=(ir.hook_fee*(d.island_tickets||0))+((ir.per_ton*(1+(ir.ton_markup||0)))*(parseFloat(d.island_tons)||0));
+    if(er && !(parseFloat(d.santos_revenue)>0) && (d.santos_tickets||0)>0)
+      d.santos_revenue=(er.hook_fee*(d.santos_tickets||0))+((er.per_ton*(1+(er.ton_markup||0)))*(parseFloat(d.santos_tons)||0));
+  }
+
+  icrRenderReport(allData, container);
+}
+
+function icrRenderReport(allData, container) {
+  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
+  const weekDates=[];
+  for(let i=0;i<6;i++){
+    const d=new Date(icrWeekStart+'T00:00:00');
+    d.setDate(d.getDate()+i);
+    weekDates.push(d.toISOString().split('T')[0]);
+  }
+
+  const weekEnd = weekDates[5];
+  const weekLabel = (()=>{
+    const s=new Date(icrWeekStart+'T00:00:00');
+    return 'Week of '+s.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  })();
+
+  // Index data by date
+  const byDate={};
+  for(const d of allData) byDate[d.report_date]=d;
+
+  // Calculate MTD and YTD
+  const monthStart = icrWeekStart.substring(0,8)+'01';
+  const yearStart = icrYear+'-01-01';
+
+  function getCompanyData(d, company) {
+    if(!d) return {loads:0,tons:0,rev:0,drivers:null,hours:null};
+    if(company==='reis') return {
+      loads:d.reis_tickets||0, tons:parseFloat(d.reis_tons)||0,
+      rev:(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0),
+      drivers:null, hours:null
+    };
+    if(company==='island') return {
+      loads:d.island_tickets||0, tons:parseFloat(d.island_tons)||0,
+      rev:parseFloat(d.island_revenue)||0,
+      drivers:d.island_drivers!=null?d.island_drivers:null,
+      hours:d.island_hours!=null?parseFloat(d.island_hours):null
+    };
+    if(company==='santos') return {
+      loads:d.santos_tickets||0, tons:parseFloat(d.santos_tons)||0,
+      rev:parseFloat(d.santos_revenue)||0,
+      drivers:null, hours:null
+    };
+    return {loads:0,tons:0,rev:0,drivers:null,hours:null};
+  }
+
+  function sumRange(data, startDate, endDate, company) {
+    const r={loads:0,tons:0,rev:0,drivers:0,hours:0,driverDays:0};
+    for(const d of data){
+      if(d.report_date<startDate||d.report_date>endDate) continue;
+      const c=getCompanyData(d,company);
+      r.loads+=c.loads;r.tons+=c.tons;r.rev+=c.rev;
+      if(c.drivers!==null){r.drivers+=c.drivers;r.driverDays++;}
+      if(c.hours!==null) r.hours+=c.hours;
+    }
+    return r;
+  }
+
+  function sumRangeAll(data, startDate, endDate) {
+    const r={loads:0,tons:0,rev:0,drivers:0,hours:0,driverDays:0};
+    for(const d of data){
+      if(d.report_date<startDate||d.report_date>endDate) continue;
+      r.loads+=(d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);
+      r.tons+=(parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);
+      r.rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);
+      if(d.island_drivers!=null){r.drivers+=d.island_drivers;r.driverDays++;}
+      if(d.island_hours!=null) r.hours+=parseFloat(d.island_hours);
+    }
+    return r;
+  }
+
+  const f2=n=>n.toFixed(2);
+  const fM=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fv=(v,fmt)=>v===null||v===undefined||isNaN(v)?'--':fmt(v);
+
+  function companyBlock(label, company, isTotal) {
+    const hdrClass = isTotal?'icr-total-hdr':'icr-company-hdr';
+    let rows=`<tr class="${hdrClass}"><td>${label}</td>${'<td></td>'.repeat(12)}</tr>`;
+
+    // Get daily data
+    const daily = weekDates.map(dt=>getCompanyData(byDate[dt],company));
+    const wtd = isTotal ? sumRangeAll(allData, icrWeekStart, weekEnd) : sumRange(allData, icrWeekStart, weekEnd, company);
+    const mtd = isTotal ? sumRangeAll(allData, monthStart, weekEnd) : sumRange(allData, monthStart, weekEnd, company);
+    const ytd = isTotal ? sumRangeAll(allData, yearStart, weekEnd) : sumRange(allData, yearStart, weekEnd, company);
+
+    function metricRow(label, dailyFn, aggFn, wtdData, mtdData, ytdData) {
+      const cells = daily.map(d=>dailyFn(d));
+      return `<tr><td>${label}</td>${cells.map(v=>'<td>'+v+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${aggFn(wtdData)}</td><td class="icr-spacer"></td><td class="icr-agg">${aggFn(mtdData)}</td><td class="icr-spacer"></td><td class="icr-agg">${aggFn(ytdData)}</td></tr>`;
+    }
+
+    rows+=metricRow('Rev/Load',
+      d=>d.loads>0?fM(d.rev/d.loads):'--',
+      s=>s.loads>0?fM(s.rev/s.loads):'--', wtd, mtd, ytd);
+    rows+=metricRow('Loads/Day',
+      d=>d.loads>0?d.loads.toString():'--',
+      s=>s.loads>0?s.loads.toString():'--', wtd, mtd, ytd);
+    rows+='<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
+    rows+=metricRow('Tons/Load',
+      d=>d.loads>0?f2(d.tons/d.loads):'--',
+      s=>s.loads>0?f2(s.tons/s.loads):'--', wtd, mtd, ytd);
+    rows+=metricRow('Tons/Day',
+      d=>d.tons>0?f2(d.tons):'--',
+      s=>s.tons>0?f2(s.tons):'--', wtd, mtd, ytd);
+    rows+='<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
+
+    if(company==='island'||isTotal){
+      rows+=metricRow('# Drivers',
+        d=>d.drivers!==null?d.drivers.toString():'--',
+        s=>s.driverDays>0?Math.round(s.drivers/s.driverDays).toString():'--', wtd, mtd, ytd);
+      rows+=metricRow('# Hours',
+        d=>d.hours!==null?f2(d.hours):'--',
+        s=>s.hours>0?f2(s.hours):'--', wtd, mtd, ytd);
+    } else {
+      rows+=metricRow('# Drivers', ()=>'--', ()=>'--', wtd, mtd, ytd);
+      rows+=metricRow('# Hours', ()=>'--', ()=>'--', wtd, mtd, ytd);
+    }
+
+    rows+='<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
+    return rows;
+  }
+
+  const yearBtn=(y)=>`<button class="icr-year-btn ${icrYear===y?'active':''}" onclick="icrYear=${y};icrLoadReport()">${y}</button>`;
+
+  container.innerHTML = `
+    <div class="icr-controls">
+      <button class="icr-nav-btn" onclick="icrPrevWeek()">&larr;</button>
+      <h3>${weekLabel}</h3>
+      <button class="icr-nav-btn" onclick="icrNextWeek()">&rarr;</button>
+      <input type="date" value="${icrWeekStart}" onchange="icrJumpToWeek(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
+      <div style="margin-left:auto;display:flex;gap:4px;">${yearBtn(2025)}${yearBtn(2026)}</div>
+      <button class="icr-nav-btn" style="margin-left:8px;background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
+    </div>
+    <table class="icr-table">
+      <thead><tr>
+        <th></th>${dayNames.map((n,i)=>'<th>'+n+'<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">'+weekDates[i].substring(5)+'</span></th>').join('')}
+        <th class="icr-spacer"></th><th>WTD</th><th class="icr-spacer"></th><th>MTD</th><th class="icr-spacer"></th><th>YTD</th>
+      </tr></thead>
+      <tbody>
+        ${companyBlock('REIS','reis',false)}
+        ${companyBlock('SANTOS','santos',false)}
+        ${companyBlock('ISLAND','island',false)}
+        ${companyBlock('TOTALS',null,true)}
+      </tbody>
+    </table>`;
+}
+
+function icrPrevWeek(){
+  const d=new Date(icrWeekStart+'T00:00:00');d.setDate(d.getDate()-7);
+  icrWeekStart=d.toISOString().split('T')[0];icrLoadReport();
+}
+function icrNextWeek(){
+  const d=new Date(icrWeekStart+'T00:00:00');d.setDate(d.getDate()+7);
+  icrWeekStart=d.toISOString().split('T')[0];icrLoadReport();
+}
+function icrJumpToWeek(dateStr){
+  icrWeekStart=icrGetMonday(new Date(dateStr+'T00:00:00'));icrLoadReport();
+}
+
+// ── PROJECTIONS ──────────────────────────────────────────────────────
+
+async function icrShowProjections() {
+  // Load both years
+  const {data:d26}=await db.from('irr_reports').select('*').gte('report_date','2026-01-01').lte('report_date','2026-12-31').order('report_date');
+  const {data:d25}=await db.from('irr_reports').select('*').gte('report_date','2025-01-01').lte('report_date','2025-12-31').order('report_date');
+
+  await irrLoadRates();
+  const ir=irrRates?.island, er=irrRates?.eastend;
+  for(const arr of [d25||[],d26||[]]){
+    for(const d of arr){
+      if(ir&&!(parseFloat(d.island_revenue)>0)&&(d.island_tickets||0)>0)
+        d.island_revenue=(ir.hook_fee*d.island_tickets)+((ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0));
+      if(er&&!(parseFloat(d.santos_revenue)>0)&&(d.santos_tickets||0)>0)
+        d.santos_revenue=(er.hook_fee*d.santos_tickets)+((er.per_ton*(1+(er.ton_markup||0)))*parseFloat(d.santos_tons||0));
+    }
+  }
+
+  // Group by month
+  function monthlyAgg(data){
+    const months={};
+    for(const d of (data||[])){
+      const m=parseInt(d.report_date.substring(5,7));
+      if(!months[m]) months[m]={loads:0,tons:0,rev:0,days:0};
+      months[m].loads+=(d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);
+      months[m].tons+=(parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);
+      months[m].rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);
+      months[m].days++;
+    }
+    return months;
+  }
+
+  const m25=monthlyAgg(d25), m26=monthlyAgg(d26);
+  const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // 2025 full year totals
+  let total25={loads:0,tons:0,rev:0};
+  for(let m=1;m<=12;m++){if(m25[m]){total25.loads+=m25[m].loads;total25.tons+=m25[m].tons;total25.rev+=m25[m].rev;}}
+
+  // Target = 50% over 2025
+  const target={loads:Math.round(total25.loads*1.5),tons:total25.tons*1.5,rev:total25.rev*1.5};
+
+  // Seasonal weights from 2025
+  const weights={};
+  for(let m=1;m<=12;m++) weights[m]=m25[m]?(m25[m].loads/total25.loads):1/12;
+
+  // Current month
+  const today=new Date();
+  const curMonth=today.getMonth()+1;
+
+  // Build projections — actuals for past months, projected for future
+  let annualActual={loads:0,tons:0,rev:0};
+  let annualProj={loads:0,tons:0,rev:0};
+
+  // Get current run rate from last 30 days
+  const last30 = (d26||[]).filter(d=>{
+    const dt=new Date(d.report_date+'T00:00:00');
+    const diff=(today-dt)/(1000*60*60*24);
+    return diff>=0&&diff<=30;
+  });
+  let run30={loads:0,tons:0,rev:0,days:0};
+  for(const d of last30){
+    run30.loads+=(d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);
+    run30.tons+=(parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);
+    run30.rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);
+    run30.days++;
+  }
+  const dailyRate={loads:run30.days>0?run30.loads/run30.days:0,tons:run30.days>0?run30.tons/run30.days:0,rev:run30.days>0?run30.rev/run30.days:0};
+
+  const fM=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const fT=n=>n.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+
+  let tableRows='';
+  for(let m=1;m<=12;m++){
+    const isActual = m26[m] && m < curMonth;
+    const isPartial = m === curMonth;
+    const actual = m26[m]||{loads:0,tons:0,rev:0,days:0};
+
+    let loads,tons,rev,cls;
+    if(isActual){
+      loads=actual.loads;tons=actual.tons;rev=actual.rev;cls='actual';
+      annualActual.loads+=loads;annualActual.tons+=tons;annualActual.rev+=rev;
+      annualProj.loads+=loads;annualProj.tons+=tons;annualProj.rev+=rev;
+    } else if(isPartial){
+      // Use actual so far + project remaining days
+      const daysInMonth=new Date(2026,m,0).getDate();
+      const remaining=daysInMonth-actual.days;
+      loads=actual.loads+Math.round(dailyRate.loads*remaining*0.85); // 0.85 for weekends
+      tons=actual.tons+dailyRate.tons*remaining*0.85;
+      rev=actual.rev+dailyRate.rev*remaining*0.85;
+      cls='projected';
+      annualActual.loads+=actual.loads;annualActual.tons+=actual.tons;annualActual.rev+=actual.rev;
+      annualProj.loads+=loads;annualProj.tons+=tons;annualProj.rev+=rev;
+    } else {
+      // Future: use seasonal weight × run rate
+      const daysInMonth=new Date(2026,m,0).getDate();
+      const seasonalFactor=weights[m]/(1/12);
+      loads=Math.round(dailyRate.loads*daysInMonth*0.85*seasonalFactor);
+      tons=dailyRate.tons*daysInMonth*0.85*seasonalFactor;
+      rev=dailyRate.rev*daysInMonth*0.85*seasonalFactor;
+      cls='projected';
+      annualProj.loads+=loads;annualProj.tons+=tons;annualProj.rev+=rev;
+    }
+
+    const tgtLoads=Math.round(target.loads*weights[m]);
+    const tgtRev=target.rev*weights[m];
+    const pctOfTarget=tgtLoads>0?((loads/tgtLoads)*100).toFixed(0)+'%':'--';
+
+    tableRows+=`<tr class="${cls}">
+      <td>${monthNames[m-1]} 2026${isPartial?' *':''}</td>
+      <td>${loads}</td><td>${fT(tons)}</td><td>${fM(rev)}</td>
+      <td class="target">${tgtLoads}</td><td class="target">${fM(tgtRev)}</td>
+      <td>${pctOfTarget}</td>
+    </tr>`;
+  }
+
+  const pctAnnual=target.loads>0?((annualProj.loads/target.loads)*100).toFixed(0)+'%':'--';
+  tableRows+=`<tr class="annual-total">
+    <td>Full Year</td>
+    <td>${annualProj.loads}</td><td>${fT(annualProj.tons)}</td><td>${fM(annualProj.rev)}</td>
+    <td class="target">${target.loads}</td><td class="target">${fM(target.rev)}</td>
+    <td>${pctAnnual}</td>
+  </tr>`;
+
+  const overlay=document.createElement('div');
+  overlay.className='irr-report-overlay';
+  overlay.id='icrProjOverlay';
+  overlay.innerHTML=`<div class="irr-report-modal">
+    <div class="irr-report-toolbar">
+      <button class="rpt-print" onclick="window.print()">Print</button>
+      <button class="rpt-print" onclick="irrDownloadPDF()">Download PDF</button>
+      <button class="rpt-close" onclick="document.getElementById('icrProjOverlay').remove()">Close</button>
+    </div>
+    <div class="irr-report-body">
+      <h1>Rolloff Growth Projection — 2026</h1>
+      <div class="rpt-period">Target: 50% increase over 2025 (${total25.loads.toLocaleString()} loads &rarr; ${target.loads.toLocaleString()} loads)</div>
+      <div class="rpt-period">Based on 30-day run rate: ${dailyRate.loads.toFixed(1)} loads/day, ${fM(dailyRate.rev)}/day</div>
+      <div class="rpt-period" style="margin-bottom:20px;">Seasonal adjustment derived from 2025 monthly distribution. * = partial month (actuals + projected remainder).</div>
+      <div class="rpt-kpi-row">
+        <div class="rpt-kpi"><div class="rpt-kpi-label">Projected Full Year</div><div class="rpt-kpi-val">${annualProj.loads.toLocaleString()}</div><div style="font-size:11px;color:#888">loads</div></div>
+        <div class="rpt-kpi"><div class="rpt-kpi-label">Target</div><div class="rpt-kpi-val">${target.loads.toLocaleString()}</div><div style="font-size:11px;color:#888">loads (50% over 2025)</div></div>
+        <div class="rpt-kpi"><div class="rpt-kpi-label">Projected Revenue</div><div class="rpt-kpi-val">${fM(annualProj.rev)}</div><div style="font-size:11px;color:#888">full year</div></div>
+        <div class="rpt-kpi"><div class="rpt-kpi-label">On Track</div><div class="rpt-kpi-val">${pctAnnual}</div><div style="font-size:11px;color:#888">of target</div></div>
+      </div>
+      <table class="icr-proj-table">
+        <thead><tr><th>Month</th><th>Loads</th><th>Tons</th><th>Revenue</th><th>Target Loads</th><th>Target Rev</th><th>% of Target</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 
 // ── COMMAND CENTER PIN GATE ───────────────────────────────────────────
