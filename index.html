@@ -4444,6 +4444,25 @@ function icrRenderReport(allData, container) {
         ${companyBlock('SANTOS','santos',false)}
         ${companyBlock('ISLAND','island',false)}
         ${companyBlock('TOTALS',null,true)}
+        ${(()=>{
+          // Vinagro outbound block
+          const vDaily = weekDates.map(dt=>{const d=byDate[dt];return d?{loads:d.vinagro_loads||0,tons:parseFloat(d.vinagro_tons)||0}:{loads:0,tons:0};});
+          function vSum(start,end){const r={loads:0,tons:0};for(const d of allData){if(d.report_date<start||d.report_date>end)continue;r.loads+=d.vinagro_loads||0;r.tons+=parseFloat(d.vinagro_tons)||0;}return r;}
+          const vWtd=vSum(icrWeekStart,weekEnd),vMtd=vSum(monthStart,weekEnd),vYtd=vSum(yearStart,weekEnd);
+          function vRow(lbl,dFn,w,m,y){return '<tr><td>'+lbl+'</td>'+vDaily.map(d=>'<td>'+dFn(d)+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+w+'</td><td class="icr-spacer"></td><td class="icr-agg">'+m+'</td><td class="icr-spacer"></td><td class="icr-agg">'+y+'</td></tr>';}
+
+          // Total inbound from the Totals block
+          const iWtd=sumRangeAll(allData,icrWeekStart,weekEnd),iMtd=sumRangeAll(allData,monthStart,weekEnd),iYtd=sumRangeAll(allData,yearStart,weekEnd);
+          const iDaily=weekDates.map(dt=>{const d=byDate[dt];return d?{loads:allLoads(d),tons:allTons(d)}:{loads:0,tons:0};});
+
+          return '<tr class="icr-company-hdr"><td>VINAGRO (OUTBOUND)</td>'+'<td></td>'.repeat(12)+'</tr>'+
+            vRow('Loads',d=>d.loads>0?d.loads:'--',vWtd.loads||'--',vMtd.loads||'--',vYtd.loads||'--')+
+            vRow('Total Tons',d=>d.tons>0?f2(d.tons):'--',f2(vWtd.tons),f2(vMtd.tons),f2(vYtd.tons))+
+            '<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(12)+'</tr>'+
+            '<tr class="icr-total-hdr"><td>SUMMARY</td>'+'<td></td>'.repeat(12)+'</tr>'+
+            '<tr><td style="font-weight:600">Total Inbound</td>'+iDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(iWtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(iMtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(iYtd.tons)+'</td></tr>'+
+            '<tr><td style="font-weight:600">Total Outbound</td>'+vDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(vWtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(vMtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(vYtd.tons)+'</td></tr>';
+        })()}
       </tbody>
     </table>`;
 }
@@ -4518,7 +4537,7 @@ function icrRenderQuarterly(d25, d26) {
 
   function monthlyByCompany(data, months) {
     const result = {};
-    for(const m of months) result[m] = {reis:{loads:0,tons:0,rev:0},island:{loads:0,tons:0,rev:0},santos:{loads:0,tons:0,rev:0},total:{loads:0,tons:0,rev:0}};
+    for(const m of months) result[m] = {reis:{loads:0,tons:0,rev:0},island:{loads:0,tons:0,rev:0},santos:{loads:0,tons:0,rev:0},total:{loads:0,tons:0,rev:0},vinagro:{loads:0,tons:0}};
     for(const d of data) {
       const m = parseInt(d.report_date.substring(5,7));
       if(!months.includes(m)) continue;
@@ -4527,6 +4546,7 @@ function icrRenderQuarterly(d25, d26) {
       r.island.loads+=d.island_tickets||0; r.island.tons+=parseFloat(d.island_tons)||0; r.island.rev+=parseFloat(d.island_revenue)||0;
       r.santos.loads+=d.santos_tickets||0; r.santos.tons+=parseFloat(d.santos_tons)||0; r.santos.rev+=parseFloat(d.santos_revenue)||0;
       r.total.loads+=allLoads(d); r.total.tons+=allTons(d); r.total.rev+=allRev(d);
+      r.vinagro.loads+=d.vinagro_loads||0; r.vinagro.tons+=parseFloat(d.vinagro_tons)||0;
     }
     return result;
   }
@@ -4626,6 +4646,30 @@ function icrRenderQuarterly(d25, d26) {
           ${companySection('REIS','reis',false)}
           ${companySection('ISLAND','island',false)}
           ${companySection('SANTOS (EAST END)','santos',false)}
+          ${(()=>{
+            // Vinagro outbound for quarterly
+            const curVQ={loads:0,tons:0},prevVQ={loads:0,tons:0};
+            function vRow(lbl,valFn,numFn){
+              let cells='';
+              for(const m of qMonths) cells+='<td>'+valFn(cur[m]?.vinagro)+'</td>';
+              cells+='<td style="font-weight:700">'+valFn(curVQ)+'</td><td class="icr-spacer"></td>';
+              for(const m of qMonths) cells+='<td>'+valFn(prev[m]?.vinagro)+'</td>';
+              cells+='<td style="font-weight:700">'+valFn(prevVQ)+'</td><td class="icr-spacer"></td>';
+              cells+='<td style="color:'+(numFn(curVQ)>=numFn(prevVQ)?'#2e7d32':'#c62828')+';font-weight:600">'+fPct(numFn(curVQ),numFn(prevVQ))+'</td>';
+              return '<tr><td>'+lbl+'</td>'+cells+'</tr>';
+            }
+            for(const m of qMonths){if(cur[m]?.vinagro){curVQ.loads+=cur[m].vinagro.loads;curVQ.tons+=cur[m].vinagro.tons;}}
+            for(const m of qMonths){if(prev[m]?.vinagro){prevVQ.loads+=prev[m].vinagro.loads;prevVQ.tons+=prev[m].vinagro.tons;}}
+            const curIQ=qTotal(cur,qMonths,'total'),prevIQ=qTotal(prev,qMonths,'total');
+
+            return '<tr class="icr-company-hdr"><td>VINAGRO (OUTBOUND)</td>'+'<td></td>'.repeat(10)+'</tr>'+
+              vRow('Loads',c=>c&&c.loads>0?c.loads:'--',c=>c.loads)+
+              vRow('Total Tons',c=>c&&c.tons>0?f2(c.tons):'--',c=>c.tons)+
+              '<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(10)+'</tr>'+
+              '<tr class="icr-total-hdr"><td>SUMMARY</td>'+'<td></td>'.repeat(10)+'</tr>'+
+              '<tr><td style="font-weight:600">Total Inbound Tons</td>'+qMonths.map(m=>'<td>'+(cur[m]?f2(cur[m].total.tons):'--')+'</td>').join('')+'<td style="font-weight:700">'+f2(curIQ.tons)+'</td><td class="icr-spacer"></td>'+qMonths.map(m=>'<td>'+(prev[m]?f2(prev[m].total.tons):'--')+'</td>').join('')+'<td style="font-weight:700">'+f2(prevIQ.tons)+'</td><td class="icr-spacer"></td><td style="color:'+(curIQ.tons>=prevIQ.tons?'#2e7d32':'#c62828')+';font-weight:600">'+fPct(curIQ.tons,prevIQ.tons)+'</td></tr>'+
+              '<tr><td style="font-weight:600">Total Outbound Tons</td>'+qMonths.map(m=>'<td>'+(cur[m]?.vinagro?.tons>0?f2(cur[m].vinagro.tons):'--')+'</td>').join('')+'<td style="font-weight:700">'+f2(curVQ.tons)+'</td><td class="icr-spacer"></td>'+qMonths.map(m=>'<td>'+(prev[m]?.vinagro?.tons>0?f2(prev[m].vinagro.tons):'--')+'</td>').join('')+'<td style="font-weight:700">'+f2(prevVQ.tons)+'</td><td class="icr-spacer"></td><td style="color:'+(curVQ.tons>=prevVQ.tons?'#2e7d32':'#c62828')+';font-weight:600">'+fPct(curVQ.tons,prevVQ.tons)+'</td></tr>';
+          })()}
         </tbody>
       </table>
     </div>
