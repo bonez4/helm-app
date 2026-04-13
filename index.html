@@ -2756,7 +2756,13 @@ function irrGenerateEmail(data, ytd2026, ytd2025, vin2026, vin2025) {
         R('Total Rolloff Revenue',irrFmtMoney(totalRollRev),true)+
         S()+
         R('Rev / Load',rl>0?irrFmtMoney(totalRollRev/rl):'--')+
-        R('Tons / Load',rl>0?irrFmt(rt/rl):'--');
+        R('Tons / Load',rl>0?irrFmt(rt/rl):'--')+
+        S()+
+        H('Loads by Company')+
+        R('Reis Rolloff',reis.tickets+' loads')+
+        R('Island Rubbish',island.tickets+' loads')+
+        R('East End',santos.tickets+' loads')+
+        R('Pile Pickups',pile.tickets+' loads');
     })()}
     ${H('Vinagro Output (Outbound)')}
     ${R('Loads',vinagro.tickets)}
@@ -2911,7 +2917,12 @@ function irrRenderReportView(data, ytd2026, ytd2025, vin2026, vin2025) {
               '<tr><td>East End</td><td style="text-align:right" colspan="2">'+irrFmtMoney(santosRev)+'</td></tr>'+
               '<tr class="irr-total"><td>Total Rolloff Revenue</td><td style="text-align:right" colspan="2">'+irrFmtMoney(totalRollRev)+'</td></tr>'+
               '<tr><td style="padding-top:12px">Rev / Load</td><td style="text-align:right;padding-top:12px" colspan="2">'+(rl>0?irrFmtMoney(totalRollRev/rl):'--')+'</td></tr>'+
-              '<tr><td>Tons / Load</td><td style="text-align:right" colspan="2">'+(rl>0?irrFmt(rt/rl):'--')+'</td></tr>';
+              '<tr><td>Tons / Load</td><td style="text-align:right" colspan="2">'+(rl>0?irrFmt(rt/rl):'--')+'</td></tr>'+
+              '<tr><td style="padding:16px 0 4px;font-weight:bold;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);" colspan="3">Loads by Company</td></tr>'+
+              '<tr><td>Reis Rolloff</td><td style="text-align:right" colspan="2">'+reis.tickets+' loads</td></tr>'+
+              '<tr><td>Island Rubbish</td><td style="text-align:right" colspan="2">'+(island.tickets||0)+' loads</td></tr>'+
+              '<tr><td>East End</td><td style="text-align:right" colspan="2">'+(santos.tickets||0)+' loads</td></tr>'+
+              '<tr><td>Pile Pickups</td><td style="text-align:right" colspan="2">'+(pile.tickets||0)+' loads</td></tr>';
           })()}
         </tbody>
       </table>
@@ -2942,8 +2953,8 @@ let irrChart = null;
 let irrDashData = [];
 let irrDashRange = 'wtd';
 let irrChartHeight = 500;
-let irrToggles = {revPerLoad:true, tonsPerLoad:true, hoursPerLoad:false, loadsPerDay:false};
-const IRR_COLORS = {revPerLoad:'#1a9b8a', tonsPerLoad:'#0f1f3d', hoursPerLoad:'#d4a843', loadsPerDay:'#c62828'};
+let irrToggles = {revPerLoad:true, tonsPerLoad:true, hoursPerLoad:false, loadsPerDay:false, reisLoads:false, islandLoads:false, eastendLoads:false};
+const IRR_COLORS = {revPerLoad:'#1a9b8a', tonsPerLoad:'#0f1f3d', hoursPerLoad:'#d4a843', loadsPerDay:'#c62828', reisLoads:'#1565C0', islandLoads:'#7c4dff', eastendLoads:'#f57c00'};
 
 function irrResizeChart(delta) {
   irrChartHeight = Math.max(300, Math.min(900, irrChartHeight + delta));
@@ -3103,6 +3114,9 @@ function irrRenderDashboard() {
       <button class="irr-toggle ${irrToggles.tonsPerLoad?'on':''}" style="${irrToggles.tonsPerLoad?'background:'+IRR_COLORS.tonsPerLoad+';border-color:'+IRR_COLORS.tonsPerLoad:''}" onclick="irrToggleSeries('tonsPerLoad')">Tons / Load</button>
       <button class="irr-toggle ${irrToggles.hoursPerLoad?'on':''}" style="${irrToggles.hoursPerLoad?'background:'+IRR_COLORS.hoursPerLoad+';border-color:'+IRR_COLORS.hoursPerLoad:''}" onclick="irrToggleSeries('hoursPerLoad')">Hours / Load</button>
       <button class="irr-toggle ${irrToggles.loadsPerDay?'on':''}" style="${irrToggles.loadsPerDay?'background:'+IRR_COLORS.loadsPerDay+';border-color:'+IRR_COLORS.loadsPerDay:''}" onclick="irrToggleSeries('loadsPerDay')">Loads / Day</button>
+      <button class="irr-toggle ${irrToggles.reisLoads?'on':''}" style="${irrToggles.reisLoads?'background:'+IRR_COLORS.reisLoads+';border-color:'+IRR_COLORS.reisLoads:''}" onclick="irrToggleSeries('reisLoads')">Reis Loads</button>
+      <button class="irr-toggle ${irrToggles.islandLoads?'on':''}" style="${irrToggles.islandLoads?'background:'+IRR_COLORS.islandLoads+';border-color:'+IRR_COLORS.islandLoads:''}" onclick="irrToggleSeries('islandLoads')">Island Loads</button>
+      <button class="irr-toggle ${irrToggles.eastendLoads?'on':''}" style="${irrToggles.eastendLoads?'background:'+IRR_COLORS.eastendLoads+';border-color:'+IRR_COLORS.eastendLoads:''}" onclick="irrToggleSeries('eastendLoads')">East End Loads</button>
     </div>
 
     <div class="irr-chart-wrap" id="irrChartWrap" style="height:${irrChartHeight}px;">
@@ -3180,9 +3194,33 @@ function irrDrawChart(filtered) {
   }
   if(irrToggles.loadsPerDay){
     datasets.push({
-      label:'Loads / Day',
+      label:'Loads / Day (All)',
       data:filtered.map(d=>allLoads(d)),
       borderColor:IRR_COLORS.loadsPerDay, backgroundColor:IRR_COLORS.loadsPerDay+'20',
+      tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
+    });
+  }
+  if(irrToggles.reisLoads){
+    datasets.push({
+      label:'Reis Loads',
+      data:filtered.map(d=>d.reis_tickets||0),
+      borderColor:IRR_COLORS.reisLoads, backgroundColor:IRR_COLORS.reisLoads+'20',
+      tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
+    });
+  }
+  if(irrToggles.islandLoads){
+    datasets.push({
+      label:'Island Loads',
+      data:filtered.map(d=>d.island_tickets||0),
+      borderColor:IRR_COLORS.islandLoads, backgroundColor:IRR_COLORS.islandLoads+'20',
+      tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
+    });
+  }
+  if(irrToggles.eastendLoads){
+    datasets.push({
+      label:'East End Loads',
+      data:filtered.map(d=>d.santos_tickets||0),
+      borderColor:IRR_COLORS.eastendLoads, backgroundColor:IRR_COLORS.eastendLoads+'20',
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
     });
   }
@@ -3222,11 +3260,11 @@ function irrDrawChart(filtered) {
     };
     axisCount++;
   }
-  if(irrToggles.loadsPerDay){
+  if(irrToggles.loadsPerDay||irrToggles.reisLoads||irrToggles.islandLoads||irrToggles.eastendLoads){
     scales.y3={
       position:axisCount>0?'right':'left',
-      title:{display:true,text:'Loads / Day',font:{size:10,family:"'DM Sans',sans-serif"},color:IRR_COLORS.loadsPerDay},
-      ticks:{font:{size:10},color:IRR_COLORS.loadsPerDay, stepSize:1},
+      title:{display:true,text:'Loads',font:{size:10,family:"'DM Sans',sans-serif"},color:'#6b7385'},
+      ticks:{font:{size:10},color:'#6b7385', stepSize:1},
       grid:{display:false}, border:{display:false},
     };
   }
