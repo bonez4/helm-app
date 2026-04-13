@@ -4368,42 +4368,46 @@ function icrRenderReport(allData, container) {
     const hdrClass = isTotal?'icr-total-hdr':'icr-company-hdr';
     let rows=`<tr class="${hdrClass}"><td>${label}</td>${'<td></td>'.repeat(12)}</tr>`;
 
-    // Get daily data
     const daily = weekDates.map(dt=>getCompanyData(byDate[dt],company));
     const wtd = isTotal ? sumRangeAll(allData, icrWeekStart, weekEnd) : sumRange(allData, icrWeekStart, weekEnd, company);
     const mtd = isTotal ? sumRangeAll(allData, monthStart, weekEnd) : sumRange(allData, monthStart, weekEnd, company);
     const ytd = isTotal ? sumRangeAll(allData, yearStart, weekEnd) : sumRange(allData, yearStart, weekEnd, company);
 
-    function metricRow(label, dailyFn, aggFn, wtdData, mtdData, ytdData) {
-      const cells = daily.map(d=>dailyFn(d));
-      return `<tr><td>${label}</td>${cells.map(v=>'<td>'+v+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${aggFn(wtdData)}</td><td class="icr-spacer"></td><td class="icr-agg">${aggFn(mtdData)}</td><td class="icr-spacer"></td><td class="icr-agg">${aggFn(ytdData)}</td></tr>`;
+    function row(lbl, dailyFn, wtdV, mtdV, ytdV) {
+      return `<tr><td>${lbl}</td>${daily.map(d=>'<td>'+dailyFn(d)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${wtdV}</td><td class="icr-spacer"></td><td class="icr-agg">${mtdV}</td><td class="icr-spacer"></td><td class="icr-agg">${ytdV}</td></tr>`;
     }
+    const blank=()=>'<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
 
-    rows+=metricRow('Rev/Load',
-      d=>d.loads>0?fM(d.rev/d.loads):'--',
-      s=>s.loads>0?fM(s.rev/s.loads):'--', wtd, mtd, ytd);
-    rows+=metricRow('Loads/Day',
-      d=>d.loads>0?d.loads.toString():'--',
-      s=>s.loads>0?s.loads.toString():'--', wtd, mtd, ytd);
-    rows+='<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
-    rows+=metricRow('Tons/Load',
-      d=>d.loads>0?f2(d.tons/d.loads):'--',
-      s=>s.loads>0?f2(s.tons/s.loads):'--', wtd, mtd, ytd);
-    rows+=metricRow('Tons/Day',
-      d=>d.tons>0?f2(d.tons):'--',
-      s=>s.tons>0?f2(s.tons):'--', wtd, mtd, ytd);
-    rows+='<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
+    // Revenue block
+    rows+=row('Rev/Load', d=>d.loads>0?fM(d.rev/d.loads):'--',
+      wtd.loads>0?fM(wtd.rev/wtd.loads):'--', mtd.loads>0?fM(mtd.rev/mtd.loads):'--', ytd.loads>0?fM(ytd.rev/ytd.loads):'--');
+    rows+=row('Total Revenue', d=>d.loads>0?fM(d.rev):'--',
+      fM(wtd.rev), fM(mtd.rev), fM(ytd.rev));
+    rows+=blank();
 
+    // Loads block
+    rows+=row('Loads', d=>d.loads>0?d.loads:'--',
+      wtd.loads||'--', mtd.loads||'--', ytd.loads||'--');
+    rows+=blank();
+
+    // Tonnage block
+    rows+=row('Tons/Load', d=>d.loads>0?f2(d.tons/d.loads):'--',
+      wtd.loads>0?f2(wtd.tons/wtd.loads):'--', mtd.loads>0?f2(mtd.tons/mtd.loads):'--', ytd.loads>0?f2(ytd.tons/ytd.loads):'--');
+    rows+=row('Total Tons', d=>d.tons>0?f2(d.tons):'--',
+      f2(wtd.tons), f2(mtd.tons), f2(ytd.tons));
+    rows+=blank();
+
+    // Drivers / Hours
     if(company==='island'||isTotal){
-      rows+=metricRow('# Drivers',
-        d=>d.drivers!==null?d.drivers.toString():'--',
-        s=>s.driverDays>0?Math.round(s.drivers/s.driverDays).toString():'--', wtd, mtd, ytd);
-      rows+=metricRow('# Hours',
-        d=>d.hours!==null?f2(d.hours):'--',
-        s=>s.hours>0?f2(s.hours):'--', wtd, mtd, ytd);
+      rows+=row('# Drivers', d=>d.drivers!==null?d.drivers:'--',
+        wtd.driverDays>0?Math.round(wtd.drivers/wtd.driverDays):'--',
+        mtd.driverDays>0?Math.round(mtd.drivers/mtd.driverDays):'--',
+        ytd.driverDays>0?Math.round(ytd.drivers/ytd.driverDays):'--');
+      rows+=row('# Hours', d=>d.hours!==null?f2(d.hours):'--',
+        wtd.hours>0?f2(wtd.hours):'--', mtd.hours>0?f2(mtd.hours):'--', ytd.hours>0?f2(ytd.hours):'--');
     } else {
-      rows+=metricRow('# Drivers', ()=>'--', ()=>'--', wtd, mtd, ytd);
-      rows+=metricRow('# Hours', ()=>'--', ()=>'--', wtd, mtd, ytd);
+      rows+=row('# Drivers', ()=>'--', '--','--','--');
+      rows+=row('# Hours', ()=>'--', '--','--','--');
     }
 
     rows+='<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
@@ -4449,8 +4453,41 @@ function icrJumpToWeek(dateStr){
 
 // ── PROJECTIONS ──────────────────────────────────────────────────────
 
+// Projection assumptions (editable by user)
+let icrProjAssumptions = null;
+let icrProjData = null;
+
+function icrDefaultAssumptions(m25, m26, total25) {
+  // Derive growth rates from YoY comparison (first 3 months of data)
+  function yoyGrowth(company,field25,field26){
+    let s25=0,s26=0;
+    for(let m=1;m<=3;m++){
+      if(m25[m]) s25+=m25[m][company]||0;
+      if(m26[m]) s26+=m26[m][company]||0;
+    }
+    return s25>0?((s26-s25)/s25):0;
+  }
+  const reisGr=yoyGrowth('reisLoads','reisLoads','reisLoads');
+  const islandGr=yoyGrowth('islandLoads','islandLoads','islandLoads');
+  const santosGr=yoyGrowth('santosLoads','santosLoads','santosLoads');
+
+  // Seasonal indices from 2025
+  const seasonIdx={};
+  const totalLoads25=Object.values(m25).reduce((a,m)=>a+(m.totalLoads||0),0)||1;
+  for(let m=1;m<=12;m++) seasonIdx[m]=m25[m]?(m25[m].totalLoads/totalLoads25)*12:1;
+
+  return {
+    reis:{label:'Reis',annualGrowth:Math.round(reisGr*100)||3,taperMonth:0,taperTo:0},
+    island:{label:'Island Rubbish',annualGrowth:Math.round(islandGr*100)||15,taperMonth:7,taperTo:3},
+    santos:{label:'East End',annualGrowth:Math.round(santosGr*100)||0,taperMonth:0,taperTo:0},
+    seasonIdx,
+    rateChangeDate:'2026-04-15',
+    rateChangePct:0,
+    operatingDaysPerMonth:[0,22,20,22,22,22,26,27,26,26,22,21,18], // index 1-12, derived from 2025
+  };
+}
+
 async function icrShowProjections() {
-  // Load both years
   const {data:d26}=await db.from('irr_reports').select('*').gte('report_date','2026-01-01').lte('report_date','2026-12-31').order('report_date');
   const {data:d25}=await db.from('irr_reports').select('*').gte('report_date','2025-01-01').lte('report_date','2025-12-31').order('report_date');
 
@@ -4465,139 +4502,196 @@ async function icrShowProjections() {
     }
   }
 
-  // Group by month
+  // Group by month per company
   function monthlyAgg(data){
     const months={};
     for(const d of (data||[])){
       const m=parseInt(d.report_date.substring(5,7));
-      if(!months[m]) months[m]={loads:0,tons:0,rev:0,days:0};
-      months[m].loads+=(d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);
-      months[m].tons+=(parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);
-      months[m].rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);
-      months[m].days++;
+      if(!months[m]) months[m]={totalLoads:0,totalTons:0,totalRev:0,days:0,
+        reisLoads:0,reisTons:0,reisRev:0,islandLoads:0,islandTons:0,islandRev:0,santosLoads:0,santosTons:0,santosRev:0};
+      const o=months[m];
+      o.reisLoads+=d.reis_tickets||0;o.reisTons+=parseFloat(d.reis_tons)||0;o.reisRev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+      o.islandLoads+=d.island_tickets||0;o.islandTons+=parseFloat(d.island_tons)||0;o.islandRev+=parseFloat(d.island_revenue)||0;
+      o.santosLoads+=d.santos_tickets||0;o.santosTons+=parseFloat(d.santos_tons)||0;o.santosRev+=parseFloat(d.santos_revenue)||0;
+      o.totalLoads+=allLoads(d);o.totalTons+=allTons(d);o.totalRev+=allRev(d);o.days++;
     }
     return months;
   }
 
   const m25=monthlyAgg(d25), m26=monthlyAgg(d26);
-  const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  icrProjData={m25,m26};
 
-  // 2025 full year totals
+  // Initialize assumptions from data if not set
   let total25={loads:0,tons:0,rev:0};
-  for(let m=1;m<=12;m++){if(m25[m]){total25.loads+=m25[m].loads;total25.tons+=m25[m].tons;total25.rev+=m25[m].rev;}}
+  for(let m=1;m<=12;m++){if(m25[m]){total25.loads+=m25[m].totalLoads;total25.tons+=m25[m].totalTons;total25.rev+=m25[m].totalRev;}}
 
-  // Target = 50% over 2025
+  if(!icrProjAssumptions) icrProjAssumptions=icrDefaultAssumptions(m25,m26,total25);
+  icrRenderProjections(m25,m26,total25);
+}
+
+function icrRenderProjections(m25,m26,total25) {
+  const a=icrProjAssumptions;
+  const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const today=new Date();
+  const curMonth=today.getMonth()+1;
   const target={loads:Math.round(total25.loads*1.5),tons:total25.tons*1.5,rev:total25.rev*1.5};
 
   // Seasonal weights from 2025
   const weights={};
-  for(let m=1;m<=12;m++) weights[m]=m25[m]?(m25[m].loads/total25.loads):1/12;
+  for(let m=1;m<=12;m++) weights[m]=m25[m]?(m25[m].totalLoads/total25.loads):1/12;
 
-  // Current month
-  const today=new Date();
-  const curMonth=today.getMonth()+1;
-
-  // Build projections — actuals for past months, projected for future
-  let annualActual={loads:0,tons:0,rev:0};
-  let annualProj={loads:0,tons:0,rev:0};
-
-  // Get current run rate from last 30 days
-  const last30 = (d26||[]).filter(d=>{
-    const dt=new Date(d.report_date+'T00:00:00');
-    const diff=(today-dt)/(1000*60*60*24);
-    return diff>=0&&diff<=30;
-  });
-  let run30={loads:0,tons:0,rev:0,days:0};
-  for(const d of last30){
-    run30.loads+=(d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);
-    run30.tons+=(parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);
-    run30.rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);
-    run30.days++;
+  // Company-level growth rate for a given month (with tapering)
+  function compGrowth(comp, month) {
+    const c=a[comp];
+    if(!c) return 0;
+    const base=c.annualGrowth/100;
+    if(c.taperMonth>0 && month>=c.taperMonth){
+      const taperBase=c.taperTo/100;
+      const fadeMonths=12-c.taperMonth;
+      const progress=Math.min(1,(month-c.taperMonth)/Math.max(fadeMonths,1));
+      return base+(taperBase-base)*progress;
+    }
+    return base;
   }
-  const dailyRate={loads:run30.days>0?run30.loads/run30.days:0,tons:run30.days>0?run30.tons/run30.days:0,rev:run30.days>0?run30.rev/run30.days:0};
 
   const fM=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
   const fT=n=>n.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
 
+  let annualProj={loads:0,tons:0,rev:0};
   let tableRows='';
+
   for(let m=1;m<=12;m++){
     const isActual = m26[m] && m < curMonth;
     const isPartial = m === curMonth;
-    const actual = m26[m]||{loads:0,tons:0,rev:0,days:0};
+    const actual = m26[m]||{totalLoads:0,totalTons:0,totalRev:0,days:0};
 
     let loads,tons,rev,cls;
     if(isActual){
-      loads=actual.loads;tons=actual.tons;rev=actual.rev;cls='actual';
-      annualActual.loads+=loads;annualActual.tons+=tons;annualActual.rev+=rev;
-      annualProj.loads+=loads;annualProj.tons+=tons;annualProj.rev+=rev;
-    } else if(isPartial){
-      // Use actual so far + project remaining days
-      const daysInMonth=new Date(2026,m,0).getDate();
-      const remaining=daysInMonth-actual.days;
-      loads=actual.loads+Math.round(dailyRate.loads*remaining*0.85); // 0.85 for weekends
-      tons=actual.tons+dailyRate.tons*remaining*0.85;
-      rev=actual.rev+dailyRate.rev*remaining*0.85;
-      cls='projected';
-      annualActual.loads+=actual.loads;annualActual.tons+=actual.tons;annualActual.rev+=actual.rev;
-      annualProj.loads+=loads;annualProj.tons+=tons;annualProj.rev+=rev;
+      loads=actual.totalLoads;tons=actual.totalTons;rev=actual.totalRev;cls='actual';
     } else {
-      // Future: use seasonal weight × run rate
-      const daysInMonth=new Date(2026,m,0).getDate();
-      const seasonalFactor=weights[m]/(1/12);
-      loads=Math.round(dailyRate.loads*daysInMonth*0.85*seasonalFactor);
-      tons=dailyRate.tons*daysInMonth*0.85*seasonalFactor;
-      rev=dailyRate.rev*daysInMonth*0.85*seasonalFactor;
-      cls='projected';
-      annualProj.loads+=loads;annualProj.tons+=tons;annualProj.rev+=rev;
+      // Project using 2025 base × (1 + weighted company growth) × seasonal
+      const base25=m25[m]||{reisLoads:0,reisTons:0,reisRev:0,islandLoads:0,islandTons:0,islandRev:0,santosLoads:0,santosTons:0,santosRev:0};
+      const rG=1+compGrowth('reis',m), iG=1+compGrowth('island',m), sG=1+compGrowth('santos',m);
+      const pLoads=Math.round(base25.reisLoads*rG + base25.islandLoads*iG + base25.santosLoads*sG);
+      const pTons=base25.reisTons*rG + base25.islandTons*iG + base25.santosTons*sG;
+      const rateMult = (a.rateChangePct && m>=4) ? (1+a.rateChangePct/100) : 1;
+      const pRev=(base25.reisRev*rG + base25.islandRev*iG + base25.santosRev*sG)*rateMult;
+
+      if(isPartial){
+        // Blend: actual days so far + projected remaining
+        const pctComplete=actual.days>0?actual.days/(a.operatingDaysPerMonth[m]||22):0;
+        loads=Math.round(actual.totalLoads + pLoads*(1-pctComplete));
+        tons=actual.totalTons + pTons*(1-pctComplete);
+        rev=actual.totalRev + pRev*(1-pctComplete);
+        cls='projected';
+      } else {
+        loads=pLoads;tons=pTons;rev=pRev;cls='projected';
+      }
     }
+    annualProj.loads+=loads;annualProj.tons+=tons;annualProj.rev+=rev;
 
     const tgtLoads=Math.round(target.loads*weights[m]);
     const tgtRev=target.rev*weights[m];
-    const pctOfTarget=tgtLoads>0?((loads/tgtLoads)*100).toFixed(0)+'%':'--';
+    const pct=tgtLoads>0?((loads/tgtLoads)*100).toFixed(0)+'%':'--';
+    const prior=m25[m]?m25[m].totalLoads:'--';
 
     tableRows+=`<tr class="${cls}">
-      <td>${monthNames[m-1]} 2026${isPartial?' *':''}</td>
+      <td>${monthNames[m-1]}${isPartial?' *':''}</td>
+      <td>${prior}</td>
       <td>${loads}</td><td>${fT(tons)}</td><td>${fM(rev)}</td>
       <td class="target">${tgtLoads}</td><td class="target">${fM(tgtRev)}</td>
-      <td>${pctOfTarget}</td>
+      <td>${pct}</td>
     </tr>`;
   }
 
   const pctAnnual=target.loads>0?((annualProj.loads/target.loads)*100).toFixed(0)+'%':'--';
   tableRows+=`<tr class="annual-total">
-    <td>Full Year</td>
+    <td>Full Year</td><td>${total25.loads}</td>
     <td>${annualProj.loads}</td><td>${fT(annualProj.tons)}</td><td>${fM(annualProj.rev)}</td>
     <td class="target">${target.loads}</td><td class="target">${fM(target.rev)}</td>
     <td>${pctAnnual}</td>
   </tr>`;
 
+  // Assumptions panel
+  function inputRow(lbl, id, val, unit) {
+    return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0;">
+      <span style="width:180px;font-size:12px;color:#444;">${lbl}</span>
+      <input type="number" id="${id}" value="${val}" style="width:70px;font-size:12px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;text-align:right;" step="1">
+      <span style="font-size:11px;color:#888;">${unit}</span>
+    </div>`;
+  }
+
+  const existingOverlay=document.getElementById('icrProjOverlay');
+  if(existingOverlay) existingOverlay.remove();
+
   const overlay=document.createElement('div');
   overlay.className='irr-report-overlay';
   overlay.id='icrProjOverlay';
-  overlay.innerHTML=`<div class="irr-report-modal">
+  overlay.innerHTML=`<div class="irr-report-modal" style="max-width:960px;">
     <div class="irr-report-toolbar">
       <button class="rpt-print" onclick="window.print()">Print</button>
-      <button class="rpt-print" onclick="irrDownloadPDF()">Download PDF</button>
       <button class="rpt-close" onclick="document.getElementById('icrProjOverlay').remove()">Close</button>
     </div>
     <div class="irr-report-body">
       <h1>Rolloff Growth Projection — 2026</h1>
-      <div class="rpt-period">Target: 50% increase over 2025 (${total25.loads.toLocaleString()} loads &rarr; ${target.loads.toLocaleString()} loads)</div>
-      <div class="rpt-period">Based on 30-day run rate: ${dailyRate.loads.toFixed(1)} loads/day, ${fM(dailyRate.rev)}/day</div>
-      <div class="rpt-period" style="margin-bottom:20px;">Seasonal adjustment derived from 2025 monthly distribution. * = partial month (actuals + projected remainder).</div>
+      <div class="rpt-period">Target: 50% increase over 2025 (${total25.loads.toLocaleString()} &rarr; ${target.loads.toLocaleString()} loads)</div>
+      <div class="rpt-period" style="margin-bottom:20px;">Projections use 2025 monthly actuals as base, adjusted by per-company growth rates and seasonal patterns. * = partial month.</div>
+
       <div class="rpt-kpi-row">
         <div class="rpt-kpi"><div class="rpt-kpi-label">Projected Full Year</div><div class="rpt-kpi-val">${annualProj.loads.toLocaleString()}</div><div style="font-size:11px;color:#888">loads</div></div>
-        <div class="rpt-kpi"><div class="rpt-kpi-label">Target</div><div class="rpt-kpi-val">${target.loads.toLocaleString()}</div><div style="font-size:11px;color:#888">loads (50% over 2025)</div></div>
-        <div class="rpt-kpi"><div class="rpt-kpi-label">Projected Revenue</div><div class="rpt-kpi-val">${fM(annualProj.rev)}</div><div style="font-size:11px;color:#888">full year</div></div>
-        <div class="rpt-kpi"><div class="rpt-kpi-label">On Track</div><div class="rpt-kpi-val">${pctAnnual}</div><div style="font-size:11px;color:#888">of target</div></div>
+        <div class="rpt-kpi"><div class="rpt-kpi-label">Target</div><div class="rpt-kpi-val">${target.loads.toLocaleString()}</div><div style="font-size:11px;color:#888">loads</div></div>
+        <div class="rpt-kpi"><div class="rpt-kpi-label">Projected Revenue</div><div class="rpt-kpi-val">${fM(annualProj.rev)}</div></div>
+        <div class="rpt-kpi"><div class="rpt-kpi-label">On Track</div><div class="rpt-kpi-val">${pctAnnual}</div></div>
       </div>
+
       <table class="icr-proj-table">
-        <thead><tr><th>Month</th><th>Loads</th><th>Tons</th><th>Revenue</th><th>Target Loads</th><th>Target Rev</th><th>% of Target</th></tr></thead>
+        <thead><tr><th>Month</th><th>2025 Actual</th><th>2026 Proj</th><th>Tons</th><th>Revenue</th><th>Target Loads</th><th>Target Rev</th><th>% of Target</th></tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
+
+      <div style="margin-top:28px;padding:20px;border:1px solid #ddd;border-radius:8px;">
+        <h2 style="font-size:14px;font-weight:700;margin:0 0 12px;">Assumptions</h2>
+        <div style="font-size:11px;color:#666;margin-bottom:12px;">Adjust these values and click "Recalculate" to update the forecast. Growth rates are annual, applied to each month's 2025 base. Taper reduces growth starting at the specified month.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#000;margin-bottom:6px;">Reis Rolloff</div>
+            ${inputRow('Annual Growth Rate','projReisGr',a.reis.annualGrowth,'%')}
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#000;margin-bottom:6px;">Island Rubbish</div>
+            ${inputRow('Annual Growth Rate','projIslandGr',a.island.annualGrowth,'%')}
+            ${inputRow('Taper Starting Month','projIslandTaper',a.island.taperMonth,'(0=none)')}
+            ${inputRow('Taper To Rate','projIslandTaperTo',a.island.taperTo,'%')}
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#000;margin-bottom:6px;">East End</div>
+            ${inputRow('Annual Growth Rate','projSantosGr',a.santos.annualGrowth,'%')}
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:#000;margin-bottom:6px;">Pricing</div>
+            ${inputRow('Rate Change %','projRateChg',a.rateChangePct,'% (applies Apr+)')}
+          </div>
+        </div>
+        <button onclick="icrRecalcProjections()" style="margin-top:14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:8px 24px;border:none;border-radius:4px;background:#0f1f3d;color:white;cursor:pointer;">Recalculate</button>
+      </div>
     </div>
   </div>`;
   document.body.appendChild(overlay);
+}
+
+function icrRecalcProjections() {
+  const a=icrProjAssumptions;
+  a.reis.annualGrowth=parseFloat(document.getElementById('projReisGr').value)||0;
+  a.island.annualGrowth=parseFloat(document.getElementById('projIslandGr').value)||0;
+  a.island.taperMonth=parseInt(document.getElementById('projIslandTaper').value)||0;
+  a.island.taperTo=parseFloat(document.getElementById('projIslandTaperTo').value)||0;
+  a.santos.annualGrowth=parseFloat(document.getElementById('projSantosGr').value)||0;
+  a.rateChangePct=parseFloat(document.getElementById('projRateChg').value)||0;
+
+  const m25=icrProjData.m25, m26=icrProjData.m26;
+  let total25={loads:0,tons:0,rev:0};
+  for(let m=1;m<=12;m++){if(m25[m]){total25.loads+=m25[m].totalLoads;total25.tons+=m25[m].totalTons;total25.rev+=m25[m].totalRev;}}
+  icrRenderProjections(m25,m26,total25);
 }
 
 // ── COMMAND CENTER PIN GATE ───────────────────────────────────────────
