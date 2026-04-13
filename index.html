@@ -2780,7 +2780,7 @@ function irrFmtDate(dateStr) {
   const d=new Date(dateStr);
   return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 }
-function irrFmt(n,dec=2){return n.toFixed(dec);}
+function irrFmt(n,dec=2){return (isNaN(n)||n===null||n===undefined)?'--':n.toFixed(dec);}
 function irrFmtMoney(n){return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
 function irrGenerateEmail(data, ytd) {
@@ -2920,7 +2920,7 @@ async function irrSaveReport(data) {
     pile_tons: pile.tons, pile_tickets: pile.tickets,
     island_tons: island.tons, island_tickets: island.tickets, island_revenue: island.revenue||0,
     santos_tons: santos.tons, santos_tickets: santos.tickets, santos_revenue: santos.revenue||0,
-    walkin_tons: walkin.tons, walkin_tickets: walkin.tickets,
+    walkin_tons: walkin.tons, walkin_tickets: walkin.tickets, walkin_tip_revenue: walkin.tipRevenue||0,
     vinagro_tons: vinagro.tons, vinagro_loads: vinagro.tickets,
     total_inbound_tons: totalTons, total_inbound_tickets: totalTickets,
   };
@@ -3945,7 +3945,7 @@ async function irrViewHistorical(isoDate) {
     island:{label:'Island Rubbish',tons:parseFloat(data.island_tons),tickets:data.island_tickets,revenue:parseFloat(data.island_revenue)||0},
     santos:{label:'East End',tons:parseFloat(data.santos_tons),tickets:data.santos_tickets,revenue:parseFloat(data.santos_revenue)||0},
     vinagro:{label:'VINAGRO Output',tons:parseFloat(data.vinagro_tons),tickets:data.vinagro_loads},
-    walkin:{label:'Walk-In / Drive-Through',tons:parseFloat(data.walkin_tons),tickets:data.walkin_tickets},
+    walkin:{label:'Walk-In / Drive-Through',tons:parseFloat(data.walkin_tons),tickets:data.walkin_tickets,tipRevenue:parseFloat(data.walkin_tip_revenue)||0},
   };
 
   // Always recalculate Island/East End revenue from rates (covers historical data)
