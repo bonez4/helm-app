@@ -2927,6 +2927,8 @@ let irrDashRange = 'wtd';
 let irrChartHeight = 500;
 let irrToggles = {revPerLoad:true, tonsPerLoad:true, hoursPerLoad:false, loadsPerDay:false, reisLoads:false, islandLoads:false, eastendLoads:false};
 const IRR_COLORS = {revPerLoad:'#1a9b8a', tonsPerLoad:'#0f1f3d', hoursPerLoad:'#d4a843', loadsPerDay:'#c62828', reisLoads:'#1565C0', islandLoads:'#7c4dff', eastendLoads:'#f57c00'};
+let irrCompanyFilter = 'all'; // 'all' | 'reis' | 'island' | 'eastend'
+const IRR_COMPANY_COLORS = {all:'#0f1f3d', reis:'#1565C0', island:'#7c4dff', eastend:'#f57c00'};
 
 function irrResizeChart(delta) {
   irrChartHeight = Math.max(300, Math.min(900, irrChartHeight + delta));
@@ -3038,6 +3040,27 @@ function allLoads(d){return (d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_
 function allTons(d){return (parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);}
 function allRev(d){return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);}
 
+// Company-specific helpers (driven by irrCompanyFilter)
+function cLoads(d){
+  if(irrCompanyFilter==='reis') return d.reis_tickets||0;
+  if(irrCompanyFilter==='island') return d.island_tickets||0;
+  if(irrCompanyFilter==='eastend') return d.santos_tickets||0;
+  return allLoads(d);
+}
+function cTons(d){
+  if(irrCompanyFilter==='reis') return parseFloat(d.reis_tons)||0;
+  if(irrCompanyFilter==='island') return parseFloat(d.island_tons)||0;
+  if(irrCompanyFilter==='eastend') return parseFloat(d.santos_tons)||0;
+  return allTons(d);
+}
+function cRev(d){
+  if(irrCompanyFilter==='reis') return (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0);
+  if(irrCompanyFilter==='island') return parseFloat(d.island_revenue)||0;
+  if(irrCompanyFilter==='eastend') return parseFloat(d.santos_revenue)||0;
+  return allRev(d);
+}
+function irrSetCompany(c){irrCompanyFilter=c;irrRenderDashboard();}
+
 function irrRenderDashboard() {
   const container = document.getElementById('irrDashContent');
   const {start,end} = irrGetDateRange(irrDashRange,
@@ -3045,19 +3068,25 @@ function irrRenderDashboard() {
     document.getElementById('irrCustomEnd')?.value);
   const filtered = irrDashData.filter(d=>d.report_date>=start && d.report_date<=end);
 
-  // KPIs
-  let totalAllLoads=0, totalAllTons=0, totalAllRev=0, totalHours=0, hoursCount=0;
+  // KPIs — use company-filtered helpers
+  let totalCLoads=0, totalCTons=0, totalCRev=0, totalHours=0, hoursCount=0;
   for(const d of filtered){
-    totalAllLoads+=allLoads(d);
-    totalAllTons+=allTons(d);
-    totalAllRev+=allRev(d);
+    totalCLoads+=cLoads(d);
+    totalCTons+=cTons(d);
+    totalCRev+=cRev(d);
     if(d.driver_hours!=null){totalHours+=parseFloat(d.driver_hours)||0;hoursCount++;}
   }
-  const avgRevPerLoad = totalAllLoads>0?(totalAllRev/totalAllLoads):0;
-  const avgTonsPerLoad = totalAllLoads>0?(totalAllTons/totalAllLoads):0;
-  const avgHoursPerLoad = (totalAllLoads>0 && hoursCount>0)?(totalHours/totalAllLoads):0;
+  const avgRevPerLoad = totalCLoads>0?(totalCRev/totalCLoads):0;
+  const avgTonsPerLoad = totalCLoads>0?(totalCTons/totalCLoads):0;
+  const avgHoursPerLoad = (totalCLoads>0 && hoursCount>0)?(totalHours/totalCLoads):0;
 
   const rangeBtn=(id,label)=>`<button class="irr-range-btn ${irrDashRange===id?'active':''}" onclick="irrSetRange('${id}')">${label}</button>`;
+  const compBtn=(id,label)=>{
+    const ac=irrCompanyFilter===id;
+    const clr=IRR_COMPANY_COLORS[id];
+    return `<button class="irr-range-btn" style="${ac?'background:'+clr+';color:white;border-color:'+clr:''}" onclick="irrSetCompany('${id}')">${label}</button>`;
+  };
+  const companyLabel = {all:'All Combined',reis:'Reis Rolloff',island:'Island Rubbish',eastend:'East End'}[irrCompanyFilter];
 
   container.innerHTML = `
     <div class="irr-dash-controls">
@@ -3070,16 +3099,20 @@ function irrRenderDashboard() {
       <button class="irr-range-btn" style="margin-left:auto;background:var(--navy);color:white;border-color:var(--navy);" onclick="irrGenerateReport()">Generate Report</button>
     </div>
 
+    <div class="irr-dash-controls" style="border-bottom:none;padding-bottom:0;margin-bottom:12px;">
+      ${compBtn('all','All Combined')}${compBtn('reis','Reis')}${compBtn('island','Island Rubbish')}${compBtn('eastend','East End')}
+    </div>
+
     <div class="irr-kpi-row">
       <div class="irr-kpi">
-        <div class="irr-kpi-label">Avg Rev / Load</div>
+        <div class="irr-kpi-label">${companyLabel} — Avg Rev / Load</div>
         <div class="irr-kpi-val">${avgRevPerLoad>0?'$'+avgRevPerLoad.toFixed(2):'--'}</div>
-        <div class="irr-kpi-sub">${filtered.length} days, ${totalAllLoads} loads</div>
+        <div class="irr-kpi-sub">${filtered.length} days, ${totalCLoads} loads</div>
       </div>
       <div class="irr-kpi">
-        <div class="irr-kpi-label">Avg Tons / Load</div>
+        <div class="irr-kpi-label">${companyLabel} — Avg Tons / Load</div>
         <div class="irr-kpi-val">${avgTonsPerLoad>0?avgTonsPerLoad.toFixed(2):'--'}</div>
-        <div class="irr-kpi-sub">${totalAllTons.toFixed(1)} total tons</div>
+        <div class="irr-kpi-sub">${totalCTons.toFixed(1)} total tons</div>
       </div>
       <div class="irr-kpi">
         <div class="irr-kpi-label">Avg Hours / Load</div>
@@ -3087,9 +3120,9 @@ function irrRenderDashboard() {
         <div class="irr-kpi-sub">${hoursCount>0?hoursCount+' days with data':'No data yet'}</div>
       </div>
       <div class="irr-kpi">
-        <div class="irr-kpi-label">Avg Loads / Day</div>
-        <div class="irr-kpi-val">${filtered.length>0?(totalAllLoads/filtered.length).toFixed(1):'--'}</div>
-        <div class="irr-kpi-sub">${totalAllLoads} loads over ${filtered.length} days</div>
+        <div class="irr-kpi-label">${companyLabel} — Avg Loads / Day</div>
+        <div class="irr-kpi-val">${filtered.length>0?(totalCLoads/filtered.length).toFixed(1):'--'}</div>
+        <div class="irr-kpi-sub">${totalCLoads} loads over ${filtered.length} days</div>
       </div>
     </div>
 
@@ -3098,9 +3131,9 @@ function irrRenderDashboard() {
       <button class="irr-toggle ${irrToggles.tonsPerLoad?'on':''}" style="${irrToggles.tonsPerLoad?'background:'+IRR_COLORS.tonsPerLoad+';border-color:'+IRR_COLORS.tonsPerLoad:''}" onclick="irrToggleSeries('tonsPerLoad')">Tons / Load</button>
       <button class="irr-toggle ${irrToggles.hoursPerLoad?'on':''}" style="${irrToggles.hoursPerLoad?'background:'+IRR_COLORS.hoursPerLoad+';border-color:'+IRR_COLORS.hoursPerLoad:''}" onclick="irrToggleSeries('hoursPerLoad')">Hours / Load</button>
       <button class="irr-toggle ${irrToggles.loadsPerDay?'on':''}" style="${irrToggles.loadsPerDay?'background:'+IRR_COLORS.loadsPerDay+';border-color:'+IRR_COLORS.loadsPerDay:''}" onclick="irrToggleSeries('loadsPerDay')">Loads / Day</button>
-      <button class="irr-toggle ${irrToggles.reisLoads?'on':''}" style="${irrToggles.reisLoads?'background:'+IRR_COLORS.reisLoads+';border-color:'+IRR_COLORS.reisLoads:''}" onclick="irrToggleSeries('reisLoads')">Reis Loads</button>
-      <button class="irr-toggle ${irrToggles.islandLoads?'on':''}" style="${irrToggles.islandLoads?'background:'+IRR_COLORS.islandLoads+';border-color:'+IRR_COLORS.islandLoads:''}" onclick="irrToggleSeries('islandLoads')">Island Loads</button>
-      <button class="irr-toggle ${irrToggles.eastendLoads?'on':''}" style="${irrToggles.eastendLoads?'background:'+IRR_COLORS.eastendLoads+';border-color:'+IRR_COLORS.eastendLoads:''}" onclick="irrToggleSeries('eastendLoads')">East End Loads</button>
+      ${irrCompanyFilter==='all'?`<button class="irr-toggle ${irrToggles.reisLoads?'on':''}" style="${irrToggles.reisLoads?'background:'+IRR_COLORS.reisLoads+';border-color:'+IRR_COLORS.reisLoads:''}" onclick="irrToggleSeries('reisLoads')">Reis Loads</button>
+      <button class="irr-toggle ${irrToggles.islandLoads?'on':''}" style="${irrToggles.islandLoads?'background:'+IRR_COLORS.islandLoads+';border-color:'+IRR_COLORS.islandLoads:''}" onclick="irrToggleSeries('islandLoads')">Island Loads</button>`:''}
+      ${irrCompanyFilter==='all'?`<button class="irr-toggle ${irrToggles.eastendLoads?'on':''}" style="${irrToggles.eastendLoads?'background:'+IRR_COLORS.eastendLoads+';border-color:'+IRR_COLORS.eastendLoads:''}" onclick="irrToggleSeries('eastendLoads')">East End Loads</button>`:''}
     </div>
 
     <div class="irr-chart-wrap" id="irrChartWrap" style="height:${irrChartHeight}px;">
@@ -3142,12 +3175,14 @@ function irrDrawChart(filtered) {
   const labels = filtered.map(d=>d.report_date);
   const datasets = [];
 
+  const cClr = IRR_COMPANY_COLORS[irrCompanyFilter]||IRR_COMPANY_COLORS.all;
+
   if(irrToggles.revPerLoad){
     datasets.push({
       label:'Rev / Load ($)',
       data:filtered.map(d=>{
-        const t=allLoads(d);
-        return t>0?allRev(d)/t:null;
+        const t=cLoads(d);
+        return t>0?cRev(d)/t:null;
       }),
       borderColor:IRR_COLORS.revPerLoad, backgroundColor:IRR_COLORS.revPerLoad+'20',
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y',
@@ -3157,8 +3192,8 @@ function irrDrawChart(filtered) {
     datasets.push({
       label:'Tons / Load',
       data:filtered.map(d=>{
-        const t=allLoads(d);
-        return t>0?allTons(d)/t:null;
+        const t=cLoads(d);
+        return t>0?cTons(d)/t:null;
       }),
       borderColor:IRR_COLORS.tonsPerLoad, backgroundColor:IRR_COLORS.tonsPerLoad+'20',
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y1',
@@ -3168,7 +3203,7 @@ function irrDrawChart(filtered) {
     datasets.push({
       label:'Hours / Load',
       data:filtered.map(d=>{
-        const t=allLoads(d);
+        const t=cLoads(d);
         const h=d.driver_hours!=null?parseFloat(d.driver_hours):null;
         return (t>0 && h!==null)?h/t:null;
       }),
@@ -3178,13 +3213,14 @@ function irrDrawChart(filtered) {
   }
   if(irrToggles.loadsPerDay){
     datasets.push({
-      label:'Loads / Day (All)',
-      data:filtered.map(d=>allLoads(d)),
+      label:'Loads / Day',
+      data:filtered.map(d=>cLoads(d)),
       borderColor:IRR_COLORS.loadsPerDay, backgroundColor:IRR_COLORS.loadsPerDay+'20',
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
     });
   }
-  if(irrToggles.reisLoads){
+  // Per-company load breakdown only in "All Combined" view
+  if(irrCompanyFilter==='all' && irrToggles.reisLoads){
     datasets.push({
       label:'Reis Loads',
       data:filtered.map(d=>d.reis_tickets||0),
@@ -3192,7 +3228,7 @@ function irrDrawChart(filtered) {
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
     });
   }
-  if(irrToggles.islandLoads){
+  if(irrCompanyFilter==='all' && irrToggles.islandLoads){
     datasets.push({
       label:'Island Loads',
       data:filtered.map(d=>d.island_tickets||0),
@@ -3200,7 +3236,7 @@ function irrDrawChart(filtered) {
       tension:0.3, pointRadius:3, borderWidth:2, yAxisID:'y3',
     });
   }
-  if(irrToggles.eastendLoads){
+  if(irrCompanyFilter==='all' && irrToggles.eastendLoads){
     datasets.push({
       label:'East End Loads',
       data:filtered.map(d=>d.santos_tickets||0),
