@@ -4667,7 +4667,10 @@ function icrRenderQuarterly(d25, d26) {
       r.santos.loads+=d.santos_tickets||0; r.santos.tons+=parseFloat(d.santos_tons)||0; r.santos.rev+=parseFloat(d.santos_revenue)||0;
       r.total.loads+=allLoads(d); r.total.tons+=allTons(d); r.total.rev+=allRev(d);
       r.vinagro.loads+=d.vinagro_loads||0; r.vinagro.tons+=parseFloat(d.vinagro_tons)||0;
-      r.walkin.loads+=d.walkin_tickets||0; r.walkin.tons+=parseFloat(d.walkin_tons)||0; r.walkin.rev+=parseFloat(d.walkin_tip_revenue)||0;
+      r.walkin.loads+=d.walkin_tickets||0; r.walkin.tons+=parseFloat(d.walkin_tons)||0;
+      // Use stored revenue if available, otherwise estimate from tons × $400 avg rate
+      const wRev=parseFloat(d.walkin_tip_revenue)||0;
+      r.walkin.rev+=wRev>0?wRev:(parseFloat(d.walkin_tons)||0)*400;
       r.days++;
     }
     return result;
