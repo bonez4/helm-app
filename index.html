@@ -4735,6 +4735,7 @@ function icrRenderQuarterly(d25, d26) {
   const overlay=document.createElement('div');
   overlay.className='irr-report-overlay';
   overlay.id='icrQuarterOverlay';
+  overlay.onclick=function(e){if(e.target===overlay){icrDestroyQCharts();overlay.remove();}};
   overlay.innerHTML=`<div class="irr-report-modal" style="max-width:1100px;">
     <div class="irr-report-toolbar">
       <button class="rpt-print" onclick="window.print()">Print</button>
@@ -4888,9 +4889,20 @@ function icrRenderQuarterly(d25, d26) {
     const container = document.getElementById(containerId);
     let html = '';
     for (const m of activeMonths) {
-      html += `<div style="text-align:center;flex:1;max-width:140px;">
-        <canvas id="${containerId}_${m}" height="120"></canvas>
-        <div style="font-size:10px;color:#888;margin-top:4px;">${mNames[m-1]}</div>
+      const d=fy[m];
+      const rv=d?valFn(d,'rolloff'):0, wv=d?valFn(d,'walkin'):0;
+      const total=rv+wv;
+      const rPct=total>0?(rv/total*100).toFixed(0):'--';
+      const wPct=total>0?(wv/total*100).toFixed(0):'--';
+      const isRev=containerId.includes('Rev');
+      const fv=v=>isRev?'$'+Math.round(v).toLocaleString():v.toFixed(0);
+      html += `<div style="text-align:center;flex:1;max-width:160px;">
+        <div style="font-size:10px;font-weight:600;color:#444;margin-bottom:4px;">${mNames[m-1]}</div>
+        <canvas id="${containerId}_${m}" height="110"></canvas>
+        <div style="font-size:10px;margin-top:6px;line-height:1.6;">
+          <div style="color:#2e7d32;font-weight:600;">Rolloff: ${fv(rv)} (${rPct}%)</div>
+          <div style="color:#1565C0;font-weight:600;">Walk-In: ${fv(wv)} (${wPct}%)</div>
+        </div>
       </div>`;
     }
     container.innerHTML = html;
@@ -5102,6 +5114,7 @@ function icrRenderProjections(m25,m26,total25) {
   const overlay=document.createElement('div');
   overlay.className='irr-report-overlay';
   overlay.id='icrProjOverlay';
+  overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
   overlay.innerHTML=`<div class="irr-report-modal" style="max-width:960px;">
     <div class="irr-report-toolbar">
       <button class="rpt-print" onclick="window.print()">Print</button>
