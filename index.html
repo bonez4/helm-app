@@ -2763,9 +2763,12 @@ function irrParseReport(rows) {
     // Rolloff service fees (Reis only, not ZZ)
     for (const kw of IRR_ROLLOFF_SVC) {
       if (flatUpper.includes(kw) && !rc.startsWith('ZZ')) {
-        for (let j=dataVals.length-1;j>=0;j--) {
-          const amt=parseFloat(dataVals[j]);
-          if (!isNaN(amt) && amt>0) { buckets.reis.rolloffFees+=amt; break; }
+        const kwIdx = dataVals.findIndex(v => v && v.toUpperCase().includes(kw));
+        if (kwIdx >= 0) {
+          for (let j=dataVals.length-1;j>kwIdx;j--) {
+            const amt=parseFloat(dataVals[j]);
+            if (!isNaN(amt) && amt>0) { buckets.reis.rolloffFees+=amt; break; }
+          }
         }
         break;
       }
@@ -3683,12 +3686,15 @@ function irrParseBulk(rows) {
         if(!tickets[ticket]) tickets[ticket]={tons:0,service:null,code:effectiveCode,date:lastDate,tipRev:0};
         tickets[ticket].service=kw; tickets[ticket].code=effectiveCode;
         if(!tickets[ticket].date) tickets[ticket].date=lastDate;
-        // Service fee amount
+        // Service fee amount — only scan AFTER the keyword to avoid grabbing ticket numbers
         let svcFee=0;
         if(!effectiveCode.startsWith('ZZ')){
-          for(let j=dataVals.length-1;j>=0;j--){
-            const amt=parseFloat(dataVals[j]);
-            if(!isNaN(amt)&&amt>0){svcFee=amt;break;}
+          const kwIdx2=dataVals.findIndex(v=>v&&v.toUpperCase().includes(kw));
+          if(kwIdx2>=0){
+            for(let j=dataVals.length-1;j>kwIdx2;j--){
+              const amt=parseFloat(dataVals[j]);
+              if(!isNaN(amt)&&amt>0){svcFee=amt;break;}
+            }
           }
         }
         tickets[ticket].svcFee=(tickets[ticket].svcFee||0)+svcFee;
