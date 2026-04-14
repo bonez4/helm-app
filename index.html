@@ -3711,20 +3711,20 @@ function irrParseBulk(rows) {
     if(!dailyMap[dt]) dailyMap[dt]={
       reis:{tons:0,tickets:0,tipRev:0,svcFees:0,deliveries:0,empties:0,doubleDrops:0},
       pile:{tons:0,tickets:0}, island:{tons:0,tickets:0}, santos:{tons:0,tickets:0},
-      vinagro:{tons:0,tickets:0}, walkin:{tons:0,tickets:0},
+      vinagro:{tons:0,tickets:0}, walkin:{tons:0,tickets:0,tipRev:0},
     };
     const b=dailyMap[dt], c=t.code;
     if(c==='ZZISLAND'){b.island.tons+=t.tons;b.island.tickets++;}
     else if(c==='ZZEASTEND'){b.santos.tons+=t.tons;b.santos.tickets++;}
     else if(c==='ZZDELTA'){b.pile.tons+=t.tons;b.pile.tickets++;}
     else if(c==='ZZREIS'){b.vinagro.tons+=t.tons;b.vinagro.tickets++;}
-    else if(c.startsWith('ZZ')){b.walkin.tons+=t.tons;b.walkin.tickets++;}
+    else if(c.startsWith('ZZ')){b.walkin.tons+=t.tons;b.walkin.tickets++;b.walkin.tipRev+=t.tipRev||0;}
     else if(t.service!==null){
       b.reis.tons+=t.tons;b.reis.tickets++;b.reis.tipRev+=t.tipRev||0;b.reis.svcFees+=t.svcFee||0;
       if(t.service.includes('DELIVERY'))b.reis.deliveries++;
       else if(t.service.includes('DOUBLE DROP'))b.reis.doubleDrops++;
       else if(t.service.includes('EMPTY'))b.reis.empties++;
-    } else {b.walkin.tons+=t.tons;b.walkin.tickets++;}
+    } else {b.walkin.tons+=t.tons;b.walkin.tickets++;b.walkin.tipRev+=t.tipRev||0;}
   }
 
   // Convert to array of DB rows
@@ -3742,7 +3742,7 @@ function irrParseBulk(rows) {
       pile_tons:b.pile.tons, pile_tickets:b.pile.tickets,
       island_tons:b.island.tons, island_tickets:b.island.tickets, island_revenue:0,
       santos_tons:b.santos.tons, santos_tickets:b.santos.tickets, santos_revenue:0,
-      walkin_tons:b.walkin.tons, walkin_tickets:b.walkin.tickets,
+      walkin_tons:b.walkin.tons, walkin_tickets:b.walkin.tickets, walkin_tip_revenue:b.walkin.tipRev,
       vinagro_tons:b.vinagro.tons, vinagro_loads:b.vinagro.tickets,
       total_inbound_tons:totalTons, total_inbound_tickets:totalTickets,
     });
@@ -4667,10 +4667,7 @@ function icrRenderQuarterly(d25, d26) {
       r.santos.loads+=d.santos_tickets||0; r.santos.tons+=parseFloat(d.santos_tons)||0; r.santos.rev+=parseFloat(d.santos_revenue)||0;
       r.total.loads+=allLoads(d); r.total.tons+=allTons(d); r.total.rev+=allRev(d);
       r.vinagro.loads+=d.vinagro_loads||0; r.vinagro.tons+=parseFloat(d.vinagro_tons)||0;
-      r.walkin.loads+=d.walkin_tickets||0; r.walkin.tons+=parseFloat(d.walkin_tons)||0;
-      // Use stored revenue if available, otherwise estimate from tons × $400 avg rate
-      const wRev=parseFloat(d.walkin_tip_revenue)||0;
-      r.walkin.rev+=wRev>0?wRev:(parseFloat(d.walkin_tons)||0)*400;
+      r.walkin.loads+=d.walkin_tickets||0; r.walkin.tons+=parseFloat(d.walkin_tons)||0; r.walkin.rev+=parseFloat(d.walkin_tip_revenue)||0;
       r.days++;
     }
     return result;
