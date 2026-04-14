@@ -3797,6 +3797,119 @@ async function irrHandleBulk(file) {
   reader.readAsText(file);
 }
 
+// ── Ticket reclassification (move IC pile pickups to walk-in) ─────────
+
+function irrShowReclassify(data, file) {
+  return new Promise(resolve => {
+    const icTickets = [];
+    for (const [tn, t] of Object.entries(data.tickets)) {
+      if (t.code === 'ZZISLAND' || t.code === 'ZZEASTEND') {
+        icTickets.push({ ticket: tn, code: t.code, tons: t.tons, company: t.code === 'ZZISLAND' ? 'Island Rubbish' : 'East End' });
+      }
+    }
+    if (!icTickets.length) { resolve(); irrFinalizeDailyUpload(data, file); return; }
+    icTickets.sort((a, b) => a.company.localeCompare(b.company) || b.tons - a.tons);
+
+    const existing = document.getElementById('icrReclassModal');
+    if (existing) existing.remove();
+
+    let rows = '';
+    for (const t of icTickets) {
+      rows += `<tr>
+        <td><input type="checkbox" value="${t.ticket}" class="reclass-cb"></td>
+        <td>${t.ticket}</td>
+        <td>${t.company}</td>
+        <td style="font-family:'DM Mono',monospace;text-align:right;">${t.tons.toFixed(2)}</td>
+      </tr>`;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'icr-driver-modal';
+    overlay.id = 'icrReclassModal';
+    overlay.innerHTML = `<div class="icr-driver-box" style="max-width:500px;">
+      <h3>Flag Pile Pickups — ${data.date || 'Today'}</h3>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;">Check any Island Rubbish or East End tickets that are pile pickups (not rolloffs). Flagged tickets will be moved to the walk-in category.</div>
+      <div style="max-height:300px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="border-bottom:1px solid var(--gray-200);">
+            <th style="padding:6px 8px;width:30px;"></th>
+            <th style="padding:6px 8px;text-align:left;">Ticket</th>
+            <th style="padding:6px 8px;text-align:left;">Company</th>
+            <th style="padding:6px 8px;text-align:right;">Tons</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="icr-driver-btns" style="margin-top:14px;">
+        <button style="background:var(--gray-100);color:var(--gray-600);" onclick="irrReclassifyConfirm(false)">No Pile Pickups</button>
+        <button style="background:var(--teal);color:white;" onclick="irrReclassifyConfirm(true)">Confirm</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+
+    window._reclassResolve = resolve;
+    window._reclassData = data;
+    window._reclassFile = file;
+  });
+}
+
+function irrReclassifyConfirm(applyChanges) {
+  const data = window._reclassData;
+  const file = window._reclassFile;
+  const resolve = window._reclassResolve;
+
+  if (applyChanges) {
+    const checked = document.querySelectorAll('.reclass-cb:checked');
+    const flagged = new Set();
+    checked.forEach(cb => flagged.add(cb.value));
+
+    if (flagged.size > 0) {
+      // Move flagged tickets from island/santos to walkin
+      for (const tn of flagged) {
+        const t = data.tickets[tn];
+        if (!t) continue;
+        const b = data.buckets;
+        if (t.code === 'ZZISLAND') {
+          b.island.tons -= t.tons; b.island.tickets--;
+          b.walkin.tons += t.tons; b.walkin.tickets++;
+        } else if (t.code === 'ZZEASTEND') {
+          b.santos.tons -= t.tons; b.santos.tickets--;
+          b.walkin.tons += t.tons; b.walkin.tickets++;
+        }
+        t.code = 'WALKIN_RECLASS'; // mark so it doesn't get re-counted
+      }
+      // Recalculate revenue
+      irrCalcRevenue(data.buckets);
+      toast(flagged.size + ' ticket(s) moved to walk-in', true);
+    }
+  }
+
+  document.getElementById('icrReclassModal').remove();
+  irrFinalizeDailyUpload(data, file);
+  if (resolve) resolve();
+}
+
+async function irrFinalizeDailyUpload(data, file) {
+  const status = document.getElementById('irrStatus');
+  status.style.display = 'block';
+  status.textContent = 'Saving report...';
+
+  await irrSaveReport(data);
+
+  try { await irrAutoSaveFile(file, data.date); } catch (ex) { console.warn('File backup failed:', ex); }
+
+  const ytd = await irrLoadYTD(data.date);
+
+  document.getElementById('irrUploadSection').style.display = 'none';
+  document.getElementById('irrReportView').innerHTML = irrRenderReportView(data, ytd);
+  window._irrEmail = irrGenerateEmail(data, ytd);
+
+  irrLoadHistoryView();
+  toast('Scale report processed', true);
+
+  irrPromptDriverData(data.date);
+}
+
 // Auto-save uploaded .xls files to shared "Daily Scale Reports" folder
 async function irrAutoSaveFile(file, reportDate) {
   // Find or create the shared folder
@@ -3848,26 +3961,15 @@ async function irrHandleFile(file) {
       await irrLoadRates();
       irrCalcRevenue(data.buckets);
       irrCurrentData = data;
-      status.textContent='Parsed '+Object.keys(data.tickets).length+' tickets. Saving...';
+      status.textContent='Parsed '+Object.keys(data.tickets).length+' tickets.';
 
-      await irrSaveReport(data);
-
-      // Auto-save raw file to Files storage
-      try { await irrAutoSaveFile(file, data.date); } catch(ex) { console.warn('File backup failed:', ex); }
-
-      const ytd = await irrLoadYTD(data.date);
-
-      document.getElementById('irrUploadSection').style.display='none';
-      document.getElementById('irrReportView').innerHTML = irrRenderReportView(data, ytd);
-
-      // Store for email generation
-      window._irrEmail = irrGenerateEmail(data, ytd);
-
-      irrLoadHistoryView();
-      toast('Scale report processed',true);
-
-      // Prompt for driver data
-      irrPromptDriverData(data.date);
+      // Show reclassification modal for Island/East End pile pickups
+      const hasICTickets = Object.values(data.tickets).some(t=>t.code==='ZZISLAND'||t.code==='ZZEASTEND');
+      if (hasICTickets) {
+        await irrShowReclassify(data, file);
+      } else {
+        await irrFinalizeDailyUpload(data, file);
+      }
     } catch(err) {
       status.textContent='Error: '+err.message;
       console.error(err);
@@ -4537,8 +4639,15 @@ async function icrShowQuarterly() {
     }
   }
 
+  // Also get full-year monthly data for charts
+  window._icrFullYear26 = d26||[];
+  window._icrFullYear25 = d25||[];
+
   icrRenderQuarterly(d25||[], d26||[]);
 }
+
+let icrQCharts = [];
+function icrDestroyQCharts(){icrQCharts.forEach(c=>c.destroy());icrQCharts=[];}
 
 function icrRenderQuarterly(d25, d26) {
   const q = icrQuarter;
@@ -4548,7 +4657,7 @@ function icrRenderQuarterly(d25, d26) {
 
   function monthlyByCompany(data, months) {
     const result = {};
-    for(const m of months) result[m] = {reis:{loads:0,tons:0,rev:0},island:{loads:0,tons:0,rev:0},santos:{loads:0,tons:0,rev:0},total:{loads:0,tons:0,rev:0},vinagro:{loads:0,tons:0}};
+    for(const m of months) result[m] = {reis:{loads:0,tons:0,rev:0},island:{loads:0,tons:0,rev:0},santos:{loads:0,tons:0,rev:0},total:{loads:0,tons:0,rev:0},vinagro:{loads:0,tons:0},walkin:{loads:0,tons:0,rev:0},days:0};
     for(const d of data) {
       const m = parseInt(d.report_date.substring(5,7));
       if(!months.includes(m)) continue;
@@ -4558,6 +4667,8 @@ function icrRenderQuarterly(d25, d26) {
       r.santos.loads+=d.santos_tickets||0; r.santos.tons+=parseFloat(d.santos_tons)||0; r.santos.rev+=parseFloat(d.santos_revenue)||0;
       r.total.loads+=allLoads(d); r.total.tons+=allTons(d); r.total.rev+=allRev(d);
       r.vinagro.loads+=d.vinagro_loads||0; r.vinagro.tons+=parseFloat(d.vinagro_tons)||0;
+      r.walkin.loads+=d.walkin_tickets||0; r.walkin.tons+=parseFloat(d.walkin_tons)||0; r.walkin.rev+=parseFloat(d.walkin_tip_revenue)||0;
+      r.days++;
     }
     return result;
   }
@@ -4592,10 +4703,10 @@ function icrRenderQuarterly(d25, d26) {
     }
     function fullRow(lbl, valFn, numFn) {
       let cells='';
-      for(const m of qMonths) cells+=`<td>${valFn(cur[m]?.[company])}</td>`;
-      cells+=`<td style="font-weight:700">${valFn(curQ)}</td><td class="icr-spacer"></td>`;
-      for(const m of qMonths) cells+=`<td>${valFn(prev[m]?.[company])}</td>`;
-      cells+=`<td style="font-weight:700">${valFn(prevQ)}</td><td class="icr-spacer"></td>`;
+      for(const m of qMonths) cells+=`<td>${valFn(cur[m]?.[company],m)}</td>`;
+      cells+=`<td style="font-weight:700">${valFn(curQ,0)}</td><td class="icr-spacer"></td>`;
+      for(const m of qMonths) cells+=`<td>${valFn(prev[m]?.[company],m)}</td>`;
+      cells+=`<td style="font-weight:700">${valFn(prevQ,0)}</td><td class="icr-spacer"></td>`;
       cells+=yoyRow(lbl, numFn(curQ), numFn(prevQ));
       return `<tr><td>${lbl}</td>${cells}</tr>`;
     }
@@ -4605,6 +4716,7 @@ function icrRenderQuarterly(d25, d26) {
     html+=fullRow('Rev/Load', c=>c&&c.loads>0?fM(c.rev/c.loads):'--', c=>c.loads>0?c.rev/c.loads:0);
     html+=fullRow('Total Revenue', c=>c?fM(c.rev):'--', c=>c.rev);
     html+=fullRow('Loads', c=>c?c.loads||'--':'--', c=>c.loads);
+    html+=fullRow('Loads/Day', (c,m)=>{const days=cur[m]?.days||0;return c&&days>0?(c.loads/days).toFixed(1):'--';}, c=>0);
     html+='<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(10)+'</tr>';
     html+=fullRow('Tons/Load', c=>c&&c.loads>0?f2(c.tons/c.loads):'--', c=>c.loads>0?c.tons/c.loads:0);
     html+=fullRow('Total Tons', c=>c?f2(c.tons):'--', c=>c.tons);
@@ -4683,9 +4795,93 @@ function icrRenderQuarterly(d25, d26) {
           })()}
         </tbody>
       </table>
+
+      <h2 style="font-size:16px;font-weight:700;margin:32px 0 16px;color:#000;">Consolidated Visuals — ${icrYear}</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="border:1px solid #ddd;border-radius:6px;padding:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Rev / Load</div><canvas id="qcRevLoad" height="200"></canvas></div>
+        <div style="border:1px solid #ddd;border-radius:6px;padding:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Total Revenue / Month</div><canvas id="qcTotalRev" height="200"></canvas></div>
+        <div style="border:1px solid #ddd;border-radius:6px;padding:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Loads / Day</div><canvas id="qcLoadsDay" height="200"></canvas></div>
+        <div style="border:1px solid #ddd;border-radius:6px;padding:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Loads / Month</div><canvas id="qcLoadsMo" height="200"></canvas></div>
+        <div style="border:1px solid #ddd;border-radius:6px;padding:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Tons / Load</div><canvas id="qcTonsLoad" height="200"></canvas></div>
+        <div style="border:1px solid #ddd;border-radius:6px;padding:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Tons / Month</div><canvas id="qcTonsMo" height="200"></canvas></div>
+        <div style="border:1px solid #ddd;border-radius:6px;padding:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Rolloff vs Walk-In — Tonnage</div><canvas id="qcRvWTons" height="200"></canvas></div>
+        <div style="border:1px solid #ddd;border-radius:6px;padding:14px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;">Rolloff vs Walk-In — Revenue</div><canvas id="qcRvWRev" height="200"></canvas></div>
+      </div>
     </div>
   </div>`;
   document.body.appendChild(overlay);
+
+  // Render charts with full-year data
+  icrDestroyQCharts();
+  const allMonths=[1,2,3,4,5,6,7,8,9,10,11,12];
+  const fy = monthlyByCompany(window._icrFullYear26, allMonths);
+  const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const labels=allMonths.map(m=>mNames[m-1]);
+  const rC='#1565C0',iC='#7c4dff',sC='#f57c00',gC='#2e7d32',bC='#1565C0';
+
+  function mkLine(id,datasets,yLabel,yCb){
+    const c=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{y:{title:{display:true,text:yLabel,font:{size:10}},ticks:{font:{size:10},callback:yCb||undefined},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
+    icrQCharts.push(c);
+  }
+  function mkBar(id,datasets,yLabel,yCb){
+    const c=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}},y:{stacked:true,title:{display:true,text:yLabel,font:{size:10}},ticks:{font:{size:10},callback:yCb||undefined},grid:{color:'rgba(0,0,0,0.04)'}}}}});
+    icrQCharts.push(c);
+  }
+  function mkArea(id,ds){
+    const c=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{y:{stacked:true,ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
+    icrQCharts.push(c);
+  }
+
+  const lineDs=(label,color,valFn)=>({label,data:allMonths.map(m=>fy[m]?valFn(fy[m]):null),borderColor:color,backgroundColor:color+'20',tension:0.3,pointRadius:3,borderWidth:2});
+  const barDs=(label,color,valFn)=>({label,data:allMonths.map(m=>fy[m]?valFn(fy[m]):0),backgroundColor:color+'cc',borderColor:color,borderWidth:1});
+
+  // Rev/Load line chart
+  mkLine('qcRevLoad',[
+    lineDs('Reis',rC,m=>m.reis.loads>0?m.reis.rev/m.reis.loads:null),
+    lineDs('Island',iC,m=>m.island.loads>0?m.island.rev/m.island.loads:null),
+    lineDs('East End',sC,m=>m.santos.loads>0?m.santos.rev/m.santos.loads:null),
+  ],'$/Load',v=>'$'+v);
+
+  // Total Rev/Mo stacked bar
+  mkBar('qcTotalRev',[
+    barDs('Reis',rC,m=>m.reis.rev),barDs('Island',iC,m=>m.island.rev),barDs('East End',sC,m=>m.santos.rev),
+  ],'Revenue',v=>'$'+(v/1000).toFixed(0)+'k');
+
+  // Loads/Day line chart
+  mkLine('qcLoadsDay',[
+    lineDs('Reis',rC,m=>m.days>0?m.reis.loads/m.days:null),
+    lineDs('Island',iC,m=>m.days>0?m.island.loads/m.days:null),
+    lineDs('East End',sC,m=>m.days>0?m.santos.loads/m.days:null),
+  ],'Loads/Day');
+
+  // Loads/Mo stacked bar
+  mkBar('qcLoadsMo',[
+    barDs('Reis',rC,m=>m.reis.loads),barDs('Island',iC,m=>m.island.loads),barDs('East End',sC,m=>m.santos.loads),
+  ],'Loads');
+
+  // Tons/Load line chart
+  mkLine('qcTonsLoad',[
+    lineDs('Reis',rC,m=>m.reis.loads>0?m.reis.tons/m.reis.loads:null),
+    lineDs('Island',iC,m=>m.island.loads>0?m.island.tons/m.island.loads:null),
+    lineDs('East End',sC,m=>m.santos.loads>0?m.santos.tons/m.santos.loads:null),
+  ],'Tons/Load');
+
+  // Tons/Mo stacked bar
+  mkBar('qcTonsMo',[
+    barDs('Reis',rC,m=>m.reis.tons),barDs('Island',iC,m=>m.island.tons),barDs('East End',sC,m=>m.santos.tons),
+  ],'Tons');
+
+  // Rolloff vs Walk-in Tonnage (stacked area)
+  mkArea('qcRvWTons',[
+    {label:'Rolloffs',data:allMonths.map(m=>fy[m]?fy[m].total.tons:0),backgroundColor:'rgba(46,125,50,0.5)',borderColor:'#2e7d32',borderWidth:2,fill:'origin',tension:0.3,pointRadius:2},
+    {label:'Walk-ins',data:allMonths.map(m=>fy[m]?fy[m].walkin.tons:0),backgroundColor:'rgba(21,101,192,0.5)',borderColor:'#1565C0',borderWidth:2,fill:'-1',tension:0.3,pointRadius:2},
+  ]);
+
+  // Rolloff vs Walk-in Revenue (stacked area)
+  mkArea('qcRvWRev',[
+    {label:'Rolloffs',data:allMonths.map(m=>fy[m]?fy[m].total.rev:0),backgroundColor:'rgba(46,125,50,0.5)',borderColor:'#2e7d32',borderWidth:2,fill:'origin',tension:0.3,pointRadius:2},
+    {label:'Walk-ins',data:allMonths.map(m=>fy[m]?fy[m].walkin.rev:0),backgroundColor:'rgba(21,101,192,0.5)',borderColor:'#1565C0',borderWidth:2,fill:'-1',tension:0.3,pointRadius:2},
+  ]);
 }
 
 // Projection assumptions (editable by user)
