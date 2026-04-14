@@ -4811,13 +4811,16 @@ function icrRenderQuarterly(d25, d26) {
   </div>`;
   document.body.appendChild(overlay);
 
-  // Render charts with full-year data
+  // Render charts with full-year data — only months with data
   icrDestroyQCharts();
   const allMonths=[1,2,3,4,5,6,7,8,9,10,11,12];
-  const fy = monthlyByCompany(window._icrFullYear26, allMonths);
+  const fyAll = monthlyByCompany(window._icrFullYear26, allMonths);
   const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const labels=allMonths.map(m=>mNames[m-1]);
-  const rC='#1565C0',iC='#7c4dff',sC='#f57c00',gC='#2e7d32',bC='#1565C0';
+  // Trim to only months that have data
+  const activeMonths=allMonths.filter(m=>fyAll[m]&&fyAll[m].days>0);
+  const fy=fyAll;
+  const labels=activeMonths.map(m=>mNames[m-1]);
+  const rC='#2e7d32',iC='#1565C0',sC='#f57c00';
 
   function mkLine(id,datasets,yLabel,yCb){
     const c=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{y:{title:{display:true,text:yLabel,font:{size:10}},ticks:{font:{size:10},callback:yCb||undefined},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
@@ -4832,8 +4835,8 @@ function icrRenderQuarterly(d25, d26) {
     icrQCharts.push(c);
   }
 
-  const lineDs=(label,color,valFn)=>({label,data:allMonths.map(m=>fy[m]?valFn(fy[m]):null),borderColor:color,backgroundColor:color+'20',tension:0.3,pointRadius:3,borderWidth:2});
-  const barDs=(label,color,valFn)=>({label,data:allMonths.map(m=>fy[m]?valFn(fy[m]):0),backgroundColor:color+'cc',borderColor:color,borderWidth:1});
+  const lineDs=(label,color,valFn)=>({label,data:activeMonths.map(m=>fy[m]?valFn(fy[m]):null),borderColor:color,backgroundColor:color+'20',tension:0.3,pointRadius:3,borderWidth:2});
+  const barDs=(label,color,valFn)=>({label,data:activeMonths.map(m=>fy[m]?valFn(fy[m]):0),backgroundColor:color+'cc',borderColor:color,borderWidth:1});
 
   // Rev/Load line chart
   mkLine('qcRevLoad',[
@@ -4859,12 +4862,15 @@ function icrRenderQuarterly(d25, d26) {
     barDs('Reis',rC,m=>m.reis.loads),barDs('Island',iC,m=>m.island.loads),barDs('East End',sC,m=>m.santos.loads),
   ],'Loads');
 
-  // Tons/Load line chart
-  mkLine('qcTonsLoad',[
-    lineDs('Reis',rC,m=>m.reis.loads>0?m.reis.tons/m.reis.loads:null),
-    lineDs('Island',iC,m=>m.island.loads>0?m.island.tons/m.island.loads:null),
-    lineDs('East End',sC,m=>m.santos.loads>0?m.santos.tons/m.santos.loads:null),
-  ],'Tons/Load');
+  // Tons/Load line chart — fixed y-axis centered at 1.6, step 0.5
+  (()=>{
+    const c=new Chart(document.getElementById('qcTonsLoad'),{type:'line',data:{labels,datasets:[
+      lineDs('Reis',rC,m=>m.reis.loads>0?m.reis.tons/m.reis.loads:null),
+      lineDs('Island',iC,m=>m.island.loads>0?m.island.tons/m.island.loads:null),
+      lineDs('East End',sC,m=>m.santos.loads>0?m.santos.tons/m.santos.loads:null),
+    ]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{y:{min:0.6,max:2.6,title:{display:true,text:'Tons/Load',font:{size:10}},ticks:{font:{size:10},stepSize:0.5},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
+    icrQCharts.push(c);
+  })();
 
   // Tons/Mo stacked bar
   mkBar('qcTonsMo',[
@@ -4873,14 +4879,14 @@ function icrRenderQuarterly(d25, d26) {
 
   // Rolloff vs Walk-in Tonnage (stacked area)
   mkArea('qcRvWTons',[
-    {label:'Rolloffs',data:allMonths.map(m=>fy[m]?fy[m].total.tons:0),backgroundColor:'rgba(46,125,50,0.5)',borderColor:'#2e7d32',borderWidth:2,fill:'origin',tension:0.3,pointRadius:2},
-    {label:'Walk-ins',data:allMonths.map(m=>fy[m]?fy[m].walkin.tons:0),backgroundColor:'rgba(21,101,192,0.5)',borderColor:'#1565C0',borderWidth:2,fill:'-1',tension:0.3,pointRadius:2},
+    {label:'Rolloffs',data:activeMonths.map(m=>fy[m]?fy[m].total.tons:0),backgroundColor:'rgba(46,125,50,0.5)',borderColor:'#2e7d32',borderWidth:2,fill:'origin',tension:0.3,pointRadius:2},
+    {label:'Walk-ins',data:activeMonths.map(m=>fy[m]?fy[m].walkin.tons:0),backgroundColor:'rgba(21,101,192,0.5)',borderColor:'#1565C0',borderWidth:2,fill:'-1',tension:0.3,pointRadius:2},
   ]);
 
   // Rolloff vs Walk-in Revenue (stacked area)
   mkArea('qcRvWRev',[
-    {label:'Rolloffs',data:allMonths.map(m=>fy[m]?fy[m].total.rev:0),backgroundColor:'rgba(46,125,50,0.5)',borderColor:'#2e7d32',borderWidth:2,fill:'origin',tension:0.3,pointRadius:2},
-    {label:'Walk-ins',data:allMonths.map(m=>fy[m]?fy[m].walkin.rev:0),backgroundColor:'rgba(21,101,192,0.5)',borderColor:'#1565C0',borderWidth:2,fill:'-1',tension:0.3,pointRadius:2},
+    {label:'Rolloffs',data:activeMonths.map(m=>fy[m]?fy[m].total.rev:0),backgroundColor:'rgba(46,125,50,0.5)',borderColor:'#2e7d32',borderWidth:2,fill:'origin',tension:0.3,pointRadius:2},
+    {label:'Walk-ins',data:activeMonths.map(m=>fy[m]?fy[m].walkin.rev:0),backgroundColor:'rgba(21,101,192,0.5)',borderColor:'#1565C0',borderWidth:2,fill:'-1',tension:0.3,pointRadius:2},
   ]);
 }
 
