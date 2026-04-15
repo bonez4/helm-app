@@ -422,6 +422,20 @@ helm-app/
 
 ---
 
+## Customer Pricing Reference
+
+Pulled from the historical Jan 1 2025 - Apr 13 2026 scale export, the following customer rate tiers exist for walk-in / rolloff tip fees (REIS SITE TRANSFER FEE rate per ton):
+
+- **$380/ton** — 462 customers (the most common rate, standard walk-in/rolloff rate)
+- **$425/ton** — higher-tier customers
+- **$456/ton** — premium tier
+- **$500/ton** — premium tier
+- **$0/ton** — special arrangements (e.g., Vinagro, internal transfers)
+
+Full customer-to-rate mapping is stored in `customers-at-380_rate.json` for the $380 tier (462 customers). Use `nextIdForCompany()` to assign new accounts.
+
+---
+
 ## Recent Major Changes
 
 - **Oct 2025 → present**: Full IRR Scale system built from scratch

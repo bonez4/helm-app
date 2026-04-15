@@ -1,0 +1,4191 @@
+[
+  {
+    "code": "10EATFIRESPRING",
+    "name": "10EATFIRESPRING",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "10TOMAHAWK",
+    "name": "10TOMAHAWK",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "110MAIN",
+    "name": "110MAIN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "11BSOUTHVALLEY",
+    "name": "11BSOUTHVALLEY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "11HINCKLEY",
+    "name": "11HINKLEY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "11JOHNATHAN",
+    "name": "11JOHNATHAN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "11PLAINFIELD",
+    "name": "11PLAINFIELD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "11ROBERTS",
+    "name": "11ROBERTS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "11RSOUTHSHORE",
+    "name": "11RSOUTHSHORE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "122WAUWINET",
+    "name": "122WAUWINET",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "125SOMERSETRD",
+    "name": "125SOMERSETRD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "12LONGWOOD",
+    "name": "12LONGWOOD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "12OAKLAND",
+    "name": "12OAKLAND",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "12PONDRD",
+    "name": "12PONDRD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "12SCOTT",
+    "name": "12SCOTT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "13BROAD",
+    "name": "13BROAD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "13NORTHLIBERTY",
+    "name": "13NORTHLIBERTY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "13WHITETAIL",
+    "name": "13WHITETAIL",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "148CLIFF",
+    "name": "148CLIFF",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "14ALEXANDIA",
+    "name": "14ALEXANDIA",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "14BRANTPOINT",
+    "name": "14BRANTPOINT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "14COFFINST",
+    "name": "14COFFINST",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "14CORREIA",
+    "name": "14CORREIA",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "14DEERRUN",
+    "name": "14DEERRUN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "14HUSSEY",
+    "name": "14HUSSEY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "14LINCOLN",
+    "name": "14LINCOLN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "14MEADOWLN",
+    "name": "14MEADOWLN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "151SURFSIDE",
+    "name": "151SURFSIDE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "156CLIFF",
+    "name": "156CLIFF",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "15FLINTLOCK",
+    "name": "15FLINTLOCK",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "15HEADOFPLAINS",
+    "name": "15HEADOFPLAINS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "15PILGRIM",
+    "name": "15PILGRIM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "15PLEASANT",
+    "name": "15PLEASANT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "15SUNISLAND",
+    "name": "15SUNISLAND",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "15WALSH",
+    "name": "15WALSH",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "15WASHINGPOND",
+    "name": "15WASHINGPOND",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "160MADAKET",
+    "name": "160MADAKET",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "162HUMMOCKPD",
+    "name": "162HUMMOCKPD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "165CLIFF",
+    "name": "165CLIFF",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "16PAULJONES",
+    "name": "16PAULJONES",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "16WALSH",
+    "name": "16WALSH",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "17BFOLGER",
+    "name": "17BFOLGER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "17FOLGER",
+    "name": "17FOLGER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "17PILGRIM",
+    "name": "17PILGRIM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "17YOUNGSWAY",
+    "name": "17YOUNGSWAY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "18AHAB",
+    "name": "18AHAB",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "18MIDLAND",
+    "name": "18MIDLAND",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "18SHERBURNETPK",
+    "name": "18SHERBURNETPK",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "19HOOPERFARM",
+    "name": "19HOOPERFARM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "19MONOMOY",
+    "name": "19MONOMOY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "19NANAHUMACKE",
+    "name": "19NANAHUMMACKE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "19NWATER",
+    "name": "19NWATER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "19SHIMMO",
+    "name": "19SHIMMO",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "1ANN",
+    "name": "1ANN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "1BROOKFARM",
+    "name": "1BROOKSFARM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "1CAROLINE",
+    "name": "1CAROLINE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "1DAVISLANE",
+    "name": "1DAVISLANE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "1GULLY",
+    "name": "1GULLY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "1OCEANAVE",
+    "name": "1OCEANAVE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "1OSPREY",
+    "name": "1OSPREY",
+    "currentRate": 380,
+    "allRates": [
+      380,
+      0
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "1TEASDALE",
+    "name": "1TEASDALE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "1WESTWAY",
+    "name": "1WESTWAY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "20INDIA",
+    "name": "20INDIA",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "20MIDLAND",
+    "name": "20MIDLAND",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "20PLEASANT",
+    "name": "20PLEASANT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "21BYOUNGSWAY",
+    "name": "21BYOUNGSWAY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "21CYOUNGSWAY",
+    "name": "21CYOUNGSWAY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "21PILGRIM",
+    "name": "21PILGRIM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "21WIGWAM",
+    "name": "21WIGWAM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "22BAILEY",
+    "name": "22BAILEY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "23GOLDFINCH",
+    "name": "23GOLDFINCH",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "23PINEGROVE",
+    "name": "23PINEGROVE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "244MADAKET",
+    "name": "244MADAKET",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "24BASSETT",
+    "name": "24BASSETT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "24SSHORE",
+    "name": "24SSHORE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "24WALSH",
+    "name": "24WALSH",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "258POLPIS",
+    "name": "258POLPIS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "25WILLARD",
+    "name": "25WILLARD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "25WILLARDGARAGE",
+    "name": "25WILLARDGARAGE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "26WASHINGTON",
+    "name": "26WASHINGTON",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "28EELPT",
+    "name": "28EELPT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "28EQUATOR",
+    "name": "28EQUATOR",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "38SHIMMOPD",
+    "name": "28SHIMMOPD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "29LONGWOOD",
+    "name": "29LONGWOOD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "2AUSTINFARM",
+    "name": "2AUSTINFARM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "2FAIRFROUNDS",
+    "name": "2FAIRGROUNDS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "2NOBADEERWAY",
+    "name": "2NOBADEERWAY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "2OLDTOMNEVERS",
+    "name": "2OLDTOMNEVERS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "2TEASDALE",
+    "name": "2TEASDALE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "30EELPOINT",
+    "name": "30EELPOINT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "30ORANGE",
+    "name": "30ORANGE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "30RUSSELLSWAY",
+    "name": "30RUSSELLSWAY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "31EELPOINT",
+    "name": "31EELPOINT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "326APOLPIS",
+    "name": "326APOLPIS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "32LYONS",
+    "name": "32LYONS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "35LONGPOND",
+    "name": "35LONGPOND",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "35PLEASANT",
+    "name": "35PLEASANT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "35VESPER",
+    "name": "35VESPER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "36LOVERS",
+    "name": "36LOVERS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "36WASHINGPD",
+    "name": "36WASHINGPD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "37ORANGE",
+    "name": "37ORANGE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "3BACK",
+    "name": "3BACK",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "3BLACKWALNUT",
+    "name": "3BLACKWALNUT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "3HEATHER",
+    "name": "3HEATHER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "3MAPLE",
+    "name": "3MAPLE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "3POPS",
+    "name": "3POPS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "3SALROS",
+    "name": "3SALROS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "3WAYDALE",
+    "name": "3WAYDALE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SHE05",
+    "name": "4 EASY ST LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "40GOLDFICH",
+    "name": "40GOLDFINCH",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "40OLSSOUTH",
+    "name": "40OLDSOUTH",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "40OLDSOUTH",
+    "name": "40OLDSOUTH",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "41WESTMIACOMET",
+    "name": "41WESTMIACOMET",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "44LIBERTY",
+    "name": "44LIBERTY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "46EASTON",
+    "name": "46EASTON",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "47HULBERT",
+    "name": "47HULBERT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "49SQUAM",
+    "name": "49SQUAM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4BIRDSONG",
+    "name": "4BIRDSONG",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4DAVE",
+    "name": "4DAVE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4ELINCOLN",
+    "name": "4ELINCOLN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4FAWN",
+    "name": "4FAWN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4GAY",
+    "name": "4GAY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4MAYHEW",
+    "name": "4MAYHEW",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4MIDDLEVALLEY",
+    "name": "4MIDDLEVALLEY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4OLDQUINETMILK",
+    "name": "4OLDQUIDNETMILK",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4RAYSCT",
+    "name": "4RAYSCT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4TROTTERS",
+    "name": "4TROTTERS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4WEEWEEDER",
+    "name": "4WEEWEEDER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4WESTWAY",
+    "name": "4WESTWAY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "4WSANKATY",
+    "name": "4WSANKATY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "50MONOMOY",
+    "name": "50MONOMOY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "51RIDGE",
+    "name": "51RIDGE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "52WCHESTER",
+    "name": "52WCHESTER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "53CENTERST",
+    "name": "53CENTERST",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "54LOVERS",
+    "name": "54LOVERS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "54RUNION",
+    "name": "54RUNION",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "59POLPIS",
+    "name": "59POLPIS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "5BAYBERRY",
+    "name": "5BAYBERRY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "5COPPER",
+    "name": "5COPPER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "5NEWST",
+    "name": "5NEWST",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "5NSWIFTROCK",
+    "name": "5NSWIFTROCK",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "5SHAWKEMO",
+    "name": "5SHAWKEMO",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "5WAITT",
+    "name": "5WAITT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "5WEETAMO",
+    "name": "5WEETAMO",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "60HULBERT",
+    "name": "60HULBERT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "60SHAWKEMO",
+    "name": "60SHAWKEMO",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "66MONOMOY",
+    "name": "66MONOMOY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "69HUMMOCKPD",
+    "name": "69HUMMOCKPD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "69MONOMOY",
+    "name": "69MONOMOY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "6BSTONEBARN",
+    "name": "6BSTONEBARN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "6EHALLOWELL",
+    "name": "6EHALLOWELL",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "6FAWN",
+    "name": "6FAWN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "6ISHMAEL",
+    "name": "6ISHMAEL",
+    "currentRate": 380,
+    "allRates": [
+      380,
+      325
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "6NONANTUM",
+    "name": "6NONANTUM",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "6PLAINFIELD",
+    "name": "6PLAINFIELD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "6RAYSCT",
+    "name": "6RAYSCT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "6SPINNAKER",
+    "name": "6SPINNAKER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "72QUIDNET",
+    "name": "72QUIDNET",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "75BARTLETT",
+    "name": "75BARTLETT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "77HULBERT",
+    "name": "77HULBERT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "77VESTAL",
+    "name": "77VESTAL",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "78OLDSOUTH",
+    "name": "78OLDSOUTH",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "78PLEASANT",
+    "name": "78PLEASANT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7ACLIFFORD",
+    "name": "7ACLIFFORD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7ALLENS",
+    "name": "7ALLENS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7COFFIN",
+    "name": "7COFFIN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7FOLGER",
+    "name": "7FOLGER",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7GOLFVIEW",
+    "name": "7GOLFVIEW",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7GRAYAVE",
+    "name": "7GRAYAVE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7GREENHOLLOW",
+    "name": "7GREENHOLLOW",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7LAURETTA",
+    "name": "7LAURETTA",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7PRIMROSE",
+    "name": "7PRIMROSE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7ROBERTS",
+    "name": "7ROBERTS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7SHADY",
+    "name": "7SHADY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7SHERBURNETPK",
+    "name": "7SHERBURNETPK",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7TODD",
+    "name": "7TODD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7WHITE",
+    "name": "7WHITE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "7WRIGHTSLANDING",
+    "name": "7WRIGHTSLANDING",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "80QUIDNET",
+    "name": "80QUIDNET",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "81CLIFF",
+    "name": "81CLIFF",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "82POLPIS",
+    "name": "82POLPIS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "88PLEASANT",
+    "name": "88PLEASANT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "89BARTLETT",
+    "name": "89BARTLETT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "9PILGRIM",
+    "name": "9 PILGRIM RD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "9BCROWSNEST",
+    "name": "9BCROWSNEST",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "9FAWN",
+    "name": "9FAWN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "9HULBERT",
+    "name": "9HULBERT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "9NORTHRD",
+    "name": "9NORTHRD",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "9TOWADDY",
+    "name": "9TOWADDY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "9WOODBURY",
+    "name": "9WOODBURY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "AVC01",
+    "name": "A&amp;V Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ACK09",
+    "name": "ACK 15CHR LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ACK13",
+    "name": "Ack Construction Specialist",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "ACK14",
+    "name": "Ack Detailing LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ACK12",
+    "name": "Ack Property Management",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ALO01",
+    "name": "Aloisi, Sam",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ALV01",
+    "name": "Alves, Robert",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "ACC01",
+    "name": "ANC Carpentry Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ANC01",
+    "name": "Anchor Inn",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ARD01",
+    "name": "Ard, Warren",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ASA01",
+    "name": "ASAP Site Services",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BAM02",
+    "name": "Bambino Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BAR03",
+    "name": "Barber &amp; Son's Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BAR14",
+    "name": "Barrantes, Calet",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BAR12",
+    "name": "Barreto Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BAS03",
+    "name": "Bass Point Builders",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BAX02",
+    "name": "Baxter, Harold",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BEE02",
+    "name": "Beeching, Susan",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BEH01",
+    "name": "Behrend,Maryellen",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BES01",
+    "name": "Bessey Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BLU02",
+    "name": "Blue Flag Development",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BOATBASIN",
+    "name": "BOATBASIN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BOV02",
+    "name": "Bovard, Christopher",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BOY05",
+    "name": "Boyes, Tom",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BRA04",
+    "name": "Bradley, Ronan",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BRA01",
+    "name": "Brant Point Builders",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BRI02",
+    "name": "Brix",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BUR06",
+    "name": "Burgos, Jean",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BUT03",
+    "name": "Butler, David",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CAB02",
+    "name": "Cabral, James",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CAR02",
+    "name": "Carey, Christopher",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CAS08",
+    "name": "Castro's Carpentry Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CAS07",
+    "name": "CBR Ack Holding LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CHA02",
+    "name": "Champoux Landscaping, Dave",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CHE02",
+    "name": "Cherner, Steven",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CHU02",
+    "name": "Chuckrow, Amy",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MEN02",
+    "name": "Cisco Woodwork LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CJB01",
+    "name": "CJ Builders Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CJT01",
+    "name": "CJ Truck &amp; Equipment Repair LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CLA03",
+    "name": "Clarke Brothers Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CLE02",
+    "name": "Clean Lines Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CLI01",
+    "name": "Cliffside Beach Club",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "CNC01",
+    "name": "CNC Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COA01",
+    "name": "Coastal Construction Corp.",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "COF04",
+    "name": "Coffin, Edward",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COF05",
+    "name": "Coffin, Thomas",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COM03",
+    "name": "Comcast Cable Communications",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CON14",
+    "name": "Conway, Emma",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COR05",
+    "name": "Correia, Karen",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COR04",
+    "name": "Correia, Marylin",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COS01",
+    "name": "Cosgriff Custom Carpentry",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COT01",
+    "name": "Cottage and Castle",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COT02",
+    "name": "Cottage By The Sea Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CRA01",
+    "name": "Craddock, Tom",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CRE01",
+    "name": "Cressman, Caleb",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "CRI02",
+    "name": "Cristler, Shawn",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CROOKED",
+    "name": "CROOKED",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CROOKEDLN",
+    "name": "CROOKEDLN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CUE01",
+    "name": "Cuello, Christian",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DAE01",
+    "name": "Daenamar Carpentry",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DAI01",
+    "name": "Daily Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DAL05",
+    "name": "Dalton, Chris",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "DEC03",
+    "name": "Dane DeCarlo Carpentry",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DAV06",
+    "name": "Davis, Shawn",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DEA02",
+    "name": "Dean, John",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DEL04",
+    "name": "Delman, Ben",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DEV01",
+    "name": "Devine, Ethan",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DIM03",
+    "name": "Dimitrov, Plamen",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DIM02",
+    "name": "Dimov,Georgi",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DON01",
+    "name": "Donovan, Barry",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DOY02",
+    "name": "Doyle, William",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DRY01",
+    "name": "Dry Zone Basement Systems",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DUG01",
+    "name": "Dugan, Tim",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DUT02",
+    "name": "Dutra, Jesse",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "EGA03",
+    "name": "Egan, Jay",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "EMP01",
+    "name": "Empire Builders",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ENG01",
+    "name": "Englehard,Charlene",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ERI02",
+    "name": "Erisman, Matt",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "EVE01",
+    "name": "Everett Builders",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "EVE03",
+    "name": "Everfinn Company",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BAK01",
+    "name": "Extra Clean Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "FAR01",
+    "name": "Fairgrounds",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380,
+      0
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "FAWNLN",
+    "name": "FAWNLN",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "FIN02",
+    "name": "Finerty, Michael",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "FIV02",
+    "name": "Five Star Construction",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "FLY01",
+    "name": "Flynn, Katherine",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "FRE02",
+    "name": "Freedman, Mike",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "FUS01",
+    "name": "Fusaro, Riley",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "GAL01",
+    "name": "Gallant, Christopher",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "GON05",
+    "name": "Goncalves, Leo",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "FRA04",
+    "name": "Gordon Fraser Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HRC01",
+    "name": "H &amp; R Carpentry",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HAI01",
+    "name": "Haigh, Peter Fletcher",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HAN03",
+    "name": "Hanley Construction",
+    "currentRate": 380,
+    "allRates": [
+      456,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "HAN05",
+    "name": "Hanson, Stephanie",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HAR08",
+    "name": "Harris, Joanne",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HEH01",
+    "name": "Hehir Group Custom Builders Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HOL03",
+    "name": "Holdgate Partners",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HOL13",
+    "name": "Holt, Thomas",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HOM01",
+    "name": "Homephoria Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HUG03",
+    "name": "Hughes Landscaping LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "IAK01",
+    "name": "Iakovou, Jack",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ILI02",
+    "name": "Iliev, Bobby",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "IRI01",
+    "name": "Irishspan Industries",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ISL13",
+    "name": "Island Construction Corp.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ISL01",
+    "name": "Island Designs, LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ISL05",
+    "name": "Island Lumber Company",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ISL12",
+    "name": "Island Marine Restoration",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "IVE01",
+    "name": "Iverson, Tara",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ZIN01",
+    "name": "J Timothy &amp; Sons Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JAC01",
+    "name": "Jacovetti, Colton",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JAS01",
+    "name": "Jason Perkins Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JAY02",
+    "name": "Jay, Anna",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JCR01",
+    "name": "JC Roofing &amp; Siding",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JCH01",
+    "name": "JCH Carpentry Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JEF01",
+    "name": "Jeff Booms Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JES01",
+    "name": "Jessica Torre DDS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "CAR09",
+    "name": "JJ Cardosi, Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JJC01",
+    "name": "JJ Contractor",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "JOH11",
+    "name": "John Schichtel Landscaping",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JON01",
+    "name": "Jones, Duane",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "JSB01",
+    "name": "JS Builder Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "KEL06",
+    "name": "Kelly, Kevin",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "KEM01",
+    "name": "Kems Construction LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "COF02",
+    "name": "Kenneth C. Coffin Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "KIC01",
+    "name": "Kickham, Christy",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "KIN03",
+    "name": "King Of Shingle Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "KRC01",
+    "name": "KRC Building",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LAM05",
+    "name": "Lamb, Michelle",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LAM04",
+    "name": "Lampe Property Mgmt",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LEE01",
+    "name": "Leeward Home",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LEG01",
+    "name": "Legacy Roofing",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LIN06",
+    "name": "Linda Loring Foundation",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LIN05",
+    "name": "Lindstedt, David",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LOB01",
+    "name": "Lobster Trap",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LON03",
+    "name": "Long, Dean",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LOP01",
+    "name": "Lopez, Israel",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "LUC03",
+    "name": "Lucy, Giovanna",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LYD01",
+    "name": "Lydon &amp; Sons Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "DAV02",
+    "name": "Mac Davis Flooring",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MAC05",
+    "name": "Mac Davis Restoration",
+    "currentRate": 380,
+    "allRates": [
+      456,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "MAC04",
+    "name": "Macvicar, Angus",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "MAI01",
+    "name": "Main St. Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MAI05",
+    "name": "Mainline Globe Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "3-MAR",
+    "name": "Marine Home Center",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MAR20",
+    "name": "Marks, Patrick",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MAR21",
+    "name": "Maryanski, Matthew",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MAU02",
+    "name": "Maury Associates Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MAU03",
+    "name": "Maury, Ann",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "MCL01",
+    "name": "Mcleish, Marie",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MDM01",
+    "name": "MDM Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MED01",
+    "name": "Medeiros, William",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MER05",
+    "name": "Mercatus Builders LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MIA01",
+    "name": "Miacomet Golf Club",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BOY04",
+    "name": "Miltbuilt Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MISC",
+    "name": "MISC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MISCELLANEOUS",
+    "name": "MISCELLANEOUS",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MOO01",
+    "name": "Moore, Fredrick",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MOR01",
+    "name": "Morash, Jeff",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MUR11",
+    "name": "Murphy, Daniel",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "BRU01",
+    "name": "Murray Camp",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MUR10",
+    "name": "Murray, Errol",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MUR09",
+    "name": "Murray, John",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NAN23",
+    "name": "Nantucket Community Sailing",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NAN24",
+    "name": "Nantucket Energy",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "LAR04",
+    "name": "Nantucket Ice",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380,
+      0
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "MCC03",
+    "name": "Nantucket Lighthouse Property Mgmt Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PAR02",
+    "name": "Nantucket Party Rentals",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NAN40",
+    "name": "Nantucket Property Watch",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NAN51",
+    "name": "Nantucket Sound Property Management",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NAN50",
+    "name": "Nantucket Sustainable",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NAT04",
+    "name": "Native Development",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NAT05",
+    "name": "Native Restoration",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NEI01",
+    "name": "Neil Crowley Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HAJ01",
+    "name": "Next Level Building",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NHA02",
+    "name": "NHA Properties Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NIC02",
+    "name": "Nicholson Electric Inc",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NOL02",
+    "name": "Nolasco Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NOR08",
+    "name": "NorthEast Home &amp; Energy",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NOR04",
+    "name": "Norton, A.B.",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "OCO02",
+    "name": "O'Connor Custom Builders",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ORO01",
+    "name": "O'Rourk, Paul",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ACK11",
+    "name": "Oak Development and Design LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MEY01",
+    "name": "Old South Partners Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "OLDHARBORHOUSE",
+    "name": "OLDHARBORHOUSE",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ORANGEST",
+    "name": "ORANGEST",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PRC01",
+    "name": "P &amp; R Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PAP02",
+    "name": "Papale, John",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PAR05",
+    "name": "Park East Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PAT03",
+    "name": "Patterson, Philip",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PER09",
+    "name": "Perkins, Max",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PLA01",
+    "name": "Place, Zach",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PYK01",
+    "name": "Pyke, Bob",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "PYK02",
+    "name": "Pykszo, Richard",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RAI01",
+    "name": "Raith, Jonathan",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RAY02",
+    "name": "Raymond Builders",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "REI06",
+    "name": "Reid Builders",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RH101",
+    "name": "RH15 Deer Run Ack LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RH201",
+    "name": "RH20 North Pasture Ack LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RH202",
+    "name": "RH26 Somerset LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RIC03",
+    "name": "Richard Abreu Carpentry",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RID02",
+    "name": "Ridgeline Custom Builders",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ROB03",
+    "name": "Robert B Our",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ROB08",
+    "name": "Roberts,Nate",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ROK01",
+    "name": "Rokas Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ROS04",
+    "name": "Rosales, Jose",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ROS01",
+    "name": "Ross, Adam",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ROS03",
+    "name": "Ross, Kian",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RUB01",
+    "name": "Ruby, Michael",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SEC",
+    "name": "S &amp; E Company",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SAV02",
+    "name": "Savitt, Bob",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SCH01",
+    "name": "Schwartz, Gerald",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SCO06",
+    "name": "Scott Valero Carpentry",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HAT01",
+    "name": "Seth Hatch Building and Caretaking LLC.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SHA01",
+    "name": "Sharp, Randy",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SHE10",
+    "name": "Shell Nantucket Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SHE06",
+    "name": "Sherburne Commons",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "SHOP",
+    "name": "SHOP",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "RUS01",
+    "name": "Simpson, Russell",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SLA01",
+    "name": "Slade, Ron",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "ROE01",
+    "name": "SM Roethke Design",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SMA02",
+    "name": "Small Friends on Nantucket",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SNE02",
+    "name": "Snell,Georgia",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SOB01",
+    "name": "Sobrinho, Bryan",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SOMERSET",
+    "name": "SOMERSET",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MAI04",
+    "name": "Sorella Home Solutions",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "SOU3",
+    "name": "SOUZA,MANNY",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SPE02",
+    "name": "Spencer, George",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "STP02",
+    "name": "St. Paul's Church",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "STA06",
+    "name": "Stay Heirloom",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "STE02",
+    "name": "Stephens and Company Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "STE12",
+    "name": "Stewart, Margaret",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "STO07",
+    "name": "Stojanov Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "STO09",
+    "name": "Storage Building Co.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "STR03",
+    "name": "STRANG LLC",
+    "currentRate": 380,
+    "allRates": [
+      380,
+      0
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "SUM03",
+    "name": "Sumco Eco-Contracting",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SUN01",
+    "name": "Sun Island Delivery",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "SUS01",
+    "name": "Sussek, John",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "SWE01",
+    "name": "Sweeney, Michael",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "TAA02",
+    "name": "Taaffe,Patrick",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "THE11",
+    "name": "The Mount Vernon Company",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "THE01",
+    "name": "The Nantucket Hotel",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "THE10",
+    "name": "The Pearl",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "THI01",
+    "name": "Thirty Acres Woods",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "TID01",
+    "name": "Tidal Creeks Cooperation",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "STO05",
+    "name": "Todd Stout Cabinetry",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "HAN01",
+    "name": "Tom Hanlon Landscaping",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "TOS01",
+    "name": "Toscana Corporation",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "TRU03",
+    "name": "TPM ACK LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "TRA02",
+    "name": "Tradewinds Custom Building",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "TRA01",
+    "name": "Traywick, Sam",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "TRO02",
+    "name": "Trottier Fine Woodworking",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "TRU05",
+    "name": "Trubee, June",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "TUR01",
+    "name": "Turgeon, Ken",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "TUR04",
+    "name": "Turnbull, Christopher",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "VTT01",
+    "name": "V.T.T. Management Inc.",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "VIO01",
+    "name": "Viola Associates Pool",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WAITT",
+    "name": "WAITT",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WAS02",
+    "name": "Waste Associates",
+    "currentRate": 380,
+    "allRates": [
+      425,
+      380
+    ],
+    "hasMultipleRates": true
+  },
+  {
+    "code": "WAS01",
+    "name": "Waste Management",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WAT07",
+    "name": "Wat-It Takes LLC",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WAUWINET",
+    "name": "WAUWINET",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WIG04",
+    "name": "Wiggins Painting",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WIL09",
+    "name": "Wilde, Tracy",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "MOR08",
+    "name": "Winn, Morgan",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WIS02",
+    "name": "Wise Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WIS01",
+    "name": "Wisentaner, Inc.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "WOO01",
+    "name": "Woodmeister",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "XAV01",
+    "name": "Xavier's Contracting Co.",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "NOR09",
+    "name": "Yankee Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "YAT01",
+    "name": "Yates Gas",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  },
+  {
+    "code": "YEL01",
+    "name": "Yellow Dog Construction",
+    "currentRate": 380,
+    "allRates": [
+      380
+    ],
+    "hasMultipleRates": false
+  }
+]
