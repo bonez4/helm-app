@@ -197,8 +197,14 @@ Reis revenue is parsed from the scale file directly (variable rates per customer
 - Inline Yes/No delete confirmation on notes
 
 ### Add Client (all users)
-- **Company picker** (REIS or SANTOS) at top of form — determines ID prefix (20xx or 30xx)
-- Auto-suggests next available ID for the selected company (20 or 30 prefix, incrementing)
+- **Company picker** (REIS or SANTOS) at top of form — **required** before any other fields become available
+- Form fields are disabled/hidden until a company is selected
+- Auto-suggests next available ID for the selected company:
+  - **First add in session**: max existing ID + 51 (+50 safety buffer for IDs added outside HELM)
+  - **Subsequent adds**: max existing ID + 1 (normal increment)
+  - Uniqueness verified against local client list before showing
+- Duplicate-key error from DB handled gracefully (re-suggests new ID)
+- After each successful add, company selection resets so the next client requires a fresh pick
 - Name, address, phone, email fields
 - Day toggle buttons (Mon-Sat) for multi-day pickup
 - Duplicate detection by address or name

@@ -2202,30 +2202,37 @@ ${sections}
 }
 
 // ── ADD CLIENT ────────────────────────────────────────────────────────
+// Track whether first add has happened in this session per company
+// First add gets +50 buffer, subsequent adds get +1
+let _firstAddReis = true, _firstAddSantos = true;
+
 function nextIdForCompany(company){
-  // company: 'reis' or 'santos'
   const prefix = company==='santos' ? '30' : '20';
-  const matching = clients
-    .map(c=>c.client_id||'')
-    .filter(id=>id.startsWith(prefix));
-  if(!matching.length) return prefix+'0001';
-  const maxNum = Math.max(...matching.map(id=>{
-    const rest = id.slice(prefix.length);
-    const n = parseInt(rest,10);
-    return isNaN(n)?0:n;
-  }));
-  return prefix+String(maxNum+1).padStart(4,'0');
+  const matching = clients.map(c=>c.client_id||'').filter(id=>id.startsWith(prefix));
+  // Start at prefix+0000 (e.g. 200000) as the baseline
+  let maxId = parseInt(prefix+'0000', 10);
+  for(const id of matching){
+    const n = parseInt(id, 10);
+    if(!isNaN(n) && n > maxId) maxId = n;
+  }
+  // First add gets +50 safety buffer (+1 for increment = +51)
+  const isFirst = (company==='santos' ? _firstAddSantos : _firstAddReis);
+  const bump = isFirst ? 51 : 1;
+  let next = maxId + bump;
+  // Ensure uniqueness: if by some chance the computed ID is already in use, bump until free
+  const existing = new Set(clients.map(c=>c.client_id));
+  while(existing.has(String(next))) next++;
+  return String(next);
 }
 
 function renderAdd(){
-  const currentCompany = window._addCompany || 'reis';
-  window._addCompany = currentCompany;
-  const nextId = nextIdForCompany(currentCompany);
+  const currentCompany = window._addCompany || null;
   document.getElementById('tab-add').innerHTML=`
     <div class="form-card">
       <h2>Add New Client</h2>
+
       <div class="form-group">
-        <label>Company</label>
+        <label>Select Company <span style="color:var(--err-text);font-weight:600">*</span></label>
         <div style="display:flex;gap:8px;">
           <button type="button" onclick="setAddCompany('reis')" id="addCoReis" class="co-pick-btn ${currentCompany==='reis'?'co-pick-active':''}">
             <span class="company-tag co-reis">REIS</span>
@@ -2236,41 +2243,44 @@ function renderAdd(){
             <span style="font-size:11px;color:var(--gray-500);margin-left:4px;">30xxxx</span>
           </button>
         </div>
+        ${!currentCompany ? '<div style="font-size:11px;color:var(--gray-500);margin-top:6px;">Please select a company before filling in client details.</div>' : ''}
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Account #</label><input id="nId" value="${nextId}"/></div>
-        <div class="form-group"><label>Client Name</label><input id="nName" placeholder="e.g. John Smith"/></div>
-      </div>
-      <div class="form-group"><label>Street Address</label><input id="nAddr" placeholder="e.g. 47 Polpis Rd"/></div>
-      <div class="form-row">
-        <div class="form-group"><label>Phone</label><input id="nPhone" placeholder="(508) 228-0000"/></div>
-        <div class="form-group"><label>Email</label><input id="nEmail" placeholder="email@example.com" onkeydown="if(event.key==='Enter'){event.preventDefault();addClient();}"/></div>
-      </div>
-      <div class="form-group">
-        <label>Pickup Day(s)</label>
-        <div class="day-toggle-grid">
-          ${DAYS.map(d=>`
-            <button type="button" class="day-toggle" data-day="${d}" onclick="toggleDay(this)">
-              <span class="day-abbr">${d.slice(0,3)}</span>
-              <span class="day-full">${d}</span>
-            </button>`).join('')}
+
+      <fieldset id="addFormFields" ${!currentCompany?'disabled':''} style="border:none;padding:0;margin:0;${!currentCompany?'opacity:0.4;pointer-events:none':''}">
+        <div class="form-row">
+          <div class="form-group"><label>Account #</label><input id="nId" value="${currentCompany?nextIdForCompany(currentCompany):''}"/></div>
+          <div class="form-group"><label>Client Name</label><input id="nName" placeholder="e.g. John Smith"/></div>
         </div>
-      </div>
-      <button class="btn-add" onclick="addClient()">Add Client</button>
+        <div class="form-group"><label>Street Address</label><input id="nAddr" placeholder="e.g. 47 Polpis Rd"/></div>
+        <div class="form-row">
+          <div class="form-group"><label>Phone</label><input id="nPhone" placeholder="(508) 228-0000"/></div>
+          <div class="form-group"><label>Email</label><input id="nEmail" placeholder="email@example.com" onkeydown="if(event.key==='Enter'){event.preventDefault();addClient();}"/></div>
+        </div>
+        <div class="form-group">
+          <label>Pickup Day(s)</label>
+          <div class="day-toggle-grid">
+            ${DAYS.map(d=>`
+              <button type="button" class="day-toggle" data-day="${d}" onclick="toggleDay(this)">
+                <span class="day-abbr">${d.slice(0,3)}</span>
+                <span class="day-full">${d}</span>
+              </button>`).join('')}
+          </div>
+        </div>
+        <button class="btn-add" onclick="addClient()" ${!currentCompany?'disabled':''}>Add Client</button>
+      </fieldset>
+
       <div id="addMsg" style="margin-top:8px;font-size:12px;min-height:16px;"></div>
     </div>`;
 }
 
 function setAddCompany(company){
   window._addCompany = company;
-  // Update the ID field with the new company's next ID
-  const idField = document.getElementById('nId');
-  if(idField) idField.value = nextIdForCompany(company);
-  // Update button active states
-  const reisBtn = document.getElementById('addCoReis');
-  const santosBtn = document.getElementById('addCoSantos');
-  if(reisBtn) reisBtn.classList.toggle('co-pick-active', company==='reis');
-  if(santosBtn) santosBtn.classList.toggle('co-pick-active', company==='santos');
+  renderAdd(); // re-render to enable/populate the form
+}
+
+function markCompanyFirstAddDone(company){
+  if(company==='santos') _firstAddSantos = false;
+  else _firstAddReis = false;
 }
 
 function toggleDay(btn){ btn.classList.toggle('day-toggle-active'); }
@@ -2332,11 +2342,26 @@ async function saveClient(id,selectedDays,addr,phone,email,name){
     client_name: name||null,
   };
   const {error}=await db.from('clients').insert(record);
-  if(error){toast('Error: '+error.message);if(msg)msg.textContent='';return;}
+  if(error){
+    // Handle duplicate key violation specifically
+    if(error.code==='23505'||(error.message||'').toLowerCase().includes('duplicate')){
+      toast('Account # '+id+' already exists — try again');
+      if(msg){msg.style.color='var(--err-text)';msg.textContent='Account # already exists. The next available ID will be suggested.';}
+      // Reload to get fresh client list and re-render (will compute a new next ID)
+      await loadClients();
+      setTimeout(()=>renderAdd(), 1200);
+      return;
+    }
+    toast('Error: '+error.message);if(msg)msg.textContent='';return;
+  }
   await loadClients();
+  // Mark that first-add has happened for this company (so next add increments by 1, not 51)
+  const co=getCompany(id);
+  if(co.name==='SANTOS') markCompanyFirstAddDone('santos');
+  else if(co.name==='REIS') markCompanyFirstAddDone('reis');
   if(msg){msg.style.color='var(--ok-text)';msg.textContent=`Client ${id} added — ${selectedDays.join(', ')}`;}
   toast(`Client ${id} added`,true);
-  setTimeout(()=>renderAdd(), 1800);
+  setTimeout(()=>{window._addCompany=null;renderAdd();}, 1800);
 }
 
 // ── ROLL-OFFS ─────────────────────────────────────────────────────────
