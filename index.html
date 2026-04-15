@@ -345,6 +345,38 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
   transition:transform .2s ease;
 }
 .client-panel.open{display:block;}
+
+/* ── INLINE CLIENT CARD (under search bar) ──────────────── */
+.cli-inline-card{
+  background:white;border:1px solid var(--gray-200);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden;
+}
+.cli-inline-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:0;}
+.cli-info-col{padding:18px 22px;border-right:1px solid var(--gray-100);}
+.cli-notes-col{padding:18px 22px;display:flex;flex-direction:column;min-height:280px;}
+
+.cli-info-header{margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--gray-100);}
+.cli-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+.cli-name-row h2{font-size:18px;font-weight:700;color:var(--navy);letter-spacing:-.2px;}
+.cli-acct{font-size:12px;color:var(--gray-500);margin-bottom:4px;}
+.cli-acct strong{color:var(--gray-800);font-weight:600;}
+.cli-addr{font-size:13px;color:var(--gray-700);margin-bottom:2px;}
+.cli-phone{font-size:13px;color:var(--gray-600);font-family:'DM Mono',monospace;}
+.cli-info-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.cli-info-tiles .info-tile{grid-column:span 1;}
+.cli-info-tiles .info-tile:first-child{grid-column:span 2;}
+
+.cli-notes-header{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin-bottom:10px;}
+.cli-notes-history-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin:6px 0 6px;}
+.cli-notes-history{flex:1;overflow-y:auto;border:1px solid var(--gray-100);border-radius:var(--radius-sm);max-height:320px;background:var(--gray-50);}
+.cli-notes-history .note-row{background:white;margin:4px;border-radius:4px;padding:8px 10px;border:1px solid var(--gray-100);}
+.cli-notes-history .note-row:hover{border-color:var(--gray-200);}
+.cli-notes-history .note-row-header{margin-bottom:4px;}
+
+@media(max-width:900px){
+  .cli-inline-grid{grid-template-columns:1fr;}
+  .cli-info-col{border-right:none;border-bottom:1px solid var(--gray-100);}
+}
 .panel-close{
   position:absolute;top:8px;right:8px;background:none;border:none;
   font-size:18px;color:var(--gray-400);cursor:pointer;z-index:2;
@@ -1614,12 +1646,25 @@ function switchTab(name,btn){
 function renderLookup(){
   lookupRendered = true;
   document.getElementById('tab-lookup').innerHTML=`
-    <div class="search-wrap">
-      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="srch" placeholder="Search by client ID, name, address, or phone…" oninput="doSearch(this.value)" onkeydown="handleSearchKey(event)" autocomplete="off"/>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div class="search-wrap" style="flex:1">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="srch" placeholder="Search by client ID, name, address, or phone…" oninput="doSearch(this.value)" onkeydown="handleSearchKey(event)" autocomplete="off"/>
+      </div>
+      <button id="lookupClearBtn" onclick="clearLookup()" style="display:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:9px 16px;border:1px solid var(--gray-200);background:white;color:var(--gray-600);border-radius:var(--radius-sm);cursor:pointer;">Clear</button>
     </div>
     <div class="search-hint" id="srchHint">${clients.length>0?`${clients.length.toLocaleString()} clients loaded — search by account #, name, address, or phone`:'Loading clients…'}</div>
-    <div id="srchResults" style="margin-top:.5rem"></div>`;
+    <div id="srchResults" style="margin-top:.5rem"></div>
+    <div id="clientCardInline" style="margin-top:12px"></div>`;
+  document.getElementById('srch').focus();
+}
+
+function clearLookup(){
+  document.getElementById('srch').value='';
+  document.getElementById('srchResults').innerHTML='';
+  document.getElementById('clientCardInline').innerHTML='';
+  document.getElementById('lookupClearBtn').style.display='none';
+  activeClient=null;
   document.getElementById('srch').focus();
 }
 
@@ -1628,20 +1673,32 @@ function doSearch(q){
   const res=document.getElementById('srchResults');
   if(q.length<2){res.innerHTML='';return;}
 
+  // Tokenize: split query into words, every word must match SOMEWHERE
+  const tokens=q.split(/\s+/).filter(t=>t.length>0);
+  const qClean=q.replace(/\D/g,'');
+
   const results=clients
     .map(c=>{
       const idL=c.client_id.toLowerCase();
       const addrL=c.address.toLowerCase();
       const nameL=(c.client_name||'').toLowerCase();
       const phoneClean=(c.phone||'').replace(/\D/g,'');
-      const qClean=q.replace(/\D/g,'');
-      let score=0;
-      if(idL===q) score=4;
-      else if(idL.startsWith(q)) score=3;
-      else if(idL.includes(q)) score=2;
-      if(nameL&&nameL.includes(q)) score=Math.max(score,3);
-      if(addrL.includes(q)) score=Math.max(score,1);
-      if(qClean.length>=3&&phoneClean.includes(qClean)) score=Math.max(score,qClean.length>=7?4:2);
+      // Haystack = all searchable fields combined
+      const hay=idL+' '+nameL+' '+addrL+' '+phoneClean;
+      // Every token must appear in the haystack
+      const allMatch=tokens.every(t=>hay.includes(t));
+      if(!allMatch) return {c,score:0};
+      // Score for ranking: prefer name/id matches over address
+      let score=1;
+      if(idL===q) score=10;
+      else if(idL.startsWith(q)) score=8;
+      else if(idL.includes(q)) score=6;
+      if(nameL){
+        if(nameL.includes(q)) score=Math.max(score,7);
+        else if(tokens.every(t=>nameL.includes(t))) score=Math.max(score,5);
+      }
+      if(addrL.includes(q)) score=Math.max(score,3);
+      if(qClean.length>=3&&phoneClean.includes(qClean)) score=Math.max(score,qClean.length>=7?9:4);
       return {c,score};
     })
     .filter(x=>x.score>0)
@@ -1696,7 +1753,6 @@ function pickClient(id){
   const c=clients.find(x=>x.client_id===id);
   if(!c) return;
   document.getElementById('srchResults').innerHTML='';
-  document.getElementById('srch').value=`${c.client_id} — ${c.address}`;
   openClient(c);
 }
 
@@ -1714,11 +1770,10 @@ function closePanel(){
 
 async function showPanel(c){
   activeClient=c;
-  const panel=document.getElementById('clientPanel');
-  panel.classList.add('open');
+  const clearBtn=document.getElementById('lookupClearBtn');
+  if(clearBtn) clearBtn.style.display='';
 
   const paused=c.status==='Paused';
-  const ini=(c.client_name||c.address).split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const displayName=c.client_name||`Account ${c.client_id}`;
   const allDays=c.service_day?c.service_day.split(',').map(d=>d.trim()):[];
   const co=getCompany(c.client_id);
@@ -1727,36 +1782,43 @@ async function showPanel(c){
   const today=getTodayISO();
   const activeSkip=cSkips.some(s=>s.skip_week===today);
 
-  document.getElementById('panelCard').innerHTML=`
-    <div class="client-card" style="border:none;border-radius:0;box-shadow:none">
-      <div class="card-header">
-        <div class="avatar">${esc(ini)}</div>
-        <div class="card-header-meta">
-          <h2>${esc(displayName)}</h2>
-          <p style="opacity:.7;font-size:11px;margin-bottom:1px">Acct #: ${esc(c.client_id)}${co.name?` <span class="company-tag ${co.cls}">${co.name}</span>`:''}</p>
-          <p>${esc(c.address)}, Nantucket MA &middot; ${esc(c.phone)||'No phone'}</p>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="info-grid">
-          <div class="info-tile"><label>Pickup Day${allDays.length>1?'s':''}</label>${allDays.map(d=>`<span class="day-pill">${esc(d)}</span>`).join(' ')}</div>
-          <div class="info-tile"><label>Account Status</label>
-            <span class="status-pill ${paused?'s-paused':activeSkip?'s-skipped':'s-active'}">
-              ${paused?'Paused':activeSkip?'Skipped':'Active'}
-            </span>
+  const container=document.getElementById('clientCardInline');
+  if(!container) return;
+
+  container.innerHTML=`
+    <div class="cli-inline-card">
+      <div class="cli-inline-grid">
+        <div class="cli-info-col">
+          <div class="cli-info-header">
+            <div class="cli-name-row">
+              <h2>${esc(displayName)}</h2>
+              ${co.name?`<span class="company-tag ${co.cls}">${co.name}</span>`:''}
+            </div>
+            <div class="cli-acct">Acct #: <strong>${esc(c.client_id)}</strong></div>
+            <div class="cli-addr">${esc(c.address)}, Nantucket MA</div>
+            <div class="cli-phone">${esc(c.phone)||'No phone on file'}</div>
           </div>
-          <div class="info-tile"><label>Autopay</label>
-            <span class="status-pill ${c.autopay?'autopay-yes':'autopay-no'}">${c.autopay?'Yes':'No'}</span>
+
+          <div class="cli-info-tiles">
+            <div class="info-tile"><label>Pickup Day${allDays.length>1?'s':''}</label>${allDays.length?allDays.map(d=>`<span class="day-pill">${esc(d)}</span>`).join(' '):'<span style="color:var(--gray-400);font-size:11px">None set</span>'}</div>
+            <div class="info-tile"><label>Account Status</label>
+              <span class="status-pill ${paused?'s-paused':activeSkip?'s-skipped':'s-active'}">
+                ${paused?'Paused':activeSkip?'Skipped':'Active'}
+              </span>
+            </div>
+            <div class="info-tile"><label>Autopay</label>
+              <span class="status-pill ${c.autopay?'autopay-yes':'autopay-no'}">${c.autopay?'Yes':'No'}</span>
+            </div>
           </div>
-        </div>
-        <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
-          <button class="btn-edit-sm" onclick="editClient('${c.client_id}')">Edit Client</button>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:10px">
+            <button class="btn-edit-sm" onclick="editClient('${c.client_id}')">Edit Client</button>
+          </div>
         </div>
 
-        <hr class="divider"/>
-        <div class="notes-section">
-          <div class="section-title">Notes</div>
-          <div class="note-form">
+        <div class="cli-notes-col">
+          <div class="cli-notes-header">Notes</div>
+          <div class="note-form" style="margin-bottom:10px">
             <select id="noteAction" onchange="toggleNoteDateField()">
               ${ACTION_TYPES.map(a=>`<option value="${a.value}">${a.label}</option>`).join('')}
             </select>
@@ -1764,8 +1826,9 @@ async function showPanel(c){
             <input type="text" id="noteText" placeholder="Add a note…" onkeydown="if(event.key==='Enter'){event.preventDefault();submitNote('${c.client_id}');}"/>
             <button class="btn-note-add" onclick="submitNote('${c.client_id}')">Add</button>
           </div>
-          <div id="notesTableWrap" class="notes-list-wrap">
-            <div class="loading">Loading notes…</div>
+          <div class="cli-notes-history-label">History</div>
+          <div id="notesTableWrap" class="cli-notes-history">
+            <div class="loading" style="padding:10px;color:var(--gray-400);font-size:11px;text-align:center">Loading notes…</div>
           </div>
         </div>
       </div>
@@ -1856,32 +1919,37 @@ function editClient(cid){
   const c=clients.find(x=>x.client_id===cid);
   if(!c) return;
   const allDays=c.service_day?c.service_day.split(',').map(d=>d.trim()):[];
-  const body=document.querySelector('#panelCard .card-body');
-  if(!body) return;
-  body.innerHTML=`
-    <div class="form-group"><label>Name</label><input id="editName" value="${esc(c.client_name||'')}"/></div>
-    <div class="form-group"><label>Address</label><input id="editAddr" value="${esc(c.address||'')}"/></div>
-    <div class="form-row">
-      <div class="form-group"><label>Phone</label><input id="editPhone" value="${esc(c.phone||'')}"/></div>
-      <div class="form-group"><label>Email</label><input id="editEmail" value="${esc(c.email||'')}"/></div>
-    </div>
-    <div class="form-group">
-      <label>Pickup Days</label>
-      <div class="day-toggle-grid" id="editDaysWrap">
-        ${DAYS.map(d=>`
-          <button type="button" class="day-toggle${allDays.includes(d)?' day-toggle-active':''}" data-day="${d}" onclick="toggleDay(this)">
-            <span class="day-abbr">${d.slice(0,3)}</span>
-          </button>`).join('')}
+  const container=document.getElementById('clientCardInline');
+  if(!container) return;
+  container.innerHTML=`
+    <div class="cli-inline-card">
+      <div style="padding:22px;">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:14px;">Edit Client — ${esc(c.client_name||c.client_id)}</div>
+        <div class="form-group"><label>Name</label><input id="editName" value="${esc(c.client_name||'')}"/></div>
+        <div class="form-group"><label>Address</label><input id="editAddr" value="${esc(c.address||'')}"/></div>
+        <div class="form-row">
+          <div class="form-group"><label>Phone</label><input id="editPhone" value="${esc(c.phone||'')}"/></div>
+          <div class="form-group"><label>Email</label><input id="editEmail" value="${esc(c.email||'')}"/></div>
+        </div>
+        <div class="form-group">
+          <label>Pickup Days</label>
+          <div class="day-toggle-grid" id="editDaysWrap">
+            ${DAYS.map(d=>`
+              <button type="button" class="day-toggle${allDays.includes(d)?' day-toggle-active':''}" data-day="${d}" onclick="toggleDay(this)">
+                <span class="day-abbr">${d.slice(0,3)}</span>
+              </button>`).join('')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="editAutopay" ${c.autopay?'checked':''}/> Autopay (credit card on file)
+          </label>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn-add" style="flex:1;background:var(--gray-400)" onclick="showPanel(activeClient)">Cancel</button>
+          <button class="btn-add" style="flex:2" onclick="saveClientEdit('${esc(cid)}')">Save Changes</button>
+        </div>
       </div>
-    </div>
-    <div class="form-group">
-      <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
-        <input type="checkbox" id="editAutopay" ${c.autopay?'checked':''}/> Autopay (credit card on file)
-      </label>
-    </div>
-    <div style="display:flex;gap:6px;margin-top:8px">
-      <button class="btn-add" style="flex:1;background:var(--gray-400)" onclick="showPanel(activeClient)">Cancel</button>
-      <button class="btn-add" style="flex:2" onclick="saveClientEdit('${esc(cid)}')">Save Changes</button>
     </div>`;
   document.getElementById('editName').focus();
 }
