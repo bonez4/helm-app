@@ -1318,6 +1318,13 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON);
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 function getCompany(id){
   if(!id) return {name:'',tag:'',cls:''};
+  // REIS = any 6-digit ID starting with 2 (covers 20xxxx, 21xxxx, 22xxxx, ...)
+  // SANTOS = any 6-digit ID starting with 3 (covers 30xxxx, 31xxxx, ...)
+  if(id.length>=6){
+    if(id[0]==='2') return {name:'REIS',tag:'co-reis',cls:'co-reis'};
+    if(id[0]==='3') return {name:'SANTOS',tag:'co-santos',cls:'co-santos'};
+  }
+  // Fallback: still match 2-digit legacy prefix for older 4-digit IDs
   if(id.startsWith('20')) return {name:'REIS',tag:'co-reis',cls:'co-reis'};
   if(id.startsWith('30')) return {name:'SANTOS',tag:'co-santos',cls:'co-santos'};
   return {name:'',tag:'',cls:''};
@@ -2207,10 +2214,13 @@ ${sections}
 let _firstAddReis = true, _firstAddSantos = true;
 
 function nextIdForCompany(company){
-  const prefix = company==='santos' ? '30' : '20';
-  const matching = clients.map(c=>c.client_id||'').filter(id=>id.startsWith(prefix));
-  // Start at prefix+0000 (e.g. 200000) as the baseline
-  let maxId = parseInt(prefix+'0000', 10);
+  // Match any 6-digit ID whose first digit matches the company
+  // REIS = first digit 2 (20xxxx, 21xxxx, ...)
+  // SANTOS = first digit 3 (30xxxx, 31xxxx, ...)
+  const firstDigit = company==='santos' ? '3' : '2';
+  const matching = clients.map(c=>c.client_id||'').filter(id=>id.length>=6 && id[0]===firstDigit);
+  // Baseline: 200000 for REIS, 300000 for SANTOS
+  let maxId = parseInt(firstDigit+'00000', 10);
   for(const id of matching){
     const n = parseInt(id, 10);
     if(!isNaN(n) && n > maxId) maxId = n;

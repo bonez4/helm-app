@@ -199,6 +199,10 @@ Reis revenue is parsed from the scale file directly (variable rates per customer
 ### Add Client (all users)
 - **Company picker** (REIS or SANTOS) at top of form — **required** before any other fields become available
 - Form fields are disabled/hidden until a company is selected
+- Company classification by **first digit**:
+  - REIS = any 6-digit ID starting with `2` (covers 20xxxx, 21xxxx, 22xxxx, ...)
+  - SANTOS = any 6-digit ID starting with `3` (covers 30xxxx, 31xxxx, ...)
+  - This means IDs naturally roll over (e.g., 309999 → 310000 still classifies as SANTOS)
 - Auto-suggests next available ID for the selected company:
   - **First add in session**: max existing ID + 51 (+50 safety buffer for IDs added outside HELM)
   - **Subsequent adds**: max existing ID + 1 (normal increment)
