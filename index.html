@@ -4541,8 +4541,7 @@ function icrRenderReport(allData, container) {
       <h3>${weekLabel}</h3>
       <button class="icr-nav-btn" onclick="icrNextWeek()">&rarr;</button>
       <input type="date" value="${icrWeekStart}" onchange="icrJumpToWeek(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
-      <div style="margin-left:auto;display:flex;gap:4px;">${yearBtn(2025)}${yearBtn(2026)}</div>
-      <button class="icr-nav-btn" style="margin-left:8px;" onclick="icrPrintWeekly()">Print</button>
+      <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
       <button class="icr-nav-btn" style="background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
       <button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
     </div>
@@ -4740,7 +4739,11 @@ function icrRenderQuarterly(d25, d26) {
     <div class="irr-report-toolbar">
       <button class="rpt-print" onclick="window.print()">Print</button>
       <button class="rpt-print" onclick="irrDownloadPDF()">Download PDF</button>
-      <span style="display:flex;gap:4px;margin:0 12px;">${qBtn(1)}${qBtn(2)}${qBtn(3)}${qBtn(4)}</span>
+      <span style="display:flex;gap:4px;margin:0 12px;">
+        <button class="icr-year-btn ${icrYear===2025?'active':''}" onclick="icrYear=2025;icrShowQuarterly()">2025</button>
+        <button class="icr-year-btn ${icrYear===2026?'active':''}" onclick="icrYear=2026;icrShowQuarterly()">2026</button>
+      </span>
+      <span style="display:flex;gap:4px;margin:0 4px;">${qBtn(1)}${qBtn(2)}${qBtn(3)}${qBtn(4)}</span>
       <button class="rpt-close" onclick="document.getElementById('icrQuarterOverlay').remove()">Close</button>
     </div>
     <div class="irr-report-body" style="overflow-x:auto;">
