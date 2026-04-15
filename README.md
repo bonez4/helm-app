@@ -197,9 +197,10 @@ Reis revenue is parsed from the scale file directly (variable rates per customer
 - Inline Yes/No delete confirmation on notes
 
 ### Add Client (all users)
+- **Company picker** (REIS or SANTOS) at top of form — determines ID prefix (20xx or 30xx)
+- Auto-suggests next available ID for the selected company (20 or 30 prefix, incrementing)
 - Name, address, phone, email fields
 - Day toggle buttons (Mon-Sat) for multi-day pickup
-- Auto-suggests next client ID
 - Duplicate detection by address or name
 
 ### Reports (all users)
