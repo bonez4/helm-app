@@ -4718,7 +4718,20 @@ function icrRenderQuarterly(dPrev, dCur) {
     html+=fullRow('Rev/Load', c=>c&&c.loads>0?fM(c.rev/c.loads):'--', c=>c.loads>0?c.rev/c.loads:0);
     html+=fullRow('Total Revenue', c=>c?fM(c.rev):'--', c=>c.rev);
     html+=fullRow('Loads', c=>c?c.loads||'--':'--', c=>c.loads);
-    html+=fullRow('Loads/Day', (c,m)=>{const days=cur[m]?.days||0;return c&&days>0?(c.loads/days).toFixed(1):'--';}, c=>0);
+    html+=(()=>{
+      // Loads/Day with avg across quarter for totals
+      const curQDays=qMonths.reduce((s,m)=>(cur[m]?.days||0)+s,0);
+      const prevQDays=qMonths.reduce((s,m)=>(prev[m]?.days||0)+s,0);
+      const curAvg=curQDays>0?(curQ.loads/curQDays):0;
+      const prevAvg=prevQDays>0?(prevQ.loads/prevQDays):0;
+      let cells='';
+      for(const m of qMonths){const days=cur[m]?.days||0;const c=cur[m]?.[company];cells+='<td>'+(c&&days>0?(c.loads/days).toFixed(1):'--')+'</td>';}
+      cells+='<td style="font-weight:700">'+(curAvg>0?curAvg.toFixed(1):'--')+'</td><td class="icr-spacer"></td>';
+      for(const m of qMonths){const days=prev[m]?.days||0;const c=prev[m]?.[company];cells+='<td>'+(c&&days>0?(c.loads/days).toFixed(1):'--')+'</td>';}
+      cells+='<td style="font-weight:700">'+(prevAvg>0?prevAvg.toFixed(1):'--')+'</td><td class="icr-spacer"></td>';
+      cells+='<td style="color:'+(curAvg>=prevAvg?'#2e7d32':'#c62828')+';font-weight:600">'+fPct(curAvg,prevAvg)+'</td>';
+      return '<tr><td>Loads/Day</td>'+cells+'</tr>';
+    })();
     html+='<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(10)+'</tr>';
     html+=fullRow('Tons/Load', c=>c&&c.loads>0?f2(c.tons/c.loads):'--', c=>c.loads>0?c.tons/c.loads:0);
     html+=fullRow('Total Tons', c=>c?f2(c.tons):'--', c=>c.tons);
