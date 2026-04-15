@@ -4624,12 +4624,14 @@ function icrJumpToWeek(dateStr){
 let icrQuarter = Math.ceil((new Date().getMonth()+1)/3); // current quarter
 
 async function icrShowQuarterly() {
-  const {data:d26}=await db.from('irr_reports').select('*').gte('report_date','2026-01-01').lte('report_date','2026-12-31').order('report_date');
-  const {data:d25}=await db.from('irr_reports').select('*').gte('report_date','2025-01-01').lte('report_date','2025-12-31').order('report_date');
+  const curYear = icrYear;
+  const prevYear = curYear - 1;
+  const {data:dCur}=await db.from('irr_reports').select('*').gte('report_date',curYear+'-01-01').lte('report_date',curYear+'-12-31').order('report_date');
+  const {data:dPrev}=await db.from('irr_reports').select('*').gte('report_date',prevYear+'-01-01').lte('report_date',prevYear+'-12-31').order('report_date');
 
   await irrLoadRates();
   const ir=irrRates?.island, er=irrRates?.eastend;
-  for(const arr of [d25||[],d26||[]]){
+  for(const arr of [dCur||[],dPrev||[]]){
     for(const d of arr){
       if(ir&&!(parseFloat(d.island_revenue)>0)&&(d.island_tickets||0)>0)
         d.island_revenue=(ir.hook_fee*d.island_tickets)+((ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0));
@@ -4638,17 +4640,18 @@ async function icrShowQuarterly() {
     }
   }
 
-  // Also get full-year monthly data for charts
-  window._icrFullYear26 = d26||[];
-  window._icrFullYear25 = d25||[];
+  // Store for charts (use current year for visuals)
+  window._icrFullYear26 = dCur||[];
+  window._icrFullYear25 = dPrev||[];
 
-  icrRenderQuarterly(d25||[], d26||[]);
+  icrRenderQuarterly(dPrev||[], dCur||[]);
 }
 
 let icrQCharts = [];
 function icrDestroyQCharts(){icrQCharts.forEach(c=>c.destroy());icrQCharts=[];}
 
-function icrRenderQuarterly(d25, d26) {
+function icrRenderQuarterly(dPrev, dCur) {
+  const d25=dPrev, d26=dCur; // alias for compatibility
   const q = icrQuarter;
   const qMonths = [(q-1)*3+1, (q-1)*3+2, (q-1)*3+3];
   const monthNames = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
