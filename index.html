@@ -3241,6 +3241,7 @@ function irrGenerateEmail(data, ytd) {
   const totalRev = rolloffRev + (walkin.tipRevenue||0);
   const netDay = totalTons - vinagro.tons;
   const wtdNet = (ytd.wtdInbound||0) - (ytd.wtdOutbound||0);
+  const ytdNet = (ytd.ytd2026||0) - (ytd.vin2026||0);
 
   const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:500px;line-height:1.6;">
   <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
@@ -3263,6 +3264,7 @@ function irrGenerateEmail(data, ytd) {
     ${R('Net (Inbound \u2212 Outbound)',irrFmt(netDay)+' tons',true)}
     ${S()}
     ${R('WTD Net (Inbound \u2212 Outbound)',irrFmt(wtdNet)+' tons',true)}
+    ${R('YTD Net (Inbound \u2212 Outbound)',irrFmt(ytdNet)+' tons',true)}
     ${companyBlock('Reis Rolloff', reis.tickets, reis.tons, reis.rolloffFees||0, reis.tipRevenue||0)}
     ${companyBlock('Island Rubbish', island.tickets, island.tons, islandHook, islandTonRev)}
     ${companyBlock('East End', santos.tickets, santos.tons, santosHook, santosTonRev)}
