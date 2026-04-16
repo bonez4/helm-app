@@ -1811,8 +1811,10 @@ async function login() {
   if(data.role==='admin') document.getElementById('importTabBtn').style.display='';
   if(data.username==='david'||data.role==='admin') {
     document.getElementById('irrTabBtn').style.display='';
-    document.getElementById('xferTabBtn').style.display='';
     document.getElementById('filesTabBtn').style.display='';
+  }
+  if(['david','chris','admin'].includes(data.username)) {
+    document.getElementById('xferTabBtn').style.display='';
   }
   if(data.username==='david'){
     document.getElementById('cmdTabBtn').style.display='';
@@ -6394,8 +6396,10 @@ if(_saved && _saved !== '1'){
     if(currentUser.role==='admin') document.getElementById('importTabBtn').style.display='';
     if(currentUser.username==='david'||currentUser.role==='admin') {
       document.getElementById('irrTabBtn').style.display='';
-      document.getElementById('xferTabBtn').style.display='';
       document.getElementById('filesTabBtn').style.display='';
+    }
+    if(['david','chris','admin'].includes(currentUser.username)) {
+      document.getElementById('xferTabBtn').style.display='';
     }
     if(currentUser.username==='david'){
       document.getElementById('cmdTabBtn').style.display='';
