@@ -756,11 +756,12 @@ select.ro-input{cursor:pointer;}
 .irr-report-body .rpt-total td{font-weight:700;border-top:2px solid #000;border-bottom:none;}
 
 @media print{
-  body>*{display:none!important;}
+  body>*:not(.irr-report-overlay){display:none!important;}
   .irr-report-overlay{position:static!important;background:none!important;padding:0!important;display:block!important;}
-  .irr-report-modal{box-shadow:none!important;border-radius:0!important;}
+  .irr-report-modal{box-shadow:none!important;border-radius:0!important;max-width:100%!important;}
   .irr-report-toolbar{display:none!important;}
-  .irr-report-body{padding:20px!important;}
+  .irr-report-body{padding:10px!important;overflow:visible!important;}
+  .irr-report-body table{font-size:9px!important;}
 }
 
 /* ── FILES TAB ───────────────────────────────────────────────────── */
@@ -4004,7 +4005,8 @@ function irrGetPDFOptions() {
 }
 
 function irrDownloadPDF() {
-  const el=document.querySelector('#irrReportOverlay .irr-report-body');
+  // Try multiple overlay IDs — daily report, weekly print, quarterly, projections
+  const el=document.querySelector('.irr-report-overlay .irr-report-body');
   if(!el){toast('No report to export');return;}
   toast('Generating PDF...');
   html2pdf().set(irrGetPDFOptions()).from(el).save().then(()=>{
