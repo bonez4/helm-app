@@ -115,6 +115,68 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 }
 .btn-sticky:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.65);}
 .btn-sticky.s-open{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);}
+.btn-topbar-tool{
+  background:rgba(26,155,138,0.15);border:1px solid rgba(26,155,138,0.3);
+  color:rgba(255,255,255,0.7);font-size:11px;font-weight:600;padding:5px 12px;margin-left:8px;
+  border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .15s;letter-spacing:.02em;
+}
+.btn-topbar-tool:first-of-type{margin-left:22px;}
+.btn-topbar-tool:hover{background:rgba(26,155,138,0.3);color:white;}
+.btn-topbar-tool.tool-open{background:var(--teal);color:white;border-color:var(--teal);}
+
+/* ── CONTACTS PANEL ──────────────────────────────── */
+.contacts-panel{
+  position:fixed;top:50px;right:420px;width:520px;
+  background:#1b2233;border:1px solid rgba(255,255,255,0.11);
+  border-radius:8px;box-shadow:0 10px 36px rgba(0,0,0,0.45);
+  z-index:9999;display:none;overflow:hidden;
+}
+.contacts-panel.ct-open{display:block;}
+.ct-layout{display:flex;height:480px;}
+.ct-sidebar{width:130px;border-right:1px solid rgba(255,255,255,0.07);padding:8px 0;flex-shrink:0;}
+.ct-sidebar-btn{
+  display:block;width:100%;padding:10px 14px;border:none;background:none;
+  color:rgba(255,255,255,0.4);font-family:'DM Sans',sans-serif;font-size:12px;
+  font-weight:600;text-align:left;cursor:pointer;transition:all .1s;
+}
+.ct-sidebar-btn:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.04);}
+.ct-sidebar-btn.ct-active{color:var(--teal);background:rgba(26,155,138,0.1);border-left:3px solid var(--teal);}
+.ct-main{flex:1;overflow-y:auto;padding:12px 14px;}
+.ct-section-hdr{
+  font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(255,255,255,0.3);margin:10px 0 6px;padding-bottom:4px;
+  border-bottom:1px solid rgba(255,255,255,0.07);
+}
+.ct-section-hdr:first-child{margin-top:0;}
+.ct-row{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;
+  padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);
+  font-size:12px;color:rgba(255,255,255,0.7);
+}
+.ct-row.ct-driver-row{grid-template-columns:1fr 1fr;}
+.ct-row-name{font-weight:600;color:rgba(255,255,255,0.85);}
+.ct-row-phone{font-family:'DM Mono',monospace;font-size:11px;}
+.ct-row-email{font-size:11px;color:rgba(255,255,255,0.5);}
+.ct-add-row{display:flex;gap:4px;margin-top:8px;align-items:center;}
+.ct-add-row input{
+  flex:1;padding:5px 6px;background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.09);border-radius:4px;
+  color:rgba(255,255,255,0.85);font-family:'DM Sans',sans-serif;font-size:11px;
+}
+.ct-add-row input::placeholder{color:rgba(255,255,255,0.25);}
+.ct-add-row input:focus{border-color:rgba(255,255,255,0.22);outline:none;}
+.ct-add-btn{
+  padding:5px 10px;background:var(--teal);border:none;color:white;
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  border-radius:4px;cursor:pointer;white-space:nowrap;
+}
+.ct-add-btn:hover{filter:brightness(1.1);}
+.ct-del{
+  background:none;border:none;color:rgba(255,255,255,0.15);cursor:pointer;
+  font-size:12px;padding:0 2px;transition:color .15s;
+}
+.ct-del:hover{color:#c62828;}
 .sticky-panel{
   position:fixed;top:50px;width:400px;
   background:#1b2233;border:1px solid rgba(255,255,255,0.11);
@@ -1247,7 +1309,8 @@ select.ro-input{cursor:pointer;}
         <div class="topbar-name">HELM</div>
         <div class="topbar-company">Reis Trucking</div>
       </div>
-      <button id="stickyBtn" class="btn-sticky" onclick="toggleStickyPanel()">Sticky</button>
+      <button id="stickyBtn" class="btn-topbar-tool" onclick="toggleStickyPanel()">Sticky</button>
+      <button id="contactsBtn" class="btn-topbar-tool" onclick="toggleContactsPanel()">Contacts</button>
     </div>
     <div class="topbar-right">
       <div class="live-dot"></div>
@@ -1303,6 +1366,19 @@ select.ro-input{cursor:pointer;}
   </div>
   <div class="sticky-sec-hdr" style="margin-top:0">Saved Notes</div>
   <div class="sticky-list" id="stickyList"><div class="sticky-empty">No notes yet</div></div>
+</div>
+
+<div class="contacts-panel" id="contactsPanel">
+  <div class="ct-layout">
+    <div class="ct-sidebar" id="ctSidebar">
+      <button class="ct-sidebar-btn ct-active" onclick="ctSelectCompany('reis',this)">Reis</button>
+      <button class="ct-sidebar-btn" onclick="ctSelectCompany('santos',this)">Santos</button>
+      <button class="ct-sidebar-btn" onclick="ctSelectCompany('island',this)">Island</button>
+    </div>
+    <div class="ct-main" id="ctMain">
+      <div style="padding:20px;color:rgba(255,255,255,0.4);font-size:12px;text-align:center">Loading...</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1395,6 +1471,119 @@ function parseCSVLine(line){
 // ── STICKY NOTES ──────────────────────────────────────────────────────
 let stickyOpen = false;
 let stickyData = [];
+
+// ── CONTACTS PANEL ───────────────────────────────────────────────────
+
+let ctCurrentCompany = 'reis';
+let ctData = [];
+
+function toggleContactsPanel(){
+  const panel = document.getElementById('contactsPanel');
+  const btn = document.getElementById('contactsBtn');
+  const isOpen = panel.classList.contains('ct-open');
+  if(isOpen){
+    panel.classList.remove('ct-open');
+    btn.classList.remove('tool-open');
+  } else {
+    panel.classList.add('ct-open');
+    btn.classList.add('tool-open');
+    ctLoadContacts();
+  }
+}
+
+function ctSelectCompany(company, btn){
+  ctCurrentCompany = company;
+  document.querySelectorAll('.ct-sidebar-btn').forEach(b=>b.classList.remove('ct-active'));
+  if(btn) btn.classList.add('ct-active');
+  ctRenderContacts();
+}
+
+async function ctLoadContacts(){
+  const {data,error} = await db.from('contacts').select('*').order('section').order('sort_order').order('name');
+  if(error){console.error(error);return;}
+  ctData = data||[];
+  ctRenderContacts();
+}
+
+function ctRenderContacts(){
+  const main = document.getElementById('ctMain');
+  const co = ctCurrentCompany;
+  const coLabel = {reis:'Reis',santos:'Santos',island:'Island'}[co]||co;
+  const office = ctData.filter(c=>c.company===co&&c.section==='office');
+  const drivers = ctData.filter(c=>c.company===co&&c.section==='driver');
+
+  let html = '';
+
+  // Office section
+  html += '<div class="ct-section-hdr">Office</div>';
+  if(office.length){
+    for(const c of office){
+      html += `<div class="ct-row">
+        <span class="ct-row-name">${esc(c.name)}</span>
+        <span class="ct-row-phone">${esc(c.phone||'')}</span>
+        <span class="ct-row-email">${esc(c.email||'')}</span>
+        <button class="ct-del" onclick="ctDelete(${c.id})" title="Remove">&times;</button>
+      </div>`;
+    }
+  } else {
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:6px 0;">No office contacts yet</div>';
+  }
+  html += `<div class="ct-add-row">
+    <input id="ctOffName" placeholder="Name">
+    <input id="ctOffPhone" placeholder="Phone">
+    <input id="ctOffEmail" placeholder="Email">
+    <button class="ct-add-btn" onclick="ctAdd('office')">+</button>
+  </div>`;
+
+  // Drivers section (no email column)
+  html += '<div class="ct-section-hdr" style="margin-top:14px">Drivers</div>';
+  if(drivers.length){
+    for(const c of drivers){
+      html += `<div class="ct-row ct-driver-row">
+        <span class="ct-row-name">${esc(c.name)}</span>
+        <span class="ct-row-phone">${esc(c.phone||'')}</span>
+        <button class="ct-del" onclick="ctDelete(${c.id})" title="Remove">&times;</button>
+      </div>`;
+    }
+  } else {
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:6px 0;">No drivers yet</div>';
+  }
+  html += `<div class="ct-add-row">
+    <input id="ctDrvName" placeholder="Name">
+    <input id="ctDrvPhone" placeholder="Phone">
+    <button class="ct-add-btn" onclick="ctAdd('driver')">+</button>
+  </div>`;
+
+  main.innerHTML = html;
+}
+
+async function ctAdd(section){
+  const isOffice = section==='office';
+  const nameEl = document.getElementById(isOffice?'ctOffName':'ctDrvName');
+  const phoneEl = document.getElementById(isOffice?'ctOffPhone':'ctDrvPhone');
+  const emailEl = isOffice ? document.getElementById('ctOffEmail') : null;
+  const name = nameEl?.value.trim();
+  const phone = phoneEl?.value.trim();
+  const email = emailEl?.value.trim();
+  if(!name){toast('Name is required');return;}
+
+  const {error} = await db.from('contacts').insert({
+    company: ctCurrentCompany,
+    section: section,
+    name: name,
+    phone: phone||null,
+    email: (isOffice&&email)?email:null,
+  });
+  if(error){toast('Error: '+error.message);return;}
+  toast(name+' added',true);
+  await ctLoadContacts();
+}
+
+async function ctDelete(id){
+  const {error} = await db.from('contacts').delete().eq('id',id);
+  if(error){toast('Error: '+error.message);return;}
+  await ctLoadContacts();
+}
 
 function toggleStickyPanel(){
   const panel = document.getElementById('stickyPanel');
