@@ -127,15 +127,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 
 /* ── CONTACTS PANEL ──────────────────────────────── */
 .contacts-panel{
-  position:fixed;top:50px;left:50%;transform:translateX(-50%);
+  position:fixed;top:80px;left:50%;transform:translateX(-50%);
   width:720px;min-width:500px;max-width:90vw;
-  background:#141c2e;border:1px solid rgba(255,255,255,0.14);
-  border-radius:10px;box-shadow:0 12px 48px rgba(0,0,0,0.55);
+  background:#0e1524;border:1px solid rgba(255,255,255,0.18);
+  border-radius:10px;box-shadow:0 12px 48px rgba(0,0,0,0.6);
   z-index:9999;display:none;overflow:hidden;resize:both;
 }
 .contacts-panel.ct-open{display:block;}
-.ct-layout{display:flex;height:540px;min-height:300px;}
-.ct-sidebar{width:130px;border-right:1px solid rgba(255,255,255,0.07);padding:8px 0;flex-shrink:0;}
+.ct-drag-handle{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 14px;border-bottom:1px solid rgba(255,255,255,0.1);
+  cursor:grab;user-select:none;
+}
+.ct-drag-handle:active{cursor:grabbing;}
+.ct-drag-title{font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:.06em;text-transform:uppercase;}
+.ct-close{
+  background:none;border:none;color:rgba(255,255,255,0.4);font-size:18px;
+  cursor:pointer;padding:0 4px;line-height:1;transition:color .15s;
+}
+.ct-close:hover{color:white;}
+.ct-layout{display:flex;height:520px;min-height:300px;}
+.ct-sidebar{width:130px;border-right:1px solid rgba(255,255,255,0.07);padding:8px 0;flex-shrink:0;display:flex;flex-direction:column;}
 .ct-sidebar-btn{
   display:block;width:100%;padding:10px 14px;border:none;background:none;
   color:rgba(255,255,255,0.6);font-family:'DM Sans',sans-serif;font-size:12px;
@@ -146,19 +158,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .ct-main{flex:1;overflow-y:auto;padding:12px 14px;}
 .ct-section-hdr{
   font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-  color:rgba(255,255,255,0.5);margin:10px 0 6px;padding-bottom:4px;
-  border-bottom:1px solid rgba(255,255,255,0.1);
+  color:rgba(255,255,255,0.7);margin:10px 0 6px;padding-bottom:4px;
+  border-bottom:1px solid rgba(255,255,255,0.12);
 }
 .ct-section-hdr:first-child{margin-top:0;}
 .ct-row{
   display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;align-items:center;
-  padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.06);
-  font-size:12px;color:rgba(255,255,255,0.85);
+  padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.08);
+  font-size:13px;color:white;
 }
 .ct-row.ct-driver-row{grid-template-columns:1fr 1fr auto;}
-.ct-row-name{font-weight:600;color:white;}
-.ct-row-phone{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,0.8);}
-.ct-row-email{font-size:11px;color:rgba(255,255,255,0.65);}
+.ct-row-name{font-weight:700;color:white;}
+.ct-row-phone{font-family:'DM Mono',monospace;font-size:12px;color:white;}
+.ct-row-email{font-size:12px;color:rgba(255,255,255,0.85);}
 .ct-add-row{display:flex;gap:4px;margin-top:8px;align-items:center;}
 .ct-add-row input{
   flex:1;padding:5px 6px;background:rgba(255,255,255,0.06);
@@ -1370,11 +1382,21 @@ select.ro-input{cursor:pointer;}
 </div>
 
 <div class="contacts-panel" id="contactsPanel">
+  <div class="ct-drag-handle" id="ctDragHandle">
+    <span class="ct-drag-title">Contact List</span>
+    <button class="ct-close" onclick="toggleContactsPanel()" title="Close">&times;</button>
+  </div>
   <div class="ct-layout">
     <div class="ct-sidebar" id="ctSidebar">
       <button class="ct-sidebar-btn ct-active" onclick="ctSelectCompany('reis',this)">Reis</button>
       <button class="ct-sidebar-btn" onclick="ctSelectCompany('santos',this)">Santos</button>
       <button class="ct-sidebar-btn" onclick="ctSelectCompany('island',this)">Island</button>
+      <div style="padding:8px 10px;border-top:1px solid rgba(255,255,255,0.07);margin-top:auto;">
+        <input id="ctSearch" type="text" placeholder="Search..." oninput="ctDoSearch(this.value)"
+          style="width:100%;padding:5px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);
+          border-radius:4px;color:white;font-family:'DM Sans',sans-serif;font-size:11px;outline:none;"
+        >
+      </div>
     </div>
     <div class="ct-main" id="ctMain">
       <div style="padding:20px;color:rgba(255,255,255,0.4);font-size:12px;text-align:center">Loading...</div>
@@ -1477,6 +1499,29 @@ let stickyData = [];
 
 let ctCurrentCompany = 'reis';
 let ctData = [];
+let ctSearchQuery = '';
+
+// Drag functionality for contacts panel
+(function(){
+  let dragging=false,ox=0,oy=0;
+  document.addEventListener('mousedown',function(e){
+    const handle=e.target.closest('#ctDragHandle');
+    if(!handle||e.target.closest('.ct-close')) return;
+    dragging=true;
+    const panel=document.getElementById('contactsPanel');
+    panel.style.transform='none'; // remove centering transform once dragging starts
+    ox=e.clientX-panel.offsetLeft;
+    oy=e.clientY-panel.offsetTop;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',function(e){
+    if(!dragging) return;
+    const panel=document.getElementById('contactsPanel');
+    panel.style.left=(e.clientX-ox)+'px';
+    panel.style.top=(e.clientY-oy)+'px';
+  });
+  document.addEventListener('mouseup',function(){dragging=false;});
+})();
 
 function toggleContactsPanel(){
   const panel = document.getElementById('contactsPanel');
@@ -1494,6 +1539,9 @@ function toggleContactsPanel(){
 
 function ctSelectCompany(company, btn){
   ctCurrentCompany = company;
+  ctSearchQuery = '';
+  const searchEl = document.getElementById('ctSearch');
+  if(searchEl) searchEl.value = '';
   document.querySelectorAll('.ct-sidebar-btn').forEach(b=>b.classList.remove('ct-active'));
   if(btn) btn.classList.add('ct-active');
   ctRenderContacts();
@@ -1506,28 +1554,44 @@ async function ctLoadContacts(){
   ctRenderContacts();
 }
 
+function ctDoSearch(q){
+  ctSearchQuery = q.trim().toLowerCase();
+  ctRenderContacts();
+}
+
 function ctRenderContacts(){
   const main = document.getElementById('ctMain');
   const co = ctCurrentCompany;
-  const coLabel = {reis:'Reis',santos:'Santos',island:'Island'}[co]||co;
-  const office = ctData.filter(c=>c.company===co&&c.section==='office');
-  const drivers = ctData.filter(c=>c.company===co&&c.section==='driver');
+  const q = ctSearchQuery;
+
+  let office, drivers;
+  if(q.length>=2){
+    // Search across ALL companies
+    office = ctData.filter(c=>c.section==='office' && (c.name||'').toLowerCase().includes(q));
+    drivers = ctData.filter(c=>c.section==='driver' && (c.name||'').toLowerCase().includes(q));
+    // Deactivate company buttons visually
+    document.querySelectorAll('.ct-sidebar-btn').forEach(b=>b.classList.remove('ct-active'));
+  } else {
+    office = ctData.filter(c=>c.company===co&&c.section==='office');
+    drivers = ctData.filter(c=>c.company===co&&c.section==='driver');
+  }
 
   let html = '';
 
   // Office section
   html += '<div class="ct-section-hdr">Office</div>';
+  const coTag=c=>q.length>=2?` <span style="font-size:9px;opacity:0.5;text-transform:uppercase">${c.company}</span>`:'';
   if(office.length){
     for(const c of office){
       html += `<div class="ct-row">
-        <span class="ct-row-name">${esc(c.name)}</span>
+        <span class="ct-row-name">${esc(c.name)}${coTag(c)}</span>
         <span class="ct-row-phone">${esc(c.phone||'')}</span>
         <span class="ct-row-email">${esc(c.email||'')}</span>
         <button class="ct-del" onclick="ctDelete(${c.id})" title="Remove">&times;</button>
       </div>`;
     }
   } else {
-    html += '<div style="font-size:11px;color:rgba(255,255,255,0.3);padding:6px 0;">No office contacts yet</div>';
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.4);padding:6px 0;">'+(q.length>=2?'No office matches':'No office contacts yet')+'</div>';
   }
   html += `<div class="ct-add-row">
     <input id="ctOffName" placeholder="Name">
@@ -1541,7 +1605,7 @@ function ctRenderContacts(){
   if(drivers.length){
     for(const c of drivers){
       html += `<div class="ct-row ct-driver-row">
-        <span class="ct-row-name">${esc(c.name)}</span>
+        <span class="ct-row-name">${esc(c.name)}${coTag(c)}</span>
         <span class="ct-row-phone">${esc(c.phone||'')}</span>
         <button class="ct-del" onclick="ctDelete(${c.id})" title="Remove">&times;</button>
       </div>`;
