@@ -3231,27 +3231,37 @@ function irrGenerateEmail(data, ytd) {
   const santosHook=(er?er.hook_fee:200)*santos.tickets;
   const santosTonRev=santosRev-santosHook;
 
+  const rolloffRev = reisRev + islandRev + santosRev;
+  const totalRev = rolloffRev + (walkin.tipRevenue||0);
+  const netDay = totalTons - vinagro.tons;
+  const wtdNet = (ytd.wtdInbound||0) - (ytd.wtdOutbound||0);
+
   const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:500px;line-height:1.6;">
   <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
   <p style="margin:0 0 16px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
   <table style="width:100%;border-collapse:collapse;">
+    <tr>
+      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;">Total Revenue (Rolloff + Walk-In)</td>
+      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;">${irrFmtMoney(totalRev)}</td>
+    </tr>
+    ${H('Vinagro Output')}
+    ${R('Loads',vinagro.tickets)}
+    ${R('Total Tons',irrFmt(vinagro.tons))}
+    ${H('Walk-In / Drive-Through')}
+    ${R('Tickets',walkin.tickets)}
+    ${R('Total Tons',irrFmt(walkin.tons))}
+    ${R('Total Revenue',irrFmtMoney(walkin.tipRevenue||0))}
+    ${H('Day Totals')}
+    ${R('Total Inbound',irrFmt(totalTons)+' tons')}
+    ${R('Total Outbound',irrFmt(vinagro.tons)+' tons')}
+    ${R('Net (Inbound \u2212 Outbound)',irrFmt(netDay)+' tons',true)}
+    ${S()}
+    ${R('WTD Net (Inbound \u2212 Outbound)',irrFmt(wtdNet)+' tons',true)}
     ${companyBlock('Reis Rolloff', reis.tickets, reis.tons, reis.rolloffFees||0, reis.tipRevenue||0)}
     ${companyBlock('Island Rubbish', island.tickets, island.tons, islandHook, islandTonRev)}
     ${companyBlock('East End', santos.tickets, santos.tons, santosHook, santosTonRev)}
     ${companyBlock('All Rolloffs Combined', reis.tickets+island.tickets+santos.tickets, reis.tons+island.tons+santos.tons, (reis.rolloffFees||0)+islandHook+santosHook, (reis.tipRevenue||0)+islandTonRev+santosTonRev)}
     ${pile.tickets>0?(H('Pile Pickups (Reis)')+R('Loads / Tons',pile.tickets+' tickets &nbsp; '+irrFmt(pile.tons)+' tons')):''}
-    ${H('Walk-In / Drive-Through')}
-    ${R('Tickets',walkin.tickets)}
-    ${R('Total Tons',irrFmt(walkin.tons))}
-    ${R('Total Revenue',irrFmtMoney(walkin.tipRevenue||0))}
-    ${S()}
-    <tr>
-      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;border-top:2px solid #000;">Total Inbound</td>
-      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;border-top:2px solid #000;">${totalTickets} tickets &nbsp; ${irrFmt(totalTons)} tons</td>
-    </tr>
-    ${H('Vinagro Output (Outbound)')}
-    ${R('Loads',vinagro.tickets)}
-    ${R('Total Tons',irrFmt(vinagro.tons))}
     ${H('Year-to-Date Comparison')}
     ${R('Reis YTD',irrFmt(ytd.reisYtdCur)+' tons',true)}
     ${R('Reis Prior Year',irrFmt(ytd.reisYtdPrev)+' tons')}
@@ -3286,10 +3296,19 @@ async function irrLoadYTD(asOfDate) {
   const curStart=asOf.year+'-01-01';
   const prevEnd=(asOf.year-1)+'-'+pad(asOf.month)+'-'+pad(asOf.day);
   const prevStart=(asOf.year-1)+'-01-01';
+
+  // Monday of the report week (ISO: Mon-Sun)
+  const asOfDt = new Date(asOf.year, asOf.month-1, asOf.day);
+  const dow = asOfDt.getDay();
+  const diff = asOfDt.getDate() - dow + (dow===0?-6:1);
+  const monday = new Date(asOfDt); monday.setDate(diff);
+  const wtdStart = monday.getFullYear()+'-'+pad(monday.getMonth()+1)+'-'+pad(monday.getDate());
+
   const fields='total_inbound_tons,vinagro_tons,reis_tons,island_tons,santos_tons';
 
   const {data:curData}=await db.from('irr_reports').select(fields).gte('report_date',curStart).lte('report_date',curEnd);
   const {data:prevData}=await db.from('irr_reports').select(fields).gte('report_date',prevStart).lte('report_date',prevEnd);
+  const {data:wtdData}=await db.from('irr_reports').select(fields).gte('report_date',wtdStart).lte('report_date',curEnd);
 
   function sum(rows){
     const r={total:0,vin:0,reis:0,island:0,santos:0};
@@ -3302,13 +3321,14 @@ async function irrLoadYTD(asOfDate) {
     }
     return r;
   }
-  const cur=sum(curData), prev=sum(prevData);
+  const cur=sum(curData), prev=sum(prevData), wtd=sum(wtdData);
   return {
     ytd2026:cur.total, ytd2025:prev.total,
     vin2026:cur.vin, vin2025:prev.vin,
     reisYtdCur:cur.reis, reisYtdPrev:prev.reis,
     islandYtdCur:cur.island, islandYtdPrev:prev.island,
     santosYtdCur:cur.santos, santosYtdPrev:prev.santos,
+    wtdInbound:wtd.total, wtdOutbound:wtd.vin,
   };
 }
 
