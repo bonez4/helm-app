@@ -4511,121 +4511,323 @@ async function irrViewHistorical(isoDate) {
 
 // ── XFER STATION TAB ───────────────────────────────────────────────────
 
-let xferCapacity = parseFloat(localStorage.getItem('xfer_capacity')) || 0;
+const xferPad = n => String(n).padStart(2,'0');
+const xferIsoOf = d => d.getFullYear()+'-'+xferPad(d.getMonth()+1)+'-'+xferPad(d.getDate());
+function xferGetMonday(d) {
+  const dt = new Date(d);
+  const day = dt.getDay();
+  const diff = dt.getDate() - day + (day===0?-6:1);
+  dt.setDate(diff);
+  return xferIsoOf(dt);
+}
+
+let xferState = {
+  capacity: parseFloat(localStorage.getItem('xfer_capacity')) || 0,
+  seedBalance: NaN,
+  seedDate: localStorage.getItem('xfer_seed_date') || null,
+  weekStart: null,
+  editingSeed: false,
+  chart: null
+};
+{
+  const sb = parseFloat(localStorage.getItem('xfer_seed_balance'));
+  if(isNaN(sb)) {
+    xferState.seedBalance = 95;
+    xferState.seedDate = xferIsoOf(new Date());
+    localStorage.setItem('xfer_seed_balance', '95');
+    localStorage.setItem('xfer_seed_date', xferState.seedDate);
+  } else {
+    xferState.seedBalance = sb;
+  }
+}
 
 async function renderXfer() {
   const tab = document.getElementById('tab-xfer');
   tab.innerHTML = '<div style="padding:20px;color:var(--gray-400);font-size:12px;">Loading...</div>';
 
   const today = new Date();
-  const pad = n => String(n).padStart(2,'0');
-  const isoOf = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-  const todayIso = isoOf(today);
-  const year = today.getFullYear();
-  const yearStart = year+'-01-01';
-
-  // Monday of current week (ISO)
-  const dow = today.getDay();
-  const diff = today.getDate() - dow + (dow===0?-6:1);
-  const monday = new Date(today); monday.setDate(diff);
-  const wkStart = isoOf(monday);
-  const weekDates = [];
-  for(let i=0;i<6;i++){
-    const d = new Date(monday); d.setDate(monday.getDate()+i);
-    weekDates.push(isoOf(d));
-  }
-  const mtdStart = year+'-'+pad(today.getMonth()+1)+'-01';
+  const todayIso = xferIsoOf(today);
+  if(!xferState.weekStart) xferState.weekStart = xferGetMonday(today);
 
   const {data:rows, error} = await db.from('irr_reports')
     .select('report_date,total_inbound_tons,vinagro_tons')
-    .gte('report_date', yearStart)
-    .lte('report_date', todayIso);
-
-  if(error){tab.innerHTML='<div style="padding:20px;color:#c00;">Error loading: '+error.message+'</div>';return;}
+    .order('report_date', {ascending:true});
+  if(error){tab.innerHTML='<div style="padding:20px;color:#c00;">Error: '+error.message+'</div>';return;}
 
   const byDate = {};
-  let ytdIn=0, ytdOut=0, mtdIn=0, mtdOut=0, wtdIn=0, wtdOut=0;
   for(const r of (rows||[])) {
-    const inT = parseFloat(r.total_inbound_tons)||0;
-    const outT = parseFloat(r.vinagro_tons)||0;
-    byDate[r.report_date] = {inT, outT};
-    ytdIn+=inT; ytdOut+=outT;
-    if(r.report_date>=mtdStart) { mtdIn+=inT; mtdOut+=outT; }
-    if(r.report_date>=wkStart) { wtdIn+=inT; wtdOut+=outT; }
+    byDate[r.report_date] = {
+      inT: parseFloat(r.total_inbound_tons)||0,
+      outT: parseFloat(r.vinagro_tons)||0
+    };
   }
 
-  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat'];
-  const dailyNet = weekDates.map(d => {
-    const row = byDate[d];
-    return row ? (row.inT - row.outT) : null;
-  });
+  // Compute running balance for every date from seed_date through today.
+  // balance(seed_date) = seed; balance(d) = balance(d-1) + net(d) for d > seed_date.
+  const balances = {};
+  balances[xferState.seedDate] = xferState.seedBalance;
+  const seedDt = new Date(xferState.seedDate+'T00:00:00');
+  const cursor = new Date(seedDt);
+  cursor.setDate(cursor.getDate()+1);
+  while(xferIsoOf(cursor) <= todayIso){
+    const iso = xferIsoOf(cursor);
+    const prev = xferIsoOf(new Date(cursor.getTime()-86400000));
+    const row = byDate[iso];
+    const net = row ? (row.inT - row.outT) : 0;
+    balances[iso] = (balances[prev] ?? xferState.seedBalance) + net;
+    cursor.setDate(cursor.getDate()+1);
+  }
+  // Balances going backward from seed
+  const backCursor = new Date(seedDt);
+  backCursor.setDate(backCursor.getDate()-1);
+  const earliestIso = rows.length ? rows[0].report_date : xferState.seedDate;
+  while(xferIsoOf(backCursor) >= earliestIso){
+    const iso = xferIsoOf(backCursor);
+    const next = xferIsoOf(new Date(backCursor.getTime()+86400000));
+    const nextRow = byDate[next];
+    const nextNet = nextRow ? (nextRow.inT - nextRow.outT) : 0;
+    balances[iso] = (balances[next] ?? xferState.seedBalance) - nextNet;
+    backCursor.setDate(backCursor.getDate()-1);
+  }
 
+  // Current balance = balance on latest date that has data (or seed if no data after seed)
+  let currentBalance = xferState.seedBalance;
+  if(rows.length){
+    const latestIso = rows[rows.length-1].report_date;
+    currentBalance = balances[latestIso] ?? xferState.seedBalance;
+  }
+
+  // KPIs — 30-day avg daily net
+  const thirtyAgo = new Date(today); thirtyAgo.setDate(today.getDate()-30);
+  const thirtyIso = xferIsoOf(thirtyAgo);
+  let sumNet30 = 0, days30 = 0;
+  for(const r of rows){
+    if(r.report_date < thirtyIso) continue;
+    sumNet30 += (parseFloat(r.total_inbound_tons)||0) - (parseFloat(r.vinagro_tons)||0);
+    days30++;
+  }
+  const avgDailyNet = days30 > 0 ? sumNet30/days30 : 0;
+  let daysToCapacity = null;
+  if(xferState.capacity > 0 && avgDailyNet > 0.01 && currentBalance < xferState.capacity){
+    daysToCapacity = (xferState.capacity - currentBalance) / avgDailyNet;
+  }
+
+  // Build weekly grid for xferState.weekStart
+  const weekMonday = new Date(xferState.weekStart+'T00:00:00');
+  const weekDates = [];
+  for(let i=0;i<6;i++){
+    const d = new Date(weekMonday); d.setDate(weekMonday.getDate()+i);
+    weekDates.push(xferIsoOf(d));
+  }
+  const weekEnd = weekDates[5];
+  const weekYear = weekMonday.getFullYear();
+  const weekMonth = weekMonday.getMonth()+1;
+  const mtdStart = weekYear+'-'+xferPad(weekMonth)+'-01';
+  const yearStart = weekYear+'-01-01';
+
+  // Period sums: for past weeks use full Mon-Sat; for current week use Mon-through-today
+  const periodEnd = (weekEnd > todayIso) ? todayIso : weekEnd;
+  function sumRange(startIso, endIso){
+    let inT=0, outT=0;
+    for(const r of rows){
+      if(r.report_date < startIso || r.report_date > endIso) continue;
+      inT += parseFloat(r.total_inbound_tons)||0;
+      outT += parseFloat(r.vinagro_tons)||0;
+    }
+    return {inT, outT};
+  }
+  const wtd = sumRange(xferState.weekStart, periodEnd);
+  const mtd = sumRange(mtdStart, periodEnd);
+  const ytd = sumRange(yearStart, periodEnd);
+
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat'];
   const f = n => (n===null||n===undefined||isNaN(n)) ? '--' : n.toFixed(2);
-  const pct = n => {
-    if(!xferCapacity || xferCapacity<=0 || n===null) return '';
-    const p = ((n/xferCapacity - 1) * 100);
+  const fSigned = n => {
+    if(n===null||n===undefined||isNaN(n)) return '--';
+    return (n>0?'+':'')+n.toFixed(2);
+  };
+
+  // End-of-period balance for WTD/MTD/YTD = balance on periodEnd
+  const wtdEndBal = balances[periodEnd];
+  const mtdEndBal = balances[periodEnd];
+  const ytdEndBal = balances[periodEnd];
+
+  const pctOver = (bal) => {
+    if(!xferState.capacity || xferState.capacity<=0 || bal===undefined || bal===null) return '';
+    const p = ((bal/xferState.capacity - 1) * 100);
     const color = p > 0 ? '#c0392b' : '#27ae60';
     return '<div style="font-size:9px;color:'+color+';margin-top:2px;">'+(p>0?'+':'')+p.toFixed(1)+'%</div>';
   };
 
-  const wtdNet = wtdIn - wtdOut;
-  const mtdNet = mtdIn - mtdOut;
-  const ytdNet = ytdIn - ytdOut;
+  // Format seed date nicely
+  const seedDateDisp = new Date(xferState.seedDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const weekLabel = weekMonday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' – '+(new Date(weekMonday.getTime()+5*86400000)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  const seedPanel = xferState.editingSeed ? `
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:#856404;">Seed balance (tons):</label>
+      <input id="xferSeedInput" type="number" step="0.01" value="${xferState.seedBalance}" style="width:100px;padding:6px 10px;border:1px solid #ffc107;border-radius:4px;font-family:'DM Mono',monospace;font-size:12px;"/>
+      <span style="font-size:11px;color:#856404;">Date will stamp as ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+      <button onclick="xferSaveSeed()" class="icr-nav-btn" style="cursor:pointer;background:#28a745;color:white;border-color:#28a745;">Confirm &amp; Save</button>
+      <button onclick="xferState.editingSeed=false;renderXfer()" class="icr-nav-btn" style="cursor:pointer;">Cancel</button>
+    </div>
+  ` : `
+    <div style="display:flex;align-items:center;gap:14px;padding:10px 14px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:6px;margin-bottom:16px;font-size:12px;">
+      <span style="color:var(--gray-500);">Seed balance:</span>
+      <span style="font-weight:600;color:var(--gray-800);font-family:'DM Mono',monospace;">${xferState.seedBalance.toFixed(2)} tons</span>
+      <span style="color:var(--gray-400);">·</span>
+      <span style="color:var(--gray-500);">Set on:</span>
+      <span style="color:var(--gray-700);">${seedDateDisp}</span>
+      <span style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <label style="color:var(--gray-500);">Capacity target:</label>
+        <input id="xferCapacityInput" type="number" step="0.01" value="${xferState.capacity||''}" placeholder="tons" style="width:80px;padding:4px 8px;border:1px solid var(--gray-300);border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;"/>
+        <button onclick="xferSaveCapacity()" class="icr-nav-btn" style="cursor:pointer;padding:4px 10px;font-size:11px;">Save</button>
+        <span style="color:var(--gray-300);">·</span>
+        <button onclick="xferState.editingSeed=true;renderXfer()" class="icr-nav-btn" style="cursor:pointer;padding:4px 10px;font-size:11px;">\u270E Edit seed</button>
+      </span>
+    </div>
+  `;
+
+  const kpiCard = (label, value, sub) => `
+    <div style="flex:1;min-width:140px;padding:14px 16px;background:white;border:1px solid var(--gray-200);border-radius:8px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gray-400);letter-spacing:0.5px;">${label}</div>
+      <div style="font-size:22px;font-weight:700;color:var(--navy);font-family:'DM Mono',monospace;margin-top:4px;">${value}</div>
+      ${sub?'<div style="font-size:10px;color:var(--gray-500);margin-top:2px;">'+sub+'</div>':''}
+    </div>
+  `;
+
+  const capacityPct = xferState.capacity > 0 ? ((currentBalance/xferState.capacity - 1)*100) : null;
+  const capSub = capacityPct === null ? 'no capacity target' :
+    (capacityPct>0?'<span style="color:#c0392b">+'+capacityPct.toFixed(1)+'% over target</span>':'<span style="color:#27ae60">'+capacityPct.toFixed(1)+'% of target</span>');
 
   tab.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-      <h3 style="font-size:14px;font-weight:600;color:var(--navy);margin:0;">Xfer Station — Inbound vs Outbound</h3>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-        <label style="font-size:12px;color:var(--gray-600);">Capacity (tons):</label>
-        <input id="xferCapacityInput" type="number" step="0.01" value="${xferCapacity||''}"
-          style="width:110px;padding:6px 10px;border:1px solid var(--gray-300);border-radius:4px;font-family:'DM Mono',monospace;font-size:12px;" placeholder="e.g. 500"/>
-        <button onclick="saveXferCapacity()" class="icr-nav-btn" style="cursor:pointer;">Save</button>
-      </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <h3 style="font-size:14px;font-weight:600;color:var(--navy);margin:0;">Xfer Station \u2014 C&amp;D Room Balance</h3>
     </div>
-    <div style="font-size:11px;color:var(--gray-500);margin-bottom:12px;">
-      Tonnage row shows <b>net held</b> (inbound \u2212 outbound) for each date column. Inbound/Outbound columns show YTD totals for reference. % Over compares net vs capacity.
+    ${seedPanel}
+    <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+      ${kpiCard('Currently in station', f(currentBalance)+' tons', capSub)}
+      ${kpiCard('Daily avg net (30d)', fSigned(avgDailyNet)+' tons/day', days30+' days w/ data')}
+      ${kpiCard('Days to capacity', daysToCapacity===null?'\u2014':Math.round(daysToCapacity)+' days', daysToCapacity===null?'set capacity & net must be +':'at current pace')}
+      ${kpiCard('YTD inbound', f(ytd.inT)+' tons', '')}
+      ${kpiCard('YTD outbound', f(ytd.outT)+' tons', '')}
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <button class="icr-nav-btn" onclick="xferChangeWeek(-1)" style="cursor:pointer;">\u2190</button>
+      <input type="date" value="${xferState.weekStart}" onchange="xferGoToDate(this.value)" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:4px;font-size:12px;"/>
+      <button class="icr-nav-btn" onclick="xferChangeWeek(1)" style="cursor:pointer;">\u2192</button>
+      <span style="font-size:12px;color:var(--gray-600);margin-left:6px;">${weekLabel}</span>
+      <button class="icr-nav-btn" onclick="xferGoToDate('${xferGetMonday(new Date())}')" style="cursor:pointer;margin-left:6px;">Current week</button>
     </div>
     <table class="icr-table">
       <thead><tr>
         <th></th>
-        <th>Inbound<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">YTD</span></th>
-        <th>Outbound<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">YTD</span></th>
         ${dayNames.map((n,i)=>'<th>'+n+'<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">'+weekDates[i].substring(5)+'</span></th>').join('')}
         <th class="icr-spacer"></th><th>WTD</th>
         <th class="icr-spacer"></th><th>MTD</th>
         <th class="icr-spacer"></th><th>YTD</th>
       </tr></thead>
       <tbody>
-        <tr>
-          <td>Tonnage</td>
-          <td>${f(ytdIn)}</td>
-          <td>${f(ytdOut)}</td>
-          ${dailyNet.map(n=>'<td>'+f(n)+pct(n)+'</td>').join('')}
-          <td class="icr-spacer"></td><td class="icr-agg">${f(wtdNet)}${pct(wtdNet)}</td>
-          <td class="icr-spacer"></td><td class="icr-agg">${f(mtdNet)}${pct(mtdNet)}</td>
-          <td class="icr-spacer"></td><td class="icr-agg">${f(ytdNet)}${pct(ytdNet)}</td>
+        <tr><td>Inbound</td>${weekDates.map(d=>{const r=byDate[d];return '<td>'+(r?f(r.inT):'--')+'</td>';}).join('')}
+          <td class="icr-spacer"></td><td class="icr-agg">${f(wtd.inT)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${f(mtd.inT)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${f(ytd.inT)}</td>
         </tr>
-        <tr>
-          <td>Capacity</td>
-          <td>\u2014</td>
-          <td>\u2014</td>
-          ${dayNames.map(()=>'<td>'+(xferCapacity>0?f(xferCapacity):'\u2014')+'</td>').join('')}
-          <td class="icr-spacer"></td><td class="icr-agg">${xferCapacity>0?f(xferCapacity):'\u2014'}</td>
-          <td class="icr-spacer"></td><td class="icr-agg">${xferCapacity>0?f(xferCapacity):'\u2014'}</td>
-          <td class="icr-spacer"></td><td class="icr-agg">${xferCapacity>0?f(xferCapacity):'\u2014'}</td>
+        <tr><td>Outbound</td>${weekDates.map(d=>{const r=byDate[d];return '<td>'+(r?f(r.outT):'--')+'</td>';}).join('')}
+          <td class="icr-spacer"></td><td class="icr-agg">${f(wtd.outT)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${f(mtd.outT)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${f(ytd.outT)}</td>
+        </tr>
+        <tr><td>Net</td>${weekDates.map(d=>{const r=byDate[d];return '<td>'+(r?fSigned(r.inT-r.outT):'--')+'</td>';}).join('')}
+          <td class="icr-spacer"></td><td class="icr-agg">${fSigned(wtd.inT-wtd.outT)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${fSigned(mtd.inT-mtd.outT)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${fSigned(ytd.inT-ytd.outT)}</td>
+        </tr>
+        <tr style="border-top:2px solid var(--gray-200);"><td style="font-weight:600;">End-of-day balance</td>${weekDates.map(d=>{const b=balances[d];return '<td style="font-weight:600;">'+(b===undefined?'--':f(b))+pctOver(b)+'</td>';}).join('')}
+          <td class="icr-spacer"></td><td class="icr-agg">${f(wtdEndBal)}${pctOver(wtdEndBal)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${f(mtdEndBal)}${pctOver(mtdEndBal)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${f(ytdEndBal)}${pctOver(ytdEndBal)}</td>
         </tr>
       </tbody>
     </table>
+
+    <div style="margin-top:28px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gray-500);letter-spacing:0.5px;margin-bottom:10px;">Running balance \u2014 full history</div>
+      <div style="position:relative;height:300px;"><canvas id="xferChart"></canvas></div>
+    </div>
   `;
+
+  // Draw chart
+  const sortedDates = Object.keys(balances).sort();
+  const labels = sortedDates;
+  const balanceData = sortedDates.map(d => balances[d]);
+  if(xferState.chart){ try{xferState.chart.destroy();}catch(e){} }
+  const ctx = document.getElementById('xferChart').getContext('2d');
+  const datasets = [{
+    label:'Balance (tons)',
+    data:balanceData,
+    borderColor:'#003f5c',
+    backgroundColor:'rgba(0,63,92,0.08)',
+    borderWidth:2,
+    fill:true,
+    tension:0.2,
+    pointRadius:0
+  }];
+  if(xferState.capacity > 0){
+    datasets.push({
+      label:'Capacity target',
+      data:sortedDates.map(()=>xferState.capacity),
+      borderColor:'#c0392b',
+      borderWidth:1.5,
+      borderDash:[6,4],
+      fill:false,
+      pointRadius:0
+    });
+  }
+  xferState.chart = new Chart(ctx, {
+    type:'line',
+    data:{labels, datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},
+      scales:{
+        y:{title:{display:true,text:'Tons',font:{size:10}},ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}},
+        x:{ticks:{font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:12},grid:{display:false}}
+      }
+    }
+  });
 }
 
-function saveXferCapacity() {
-  const input = document.getElementById('xferCapacityInput');
-  const val = parseFloat(input.value)||0;
-  xferCapacity = val;
-  localStorage.setItem('xfer_capacity', val);
+function xferChangeWeek(delta){
+  const d = new Date(xferState.weekStart+'T00:00:00');
+  d.setDate(d.getDate() + delta*7);
+  xferState.weekStart = xferIsoOf(d);
+  renderXfer();
+}
+function xferGoToDate(iso){
+  if(!iso) return;
+  xferState.weekStart = xferGetMonday(new Date(iso+'T00:00:00'));
+  renderXfer();
+}
+function xferSaveCapacity(){
+  const val = parseFloat(document.getElementById('xferCapacityInput').value)||0;
+  xferState.capacity = val;
+  localStorage.setItem('xfer_capacity', String(val));
   renderXfer();
   toast('Capacity saved');
+}
+function xferSaveSeed(){
+  const val = parseFloat(document.getElementById('xferSeedInput').value);
+  if(isNaN(val)) { toast('Enter a valid number'); return; }
+  xferState.seedBalance = val;
+  xferState.seedDate = xferIsoOf(new Date());
+  xferState.editingSeed = false;
+  localStorage.setItem('xfer_seed_balance', String(val));
+  localStorage.setItem('xfer_seed_date', xferState.seedDate);
+  renderXfer();
+  toast('Seed updated');
 }
 
 // ── FILES TAB ──────────────────────────────────────────────────────────
