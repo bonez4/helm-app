@@ -3020,6 +3020,16 @@ async function doRolloffImport(rows){
 // ── IRR SCALE TAB ────────────────────────────────────────────────────
 
 const IRR_ROLLOFF_SVC = ['ROLLOFF DELIVERY','ROLLOFF DOUBLE DROP','EMPTY ROLLOFF','EMPTY ROLL-OFF'];
+// Per-unit disposal and service fees — prices fixed in HELM since scale file rates are often $0/EA.
+// Reis-billed (non-ZZ): revenue → reis.rolloffFees. ZZ walkin: revenue → walkin.tipRevenue.
+const IRR_PER_UNIT_FEES = [
+  {kw:'MATTRESS LANDFILL DISPOSAL FEE', price:50},
+  {kw:'STOVE DISHWASH APPLIANCE DISP', price:11},
+  {kw:'FRION LANDFILL DISPOSAL FEE', price:45},
+  {kw:'MONITOR LANDFILL DISPOSAL FEE', price:16.5},
+  {kw:'DUMPTIRE', price:16.5},
+  {kw:'MOVE ROLLOFF ON JOB SITE', price:60},
+];
 let irrCurrentData = null;
 let irrRendered = false;
 
@@ -3180,6 +3190,26 @@ function irrParseReport(rows) {
           for (let j=dataVals.length-1;j>kwIdx;j--) {
             const amt=parseFloat(dataVals[j]);
             if (!isNaN(amt) && amt>0) { buckets.reis.rolloffFees+=amt; break; }
+          }
+        }
+        break;
+      }
+    }
+    // Per-unit disposal and move-rolloff fees (qty \u00d7 fixed price)
+    for (const item of IRR_PER_UNIT_FEES) {
+      if (flatUpper.includes(item.kw)) {
+        const kwIdx = dataVals.findIndex(v => v && v.toUpperCase().includes(item.kw));
+        if (kwIdx >= 0 && kwIdx+1 < dataVals.length) {
+          const qty = parseFloat(dataVals[kwIdx+1]) || 0;
+          const rev = qty * item.price;
+          if (rev > 0) {
+            if (rc.startsWith('ZZ')) {
+              if (rc!=='ZZISLAND' && rc!=='ZZEASTEND' && rc!=='ZZDELTA' && rc!=='ZZREIS') {
+                buckets.walkin.tipRevenue += rev;
+              }
+            } else {
+              buckets.reis.rolloffFees += rev;
+            }
           }
         }
         break;
@@ -4073,6 +4103,7 @@ function irrParseBulk(rows) {
   // Same parsing logic as irrParseReport, but tags each ticket with its date
   // then groups by date to produce daily report rows
   const tickets = {};
+  const perUnitByDate = {}; // {dateStr: {reis: revenue, walkin: revenue}}
   let currentCode = null, parentCode = null;
   const codeStack = [];
   let lastDate = null;
@@ -4136,6 +4167,27 @@ function irrParseBulk(rows) {
         break;
       }
     }
+    // Per-unit disposal and move-rolloff fees (qty \u00d7 fixed price)
+    for (const item of IRR_PER_UNIT_FEES) {
+      if (flatUpper.includes(item.kw)) {
+        const kwIdx = dataVals.findIndex(v => v && v.toUpperCase().includes(item.kw));
+        if (kwIdx >= 0 && kwIdx+1 < dataVals.length && lastDate) {
+          const qty = parseFloat(dataVals[kwIdx+1]) || 0;
+          const rev = qty * item.price;
+          if (rev > 0) {
+            if (!perUnitByDate[lastDate]) perUnitByDate[lastDate] = {reis:0, walkin:0};
+            if (effectiveCode.startsWith('ZZ')) {
+              if (effectiveCode!=='ZZISLAND' && effectiveCode!=='ZZEASTEND' && effectiveCode!=='ZZDELTA' && effectiveCode!=='ZZREIS') {
+                perUnitByDate[lastDate].walkin += rev;
+              }
+            } else {
+              perUnitByDate[lastDate].reis += rev;
+            }
+          }
+        }
+        break;
+      }
+    }
   }
 
   // Group tickets by date
@@ -4160,6 +4212,17 @@ function irrParseBulk(rows) {
       else if(t.service.includes('DOUBLE DROP'))b.reis.doubleDrops++;
       else if(t.service.includes('EMPTY'))b.reis.empties++;
     } else {b.walkin.tons+=t.tons;b.walkin.tickets++;b.walkin.tipRev+=t.tipRev||0;}
+  }
+
+  // Merge per-unit disposal/move fees (may create a new date entry if that day had only per-unit fees)
+  for (const [dt, pu] of Object.entries(perUnitByDate)) {
+    if (!dailyMap[dt]) dailyMap[dt] = {
+      reis:{tons:0,tickets:0,tipRev:0,svcFees:0,deliveries:0,empties:0,doubleDrops:0},
+      pile:{tons:0,tickets:0}, island:{tons:0,tickets:0}, santos:{tons:0,tickets:0},
+      vinagro:{tons:0,tickets:0}, walkin:{tons:0,tickets:0,tipRev:0},
+    };
+    dailyMap[dt].reis.svcFees += pu.reis;
+    dailyMap[dt].walkin.tipRev += pu.walkin;
   }
 
   // Convert to array of DB rows
