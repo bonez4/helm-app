@@ -1339,6 +1339,7 @@ select.ro-input{cursor:pointer;}
     <button onclick="switchTab('report',this)">Reports</button>
     <button onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button id="irrTabBtn" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
+    <button id="xferTabBtn" style="display:none" onclick="switchTab('xfer',this)">Xfer Station</button>
     <button id="filesTabBtn" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="cmdTabBtn" style="display:none" onclick="switchTab('cmd',this)">Command <span class="cmd-badge-private">PRIVATE</span></button>
     <button id="importTabBtn" style="display:none" onclick="switchTab('import',this)">Import</button>
@@ -1350,6 +1351,7 @@ select.ro-input{cursor:pointer;}
     <div id="tab-report" style="display:none"></div>
     <div id="tab-rolloffs" style="display:none"></div>
     <div id="tab-irr"    style="display:none"></div>
+    <div id="tab-xfer"   style="display:none"></div>
     <div id="tab-files"  style="display:none"></div>
     <div id="tab-cmd"    style="display:none"></div>
     <div id="tab-import" style="display:none"></div>
@@ -1809,6 +1811,7 @@ async function login() {
   if(data.role==='admin') document.getElementById('importTabBtn').style.display='';
   if(data.username==='david'||data.role==='admin') {
     document.getElementById('irrTabBtn').style.display='';
+    document.getElementById('xferTabBtn').style.display='';
     document.getElementById('filesTabBtn').style.display='';
   }
   if(data.username==='david'){
@@ -1896,7 +1899,7 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','add','report','rolloffs','irr','files','cmd','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','irr','xfer','files','cmd','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -1907,6 +1910,7 @@ function switchTab(name,btn){
   if(name==='report') renderReport();
   if(name==='rolloffs') renderRolloffs();
   if(name==='irr')    renderIRR();
+  if(name==='xfer')   renderXfer();
   if(name==='files')  renderFiles();
   if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
   if(name==='import') renderImport();
@@ -4503,6 +4507,125 @@ async function irrViewHistorical(isoDate) {
   document.getElementById('tab-irr').scrollIntoView({behavior:'smooth'});
 }
 
+// ── XFER STATION TAB ───────────────────────────────────────────────────
+
+let xferCapacity = parseFloat(localStorage.getItem('xfer_capacity')) || 0;
+
+async function renderXfer() {
+  const tab = document.getElementById('tab-xfer');
+  tab.innerHTML = '<div style="padding:20px;color:var(--gray-400);font-size:12px;">Loading...</div>';
+
+  const today = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const isoOf = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const todayIso = isoOf(today);
+  const year = today.getFullYear();
+  const yearStart = year+'-01-01';
+
+  // Monday of current week (ISO)
+  const dow = today.getDay();
+  const diff = today.getDate() - dow + (dow===0?-6:1);
+  const monday = new Date(today); monday.setDate(diff);
+  const wkStart = isoOf(monday);
+  const weekDates = [];
+  for(let i=0;i<6;i++){
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    weekDates.push(isoOf(d));
+  }
+  const mtdStart = year+'-'+pad(today.getMonth()+1)+'-01';
+
+  const {data:rows, error} = await db.from('irr_reports')
+    .select('report_date,total_inbound_tons,vinagro_tons')
+    .gte('report_date', yearStart)
+    .lte('report_date', todayIso);
+
+  if(error){tab.innerHTML='<div style="padding:20px;color:#c00;">Error loading: '+error.message+'</div>';return;}
+
+  const byDate = {};
+  let ytdIn=0, ytdOut=0, mtdIn=0, mtdOut=0, wtdIn=0, wtdOut=0;
+  for(const r of (rows||[])) {
+    const inT = parseFloat(r.total_inbound_tons)||0;
+    const outT = parseFloat(r.vinagro_tons)||0;
+    byDate[r.report_date] = {inT, outT};
+    ytdIn+=inT; ytdOut+=outT;
+    if(r.report_date>=mtdStart) { mtdIn+=inT; mtdOut+=outT; }
+    if(r.report_date>=wkStart) { wtdIn+=inT; wtdOut+=outT; }
+  }
+
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dailyNet = weekDates.map(d => {
+    const row = byDate[d];
+    return row ? (row.inT - row.outT) : null;
+  });
+
+  const f = n => (n===null||n===undefined||isNaN(n)) ? '--' : n.toFixed(2);
+  const pct = n => {
+    if(!xferCapacity || xferCapacity<=0 || n===null) return '';
+    const p = ((n/xferCapacity - 1) * 100);
+    const color = p > 0 ? '#c0392b' : '#27ae60';
+    return '<div style="font-size:9px;color:'+color+';margin-top:2px;">'+(p>0?'+':'')+p.toFixed(1)+'%</div>';
+  };
+
+  const wtdNet = wtdIn - wtdOut;
+  const mtdNet = mtdIn - mtdOut;
+  const ytdNet = ytdIn - ytdOut;
+
+  tab.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <h3 style="font-size:14px;font-weight:600;color:var(--navy);margin:0;">Xfer Station — Inbound vs Outbound</h3>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <label style="font-size:12px;color:var(--gray-600);">Capacity (tons):</label>
+        <input id="xferCapacityInput" type="number" step="0.01" value="${xferCapacity||''}"
+          style="width:110px;padding:6px 10px;border:1px solid var(--gray-300);border-radius:4px;font-family:'DM Mono',monospace;font-size:12px;" placeholder="e.g. 500"/>
+        <button onclick="saveXferCapacity()" class="icr-nav-btn" style="cursor:pointer;">Save</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--gray-500);margin-bottom:12px;">
+      Tonnage row shows <b>net held</b> (inbound \u2212 outbound) for each date column. Inbound/Outbound columns show YTD totals for reference. % Over compares net vs capacity.
+    </div>
+    <table class="icr-table">
+      <thead><tr>
+        <th></th>
+        <th>Inbound<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">YTD</span></th>
+        <th>Outbound<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">YTD</span></th>
+        ${dayNames.map((n,i)=>'<th>'+n+'<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">'+weekDates[i].substring(5)+'</span></th>').join('')}
+        <th class="icr-spacer"></th><th>WTD</th>
+        <th class="icr-spacer"></th><th>MTD</th>
+        <th class="icr-spacer"></th><th>YTD</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td>Tonnage</td>
+          <td>${f(ytdIn)}</td>
+          <td>${f(ytdOut)}</td>
+          ${dailyNet.map(n=>'<td>'+f(n)+pct(n)+'</td>').join('')}
+          <td class="icr-spacer"></td><td class="icr-agg">${f(wtdNet)}${pct(wtdNet)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${f(mtdNet)}${pct(mtdNet)}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${f(ytdNet)}${pct(ytdNet)}</td>
+        </tr>
+        <tr>
+          <td>Capacity</td>
+          <td>\u2014</td>
+          <td>\u2014</td>
+          ${dayNames.map(()=>'<td>'+(xferCapacity>0?f(xferCapacity):'\u2014')+'</td>').join('')}
+          <td class="icr-spacer"></td><td class="icr-agg">${xferCapacity>0?f(xferCapacity):'\u2014'}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${xferCapacity>0?f(xferCapacity):'\u2014'}</td>
+          <td class="icr-spacer"></td><td class="icr-agg">${xferCapacity>0?f(xferCapacity):'\u2014'}</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+}
+
+function saveXferCapacity() {
+  const input = document.getElementById('xferCapacityInput');
+  const val = parseFloat(input.value)||0;
+  xferCapacity = val;
+  localStorage.setItem('xfer_capacity', val);
+  renderXfer();
+  toast('Capacity saved');
+}
+
 // ── FILES TAB ──────────────────────────────────────────────────────────
 
 let filesActiveView = 'shared';   // 'shared' or 'personal'
@@ -6271,6 +6394,7 @@ if(_saved && _saved !== '1'){
     if(currentUser.role==='admin') document.getElementById('importTabBtn').style.display='';
     if(currentUser.username==='david'||currentUser.role==='admin') {
       document.getElementById('irrTabBtn').style.display='';
+      document.getElementById('xferTabBtn').style.display='';
       document.getElementById('filesTabBtn').style.display='';
     }
     if(currentUser.username==='david'){
