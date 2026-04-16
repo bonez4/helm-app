@@ -171,6 +171,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .ct-row-name{font-weight:700;color:white;}
 .ct-row-phone{font-family:'DM Mono',monospace;font-size:12px;color:white;}
 .ct-row-email{font-size:12px;color:rgba(255,255,255,0.85);}
+.ct-edit{
+  display:inline-block;min-width:1em;min-height:1.2em;padding:2px 5px;margin:-2px -5px;
+  border-radius:3px;cursor:text;transition:background .1s;outline:none;
+  white-space:pre;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+}
+.ct-edit:hover{background:rgba(255,255,255,0.06);}
+.ct-edit:focus{background:rgba(255,255,255,0.12);box-shadow:0 0 0 1px rgba(26,155,138,0.6);white-space:normal;}
+.ct-edit:empty::before{content:attr(data-placeholder);color:rgba(255,255,255,0.3);}
 .ct-add-row{display:flex;gap:4px;margin-top:8px;align-items:center;}
 .ct-add-row input{
   flex:1;padding:5px 6px;background:rgba(255,255,255,0.06);
@@ -1583,13 +1591,14 @@ function ctRenderContacts(){
 
   // Office section
   html += '<div class="ct-section-hdr">Office</div>';
-  const coTag=c=>q.length>=2?` <span style="font-size:9px;opacity:0.5;text-transform:uppercase">${c.company}</span>`:'';
+  const coTag=c=>q.length>=2?` <span style="font-size:9px;opacity:0.5;text-transform:uppercase;padding-left:4px;">${c.company}</span>`:'';
+  const ed=(id,field,val,placeholder)=>`<span class="ct-edit" contenteditable="true" data-placeholder="${placeholder}" onblur="ctSaveField(${id},'${field}',this.textContent)" onkeydown="ctEditKey(event)">${esc(val||'')}</span>`;
   if(office.length){
     for(const c of office){
       html += `<div class="ct-row">
-        <span class="ct-row-name">${esc(c.name)}${coTag(c)}</span>
-        <span class="ct-row-phone">${esc(c.phone||'')}</span>
-        <span class="ct-row-email">${esc(c.email||'')}</span>
+        <span class="ct-row-name">${ed(c.id,'name',c.name,'Name')}${coTag(c)}</span>
+        <span class="ct-row-phone">${ed(c.id,'phone',c.phone,'Phone')}</span>
+        <span class="ct-row-email">${ed(c.id,'email',c.email,'Email')}</span>
         <button class="ct-del" onclick="ctDelete(${c.id})" title="Remove">&times;</button>
       </div>`;
     }
@@ -1608,8 +1617,8 @@ function ctRenderContacts(){
   if(drivers.length){
     for(const c of drivers){
       html += `<div class="ct-row ct-driver-row">
-        <span class="ct-row-name">${esc(c.name)}${coTag(c)}</span>
-        <span class="ct-row-phone">${esc(c.phone||'')}</span>
+        <span class="ct-row-name">${ed(c.id,'name',c.name,'Name')}${coTag(c)}</span>
+        <span class="ct-row-phone">${ed(c.id,'phone',c.phone,'Phone')}</span>
         <button class="ct-del" onclick="ctDelete(${c.id})" title="Remove">&times;</button>
       </div>`;
     }
@@ -1651,6 +1660,25 @@ async function ctDelete(id){
   const {error} = await db.from('contacts').delete().eq('id',id);
   if(error){toast('Error: '+error.message);return;}
   await ctLoadContacts();
+}
+
+function ctEditKey(event){
+  if(event.key==='Enter'){event.preventDefault();event.target.blur();}
+  else if(event.key==='Escape'){event.preventDefault();const c=ctData.find(x=>x.id==event.target.getAttribute('data-id'));event.target.blur();}
+}
+
+async function ctSaveField(id, field, value){
+  const trimmed = (value||'').replace(/\s+/g,' ').trim();
+  const contact = ctData.find(c=>c.id===id);
+  if(!contact) return;
+  const original = contact[field] || '';
+  if(trimmed === original) return;
+  if(field==='name' && !trimmed){toast('Name cannot be empty');ctRenderContacts();return;}
+  const payload = {}; payload[field] = trimmed || null;
+  const {error} = await db.from('contacts').update(payload).eq('id', id);
+  if(error){toast('Error: '+error.message);ctRenderContacts();return;}
+  contact[field] = trimmed || null;
+  toast('Saved',true);
 }
 
 function toggleStickyPanel(){
