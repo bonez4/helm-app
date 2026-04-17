@@ -2684,9 +2684,9 @@ async function saveClient(id,selectedDays,addr,phone,email,name){
 }
 
 // ── ROLL-OFFS ─────────────────────────────────────────────────────────
-// Day of the month (1-31) when the "RESET MONTHLY RENTAL FEES" banner appears
-// on the Roll-offs page. Set to null to disable the banner entirely.
-const ROLLOFF_TIP_RESET_DAY = null; // TODO: set to David's confirmed day (e.g. 15)
+// When the "RESET MONTHLY RENTAL FEES" banner appears on the Roll-offs page.
+// Accepts: 'last' (last day of the current month), a number 1-31, or null to disable.
+const ROLLOFF_TIP_RESET_DAY = 'last';
 let rolloffsData=[];
 let rolloffSort={col:'date',asc:false};
 let showDeleted=false;
@@ -2735,9 +2735,14 @@ function renderRolloffTable(){
   if(banner){
     const today = new Date();
     const anyTipped = rolloffsData.some(r => r.monthly_tip && !r.deleted);
-    const showBanner = ROLLOFF_TIP_RESET_DAY !== null
-      && today.getDate() >= ROLLOFF_TIP_RESET_DAY
-      && anyTipped;
+    let isResetDay = false;
+    if(ROLLOFF_TIP_RESET_DAY === 'last'){
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+      isResetDay = tomorrow.getDate() === 1; // today is last day of month
+    } else if(typeof ROLLOFF_TIP_RESET_DAY === 'number'){
+      isResetDay = today.getDate() >= ROLLOFF_TIP_RESET_DAY;
+    }
+    const showBanner = isResetDay && anyTipped;
     if(showBanner){
       const tippedCount = rolloffsData.filter(r => r.monthly_tip && !r.deleted).length;
       banner.style.display = 'flex';
