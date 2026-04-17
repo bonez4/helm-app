@@ -2006,6 +2006,7 @@ async function init() {
   selectedWeek = getTodayISO();
   renderLookup();
   await Promise.all([loadClients(), loadSkips()]);
+  loadUserNotesFromDB(); // background sync; updates textarea in place if already rendered
 }
 
 function getTodayISO() {
@@ -2150,17 +2151,49 @@ function lookupNotesKey(){
 function loadLookupNotes(){
   return localStorage.getItem(lookupNotesKey()) || '';
 }
-let lwNotesTimer = null;
+async function loadUserNotesFromDB(){
+  if(!currentUser || !currentUser.username) return;
+  const {data,error} = await db.from('user_notes')
+    .select('notes').eq('username', currentUser.username).maybeSingle();
+  if(error){ console.error('user_notes load error:', error); return; }
+  if(data && typeof data.notes === 'string'){
+    localStorage.setItem(lookupNotesKey(), data.notes);
+    const input = document.getElementById('lwNotesInput');
+    // only replace textarea value if the user isn't actively editing
+    if(input && document.activeElement !== input && input.value !== data.notes){
+      input.value = data.notes;
+    }
+  }
+}
+let lwNotesFlashTimer = null;
+let lwNotesSaveTimer = null;
 function saveLookupNotes(){
   const input = document.getElementById('lwNotesInput');
   if(!input) return;
-  localStorage.setItem(lookupNotesKey(), input.value);
-  clearTimeout(lwNotesTimer);
+  const val = input.value;
+  localStorage.setItem(lookupNotesKey(), val);
+  // flash 'Saved' immediately
+  clearTimeout(lwNotesFlashTimer);
   const saved = document.getElementById('lwNotesSaved');
   if(saved){
+    saved.textContent = 'Saving\u2026';
     saved.classList.add('show');
-    lwNotesTimer = setTimeout(()=>saved.classList.remove('show'), 1400);
   }
+  // debounce DB write
+  clearTimeout(lwNotesSaveTimer);
+  lwNotesSaveTimer = setTimeout(async () => {
+    if(!currentUser || !currentUser.username) return;
+    const {error} = await db.from('user_notes').upsert({
+      username: currentUser.username,
+      notes: val,
+      updated_at: new Date().toISOString()
+    }, {onConflict: 'username'});
+    if(saved){
+      saved.textContent = error ? 'Not synced' : 'Saved';
+      lwNotesFlashTimer = setTimeout(()=>saved.classList.remove('show'), 1400);
+    }
+    if(error) console.error('user_notes save error:', error);
+  }, 700);
 }
 
 function clearLookup(){
