@@ -2820,6 +2820,7 @@ function renderRolloffs(){
           <label style="font-size:11px;color:var(--gray-400);cursor:pointer;display:flex;align-items:center;gap:4px">
             <input type="checkbox" id="showDeletedToggle" onchange="showDeleted=this.checked;loadRolloffs()" ${showDeleted?'checked':''}/> Show deleted
           </label>
+          <button class="btn-add" style="background:var(--gray-100);color:var(--gray-700);" onclick="exportRolloffSheet()" title="Export print-style rolloff sheet with 20 blank handwriting rows">Export Print Sheet</button>
           <button class="btn-add" style="background:var(--gray-100);color:var(--gray-700);" onclick="exportUntippedRolloffs()" title="Export all un-tipped roll-offs to Excel">Export Untipped</button>
           <button class="btn-add" style="background:#fff3cd;color:#856404;border:1px solid #ffc107;" onclick="resetMonthlyTips()" title="Clear all Monthly Tip flags">Reset Monthly Tips</button>
           <button class="btn-add" onclick="addRolloffRow()">+ Add Row</button>
@@ -3021,6 +3022,84 @@ async function resetMonthlyTips(){
   toast(tippedCount+' Monthly Tip flag(s) cleared', true);
   logActivity('rolloff_tip_reset','count:'+tippedCount);
   await loadRolloffs();
+}
+
+function exportRolloffSheet(){
+  const data = rolloffsData.filter(r => !r.deleted).slice().sort((a,b) => {
+    return (a.customer||'').localeCompare(b.customer||'', undefined, {sensitivity:'base'});
+  });
+  if(!data.length){ toast('No roll-offs to export'); return; }
+
+  const fmtDate = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}) : '';
+  const isoToday = new Date().toISOString().split('T')[0];
+
+  // Column widths matched to the template (character units -> approx pixels)
+  // Template: B:15.83  C:12.33  D:26.66  E:12.66  F:28.83  G:11.33
+  const colWidths = [110, 86, 188, 88, 202, 80];
+
+  // Cell + header styling: Times New Roman, borders, ~29pt row height
+  const hdrCell = 'font-family:\'Times New Roman\',serif;font-size:11pt;font-weight:bold;border:1.5pt solid #000;padding:6px 4px;text-align:center;vertical-align:middle;background:#f0f0f0;';
+  const dataCell = 'font-family:\'Times New Roman\',serif;font-size:11pt;border:1pt solid #000;padding:4px 6px;height:28pt;vertical-align:middle;';
+  const blankCell = dataCell;
+
+  const cells = (r) => `
+    <td style="${dataCell}text-align:center;">${fmtDate(r.date)}</td>
+    <td style="${dataCell}text-align:center;font-weight:600;">${esc(r.type||'')}</td>
+    <td style="${dataCell}">${esc(r.customer||'')}</td>
+    <td style="${dataCell}text-align:center;">${esc(r.address_number||'')}</td>
+    <td style="${dataCell}">${esc(r.street||'')}</td>
+    <td style="${dataCell}text-align:center;">${esc(r.notes||'')}</td>`;
+
+  let rows = '';
+  data.forEach(r => { rows += '<tr style="height:28pt;">'+cells(r)+'</tr>'; });
+
+  // 20 blank rows for handwriting additions after printing
+  for(let i=0; i<20; i++){
+    rows += '<tr style="height:28pt;">' +
+      '<td style="'+blankCell+'">&nbsp;</td>'.repeat(6) +
+      '</tr>';
+  }
+
+  const colGroup = colWidths.map(w => `<col style="width:${w}px;mso-width-source:userset;mso-width-alt:${w*37}"/>`).join('');
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml>
+<x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+<x:Name>Rolloffs</x:Name>
+<x:WorksheetOptions>
+  <x:PageSetup><x:Layout x:Orientation="Portrait"/><x:PageMargins x:Bottom="0.5" x:Left="0.5" x:Right="0.5" x:Top="0.5"/></x:PageSetup>
+  <x:Print><x:ValidPrinterInfo/><x:HorizontalResolution>600</x:HorizontalResolution><x:VerticalResolution>600</x:VerticalResolution></x:Print>
+  <x:Selected/>
+  <x:Zoom>100</x:Zoom>
+  <x:PageBreakZoom>100</x:PageBreakZoom>
+</x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+<style>table{border-collapse:collapse;} td, th{mso-number-format:"\\@";}</style>
+</head><body>
+<table border="1" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-family:'Times New Roman',serif;">
+  <colgroup>${colGroup}</colgroup>
+  <thead>
+    <tr style="height:32pt;">
+      <th style="${hdrCell}">DEL DATE</th>
+      <th style="${hdrCell}">BOX TYPE</th>
+      <th style="${hdrCell}">COMPANY NAME</th>
+      <th style="${hdrCell}">NUMBER</th>
+      <th style="${hdrCell}">STREET</th>
+      <th style="${hdrCell}">C/C</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>
+</body></html>`;
+
+  const blob = new Blob(['\ufeff', html], {type:'application/vnd.ms-excel'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Rolloffs_Alpha_by_Company_'+isoToday+'.xls';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(data.length+' roll-offs exported (+20 blank rows)', true);
 }
 
 function exportUntippedRolloffs(){
