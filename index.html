@@ -882,6 +882,17 @@ select.ro-input{cursor:pointer;}
 }
 .icr-spacer{width:8px!important;border-bottom:none!important;}
 .icr-agg{background:var(--gray-50);font-weight:600!important;}
+.crc-manual td:first-child{color:var(--gray-500)!important;font-style:italic;}
+.crc-manual td{background:#fffcf0;}
+.crc-derived td{background:#f0f7ff;color:var(--navy)!important;font-weight:600;}
+.crc-derived td:first-child{color:var(--gray-500)!important;font-style:italic;}
+.crc-input{
+  width:100%;padding:3px 5px;border:1px solid transparent;background:transparent;
+  font-family:'DM Mono',monospace;font-size:11px;color:var(--gray-700);text-align:right;
+  border-radius:3px;outline:none;box-sizing:border-box;
+}
+.crc-input:hover{border-color:var(--gray-300);background:white;}
+.crc-input:focus{border-color:var(--navy);background:white;}
 .icr-proj-section{margin-top:32px;}
 .icr-proj-table{width:100%;border-collapse:collapse;font-size:12px;}
 .icr-proj-table th{
@@ -3547,6 +3558,7 @@ function renderIRR() {
     <div class="irr-subnav">
       <button id="irrSubUpload" class="${irrActiveView==='upload'?'active':''}" onclick="irrSwitchView('upload')">Daily Scale Report</button>
       <button id="irrSubICR" class="${irrActiveView==='icr'?'active':''}" onclick="irrSwitchView('icr')">Intercompany Rolloff Report</button>
+      <button id="irrSubCRC" class="${irrActiveView==='crc'?'active':''}" onclick="irrSwitchView('crc')">Consolidated Rolloff</button>
       <button id="irrSubDash" class="${irrActiveView==='dashboard'?'active':''}" onclick="irrSwitchView('dashboard')">Dashboard</button>
     </div>
     <div id="irrViewUpload" style="display:${irrActiveView==='upload'?'':'none'}">
@@ -3578,6 +3590,9 @@ function renderIRR() {
     <div id="irrViewICR" style="display:${irrActiveView==='icr'?'':'none'}">
       <div id="irrICRContent"></div>
     </div>
+    <div id="irrViewCRC" style="display:${irrActiveView==='crc'?'':'none'}">
+      <div id="irrCRCContent"></div>
+    </div>
   </div>`;
 
   const dz = document.getElementById('irrDropZone');
@@ -3599,11 +3614,14 @@ function irrSwitchView(view) {
   document.getElementById('irrViewUpload').style.display = view==='upload'?'':'none';
   document.getElementById('irrViewDash').style.display = view==='dashboard'?'':'none';
   document.getElementById('irrViewICR').style.display = view==='icr'?'':'none';
+  document.getElementById('irrViewCRC').style.display = view==='crc'?'':'none';
   document.getElementById('irrSubUpload').className = view==='upload'?'active':'';
   document.getElementById('irrSubDash').className = view==='dashboard'?'active':'';
   document.getElementById('irrSubICR').className = view==='icr'?'active':'';
+  document.getElementById('irrSubCRC').className = view==='crc'?'active':'';
   if(view==='dashboard') irrLoadDashboard();
   if(view==='icr') icrLoadReport();
+  if(view==='crc') crcLoadReport();
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────
@@ -5480,6 +5498,257 @@ function icrNextWeek(){
 }
 function icrJumpToWeek(dateStr){
   icrWeekStart=icrGetMonday(new Date(dateStr+'T00:00:00'));icrLoadReport();
+}
+
+// ── CONSOLIDATED ROLLOFF REPORT ──────────────────────────────────────
+
+let crcWeekStart = null;
+let crcManualCache = {}; // {weekStart: {field: {idx: value}}}
+let crcSaveTimer = null;
+
+function crcGetMonday(d) {
+  const dt = new Date(d);
+  const day = dt.getDay();
+  const diff = dt.getDate() - day + (day===0?-6:1);
+  dt.setDate(diff);
+  return dt.toISOString().split('T')[0];
+}
+
+async function crcFetchManual(weekStart){
+  const {data, error} = await db.from('crc_weekly_manual')
+    .select('data').eq('week_start', weekStart).maybeSingle();
+  if(error) { console.error('CRC fetch error:', error); return {}; }
+  return (data && data.data) || {};
+}
+
+function crcDebouncedSave(weekStart){
+  clearTimeout(crcSaveTimer);
+  crcSaveTimer = setTimeout(async () => {
+    const payload = crcManualCache[weekStart] || {};
+    const {error} = await db.from('crc_weekly_manual').upsert(
+      {week_start: weekStart, data: payload},
+      {onConflict: 'week_start'}
+    );
+    if(error) { console.error('CRC save error:', error); toast('Save failed: '+error.message); }
+  }, 600);
+}
+
+async function crcLoadReport() {
+  if(!crcWeekStart) crcWeekStart = crcGetMonday(new Date());
+  const container = document.getElementById('irrCRCContent');
+  container.innerHTML = '<div style="padding:20px;color:var(--gray-400);font-size:12px;">Loading...</div>';
+
+  const weekMonday = new Date(crcWeekStart+'T00:00:00');
+  const weekDates = [];
+  for(let i=0;i<6;i++){
+    const d = new Date(weekMonday); d.setDate(weekMonday.getDate()+i);
+    weekDates.push(d.toISOString().split('T')[0]);
+  }
+
+  // Fetch both irr_reports and manual-data in parallel
+  const [reportsRes, manualData] = await Promise.all([
+    db.from('irr_reports').select('*').in('report_date', weekDates),
+    crcFetchManual(crcWeekStart)
+  ]);
+  const {data:rows, error} = reportsRes;
+  if(error){container.innerHTML='<div style="padding:20px;color:#c00;">Error: '+error.message+'</div>';return;}
+  crcManualCache[crcWeekStart] = manualData;
+
+  const byDate = {};
+  for(const r of (rows||[])) byDate[r.report_date] = r;
+
+  // Rolloff = reis + island + santos (no walk-in, no pile, no vinagro)
+  const daily = weekDates.map(d => {
+    const r = byDate[d];
+    if(!r) return {rev:0,loads:0,tons:0,hasData:false};
+    const rev = (parseFloat(r.reis_tip_revenue)||0) + (parseFloat(r.reis_svc_revenue)||0)
+              + (parseFloat(r.island_revenue)||0) + (parseFloat(r.santos_revenue)||0);
+    const loads = (r.reis_tickets||0) + (r.island_tickets||0) + (r.santos_tickets||0);
+    const tons = (parseFloat(r.reis_tons)||0) + (parseFloat(r.island_tons)||0) + (parseFloat(r.santos_tons)||0);
+    return {rev, loads, tons, hasData:true};
+  });
+
+  const totRev = daily.reduce((s,d)=>s+d.rev,0);
+  const totLoads = daily.reduce((s,d)=>s+d.loads,0);
+  const totTons = daily.reduce((s,d)=>s+d.tons,0);
+  const daysWithData = daily.filter(d=>d.hasData).length;
+
+  const manual = crcManualCache[crcWeekStart] || {};
+  const man = (field, idx) => {
+    if(!manual[field]) return '';
+    return manual[field][idx]==null ? '' : manual[field][idx];
+  };
+
+  const fM = n => n>0 ? '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '--';
+  const f2 = n => n>0 ? n.toFixed(2) : '--';
+  const fInt = n => n>0 ? n.toLocaleString('en-US') : '--';
+
+  const dayHeaders = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+  const weekLabel = weekMonday.toLocaleDateString('en-US',{month:'short',day:'numeric'})+
+    ' \u2013 '+(new Date(weekMonday.getTime()+5*86400000)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  // Build manual input cell — editable, saves to localStorage, auto-updates derived rows
+  const manCell = (field, idx) => {
+    const val = man(field, idx);
+    return `<input type="text" class="crc-input" value="${val}" data-field="${field}" data-idx="${idx}" oninput="crcOnManualInput(this)" />`;
+  };
+
+  // Derived rows (auto-calc from manual + auto rows). All have manual-override fallback.
+  function totalHrsForDay(idx){
+    const override = parseFloat(man('totalHours', idx));
+    if(!isNaN(override)) return override;
+    const st = parseFloat(man('stHours', idx)) || 0;
+    const ot = parseFloat(man('otHours', idx)) || 0;
+    const sum = st + ot;
+    return sum > 0 ? sum : null;
+  }
+  function hrsPerDriver(idx){
+    const override = parseFloat(man('hrsDrvr', idx));
+    if(!isNaN(override)) return override;
+    const th = totalHrsForDay(idx);
+    const drv = parseFloat(man('drivers', idx));
+    if(th && drv>0) return th/drv;
+    return null;
+  }
+  function hrsPerLoad(idx){
+    const override = parseFloat(man('hrsLoad', idx));
+    if(!isNaN(override)) return override;
+    const th = totalHrsForDay(idx);
+    const lds = daily[idx].loads;
+    if(th && lds>0) return th/lds;
+    return null;
+  }
+
+  // Build table
+  let html = `
+    <div class="icr-controls">
+      <h3 style="font-size:14px;font-weight:600;color:var(--navy);margin:0;">Consolidated Rolloff \u2014 Reis + Island + East End</h3>
+      <button class="icr-nav-btn" onclick="crcChangeWeek(-1)" style="cursor:pointer;">\u2190</button>
+      <input type="date" value="${crcWeekStart}" onchange="crcJumpToWeek(this.value)" style="padding:5px 8px;border:1px solid var(--gray-300);border-radius:4px;font-size:12px;"/>
+      <button class="icr-nav-btn" onclick="crcChangeWeek(1)" style="cursor:pointer;">\u2192</button>
+      <span style="font-size:12px;color:var(--gray-600);margin-left:6px;">${weekLabel}</span>
+      <span style="flex:1;"></span>
+      <button class="irr-btn irr-btn-secondary" onclick="crcExport()" style="cursor:pointer;">Export to Excel</button>
+    </div>
+    <table class="icr-table" id="crcTable">
+      <thead><tr>
+        <th>Day</th>
+        ${dayHeaders.map((n,i)=>'<th>'+n+'<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">'+weekDates[i].substring(5)+'</span></th>').join('')}
+        <th class="icr-spacer"></th><th>Total</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>Date</td>${weekDates.map(d=>'<td>'+d.substring(5)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">\u2014</td></tr>
+        <tr><td>Revenue</td>${daily.map(d=>'<td>'+fM(d.rev)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${fM(totRev)}</td></tr>
+        <tr><td>Loads</td>${daily.map(d=>'<td>'+fInt(d.loads)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${fInt(totLoads)}</td></tr>
+        <tr><td>Tons</td>${daily.map(d=>'<td>'+f2(d.tons)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${f2(totTons)}</td></tr>
+        <tr><td>Loads/Day</td>${daily.map(d=>'<td>'+fInt(d.loads)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${daysWithData>0?(totLoads/daysWithData).toFixed(1):'--'}</td></tr>
+        <tr><td>Rev/Load</td>${daily.map(d=>'<td>'+(d.loads>0?fM(d.rev/d.loads):'--')+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${totLoads>0?fM(totRev/totLoads):'--'}</td></tr>
+        <tr><td>Tons/Load</td>${daily.map(d=>'<td>'+(d.loads>0?f2(d.tons/d.loads):'--')+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${totLoads>0?f2(totTons/totLoads):'--'}</td></tr>
+        <tr class="crc-manual"><td># of Drivers</td>${[0,1,2,3,4,5].map(i=>'<td>'+manCell('drivers',i)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg" id="crc-tot-drivers"></td></tr>
+        <tr class="crc-manual"><td>ST Hours</td>${[0,1,2,3,4,5].map(i=>'<td>'+manCell('stHours',i)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg" id="crc-tot-st"></td></tr>
+        <tr class="crc-manual"><td>OT Hours</td>${[0,1,2,3,4,5].map(i=>'<td>'+manCell('otHours',i)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg" id="crc-tot-ot"></td></tr>
+        <tr class="crc-derived"><td>Total Hours</td>${[0,1,2,3,4,5].map(i=>'<td id="crc-th-'+i+'"></td>').join('')}<td class="icr-spacer"></td><td class="icr-agg" id="crc-tot-th"></td></tr>
+        <tr class="crc-derived"><td>Hrs/Drvr</td>${[0,1,2,3,4,5].map(i=>'<td id="crc-hd-'+i+'"></td>').join('')}<td class="icr-spacer"></td><td class="icr-agg" id="crc-tot-hd"></td></tr>
+        <tr class="crc-derived"><td>Hrs/Load</td>${[0,1,2,3,4,5].map(i=>'<td id="crc-hl-'+i+'"></td>').join('')}<td class="icr-spacer"></td><td class="icr-agg" id="crc-tot-hl"></td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:11px;color:var(--gray-500);margin-top:10px;">
+      Bottom 6 rows are manual. Enter # of Drivers, ST Hours, and OT Hours \u2014 Total Hours, Hrs/Drvr, and Hrs/Load auto-calculate. You can override any derived cell. Saved per week, shared across all users.
+    </div>
+  `;
+  container.innerHTML = html;
+
+  // Store daily loads on window for crcExport + recalc
+  window._crcDaily = daily;
+  window._crcTotals = {rev:totRev, loads:totLoads, tons:totTons, daysWithData};
+
+  // Initial derived render
+  crcRefreshDerived();
+}
+
+function crcOnManualInput(input){
+  const field = input.dataset.field;
+  const idx = parseInt(input.dataset.idx);
+  const val = input.value.trim();
+  if(!crcManualCache[crcWeekStart]) crcManualCache[crcWeekStart] = {};
+  if(!crcManualCache[crcWeekStart][field]) crcManualCache[crcWeekStart][field] = {};
+  if(val === '') delete crcManualCache[crcWeekStart][field][idx];
+  else crcManualCache[crcWeekStart][field][idx] = val;
+  crcRefreshDerived();
+  crcDebouncedSave(crcWeekStart);
+}
+
+function crcRefreshDerived(){
+  const manual = crcManualCache[crcWeekStart] || {};
+  const daily = window._crcDaily || [];
+  const f2 = n => (n===null||n===undefined||isNaN(n))?'':n.toFixed(2);
+
+  const get = (field, idx) => {
+    if(!manual[field]) return NaN;
+    const v = parseFloat(manual[field][idx]);
+    return isNaN(v) ? NaN : v;
+  };
+
+  let sumDrv=0, nDrv=0, sumST=0, sumOT=0, sumTH=0, nTH=0;
+  for(let i=0;i<6;i++){
+    const drv = get('drivers',i);
+    const st = get('stHours',i);
+    const ot = get('otHours',i);
+    let th = get('totalHours',i);
+    if(isNaN(th)){ const s=(isNaN(st)?0:st)+(isNaN(ot)?0:ot); th = s>0?s:NaN; }
+    let hd = get('hrsDrvr',i);
+    if(isNaN(hd) && !isNaN(th) && !isNaN(drv) && drv>0) hd = th/drv;
+    let hl = get('hrsLoad',i);
+    if(isNaN(hl) && !isNaN(th) && daily[i] && daily[i].loads>0) hl = th/daily[i].loads;
+
+    document.getElementById('crc-th-'+i).textContent = f2(th);
+    document.getElementById('crc-hd-'+i).textContent = f2(hd);
+    document.getElementById('crc-hl-'+i).textContent = f2(hl);
+
+    if(!isNaN(drv)){sumDrv+=drv; nDrv++;}
+    if(!isNaN(st)) sumST+=st;
+    if(!isNaN(ot)) sumOT+=ot;
+    if(!isNaN(th)){sumTH+=th; nTH++;}
+  }
+  const totals = window._crcTotals || {loads:0};
+  document.getElementById('crc-tot-drivers').textContent = nDrv>0?sumDrv.toLocaleString():'';
+  document.getElementById('crc-tot-st').textContent = sumST>0?sumST.toFixed(2):'';
+  document.getElementById('crc-tot-ot').textContent = sumOT>0?sumOT.toFixed(2):'';
+  document.getElementById('crc-tot-th').textContent = sumTH>0?sumTH.toFixed(2):'';
+  document.getElementById('crc-tot-hd').textContent = (sumDrv>0&&sumTH>0)?(sumTH/sumDrv).toFixed(2):'';
+  document.getElementById('crc-tot-hl').textContent = (totals.loads>0&&sumTH>0)?(sumTH/totals.loads).toFixed(2):'';
+}
+
+function crcChangeWeek(delta){
+  const d = new Date(crcWeekStart+'T00:00:00');
+  d.setDate(d.getDate()+delta*7);
+  crcWeekStart = d.toISOString().split('T')[0];
+  crcLoadReport();
+}
+function crcJumpToWeek(dateStr){
+  crcWeekStart = crcGetMonday(new Date(dateStr+'T00:00:00'));
+  crcLoadReport();
+}
+
+function crcExport(){
+  const table = document.getElementById('crcTable');
+  if(!table) return;
+  // Clone, replace inputs with their values, strip spacer columns
+  const clone = table.cloneNode(true);
+  clone.querySelectorAll('input').forEach(inp => {
+    const txt = document.createTextNode(inp.value||'');
+    inp.parentNode.replaceChild(txt, inp);
+  });
+  clone.querySelectorAll('.icr-spacer').forEach(el => el.remove());
+  const html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Consolidated Rolloff</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>' + clone.outerHTML + '</body></html>';
+  const blob = new Blob(['\ufeff', html], {type:'application/vnd.ms-excel'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Consolidated_Rolloff_'+crcWeekStart+'.xls';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
 }
 
 // ── PROJECTIONS ──────────────────────────────────────────────────────
