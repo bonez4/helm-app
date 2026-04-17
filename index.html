@@ -386,6 +386,26 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
   font-family:'DM Mono',monospace;font-weight:600;color:var(--navy);
   text-align:right;white-space:nowrap;
 }
+.lw-notes{
+  margin-top:14px;max-width:540px;width:100%;
+  background:#fffdf5;border:1px solid #eedcb0;border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:14px 18px 12px;text-align:left;
+}
+.lw-notes-title{
+  font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;
+  color:#8a7230;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;
+}
+.lw-notes-title .lw-saved{
+  font-size:9px;font-weight:500;letter-spacing:0.1em;color:#b5a060;opacity:0;transition:opacity .25s;
+}
+.lw-notes-title .lw-saved.show{opacity:1;}
+.lw-notes-input{
+  width:100%;min-height:100px;resize:vertical;
+  border:none;background:transparent;outline:none;
+  font-family:'DM Sans',sans-serif;font-size:14px;color:var(--gray-800);
+  line-height:1.5;padding:2px;
+}
+.lw-notes-input::placeholder{color:#b5a060;font-style:italic;}
 
 /* ── RESULTS LIST ────────────────────────── */
 .results-list{margin-bottom:0.75rem;}
@@ -2098,6 +2118,15 @@ function renderLookup(){
           <tr><td>Metal Tonnage Disposal</td><td>$125 / ton</td></tr>
         </table>
       </div>
+      <div class="lw-notes">
+        <div class="lw-notes-title">
+          <span>My Notes</span>
+          <span class="lw-saved" id="lwNotesSaved">Saved</span>
+        </div>
+        <textarea class="lw-notes-input" id="lwNotesInput"
+          placeholder="Jot down anything you want to remember \u2014 reminders, quotes, phone numbers. Saved just for you."
+          oninput="saveLookupNotes()">${esc(loadLookupNotes())}</textarea>
+      </div>
     </div>`;
   document.getElementById('srch').focus();
   updateLookupWatermark();
@@ -2113,6 +2142,25 @@ function updateLookupWatermark(){
     && (!res || !res.innerHTML.trim())
     && (!card || !card.innerHTML.trim());
   wm.style.display = isEmpty ? 'flex' : 'none';
+}
+
+function lookupNotesKey(){
+  return 'lookup_notes_' + (currentUser && currentUser.username ? currentUser.username : 'guest');
+}
+function loadLookupNotes(){
+  return localStorage.getItem(lookupNotesKey()) || '';
+}
+let lwNotesTimer = null;
+function saveLookupNotes(){
+  const input = document.getElementById('lwNotesInput');
+  if(!input) return;
+  localStorage.setItem(lookupNotesKey(), input.value);
+  clearTimeout(lwNotesTimer);
+  const saved = document.getElementById('lwNotesSaved');
+  if(saved){
+    saved.classList.add('show');
+    lwNotesTimer = setTimeout(()=>saved.classList.remove('show'), 1400);
+  }
 }
 
 function clearLookup(){
