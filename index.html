@@ -364,8 +364,14 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .lookup-watermark-flourish{
   width:clamp(36px,6vw,72px);height:1px;background:var(--navy);opacity:0.15;margin-top:2px;
 }
+.lw-cards{
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;
+  margin-top:20px;max-width:1100px;width:100%;
+  align-items:start;
+}
+@media (max-width:780px){ .lw-cards{grid-template-columns:1fr;} }
 .lw-rates{
-  margin-top:22px;max-width:540px;width:100%;
+  width:100%;
   background:white;border:1px solid var(--gray-200);border-radius:var(--radius);
   box-shadow:var(--shadow);padding:18px 26px 16px;
 }
@@ -387,9 +393,9 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
   text-align:right;white-space:nowrap;
 }
 .lw-notes{
-  margin-top:14px;max-width:540px;width:100%;
+  width:100%;
   background:#fffdf5;border:1px solid #eedcb0;border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:14px 18px 12px;text-align:left;
+  box-shadow:var(--shadow);padding:18px 22px 14px;text-align:left;
 }
 .lw-notes-title{
   font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;
@@ -2108,25 +2114,27 @@ function renderLookup(){
     <div id="lookupWatermark" class="lookup-watermark">
       <span class="lookup-watermark-name">${esc(displayName)}</span>
       <span class="lookup-watermark-flourish"></span>
-      <div class="lw-rates">
-        <div class="lw-rates-title">Service Rate Sheet</div>
-        <table class="lw-rates-table">
-          <tr><td>Tip Fee</td><td>$250</td></tr>
-          <tr><td>Special Tonnage Rate</td><td>$480 / ton</td></tr>
-          <tr><td>Standard Tonnage Rate</td><td>$525 / ton</td></tr>
-          <tr><td>Rolloff Delivery</td><td>$100</td></tr>
-          <tr><td>Pile Pickup</td><td>$160 / hr per worker</td></tr>
-          <tr><td>Metal Tonnage Disposal</td><td>$125 / ton</td></tr>
-        </table>
-      </div>
-      <div class="lw-notes">
-        <div class="lw-notes-title">
-          <span>My Notes</span>
-          <span class="lw-saved" id="lwNotesSaved">Saved</span>
+      <div class="lw-cards">
+        <div class="lw-rates">
+          <div class="lw-rates-title">Service Rate Sheet</div>
+          <table class="lw-rates-table">
+            <tr><td>Tip Fee</td><td>$250</td></tr>
+            <tr><td>Special Tonnage Rate</td><td>$480 / ton</td></tr>
+            <tr><td>Standard Tonnage Rate</td><td>$525 / ton</td></tr>
+            <tr><td>Rolloff Delivery</td><td>$100</td></tr>
+            <tr><td>Pile Pickup</td><td>$160 / hr per worker</td></tr>
+            <tr><td>Metal Tonnage Disposal</td><td>$125 / ton</td></tr>
+          </table>
         </div>
-        <textarea class="lw-notes-input" id="lwNotesInput"
-          placeholder="Jot down anything you want to remember \u2014 reminders, quotes, phone numbers. Saved just for you."
-          oninput="saveLookupNotes()">${esc(loadLookupNotes())}</textarea>
+        <div class="lw-notes">
+          <div class="lw-notes-title">
+            <span>My Notes</span>
+            <span class="lw-saved" id="lwNotesSaved">Saved</span>
+          </div>
+          <textarea class="lw-notes-input" id="lwNotesInput"
+            placeholder="Jot down anything you want to remember \u2014 reminders, quotes, phone numbers. Saved just for you."
+            oninput="saveLookupNotes()">${esc(loadLookupNotes())}</textarea>
+        </div>
       </div>
     </div>`;
   document.getElementById('srch').focus();
