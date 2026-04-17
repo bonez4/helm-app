@@ -562,6 +562,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 select.ro-input{cursor:pointer;}
 .ro-del{background:none;border:none;cursor:pointer;font-size:14px;opacity:0.3;padding:2px 4px;}
 .ro-del:hover{opacity:1;color:var(--err-text);}
+.ro-tip-btn{
+  border:1px solid var(--gray-300);background:white;color:var(--gray-500);
+  font-family:inherit;font-size:11px;font-weight:600;padding:3px 12px;
+  border-radius:12px;cursor:pointer;transition:all .15s;min-width:46px;
+}
+.ro-tip-btn:hover:not(:disabled){border-color:var(--gray-400);color:var(--gray-700);}
+.ro-tip-btn.tipped{background:#d4edda;border-color:#28a745;color:#155724;}
+.ro-tip-btn.tipped:hover:not(:disabled){background:#c3e6cb;}
+.ro-tip-btn:disabled{cursor:not-allowed;opacity:0.5;}
 
 @media(max-width:900px){
   .client-panel{width:100%;left:0;right:0;}
@@ -2690,6 +2699,7 @@ function renderRolloffs(){
           <label style="font-size:11px;color:var(--gray-400);cursor:pointer;display:flex;align-items:center;gap:4px">
             <input type="checkbox" id="showDeletedToggle" onchange="showDeleted=this.checked;loadRolloffs()" ${showDeleted?'checked':''}/> Show deleted
           </label>
+          <button class="btn-add" style="background:var(--gray-100);color:var(--gray-700);" onclick="exportUntippedRolloffs()" title="Export all un-tipped roll-offs to Excel">Export Untipped</button>
           <button class="btn-add" onclick="addRolloffRow()">+ Add Row</button>
         </div>
       </div>
@@ -2735,6 +2745,7 @@ function renderRolloffTable(){
     {key:'customer',label:'Customer',width:'auto'},
     {key:'address_number',label:'Number',width:'80px'},
     {key:'street',label:'Street',width:'auto'},
+    {key:'monthly_tip',label:'Monthly Tip',width:'90px'},
     {key:'notes',label:'Notes',width:'120px'}
   ];
   const sortIcon=(col)=>rolloffSort.col===col?(rolloffSort.asc?'&#9650;':'&#9660;'):'';
@@ -2761,6 +2772,9 @@ function renderRolloffTable(){
     html+=`<td><input type="text" class="ro-input" value="${esc(r.address_number||'')}" onchange="updateRolloff(${r.id},'address_number',this.value)" onkeydown="roKeyNav(event,${r.id},'address_number')" ${deleted?'disabled':''}/></td>`;
     // Street cell
     html+=`<td><input type="text" class="ro-input" value="${esc(r.street||'')}" onchange="updateRolloff(${r.id},'street',this.value)" onkeydown="roKeyNav(event,${r.id},'street')" ${deleted?'disabled':''}/></td>`;
+    // Monthly Tip cell — checkbox + Yes/No label
+    const tipped = !!r.monthly_tip;
+    html+=`<td style="text-align:center;"><button class="ro-tip-btn ${tipped?'tipped':''}" onclick="toggleRolloffTip(${r.id})" ${deleted?'disabled':''} title="Click to toggle">${tipped?'Yes':'No'}</button></td>`;
     // Notes cell
     html+=`<td><input type="text" class="ro-input" value="${esc(r.notes||'')}" onchange="updateRolloff(${r.id},'notes',this.value)" onkeydown="roKeyNav(event,${r.id},'notes')" ${deleted?'disabled':''}/></td>`;
     // Delete/restore button
@@ -2838,6 +2852,70 @@ function roKeyNav(event,id,col){
   if(event.key==='Tab'||event.key==='Enter'){
     event.target.blur(); // trigger onchange save
   }
+}
+
+async function toggleRolloffTip(id){
+  const row = rolloffsData.find(r=>r.id===id);
+  if(!row) return;
+  const newVal = !row.monthly_tip;
+  const {error} = await db.from('rolloffs').update({monthly_tip: newVal, updated_at: new Date().toISOString()}).eq('id', id);
+  if(error){toast('Save error: '+error.message);return;}
+  row.monthly_tip = newVal;
+  renderRolloffTable();
+  logActivity('rolloff_tip','id:'+id+' monthly_tip='+newVal);
+}
+
+function exportUntippedRolloffs(){
+  const untipped = rolloffsData.filter(r => !r.monthly_tip && !r.deleted);
+  if(!untipped.length){ toast('No untipped roll-offs to export'); return; }
+
+  const today = new Date();
+  const isoDate = today.toISOString().split('T')[0];
+  const fmt = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}) : '';
+  const daysOnSite = d => {
+    if(!d) return '';
+    const placed = new Date(d+'T00:00:00');
+    const diff = Math.floor((today - placed) / 86400000);
+    return diff >= 0 ? diff : '';
+  };
+
+  // Build HTML table for Excel export
+  let rows = '';
+  untipped.forEach(r => {
+    const days = daysOnSite(r.date);
+    const charge = typeof days==='number' ? '$'+(days*4).toFixed(2) : '';
+    rows += `<tr>
+      <td>${fmt(r.date)}</td>
+      <td>${esc(r.type||'')}</td>
+      <td>${esc(r.customer||'')}</td>
+      <td>${esc(r.address_number||'')}</td>
+      <td>${esc(r.street||'')}</td>
+      <td>${esc(r.notes||'')}</td>
+      <td style="text-align:right;">${days}</td>
+      <td style="text-align:right;">${charge}</td>
+    </tr>`;
+  });
+
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Untipped Rolloffs</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>
+    <h2>Untipped Roll-offs as of ${fmt(isoDate)}</h2>
+    <table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:11px;">
+      <thead style="background:#0f1f3d;color:white;"><tr>
+        <th>Date Placed</th><th>Type</th><th>Customer</th><th>Number</th><th>Street</th><th>Notes</th><th>Days on Site</th><th>Charge @ $4/day</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p style="font-size:10px;color:#666;margin-top:10px;">Total rows: ${untipped.length}</p>
+  </body></html>`;
+
+  const blob = new Blob(['\ufeff', html], {type:'application/vnd.ms-excel'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Untipped_Rolloffs_'+isoDate+'.xls';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(untipped.length+' untipped roll-offs exported', true);
 }
 
 // ── IMPORT ────────────────────────────────────────────────────────────
