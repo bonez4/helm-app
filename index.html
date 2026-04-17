@@ -2133,6 +2133,9 @@ async function showPanel(c){
             <div class="info-tile"><label>Autopay</label>
               <span class="status-pill ${c.autopay?'autopay-yes':'autopay-no'}">${c.autopay?'Yes':'No'}</span>
             </div>
+            <div class="info-tile"><label>Route</label>
+              ${c.route?`<span class="day-pill" style="background:var(--navy);color:white;">Route ${c.route}</span>`:'<span style="color:var(--gray-400);font-size:11px">Not set</span>'}
+            </div>
           </div>
 
           <div style="display:flex;justify-content:flex-end;margin-top:10px">
@@ -2265,6 +2268,13 @@ function editClient(cid){
           </div>
         </div>
         <div class="form-group">
+          <label>Route</label>
+          <select id="editRoute" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;background:white;">
+            <option value="">Select Route</option>
+            ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(c.route)===String(n)?'selected':''}>Route ${n}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
           <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
             <input type="checkbox" id="editAutopay" ${c.autopay?'checked':''}/> Autopay (credit card on file)
           </label>
@@ -2285,6 +2295,8 @@ async function saveClientEdit(cid){
   const email=document.getElementById('editEmail').value.trim();
   const days=[...document.querySelectorAll('#editDaysWrap .day-toggle-active')].map(b=>b.dataset.day);
   const autopay=document.getElementById('editAutopay')?.checked||false;
+  const routeVal=document.getElementById('editRoute')?.value||'';
+  const route=routeVal?parseInt(routeVal):null;
   if(!addr){toast('Address is required');return;}
   if(!days.length){toast('Select at least one pickup day');return;}
   const {error}=await db.from('clients').update({
@@ -2293,7 +2305,8 @@ async function saveClientEdit(cid){
     phone:phone||null,
     email:email||null,
     service_day:days.join(','),
-    autopay:autopay
+    autopay:autopay,
+    route:route
   }).eq('client_id',cid);
   if(error){toast('Error: '+error.message);return;}
   await loadClients();
