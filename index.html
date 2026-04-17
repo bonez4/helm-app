@@ -1856,6 +1856,7 @@ async function login() {
   show('appScreen'); hide('loginScreen');
   document.getElementById('appScreen').style.flexDirection='column';
   document.getElementById('topbarUser').textContent = data.display_name;
+  applyUserTheme(data);
   if(data.role==='admin') document.getElementById('importTabBtn').style.display='';
   if(data.username==='david'||data.role==='admin') {
     document.getElementById('irrTabBtn').style.display='';
@@ -1874,6 +1875,20 @@ function logout() {
   if(heartbeatTimer) clearInterval(heartbeatTimer);
   sessionStorage.removeItem('helm_auth');
   location.reload();
+}
+
+// Per-user accent theming. Currently: esme gets pink.
+function applyUserTheme(user){
+  const root = document.documentElement;
+  if(user && user.username === 'esme'){
+    root.style.setProperty('--teal',      '#ec407a');
+    root.style.setProperty('--teal-dim',  '#d81b60');
+    root.style.setProperty('--teal-pale', '#fde4ed');
+  } else {
+    root.style.removeProperty('--teal');
+    root.style.removeProperty('--teal-dim');
+    root.style.removeProperty('--teal-pale');
+  }
 }
 function show(id){ document.getElementById(id).style.display='flex'; }
 function hide(id){ document.getElementById(id).style.display='none'; }
@@ -7109,6 +7124,7 @@ if(_saved && _saved !== '1'){
     hide('loginScreen'); show('appScreen');
     document.getElementById('appScreen').style.flexDirection='column';
     document.getElementById('topbarUser').textContent = currentUser.display_name;
+    applyUserTheme(currentUser);
     if(currentUser.role==='admin') document.getElementById('importTabBtn').style.display='';
     if(currentUser.username==='david'||currentUser.role==='admin') {
       document.getElementById('irrTabBtn').style.display='';
