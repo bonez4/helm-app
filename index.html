@@ -2359,11 +2359,11 @@ async function generateReport(){
     return;
   }
 
-  // Split data by company
+  // Split data by company (first-digit classification: 2xxxxx=REIS, 3xxxxx=SANTOS)
   const companies=[
-    {key:'REIS',label:'REIS',cls:'co-reis',filter:n=>n.client_id&&n.client_id.startsWith('20')},
-    {key:'SANTOS',label:'SANTOS',cls:'co-santos',filter:n=>n.client_id&&n.client_id.startsWith('30')},
-    {key:'OTHER',label:'Other',cls:'',filter:n=>!n.client_id||(!n.client_id.startsWith('20')&&!n.client_id.startsWith('30'))}
+    {key:'REIS',label:'REIS',cls:'co-reis',filter:n=>getCompany(n.client_id).name==='REIS'},
+    {key:'SANTOS',label:'SANTOS',cls:'co-santos',filter:n=>getCompany(n.client_id).name==='SANTOS'},
+    {key:'OTHER',label:'Other',cls:'',filter:n=>{const c=getCompany(n.client_id).name;return c!=='REIS'&&c!=='SANTOS';}}
   ];
 
   let html=`
@@ -2428,9 +2428,9 @@ function printReport(date){
     if(!data.length) return;
 
     const companies=[
-      {key:'REIS',label:'REIS',filter:n=>n.client_id&&n.client_id.startsWith('20')},
-      {key:'SANTOS',label:'SANTOS',filter:n=>n.client_id&&n.client_id.startsWith('30')},
-      {key:'OTHER',label:'Other',filter:n=>!n.client_id||(!n.client_id.startsWith('20')&&!n.client_id.startsWith('30'))}
+      {key:'REIS',label:'REIS',filter:n=>getCompany(n.client_id).name==='REIS'},
+      {key:'SANTOS',label:'SANTOS',filter:n=>getCompany(n.client_id).name==='SANTOS'},
+      {key:'OTHER',label:'Other',filter:n=>{const c=getCompany(n.client_id).name;return c!=='REIS'&&c!=='SANTOS';}}
     ];
 
     const summary=Object.entries(grouped).map(([a,n])=>`${a}: ${n.length}`).join(' &nbsp;·&nbsp; ');
