@@ -3071,10 +3071,28 @@ async function irrLoadRates() {
   return irrRates;
 }
 
-function irrCalcRevenue(buckets) {
-  if (!irrRates) return;
-  const ir = irrRates.island;
-  const er = irrRates.eastend;
+// Rate cutoff: reports on/after this date use current irr_rates table values.
+// Reports before use IRR_OLD_RATES. Keeps historical math stable after the 4/17/2026 price change.
+const IRR_RATE_CUTOFF = '2026-04-17';
+const IRR_OLD_RATES = {
+  island: {hook_fee:250, per_ton:480, ton_markup:0},
+  eastend: {hook_fee:200, per_ton:380, ton_markup:0.10},
+};
+function irrRatesFor(reportDate) {
+  let iso = reportDate;
+  if (iso && iso.includes('/')) {
+    const p = iso.split('/');
+    iso = p[2]+'-'+String(p[0]).padStart(2,'0')+'-'+String(p[1]).padStart(2,'0');
+  }
+  const useNew = !iso || iso >= IRR_RATE_CUTOFF;
+  return {
+    ir: useNew ? (irrRates?irrRates.island:null) : IRR_OLD_RATES.island,
+    er: useNew ? (irrRates?irrRates.eastend:null) : IRR_OLD_RATES.eastend,
+  };
+}
+
+function irrCalcRevenue(buckets, reportDate) {
+  const {ir, er} = irrRatesFor(reportDate);
   if (ir) {
     buckets.island.revenue = (ir.hook_fee * buckets.island.tickets) + ((ir.per_ton * (1 + (ir.ton_markup||0))) * buckets.island.tons);
   }
@@ -3288,8 +3306,8 @@ function irrGenerateEmail(data, ytd) {
       R('Tons / Load',tickets>0?irrFmt(tons/tickets):'--');
   }
 
-  // Split Island/East End revenue into hook vs tonnage using rates
-  const ir=irrRates?.island, er=irrRates?.eastend;
+  // Split Island/East End revenue into hook vs tonnage using rates (respects 4/17/2026 cutoff)
+  const {ir, er} = irrRatesFor(date);
   const islandHook=(ir?ir.hook_fee:250)*island.tickets;
   const islandTonRev=islandRev-islandHook;
   const santosHook=(er?er.hook_fee:200)*santos.tickets;
@@ -3452,8 +3470,8 @@ function irrRenderReportView(data, ytd) {
       </tbody></table>`;
   }
 
-  // Split Island/East End revenue into hook vs tonnage using rates
-  const ir=irrRates?.island, er=irrRates?.eastend;
+  // Split Island/East End revenue into hook vs tonnage using rates (respects 4/17/2026 cutoff)
+  const {ir, er} = irrRatesFor(date);
   const islandHook=(ir?ir.hook_fee:250)*island.tickets;
   const islandTonRev=islandRev-islandHook;
   const santosHook=(er?er.hook_fee:200)*santos.tickets;
@@ -3614,9 +3632,9 @@ async function irrLoadDashboard() {
   irrDashData = data||[];
 
   // Ensure Island/East End revenue is calculated for all rows (covers pre-rate historical data)
-  const rates = await irrLoadRates();
-  const ir = rates?.island, er = rates?.eastend;
+  await irrLoadRates();
   for(const d of irrDashData){
+    const {ir, er} = irrRatesFor(d.report_date);
     if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0){
       d.island_revenue = (ir.hook_fee*(d.island_tickets||0)) + ((ir.per_ton*(1+(ir.ton_markup||0)))*(parseFloat(d.island_tons)||0));
     }
@@ -4292,9 +4310,9 @@ async function irrHandleBulk(file) {
       const result = irrParseBulk(rows);
 
       // Calculate Island/East End revenue from rates
-      const rates = await irrLoadRates();
-      const ir = rates.island, er = rates.eastend;
+      await irrLoadRates();
       for (const d of result.days) {
+        const {ir, er} = irrRatesFor(d.report_date);
         if (ir) d.island_revenue = (ir.hook_fee*(d.island_tickets||0)) + ((ir.per_ton*(1+(ir.ton_markup||0)))*(parseFloat(d.island_tons)||0));
         if (er) d.santos_revenue = (er.hook_fee*(d.santos_tickets||0)) + ((er.per_ton*(1+(er.ton_markup||0)))*(parseFloat(d.santos_tons)||0));
       }
@@ -4405,7 +4423,7 @@ function irrReclassifyConfirm(applyChanges) {
         t.code = 'WALKIN_RECLASS'; // mark so it doesn't get re-counted
       }
       // Recalculate revenue
-      irrCalcRevenue(data.buckets);
+      irrCalcRevenue(data.buckets, data.date);
       toast(flagged.size + ' ticket(s) moved to walk-in', true);
     }
   }
@@ -4485,7 +4503,7 @@ async function irrHandleFile(file) {
       const rows = irrParseSpreadsheetML(e.target.result);
       const data = irrParseReport(rows);
       await irrLoadRates();
-      irrCalcRevenue(data.buckets);
+      irrCalcRevenue(data.buckets, data.date);
       irrCurrentData = data;
       status.textContent='Parsed '+Object.keys(data.tickets).length+' tickets.';
 
@@ -4584,7 +4602,7 @@ async function irrViewHistorical(isoDate) {
 
   // Always recalculate Island/East End revenue from rates (covers historical data)
   await irrLoadRates();
-  irrCalcRevenue(buckets);
+  irrCalcRevenue(buckets, isoDate);
 
   // Convert ISO date to M/D/YYYY for display
   const parts = isoDate.split('-');
@@ -5235,8 +5253,8 @@ async function icrLoadReport() {
   const allData = data||[];
 
   // Fill in Island/East End revenue if missing
-  const ir=irrRates?.island, er=irrRates?.eastend;
   for(const d of allData){
+    const {ir, er} = irrRatesFor(d.report_date);
     if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0)
       d.island_revenue=(ir.hook_fee*(d.island_tickets||0))+((ir.per_ton*(1+(ir.ton_markup||0)))*(parseFloat(d.island_tons)||0));
     if(er && !(parseFloat(d.santos_revenue)>0) && (d.santos_tickets||0)>0)
@@ -5477,9 +5495,9 @@ async function icrShowQuarterly() {
   const {data:dPrev}=await db.from('irr_reports').select('*').gte('report_date',prevYear+'-01-01').lte('report_date',prevYear+'-12-31').order('report_date');
 
   await irrLoadRates();
-  const ir=irrRates?.island, er=irrRates?.eastend;
   for(const arr of [dCur||[],dPrev||[]]){
     for(const d of arr){
+      const {ir, er} = irrRatesFor(d.report_date);
       if(ir&&!(parseFloat(d.island_revenue)>0)&&(d.island_tickets||0)>0)
         d.island_revenue=(ir.hook_fee*d.island_tickets)+((ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0));
       if(er&&!(parseFloat(d.santos_revenue)>0)&&(d.santos_tickets||0)>0)
@@ -5845,9 +5863,9 @@ async function icrShowProjections() {
   const {data:d25}=await db.from('irr_reports').select('*').gte('report_date','2025-01-01').lte('report_date','2025-12-31').order('report_date');
 
   await irrLoadRates();
-  const ir=irrRates?.island, er=irrRates?.eastend;
   for(const arr of [d25||[],d26||[]]){
     for(const d of arr){
+      const {ir, er} = irrRatesFor(d.report_date);
       if(ir&&!(parseFloat(d.island_revenue)>0)&&(d.island_tickets||0)>0)
         d.island_revenue=(ir.hook_fee*d.island_tickets)+((ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0));
       if(er&&!(parseFloat(d.santos_revenue)>0)&&(d.santos_tickets||0)>0)
