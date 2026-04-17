@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>HELM — Reis Trucking</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Pacifico&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
@@ -92,6 +92,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
   border-bottom:1px solid rgba(255,255,255,0.06);
 }
 .topbar-left{display:flex;align-items:center;gap:10px;}
+.topbar-center{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  display:none;align-items:center;gap:8px;pointer-events:none;
+  font-family:'Pacifico',cursive;font-style:italic;font-size:15px;
+  color:#ffd6e0;text-shadow:0 1px 2px rgba(0,0,0,0.25);
+  white-space:nowrap;
+}
+.topbar-center .palm{font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;font-style:normal;font-size:17px;}
 .topbar-icon{width:28px;height:28px;border-radius:6px;background:var(--navy-light);display:flex;align-items:center;justify-content:center;}
 .topbar-icon svg{width:15px;height:15px;}
 .topbar-name{font-size:15px;font-weight:600;color:white;letter-spacing:-.01em;}
@@ -1340,7 +1348,7 @@ select.ro-input{cursor:pointer;}
 
 <!-- ── APP ── -->
 <div id="appScreen">
-  <div class="topbar">
+  <div class="topbar" style="position:relative;">
     <div class="topbar-left">
       <div class="topbar-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
@@ -1354,6 +1362,7 @@ select.ro-input{cursor:pointer;}
       <button id="stickyBtn" class="btn-topbar-tool" onclick="toggleStickyPanel()">Sticky</button>
       <button id="contactsBtn" class="btn-topbar-tool" onclick="toggleContactsPanel()">Contacts</button>
     </div>
+    <div class="topbar-center" id="topbarCenter"></div>
     <div class="topbar-right">
       <div class="live-dot"></div>
       <div class="live-label" id="topbarUser"></div>
@@ -1877,7 +1886,7 @@ function logout() {
   location.reload();
 }
 
-// Per-user accent theming. Currently: esme gets pink.
+// Per-user accent theming. Currently: esme gets pink; jackie gets a Jamaica topbar message.
 function applyUserTheme(user){
   const root = document.documentElement;
   if(user && user.username === 'esme'){
@@ -1888,6 +1897,16 @@ function applyUserTheme(user){
     root.style.removeProperty('--teal');
     root.style.removeProperty('--teal-dim');
     root.style.removeProperty('--teal-pale');
+  }
+  const center = document.getElementById('topbarCenter');
+  if(center){
+    if(user && user.username === 'jackie'){
+      center.innerHTML = '<span class="palm">\u{1F334}</span> wishing I was in Jamaica <span class="palm">\u{1F334}</span>';
+      center.style.display = 'flex';
+    } else {
+      center.innerHTML = '';
+      center.style.display = 'none';
+    }
   }
 }
 function show(id){ document.getElementById(id).style.display='flex'; }
