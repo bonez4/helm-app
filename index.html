@@ -3503,6 +3503,28 @@ const IRR_PER_UNIT_FEES = [
   {kw:'DUMPTIRE', price:16.5},
   {kw:'MOVE ROLLOFF ON JOB SITE', price:60},
 ];
+// Rolloff service fees — hardcoded rate schedule effective on/after IRR_ROLLOFF_RATE_CHANGE_ISO.
+// Reports dated before this still use the dollar amount shown on the scale file (historical preserved).
+const IRR_ROLLOFF_RATE_CHANGE_ISO = '2026-04-17';
+const IRR_ROLLOFF_FIXED_PRICES = {
+  'ROLLOFF DELIVERY':    100,
+  'ROLLOFF DOUBLE DROP': 250,
+  'EMPTY ROLLOFF':       250,
+  'EMPTY ROLL-OFF':      250,
+};
+function mdyToIso(mdy){
+  if(!mdy) return null;
+  const p = mdy.split('/');
+  if(p.length!==3) return null;
+  return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0');
+}
+function rolloffSvcFeeForDate(kw, reportIsoDate, fileAmount){
+  if(reportIsoDate && reportIsoDate >= IRR_ROLLOFF_RATE_CHANGE_ISO){
+    const fixed = IRR_ROLLOFF_FIXED_PRICES[kw];
+    if(fixed != null) return fixed;
+  }
+  return fileAmount;
+}
 let irrCurrentData = null;
 let irrRendered = false;
 
@@ -3673,16 +3695,20 @@ function irrParseReport(rows) {
         }
       }
     }
-    // Rolloff service fees (Reis only, not ZZ)
+    // Rolloff service fees (Reis only, not ZZ). Uses hardcoded rate on/after rate-change date.
     for (const kw of IRR_ROLLOFF_SVC) {
       if (flatUpper.includes(kw) && !rc.startsWith('ZZ')) {
+        let fileAmt = 0;
         const kwIdx = dataVals.findIndex(v => v && v.toUpperCase().includes(kw));
         if (kwIdx >= 0) {
           for (let j=dataVals.length-1;j>kwIdx;j--) {
             const amt=parseFloat(dataVals[j]);
-            if (!isNaN(amt) && amt>0) { buckets.reis.rolloffFees+=amt; break; }
+            if (!isNaN(amt) && amt>0) { fileAmt=amt; break; }
           }
         }
+        const reportIso = mdyToIso(reportDate);
+        const fee = rolloffSvcFeeForDate(kw, reportIso, fileAmt);
+        if (fee > 0) buckets.reis.rolloffFees += fee;
         break;
       }
     }
@@ -4653,13 +4679,18 @@ function irrParseBulk(rows) {
         // Service fee amount — only scan AFTER the keyword to avoid grabbing ticket numbers
         let svcFee=0;
         if(!effectiveCode.startsWith('ZZ')){
+          let fileAmt=0;
           const kwIdx2=dataVals.findIndex(v=>v&&v.toUpperCase().includes(kw));
           if(kwIdx2>=0){
             for(let j=dataVals.length-1;j>kwIdx2;j--){
               const amt=parseFloat(dataVals[j]);
-              if(!isNaN(amt)&&amt>0){svcFee=amt;break;}
+              if(!isNaN(amt)&&amt>0){fileAmt=amt;break;}
             }
           }
+          // Apply hardcoded rate only when the ticket's date is on/after the rate-change date.
+          // Earlier dates keep whatever the scale file recorded.
+          const ticketIso = mdyToIso(tickets[ticket].date || lastDate);
+          svcFee = rolloffSvcFeeForDate(kw, ticketIso, fileAmt);
         }
         tickets[ticket].svcFee=(tickets[ticket].svcFee||0)+svcFee;
         break;
