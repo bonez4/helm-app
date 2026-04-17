@@ -2532,7 +2532,6 @@ async function generateReport(){
           <th style="width:54px">Route</th>
           <th>Name</th>
           <th>Address</th>
-          <th>Phone</th>
           ${notes.some(n=>n.note)?'<th>Note</th>':''}
         </tr></thead><tbody>`;
       notes.forEach((n,i)=>{
@@ -2543,7 +2542,6 @@ async function generateReport(){
           <td class="rt-id">${c.route?('R'+c.route):'—'}</td>
           <td class="rt-name">${esc(c.client_name||'—')}</td>
           <td class="rt-addr">${esc(c.address||'—')}</td>
-          <td class="rt-phone">${esc(c.phone||'')}</td>
           ${notes.some(n=>n.note)?`<td class="rt-note">${esc(n.note||'')}</td>`:''}
         </tr>`;
       });
@@ -2582,16 +2580,15 @@ function printReport(date){
       Object.entries(compGrouped).forEach(([action,notes])=>{
         const hasNotes=notes.some(n=>n.note);
         sections+=`<h2>${esc(action)} (${notes.length})</h2>
-        <table><thead><tr><th style="width:24px">#</th><th style="width:44px">Acct</th><th style="width:42px">Route</th><th style="width:130px">Name</th><th>Address</th><th style="width:100px">Phone</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
+        <table><thead><tr><th style="width:30px">#</th><th style="width:58px">Acct</th><th style="width:52px">Route</th><th style="width:180px">Name</th><th>Address</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
         notes.forEach((n,i)=>{
           const c=findClient(n.client_id);
           sections+=`<tr>
             <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
-            <td style="font-size:10px;color:#888">${esc(n.client_id)}</td>
-            <td style="font-size:10px;font-weight:600;color:#0f1f3d;">${c.route?('R'+c.route):'—'}</td>
+            <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
+            <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${c.route?('R'+c.route):'—'}</td>
             <td style="font-weight:600">${esc(c.client_name||'—')}</td>
             <td>${esc(c.address||'—')}</td>
-            <td style="color:#555">${esc(c.phone||'')}</td>
             ${hasNotes?`<td style="font-style:italic;color:#555">${esc(n.note||'')}</td>`:''}
           </tr>`;
         });
@@ -2605,19 +2602,19 @@ function printReport(date){
 <title>HELM Action Report — ${fmtDate(date)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;padding:16px;}
-.header{border-bottom:2px solid #0f1f3d;padding-bottom:8px;margin-bottom:8px;}
-.header h1{font-size:16px;font-weight:700;color:#0f1f3d;}
-.header .sub{font-size:11px;color:#444;margin-top:3px;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:18px;}
+.header{border-bottom:2px solid #0f1f3d;padding-bottom:10px;margin-bottom:10px;}
+.header h1{font-size:20px;font-weight:700;color:#0f1f3d;}
+.header .sub{font-size:13px;color:#444;margin-top:4px;}
 .header .sub span{font-weight:700;color:#000;}
-.summary{font-size:10px;color:#555;margin-bottom:8px;padding:4px 0;border-bottom:1px solid #ddd;}
-table{width:100%;border-collapse:collapse;margin-bottom:2px;}
-th{background:#0f1f3d;color:white;padding:3px 6px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.03em;}
-td{padding:3px 6px;border-bottom:1px solid #e0e0e0;font-size:11px;}
+.summary{font-size:12px;color:#555;margin-bottom:10px;padding:6px 0;border-bottom:1px solid #ddd;}
+table{width:100%;border-collapse:collapse;margin-bottom:4px;}
+th{background:#0f1f3d;color:white;padding:7px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+td{padding:9px 8px;border-bottom:1px solid #d5d9e0;font-size:14px;line-height:1.35;}
 tr:nth-child(even) td{background:#f7f8fa;}
-h2{background:#0f1f3d;color:white;padding:4px 8px;font-size:11px;margin:10px 0 0 0;font-weight:600;}
-.footer{margin-top:16px;font-size:9px;color:#888;border-top:1px solid #ddd;padding-top:6px;display:flex;justify-content:space-between;}
-@media print{body{padding:8px;font-size:10px;}td{padding:2px 5px;font-size:10px;}@page{margin:1cm;}}
+h2{background:#0f1f3d;color:white;padding:6px 10px;font-size:13px;margin:14px 0 0 0;font-weight:600;}
+.footer{margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+@media print{body{padding:10px;font-size:13px;}td{padding:8px 7px;font-size:13px;}@page{margin:0.75cm;}}
 </style></head><body>
 <div class="header">
   <h1>HELM — Daily Action Report</h1>
