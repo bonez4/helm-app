@@ -319,6 +319,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .search-wrap input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(26,155,138,0.1);}
 .search-wrap input::placeholder{color:var(--gray-300);}
 .search-hint{font-size:11px;color:var(--gray-400);margin-top:4px;margin-left:2px;}
+.lookup-watermark{
+  display:none;align-items:center;justify-content:center;
+  margin-top:max(6vh,40px);padding:0 20px;pointer-events:none;
+  font-family:'DM Serif Display',serif;font-weight:400;
+  font-size:clamp(48px,13vw,180px);line-height:1;
+  color:var(--navy);opacity:0.06;letter-spacing:-0.02em;
+  text-align:center;user-select:none;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;width:100%;
+}
 
 /* ── RESULTS LIST ────────────────────────── */
 .results-list{margin-bottom:0.75rem;}
@@ -2003,6 +2012,7 @@ function switchTab(name,btn){
 // ── LOOKUP ────────────────────────────────────────────────────────────
 function renderLookup(){
   lookupRendered = true;
+  const displayName = (currentUser && currentUser.display_name) ? currentUser.display_name : '';
   document.getElementById('tab-lookup').innerHTML=`
     <div style="display:flex;gap:8px;align-items:center;">
       <div class="search-wrap" style="flex:1">
@@ -2013,8 +2023,22 @@ function renderLookup(){
     </div>
     <div class="search-hint" id="srchHint">${clients.length>0?`${clients.length.toLocaleString()} clients loaded — search by account #, name, address, or phone`:'Loading clients…'}</div>
     <div id="srchResults" style="margin-top:.5rem"></div>
-    <div id="clientCardInline" style="margin-top:12px"></div>`;
+    <div id="clientCardInline" style="margin-top:12px"></div>
+    <div id="lookupWatermark" class="lookup-watermark">${esc(displayName)}</div>`;
   document.getElementById('srch').focus();
+  updateLookupWatermark();
+}
+
+function updateLookupWatermark(){
+  const wm = document.getElementById('lookupWatermark');
+  if(!wm) return;
+  const srch = document.getElementById('srch');
+  const res = document.getElementById('srchResults');
+  const card = document.getElementById('clientCardInline');
+  const isEmpty = (!srch || !srch.value.trim())
+    && (!res || !res.innerHTML.trim())
+    && (!card || !card.innerHTML.trim());
+  wm.style.display = isEmpty ? 'flex' : 'none';
 }
 
 function clearLookup(){
@@ -2024,12 +2048,13 @@ function clearLookup(){
   document.getElementById('lookupClearBtn').style.display='none';
   activeClient=null;
   document.getElementById('srch').focus();
+  updateLookupWatermark();
 }
 
 function doSearch(q){
   q=q.trim().toLowerCase();
   const res=document.getElementById('srchResults');
-  if(q.length<2){res.innerHTML='';return;}
+  if(q.length<2){res.innerHTML='';updateLookupWatermark();return;}
 
   // Tokenize: split query into words, every word must match SOMEWHERE
   const tokens=q.split(/\s+/).filter(t=>t.length>0);
@@ -2063,8 +2088,8 @@ function doSearch(q){
     .sort((a,b)=>b.score-a.score)
     .slice(0,10);
 
-  if(!results.length){res.innerHTML='<div class="empty-state">No clients found</div>';return;}
-  if(results.length===1){res.innerHTML='';openClient(results[0].c);return;}
+  if(!results.length){res.innerHTML='<div class="empty-state">No clients found</div>';updateLookupWatermark();return;}
+  if(results.length===1){res.innerHTML='';openClient(results[0].c);updateLookupWatermark();return;}
   res.innerHTML='<div class="results-list">'+results.map(({c})=>{
     const co=getCompany(c.client_id);
     return `
@@ -2076,6 +2101,7 @@ function doSearch(q){
       <div class="result-day">${esc(c.service_day||'')}</div>
     </div>`;
   }).join('')+'</div>';
+  updateLookupWatermark();
 }
 
 function handleSearchKey(e){
@@ -2118,6 +2144,7 @@ function openClient(c){
   activeClient=c;
   showPanel(c);
   logActivity('client_lookup', c.client_name||c.client_id);
+  setTimeout(updateLookupWatermark, 0);
 }
 
 // ── FLOATING PANEL ───────────────────────────────────────────────────
