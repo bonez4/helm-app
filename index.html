@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>HELM — Reis Trucking</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Inter:wght@100;200;300&family=Pacifico&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&family=Inter:wght@100;200;300&family=Pacifico&family=Playfair+Display:ital,wght@1,400;1,500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
@@ -344,14 +344,25 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .search-wrap input::placeholder{color:var(--gray-300);}
 .search-hint{font-size:11px;color:var(--gray-400);margin-top:4px;margin-left:2px;}
 .lookup-watermark{
-  display:none;align-items:center;justify-content:center;
-  margin-top:max(8vh,50px);padding:0 20px;pointer-events:none;
-  font-family:'Inter','DM Sans',sans-serif;font-weight:100;
-  font-size:clamp(56px,14vw,200px);line-height:0.95;
-  color:var(--navy);opacity:0.08;letter-spacing:0.04em;
-  text-align:center;user-select:none;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;width:100%;
-  text-transform:uppercase;font-feature-settings:'ss01';
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;margin-top:max(7vh,44px);padding:0 20px;pointer-events:none;
+  text-align:center;user-select:none;width:100%;position:relative;
+}
+.lookup-watermark::before{
+  content:'welcome back,';font-family:'Inter','DM Sans',sans-serif;font-weight:300;
+  font-size:clamp(11px,1.1vw,14px);letter-spacing:0.32em;text-transform:uppercase;
+  color:var(--gray-400);opacity:0.7;margin-bottom:-6px;
+}
+.lookup-watermark-name{
+  font-family:'Playfair Display','DM Serif Display',serif;font-style:italic;font-weight:400;
+  font-size:clamp(60px,13vw,180px);line-height:1;
+  color:var(--navy);opacity:0.12;letter-spacing:-0.015em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+  text-transform:lowercase;
+}
+.lookup-watermark-name::first-letter{text-transform:uppercase;}
+.lookup-watermark-flourish{
+  width:clamp(40px,8vw,90px);height:1px;background:var(--navy);opacity:0.15;margin-top:2px;
 }
 
 /* ── RESULTS LIST ────────────────────────── */
@@ -2051,7 +2062,10 @@ function renderLookup(){
     <div class="search-hint" id="srchHint">${clients.length>0?`${clients.length.toLocaleString()} clients loaded — search by account #, name, address, or phone`:'Loading clients…'}</div>
     <div id="srchResults" style="margin-top:.5rem"></div>
     <div id="clientCardInline" style="margin-top:12px"></div>
-    <div id="lookupWatermark" class="lookup-watermark">${esc(displayName)}</div>`;
+    <div id="lookupWatermark" class="lookup-watermark">
+      <span class="lookup-watermark-name">${esc(displayName)}</span>
+      <span class="lookup-watermark-flourish"></span>
+    </div>`;
   document.getElementById('srch').focus();
   updateLookupWatermark();
 }
