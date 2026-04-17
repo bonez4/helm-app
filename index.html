@@ -344,25 +344,47 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .search-wrap input::placeholder{color:var(--gray-300);}
 .search-hint{font-size:11px;color:var(--gray-400);margin-top:4px;margin-left:2px;}
 .lookup-watermark{
-  display:none;flex-direction:column;align-items:center;justify-content:center;
-  gap:8px;margin-top:max(7vh,44px);padding:0 20px;pointer-events:none;
-  text-align:center;user-select:none;width:100%;position:relative;
+  display:none;flex-direction:column;align-items:center;justify-content:flex-start;
+  gap:6px;margin-top:max(4vh,28px);padding:0 20px;
+  text-align:center;width:100%;
 }
 .lookup-watermark::before{
   content:'welcome back,';font-family:'Inter','DM Sans',sans-serif;font-weight:300;
-  font-size:clamp(11px,1.1vw,14px);letter-spacing:0.32em;text-transform:uppercase;
-  color:var(--gray-400);opacity:0.7;margin-bottom:-6px;
+  font-size:clamp(10px,0.95vw,12px);letter-spacing:0.32em;text-transform:uppercase;
+  color:var(--gray-400);opacity:0.7;margin-bottom:-4px;
 }
 .lookup-watermark-name{
   font-family:'Playfair Display','DM Serif Display',serif;font-style:italic;font-weight:400;
-  font-size:clamp(60px,13vw,180px);line-height:1;
-  color:var(--navy);opacity:0.12;letter-spacing:-0.015em;
+  font-size:clamp(36px,6vw,72px);line-height:1;
+  color:var(--navy);opacity:0.14;letter-spacing:-0.015em;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
-  text-transform:lowercase;
+  text-transform:lowercase;pointer-events:none;user-select:none;
 }
 .lookup-watermark-name::first-letter{text-transform:uppercase;}
 .lookup-watermark-flourish{
-  width:clamp(40px,8vw,90px);height:1px;background:var(--navy);opacity:0.15;margin-top:2px;
+  width:clamp(36px,6vw,72px);height:1px;background:var(--navy);opacity:0.15;margin-top:2px;
+}
+.lw-rates{
+  margin-top:22px;max-width:540px;width:100%;
+  background:white;border:1px solid var(--gray-200);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:18px 26px 16px;
+}
+.lw-rates-title{
+  font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--gray-500);text-align:center;margin-bottom:12px;
+  padding-bottom:10px;border-bottom:1px solid var(--gray-100);
+}
+.lw-rates-table{
+  width:100%;border-collapse:collapse;font-family:'DM Sans',sans-serif;
+}
+.lw-rates-table td{
+  padding:8px 2px;font-size:14px;border-bottom:1px solid var(--gray-100);
+}
+.lw-rates-table tr:last-child td{border-bottom:none;}
+.lw-rates-table td:first-child{color:var(--gray-700);text-align:left;}
+.lw-rates-table td:last-child{
+  font-family:'DM Mono',monospace;font-weight:600;color:var(--navy);
+  text-align:right;white-space:nowrap;
 }
 
 /* ── RESULTS LIST ────────────────────────── */
@@ -2065,6 +2087,17 @@ function renderLookup(){
     <div id="lookupWatermark" class="lookup-watermark">
       <span class="lookup-watermark-name">${esc(displayName)}</span>
       <span class="lookup-watermark-flourish"></span>
+      <div class="lw-rates">
+        <div class="lw-rates-title">Service Rate Sheet</div>
+        <table class="lw-rates-table">
+          <tr><td>Tip Fee</td><td>$250</td></tr>
+          <tr><td>Special Tonnage Rate</td><td>$480 / ton</td></tr>
+          <tr><td>Standard Tonnage Rate</td><td>$525 / ton</td></tr>
+          <tr><td>Rolloff Delivery</td><td>$100</td></tr>
+          <tr><td>Pile Pickup</td><td>$160 / hr per worker</td></tr>
+          <tr><td>Metal Tonnage Disposal</td><td>$125 / ton</td></tr>
+        </table>
+      </div>
     </div>`;
   document.getElementById('srch').focus();
   updateLookupWatermark();
