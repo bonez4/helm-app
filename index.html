@@ -2684,6 +2684,9 @@ async function saveClient(id,selectedDays,addr,phone,email,name){
 }
 
 // ── ROLL-OFFS ─────────────────────────────────────────────────────────
+// Day of the month (1-31) when the "RESET MONTHLY RENTAL FEES" banner appears
+// on the Roll-offs page. Set to null to disable the banner entirely.
+const ROLLOFF_TIP_RESET_DAY = null; // TODO: set to David's confirmed day (e.g. 15)
 let rolloffsData=[];
 let rolloffSort={col:'date',asc:false};
 let showDeleted=false;
@@ -2700,9 +2703,11 @@ function renderRolloffs(){
             <input type="checkbox" id="showDeletedToggle" onchange="showDeleted=this.checked;loadRolloffs()" ${showDeleted?'checked':''}/> Show deleted
           </label>
           <button class="btn-add" style="background:var(--gray-100);color:var(--gray-700);" onclick="exportUntippedRolloffs()" title="Export all un-tipped roll-offs to Excel">Export Untipped</button>
+          <button class="btn-add" style="background:#fff3cd;color:#856404;border:1px solid #ffc107;" onclick="resetMonthlyTips()" title="Clear all Monthly Tip flags">Reset Monthly Tips</button>
           <button class="btn-add" onclick="addRolloffRow()">+ Add Row</button>
         </div>
       </div>
+      <div id="rolloffResetBanner" style="display:none;"></div>
       <div style="position:relative;margin-bottom:8px">
         <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--gray-300);font-size:14px">&#128269;</span>
         <input type="text" id="rolloffSearchInput" placeholder="Search roll-offs by customer, address, type, notes…" oninput="rolloffSearch=this.value;renderRolloffTable()" style="width:100%;padding:7px 10px 7px 32px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-size:12px;font-family:inherit;outline:none;transition:border-color .15s;" onfocus="this.style.borderColor='var(--teal)'" onblur="this.style.borderColor='var(--gray-200)'"/>
@@ -2725,6 +2730,25 @@ async function loadRolloffs(){
 }
 
 function renderRolloffTable(){
+  // Update reset-banner visibility
+  const banner = document.getElementById('rolloffResetBanner');
+  if(banner){
+    const today = new Date();
+    const anyTipped = rolloffsData.some(r => r.monthly_tip && !r.deleted);
+    const showBanner = ROLLOFF_TIP_RESET_DAY !== null
+      && today.getDate() >= ROLLOFF_TIP_RESET_DAY
+      && anyTipped;
+    if(showBanner){
+      const tippedCount = rolloffsData.filter(r => r.monthly_tip && !r.deleted).length;
+      banner.style.display = 'flex';
+      banner.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(90deg,#fef3cd 0%,#ffe08a 100%);border:1px solid #ffc107;color:#856404;padding:10px 14px;margin-bottom:10px;border-radius:6px;font-weight:700;font-size:13px;letter-spacing:0.5px;';
+      banner.innerHTML = `<span>\u26A0 RESET MONTHLY RENTAL FEES \u2014 ${tippedCount} roll-off(s) still marked as tipped this month</span>
+        <button class="btn-add" style="background:#856404;color:#fff3cd;font-size:11px;" onclick="resetMonthlyTips()">Reset Now</button>`;
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
   const wrap=document.getElementById('rolloffTable');
   if(!rolloffsData.length){
     wrap.innerHTML='<div class="empty-state">No roll-offs yet. Click "+ Add Row" to start.</div>';
@@ -2863,6 +2887,17 @@ async function toggleRolloffTip(id){
   row.monthly_tip = newVal;
   renderRolloffTable();
   logActivity('rolloff_tip','id:'+id+' monthly_tip='+newVal);
+}
+
+async function resetMonthlyTips(){
+  const tippedCount = rolloffsData.filter(r => r.monthly_tip && !r.deleted).length;
+  if(tippedCount === 0){ toast('No Monthly Tip flags set \u2014 nothing to reset'); return; }
+  if(!confirm('Reset Monthly Tip to No for all '+tippedCount+' tipped roll-off(s)? This cannot be undone.')) return;
+  const {error} = await db.from('rolloffs').update({monthly_tip: false, updated_at: new Date().toISOString()}).eq('monthly_tip', true);
+  if(error){toast('Reset failed: '+error.message); return;}
+  toast(tippedCount+' Monthly Tip flag(s) cleared', true);
+  logActivity('rolloff_tip_reset','count:'+tippedCount);
+  await loadRolloffs();
 }
 
 function exportUntippedRolloffs(){
