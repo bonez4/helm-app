@@ -1495,6 +1495,35 @@ body.on-action-tab .main{max-width:none;padding:0;width:100%;}
   font-family:inherit;font-size:11px;font-weight:600;padding:5px 12px;border-radius:5px;cursor:pointer;
 }
 .ai-add-cat-btn:hover{background:rgba(99,102,241,0.24);color:#fff;border-color:#6366f1;}
+/* Inline add affordances — always visible at end of each expanded level */
+.ai-cat-add-stub{
+  font-size:11px;color:#5f6479;cursor:pointer;
+  padding:4px 8px 4px 30px;border-radius:4px;margin:1px 0;
+  transition:all 0.1s;letter-spacing:0.01em;
+}
+.ai-cat-add-stub:hover{color:#a5b4fc;background:rgba(99,102,241,0.07);}
+.ai-cat-add-stub.depth-1{padding-left:30px;}
+.ai-cat-add-stub.depth-2{padding-left:46px;}
+.ai-cat-add-stub.depth-3{padding-left:62px;}
+.ai-cat-add-row{
+  margin-top:10px;padding:9px;border-radius:6px;cursor:pointer;
+  font-size:12px;color:#9ca3af;border:1px dashed rgba(255,255,255,0.13);
+  text-align:center;transition:all 0.12s;font-weight:500;
+}
+.ai-cat-add-row:hover{color:#c7d2fe;border-color:rgba(99,102,241,0.5);background:rgba(99,102,241,0.08);}
+.ai-cat-inline-input-row{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;
+  background:rgba(99,102,241,0.10);border:1px solid rgba(99,102,241,0.4);
+  margin:2px 0;
+}
+.ai-cat-inline-input-row.depth-1{padding-left:22px;}
+.ai-cat-inline-input-row.depth-2{padding-left:38px;}
+.ai-cat-inline-input-row.depth-3{padding-left:54px;}
+.ai-cat-inline-input-row input{
+  flex:1;background:transparent;border:none;color:#fff;
+  font-family:inherit;font-size:12px;outline:none;padding:2px 0;caret-color:#fff;
+}
+.ai-cat-inline-input-row input::placeholder{color:rgba(255,255,255,0.3);font-size:11px;}
 .ai-content{flex:1;overflow-y:auto;padding:18px 22px;min-width:0;}
 .ai-content-hdr{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
 .ai-content-title{font-size:15px;font-weight:600;color:#fff;letter-spacing:-0.01em;}
@@ -7958,6 +7987,9 @@ let actionData = {categories:[], items:[]};
 let actionState = {view:'list', activeCategoryId:null, filterStatus:null, sortBy:'priority'};
 // Categories whose children are hidden in the sidebar tree. Empty set = all expanded.
 let actionCollapsed = new Set();
+// Inline-add cursor: undefined = no input shown, null = top-level, number = parent id
+let actionInlineAddParent;
+let actionInlineCommitting = false;
 const ACTION_PIN = '1144';
 const ACTION_STATUS_LIST = ['Inbox','Active','InProgress','Blocked','Done'];
 const ACTION_PALETTE = ['#6366f1','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#f43f5e','#84cc16','#3b82f6','#a855f7','#14b8a6','#fb923c','#ef4444','#22d3ee','#eab308'];
@@ -8123,13 +8155,26 @@ function actionRenderSidebar(){
     const ids = new Set(descendants(catId));
     return items.filter(i=>ids.has(i.category_id) && i.status!=='Done').length;
   }
+  function renderInlineInputRow(depth){
+    return `<div class="ai-cat-inline-input-row depth-${depth}" onclick="event.stopPropagation();">
+      <span class="ai-cat-arrow-spacer"></span>
+      <span class="ai-cat-dot" style="background:#6366f1;opacity:0.6;"></span>
+      <input id="aiInlineNew" placeholder="Name + Enter to add, Esc to cancel"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();actionInlineCommit();}else if(event.key==='Escape'){event.preventDefault();actionInlineCancel();}"
+        onblur="actionInlineMaybeCommit()">
+    </div>`;
+  }
+
   function renderNode(c, depth){
     const color = actionColorFor(c);
     const cnt = countItems(c.id);
     const active = actionState.activeCategoryId === c.id ? 'active':'';
     const kids = children(c.id);
     const hasKids = kids.length > 0;
-    const expanded = !actionCollapsed.has(c.id);
+    const couldHaveKids = depth < 2;
+    const isInlineHere = actionInlineAddParent === c.id;
+    // Force-expand if the inline-add cursor is targeting this parent, otherwise honor user toggle
+    const expanded = isInlineHere || !actionCollapsed.has(c.id);
     const arrowHTML = hasKids
       ? `<button class="ai-cat-arrow ${expanded?'open':''}" onclick="event.stopPropagation();actionToggleExpand(${c.id})" title="${expanded?'Collapse':'Expand'}">\u25B8</button>`
       : `<span class="ai-cat-arrow-spacer"></span>`;
@@ -8139,7 +8184,6 @@ function actionRenderSidebar(){
         <span class="ai-cat-dot" style="background:${color}"></span>
         <span class="ai-cat-name">${esc(c.name)}</span>
         <span class="ai-cat-actions">
-          ${depth<2?`<button class="ai-cat-act" onclick="event.stopPropagation();actionOpenCategoryModal(${c.id})" title="Add subcategory">+</button>`:''}
           <button class="ai-cat-act" onclick="event.stopPropagation();actionRenameCategory(${c.id})" title="Rename">\u270E</button>
           <button class="ai-cat-act" onclick="event.stopPropagation();actionDeleteCategory(${c.id})" title="Archive">&times;</button>
         </span>
@@ -8147,6 +8191,14 @@ function actionRenderSidebar(){
       </div>`;
     if(expanded){
       for(const child of kids) html += renderNode(child, depth+1);
+      if(couldHaveKids){
+        if(isInlineHere){
+          html += renderInlineInputRow(depth+1);
+        } else {
+          const subLabel = depth === 0 ? 'subcategory' : 'sub-subcategory';
+          html += `<div class="ai-cat-add-stub depth-${depth+1}" onclick="event.stopPropagation();actionInlineAddCategory(${c.id})" title="Add ${subLabel}">+ Add ${subLabel}</div>`;
+        }
+      }
     }
     return html;
   }
@@ -8155,7 +8207,7 @@ function actionRenderSidebar(){
   let html = `
     <div class="ai-sidebar-hdr">
       <span>Categories</span>
-      <button class="ai-sb-add" onclick="actionOpenCategoryModal()" title="New category">+</button>
+      <button class="ai-sb-add" onclick="actionInlineAddCategory(null)" title="New main category">+</button>
     </div>
     <div class="ai-cat-row ${allActive}" onclick="actionSetCategory(null)">
       <span class="ai-cat-arrow-spacer"></span>
@@ -8165,8 +8217,14 @@ function actionRenderSidebar(){
     </div>
   `;
   for(const c of children(null)) html += renderNode(c, 0);
+  // Top-level inline add (or stub if not active)
+  if(actionInlineAddParent === null){
+    html += renderInlineInputRow(0);
+  } else {
+    html += `<div class="ai-cat-add-row" onclick="actionInlineAddCategory(null)">+ Add main category</div>`;
+  }
   if(cats.length === 0){
-    html += `<div style="padding:18px 8px;text-align:center;color:#7c849a;font-size:11px;line-height:1.5;">No categories yet.<br>Click + to create one,<br>or use Quick Add.</div>`;
+    html += `<div style="padding:14px 8px;text-align:center;color:#7c849a;font-size:11px;line-height:1.5;">Click <strong style="color:#a5b4fc;">+ Add main category</strong> above to start.</div>`;
   }
   sb.innerHTML = html;
 }
@@ -8210,7 +8268,7 @@ function actionRenderContent(){
         <div class="ai-content-sub">${items.length} ${items.length===1?'item':'items'}${actionState.filterStatus?' · '+actionState.filterStatus:''}</div>
       </div>
       <div class="ai-filters">
-        <button class="ai-add-cat-btn" onclick="actionOpenCategoryModal()" title="New category at any level">+ Category</button>
+        <button class="ai-add-cat-btn" onclick="actionInlineAddCategory(null)" title="New main category (inline)">+ Category</button>
         ${filterPill('All','')}
         ${filterPill('Inbox','Inbox')}
         ${filterPill('Active','Active')}
@@ -8408,91 +8466,64 @@ async function actionSaveQuickAdd(){
   actionUpdateBadge();
 }
 
-// ── Category management (single modal handles main / sub / sub-sub) ──
-function actionOpenCategoryModal(presetParentId){
-  // If presetParentId is given, parent is locked. Otherwise user picks any
-  // valid parent (top-level / main / sub) — sub-subs can't be parents.
-  const parentLocked = (presetParentId !== undefined && presetParentId !== null);
-  const parent = parentLocked ? actionData.categories.find(c=>c.id===presetParentId) : null;
-  let parentLabel = '';
-  if(parentLocked){
-    const depth = actionGetCategoryDepth(presetParentId);
+// ── Inline category add (no modal) ──
+function actionInlineAddCategory(parentId){
+  // parentId === null  → adding a top-level (main) category
+  // parentId === number → adding a sub under that parent
+  const p = (parentId === undefined) ? null : parentId;
+  if(p !== null){
+    const depth = actionGetCategoryDepth(p);
     if(depth >= 2){ toast('Max 3 layers \u2014 cannot add deeper here'); return; }
-    parentLabel = depth===0 ? `subcategory under "${parent.name}"` : `sub-subcategory under "${parent.name}"`;
+    actionCollapsed.delete(p); // expand so the input is visible inside
   }
-
-  // Build dropdown of valid parents (only depth 0 and depth 1 can be parents)
-  let parentOpts = '<option value="">\u2014 Top-level (Main category) \u2014</option>';
-  function addOpts(parentId, depth){
-    if(depth >= 2) return;
-    const kids = actionData.categories.filter(c=>c.parent_id===parentId).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-    for(const c of kids){
-      const indent = '\u00A0\u00A0\u00A0\u00A0'.repeat(depth);
-      const tag = depth===0 ? '  \u2014 add sub here' : '  \u2014 add sub-sub here';
-      parentOpts += `<option value="${c.id}">${indent}${esc(c.name)}${tag}</option>`;
-      addOpts(c.id, depth+1);
-    }
-  }
-  addOpts(null, 0);
-
-  const backdrop = document.createElement('div');
-  backdrop.className = 'ai-modal-backdrop';
-  backdrop.id = 'aiCatModal';
-  backdrop.onclick = (e)=>{ if(e.target===backdrop) actionCloseModal(); };
-  backdrop.innerHTML = `
-    <div class="ai-modal" style="max-width:460px;">
-      <h3>${parentLocked ? `New ${esc(parentLabel)}` : 'New Category'}</h3>
-      <div class="ai-field">
-        <label>Name</label>
-        <input class="ai-input" id="aicName" placeholder="e.g. HELM Development">
-      </div>
-      ${parentLocked
-        ? `<input type="hidden" id="aicParent" value="${presetParentId}">
-           <div style="font-size:11px;color:#7c849a;margin-top:-6px;">Parent: <span style="color:#c7d2fe;">${esc(parent.name)}</span></div>`
-        : `<div class="ai-field">
-             <label>Place under</label>
-             <select class="ai-select" id="aicParent">${parentOpts}</select>
-             <div style="font-size:10px;color:#7c849a;margin-top:6px;line-height:1.5;">
-               <strong style="color:#a5b4fc;">Top-level</strong> = main category &nbsp;\u00B7&nbsp;
-               Pick a <strong style="color:#a5b4fc;">main</strong> = subcategory &nbsp;\u00B7&nbsp;
-               Pick a <strong style="color:#a5b4fc;">subcategory</strong> = sub-subcategory<br>
-               (Max 3 layers.)
-             </div>
-           </div>`}
-      <div class="ai-modal-actions">
-        <button class="ai-btn ai-btn-ghost" onclick="actionCloseModal()">Cancel</button>
-        <button class="ai-btn ai-btn-primary" onclick="actionSaveNewCategory()">Create</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(backdrop);
+  actionInlineAddParent = p;
+  actionRenderSidebar();
   setTimeout(()=>{
-    const el=document.getElementById('aicName'); if(el) el.focus();
-    const inp=document.getElementById('aicName');
-    if(inp) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();actionSaveNewCategory();} });
-  },80);
+    const el = document.getElementById('aiInlineNew');
+    if(el){ el.focus(); el.select(); }
+  }, 30);
 }
 
-async function actionSaveNewCategory(){
-  const name = document.getElementById('aicName').value.trim();
-  if(!name){ toast('Name required'); return; }
-  const parentRaw = document.getElementById('aicParent').value;
-  const parent = parentRaw ? parseInt(parentRaw) : null;
-  if(parent !== null){
-    const depth = actionGetCategoryDepth(parent);
-    if(depth >= 2){ toast('Max 3 layers \u2014 cannot add deeper'); return; }
+async function actionInlineCommit(){
+  if(actionInlineCommitting) return;
+  actionInlineCommitting = true;
+  try {
+    const el = document.getElementById('aiInlineNew');
+    if(!el){ return; }
+    const name = el.value.trim();
+    if(!name){ actionInlineCancel(); return; }
+    const parent = actionInlineAddParent;
+    if(parent !== null){
+      const depth = actionGetCategoryDepth(parent);
+      if(depth >= 2){ toast('Max 3 layers'); actionInlineCancel(); return; }
+    }
+    const {data, error} = await db.from('helm_action_categories').insert({
+      name, parent_id: parent, sort_order: actionData.categories.length,
+    }).select().single();
+    if(error){ toast('Failed: '+error.message); return; }
+    actionData.categories.push(data);
+    actionInlineAddParent = undefined;
+    actionRenderSidebar();
+    actionRenderContent();
+    toast('Added: '+name, true);
+  } finally {
+    actionInlineCommitting = false;
   }
-  const {data, error} = await db.from('helm_action_categories').insert({
-    name, parent_id: parent, sort_order: actionData.categories.length,
-  }).select().single();
-  if(error){ toast('Failed: '+error.message); return; }
-  actionData.categories.push(data);
-  // Auto-expand parent so the new child is visible immediately
-  if(parent !== null) actionCollapsed.delete(parent);
-  actionCloseModal();
-  toast('Created', true);
+}
+
+function actionInlineCancel(){
+  actionInlineAddParent = undefined;
   actionRenderSidebar();
-  actionRenderContent();
+}
+
+function actionInlineMaybeCommit(){
+  // Blur fires after Enter/Escape paths set the flag; bail if we already handled.
+  if(actionInlineCommitting) return;
+  const el = document.getElementById('aiInlineNew');
+  if(!el) return;
+  const name = el.value.trim();
+  if(!name){ actionInlineCancel(); return; }
+  actionInlineCommit();
 }
 async function actionRenameCategory(catId){
   const cat = actionData.categories.find(c=>c.id===catId);
