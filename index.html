@@ -1429,6 +1429,17 @@ body.on-action-tab .main{max-width:none;padding:0;width:100%;}
   color:#e4e7ef;
   font-family:'Inter','DM Sans',sans-serif;
   display:flex;flex-direction:column;
+  /* Suppress stray text caret on background clicks; restored on inputs below */
+  caret-color: transparent;
+  user-select: none;
+}
+.ai-root input, .ai-root textarea, .ai-root select,
+.ai-modal input, .ai-modal textarea, .ai-modal select{
+  caret-color: auto;
+  user-select: text;
+}
+.ai-item-title, .ai-item-sub, .ai-content-title, .ai-content-sub{
+  user-select: text;
 }
 .ai-topbar{
   display:flex;align-items:center;gap:14px;
