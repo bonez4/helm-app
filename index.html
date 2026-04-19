@@ -1396,249 +1396,538 @@ select.ro-input{cursor:pointer;}
   line-height:1.55;margin-top:7px;
 }
 
-/* ── ACTION ITEMS (David only) — own visual environment ──────────── */
-/* When this tab is active, escape the .main max-width:1060px so the
-   dark canvas spans the full viewport. Toggled in switchTab(). */
+/* ─────────────────────────────────────────────────────────────────────────
+   ACTION ITEMS — Premium Project Management (David only, PIN 1144)
+   Inspired by Linear (speed, command-K, slide-in detail, keyboard-first),
+   Notion (multi-view, fluid editing) and Zoho Projects
+   (Projects → Tasklists → Tasks → Subtasks ladder + Milestones + Gantt).
+   Single-user — no assignees, no comments, no @-mentions.
+   ───────────────────────────────────────────────────────────────────────── */
 body.on-action-tab .main{max-width:none;padding:0;width:100%;}
 #tab-action{padding:0;margin:0;width:100%;}
-.ai-root{
+.ap-root{
+  --ap-bg:        #08090f;
+  --ap-bg-2:      #0e1019;
+  --ap-surface:   #14161f;
+  --ap-surface-2: #1c1f2b;
+  --ap-border:    rgba(255,255,255,0.06);
+  --ap-border-2:  rgba(255,255,255,0.10);
+  --ap-text:      #e8eaf0;
+  --ap-text-dim:  #9ca3af;
+  --ap-text-mute: #6b7280;
+  --ap-accent:    #7c5cff;
+  --ap-accent-2:  #a78bfa;
+  --ap-accent-soft: rgba(124,92,255,0.14);
   min-height:calc(100vh - 78px);
-  background:#0a0e1a;
-  background-image:
-    radial-gradient(circle at 18% 12%, rgba(99,102,241,0.10), transparent 50%),
-    radial-gradient(circle at 86% 88%, rgba(236,72,153,0.06), transparent 55%),
-    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
-  background-size: auto, auto, 32px 32px, 32px 32px;
-  color:#e4e7ef;
+  background:var(--ap-bg);
+  color:var(--ap-text);
   font-family:'Inter','DM Sans',sans-serif;
+  display:flex;
+  caret-color:transparent;
+  user-select:none;
+  font-size:13px;
+}
+.ap-root input, .ap-root textarea, .ap-root select, .ap-root [contenteditable]{
+  caret-color:auto; user-select:text;
+}
+.ap-root [data-selectable]{ user-select:text; }
+
+/* === LEFT SIDEBAR === */
+.ap-side{
+  width:240px;flex-shrink:0;
+  background:var(--ap-bg-2);
+  border-right:1px solid var(--ap-border);
   display:flex;flex-direction:column;
-  /* Suppress stray text caret on background clicks; restored on inputs below */
-  caret-color: transparent;
-  user-select: none;
+  height:calc(100vh - 78px);position:sticky;top:78px;overflow-y:auto;
 }
-.ai-root input, .ai-root textarea, .ai-root select,
-.ai-modal input, .ai-modal textarea, .ai-modal select{
-  caret-color: auto;
-  user-select: text;
+.ap-side-hdr{
+  padding:14px 16px 8px;font-size:13px;font-weight:600;color:var(--ap-text);
+  display:flex;align-items:center;gap:8px;
 }
-.ai-item-title, .ai-item-sub, .ai-content-title, .ai-content-sub{
-  user-select: text;
+.ap-side-hdr-mark{
+  width:20px;height:20px;border-radius:5px;
+  background:linear-gradient(135deg,var(--ap-accent),#a78bfa);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;
 }
-.ai-topbar{
-  display:flex;align-items:center;gap:14px;
-  padding:14px 22px;border-bottom:1px solid rgba(255,255,255,0.06);
-  background:rgba(10,14,26,0.6);backdrop-filter:blur(8px);
+.ap-side-section{padding:6px 8px;}
+.ap-side-section-label{
+  font-size:10px;font-weight:600;letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--ap-text-mute);
+  padding:8px 8px 6px;display:flex;align-items:center;justify-content:space-between;
 }
-.ai-title{font-size:18px;font-weight:600;letter-spacing:-0.01em;color:#fff;white-space:nowrap;}
-.ai-title .ai-title-accent{color:#a5b4fc;font-weight:400;margin-left:6px;font-size:13px;}
-.ai-digest{display:flex;gap:6px;flex-wrap:wrap;flex:1;margin-left:18px;}
-.ai-digest-pill{
-  font-size:11px;padding:4px 10px;border-radius:999px;
-  background:rgba(255,255,255,0.05);color:#cbd2e3;border:1px solid rgba(255,255,255,0.08);
-  font-weight:500;
+.ap-side-section-label .ap-icon-btn{width:18px;height:18px;font-size:12px;}
+.ap-side-row{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 8px;border-radius:5px;cursor:pointer;
+  font-size:12.5px;color:var(--ap-text-dim);
+  transition:background 0.08s,color 0.08s;
 }
-.ai-digest-pill.warn{background:rgba(245,158,11,0.13);color:#fbbf24;border-color:rgba(245,158,11,0.25);}
-.ai-digest-pill.danger{background:rgba(239,68,68,0.13);color:#fca5a5;border-color:rgba(239,68,68,0.25);}
-.ai-views{display:flex;gap:2px;background:rgba(255,255,255,0.04);padding:3px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);}
-.ai-view-btn{
-  background:transparent;border:none;color:#9ca3af;font-family:inherit;font-size:12px;
-  font-weight:500;padding:6px 14px;border-radius:5px;cursor:pointer;letter-spacing:0.01em;
+.ap-side-row:hover{background:rgba(255,255,255,0.04);color:var(--ap-text);}
+.ap-side-row.active{background:var(--ap-accent-soft);color:var(--ap-accent-2);font-weight:500;}
+.ap-side-row .ap-side-icon{
+  width:18px;height:18px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;flex-shrink:0;
 }
-.ai-view-btn:hover:not(:disabled){color:#fff;}
-.ai-view-btn.active{background:rgba(99,102,241,0.22);color:#c7d2fe;}
-.ai-view-btn:disabled{opacity:0.32;cursor:not-allowed;}
-.ai-main{display:flex;flex:1;min-height:0;}
-.ai-sidebar{
-  width:260px;border-right:1px solid rgba(255,255,255,0.06);
-  padding:14px 12px;overflow-y:auto;background:rgba(0,0,0,0.18);flex-shrink:0;
+.ap-side-row .ap-side-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ap-side-row .ap-side-count{
+  font-size:10px;color:var(--ap-text-mute);
+  background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:8px;font-family:'DM Mono',monospace;
 }
-.ai-sidebar-hdr{
-  display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;
-  font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7c849a;
-  padding:0 6px;
+.ap-side-row.ap-add{color:var(--ap-text-mute);font-style:italic;font-size:12px;}
+.ap-side-row.ap-add:hover{color:var(--ap-accent-2);font-style:normal;}
+.ap-side-foot{
+  margin-top:auto;padding:12px 14px;font-size:10px;color:var(--ap-text-mute);
+  border-top:1px solid var(--ap-border);line-height:1.7;
 }
-.ai-sb-add{
-  background:transparent;border:1px solid rgba(255,255,255,0.12);color:#c7d2fe;
-  font-family:inherit;font-size:14px;width:22px;height:22px;border-radius:5px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;line-height:1;
+.ap-side-foot kbd{
+  background:rgba(255,255,255,0.06);font-family:'DM Mono',monospace;
+  font-size:10px;padding:1px 5px;border-radius:3px;color:var(--ap-text-dim);
 }
-.ai-sb-add:hover{background:rgba(99,102,241,0.18);border-color:rgba(99,102,241,0.4);}
-.ai-cat-row{
-  display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;
-  font-size:13px;color:#cbd2e3;margin-bottom:1px;position:relative;
+
+/* === MAIN AREA === */
+.ap-main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--ap-bg);}
+.ap-top{padding:18px 24px 0;background:var(--ap-bg);}
+.ap-top-row{display:flex;align-items:center;gap:14px;}
+.ap-top-icon{
+  width:40px;height:40px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--ap-border);flex-shrink:0;
 }
-.ai-cat-row:hover{background:rgba(255,255,255,0.04);}
-.ai-cat-row.active{background:rgba(99,102,241,0.16);color:#fff;}
-.ai-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.ai-cat-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ai-cat-count{font-size:10px;color:#7c849a;background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:8px;}
-.ai-cat-row.depth-1{padding-left:22px;font-size:12px;}
-.ai-cat-row.depth-2{padding-left:38px;font-size:12px;color:#a8b0c2;}
-.ai-cat-actions{display:none;gap:2px;}
-.ai-cat-row:hover .ai-cat-actions{display:flex;}
-.ai-cat-act{
-  background:none;border:none;color:#7c849a;cursor:pointer;font-size:11px;padding:2px 5px;border-radius:3px;line-height:1;
+.ap-top-titlewrap{flex:1;min-width:0;}
+.ap-top-title{
+  font-size:20px;font-weight:600;color:var(--ap-text);letter-spacing:-0.015em;
+  background:transparent;border:none;outline:none;font-family:inherit;width:100%;padding:0;
 }
-.ai-cat-act:hover{color:#fff;background:rgba(255,255,255,0.08);}
-.ai-cat-arrow{
-  background:none;border:none;color:#7c849a;cursor:pointer;
-  width:14px;height:14px;padding:0;font-size:9px;line-height:1;
-  display:inline-flex;align-items:center;justify-content:center;
-  transition:transform 0.15s;flex-shrink:0;
+.ap-top-id{
+  font-family:'DM Mono',monospace;font-size:11px;color:var(--ap-text-mute);
+  background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:4px;
 }
-.ai-cat-arrow:hover{color:#fff;}
-.ai-cat-arrow.open{transform:rotate(90deg);}
-.ai-cat-arrow-spacer{width:14px;height:14px;flex-shrink:0;display:inline-block;}
-.ai-add-cat-btn{
-  background:rgba(99,102,241,0.14);color:#c7d2fe;border:1px solid rgba(99,102,241,0.4);
-  font-family:inherit;font-size:11px;font-weight:600;padding:5px 12px;border-radius:5px;cursor:pointer;
+.ap-top-progresswrap{
+  display:flex;align-items:center;gap:10px;color:var(--ap-text-dim);font-size:12px;
 }
-.ai-add-cat-btn:hover{background:rgba(99,102,241,0.24);color:#fff;border-color:#6366f1;}
-/* Inline add affordances — always visible at end of each expanded level */
-.ai-cat-add-stub{
-  font-size:11px;color:#5f6479;cursor:pointer;
-  padding:4px 8px 4px 30px;border-radius:4px;margin:1px 0;
-  transition:all 0.1s;letter-spacing:0.01em;
+.ap-top-progress{
+  width:140px;height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;
 }
-.ai-cat-add-stub:hover{color:#a5b4fc;background:rgba(99,102,241,0.07);}
-.ai-cat-add-stub.depth-1{padding-left:30px;}
-.ai-cat-add-stub.depth-2{padding-left:46px;}
-.ai-cat-add-stub.depth-3{padding-left:62px;}
-.ai-cat-add-row{
-  margin-top:10px;padding:9px;border-radius:6px;cursor:pointer;
-  font-size:12px;color:#9ca3af;border:1px dashed rgba(255,255,255,0.13);
-  text-align:center;transition:all 0.12s;font-weight:500;
+.ap-top-progress-fill{
+  height:100%;background:linear-gradient(90deg,var(--ap-accent),#a78bfa);transition:width 0.3s;
 }
-.ai-cat-add-row:hover{color:#c7d2fe;border-color:rgba(99,102,241,0.5);background:rgba(99,102,241,0.08);}
-.ai-cat-inline-input-row{
-  display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;
-  background:rgba(99,102,241,0.10);border:1px solid rgba(99,102,241,0.4);
-  margin:2px 0;
+.ap-top-meta{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;}
+.ap-meta-pill{
+  font-size:11px;color:var(--ap-text-dim);
+  background:rgba(255,255,255,0.04);border:1px solid var(--ap-border);
+  padding:3px 9px;border-radius:5px;display:inline-flex;align-items:center;gap:6px;
 }
-.ai-cat-inline-input-row.depth-1{padding-left:22px;}
-.ai-cat-inline-input-row.depth-2{padding-left:38px;}
-.ai-cat-inline-input-row.depth-3{padding-left:54px;}
-.ai-cat-inline-input-row input{
-  flex:1;background:transparent;border:none;color:#fff;
-  font-family:inherit;font-size:12px;outline:none;padding:2px 0;caret-color:#fff;
+.ap-meta-pill.danger{color:#f87171;border-color:rgba(248,113,113,0.3);background:rgba(248,113,113,0.07);}
+.ap-meta-pill.warn{color:#fbbf24;border-color:rgba(251,191,36,0.3);background:rgba(251,191,36,0.07);}
+.ap-meta-pill.ok{color:#34d399;border-color:rgba(52,211,153,0.3);background:rgba(52,211,153,0.07);}
+
+.ap-viewtabs{display:flex;gap:2px;margin-top:14px;padding-top:8px;border-top:1px solid transparent;}
+.ap-viewtab{
+  background:none;border:none;color:var(--ap-text-mute);
+  font-family:inherit;font-size:13px;font-weight:500;
+  padding:7px 13px;border-radius:5px;cursor:pointer;transition:all 0.08s;
+  display:inline-flex;align-items:center;gap:6px;
 }
-.ai-cat-inline-input-row input::placeholder{color:rgba(255,255,255,0.3);font-size:11px;}
-.ai-content{flex:1;overflow-y:auto;padding:18px 22px;min-width:0;}
-.ai-content-hdr{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
-.ai-content-title{font-size:15px;font-weight:600;color:#fff;letter-spacing:-0.01em;}
-.ai-content-sub{font-size:12px;color:#7c849a;}
-.ai-filters{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;}
-.ai-filter{
-  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#9ca3af;
-  font-family:inherit;font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer;
+.ap-viewtab:hover{color:var(--ap-text);background:rgba(255,255,255,0.04);}
+.ap-viewtab.active{color:var(--ap-text);background:rgba(255,255,255,0.08);}
+
+.ap-body{flex:1;overflow-y:auto;padding:18px 24px 80px;border-top:1px solid var(--ap-border);}
+
+/* === Status & priority chips === */
+.ap-status-chip{
+  display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ap-text-dim);
+  background:rgba(255,255,255,0.04);padding:3px 8px;border-radius:4px;cursor:pointer;
+  border:1px solid transparent;
 }
-.ai-filter:hover{color:#fff;border-color:rgba(255,255,255,0.16);}
-.ai-filter.active{background:rgba(99,102,241,0.18);color:#c7d2fe;border-color:rgba(99,102,241,0.4);}
-select.ai-filter{padding:5px 8px;appearance:none;-webkit-appearance:none;}
-.ai-list{display:flex;flex-direction:column;gap:6px;}
-.ai-item{
-  display:grid;grid-template-columns:6px 1fr auto auto auto auto;gap:14px;align-items:center;
-  background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);
-  border-left-width:3px;border-radius:8px;padding:10px 14px 10px 11px;cursor:pointer;
-  transition:all 0.12s;
+.ap-status-chip:hover{border-color:var(--ap-border-2);}
+.ap-status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.ap-prio-chip{
+  display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ap-text-mute);
+  padding:3px 7px;border-radius:4px;cursor:pointer;
 }
-.ai-item:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.14);transform:translateY(-1px);}
-.ai-item.stale{opacity:0.55;}
-.ai-item-priority{width:6px;height:30px;border-radius:3px;background:#374151;}
-.ai-item-main{min-width:0;overflow:hidden;}
-.ai-item-title{font-size:13px;font-weight:500;color:#f3f4f6;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ai-item-sub{font-size:11px;color:#7c849a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ai-item-cat{
-  font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;letter-spacing:0.02em;
-  white-space:nowrap;
+.ap-prio-chip:hover{background:rgba(255,255,255,0.04);}
+.ap-prio-bars{display:inline-flex;gap:2px;align-items:flex-end;height:11px;}
+.ap-prio-bar{width:2px;background:currentColor;border-radius:1px;opacity:0.25;}
+.ap-prio-bar.on{opacity:1;}
+.ap-prio-bar:nth-child(1){height:3px;}
+.ap-prio-bar:nth-child(2){height:6px;}
+.ap-prio-bar:nth-child(3){height:9px;}
+
+/* === Dashboard === */
+.ap-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px;}
+.ap-kpi{background:var(--ap-surface);border:1px solid var(--ap-border);border-radius:8px;padding:14px 16px;}
+.ap-kpi-label{font-size:10px;color:var(--ap-text-mute);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:7px;}
+.ap-kpi-val{font-family:'DM Mono',monospace;font-size:26px;font-weight:600;color:var(--ap-text);line-height:1;letter-spacing:-0.02em;}
+.ap-kpi-sub{font-size:11px;color:var(--ap-text-mute);margin-top:6px;}
+.ap-kpi-sub.warn{color:#fbbf24;} .ap-kpi-sub.danger{color:#f87171;} .ap-kpi-sub.ok{color:#34d399;}
+
+.ap-section{margin-bottom:24px;}
+.ap-section-hdr{
+  font-size:11px;font-weight:600;color:var(--ap-text-mute);
+  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;
+  display:flex;align-items:center;justify-content:space-between;
 }
-.ai-item-status{font-size:10px;font-weight:600;padding:3px 9px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;}
-.ai-status-Inbox{background:rgba(156,163,175,0.15);color:#d1d5db;}
-.ai-status-Active{background:rgba(99,102,241,0.18);color:#c7d2fe;}
-.ai-status-InProgress{background:rgba(16,185,129,0.18);color:#6ee7b7;}
-.ai-status-Blocked{background:rgba(239,68,68,0.18);color:#fca5a5;}
-.ai-status-Done{background:rgba(75,85,99,0.25);color:#9ca3af;}
-.ai-item-score{font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:#a5b4fc;min-width:24px;text-align:right;}
-.ai-item-age{font-family:'DM Mono',monospace;font-size:11px;color:#7c849a;min-width:42px;text-align:right;}
-.ai-item-age.warn{color:#fbbf24;}
-.ai-item-age.danger{color:#fca5a5;}
-.ai-empty{text-align:center;padding:60px 20px;color:#7c849a;font-size:13px;}
-.ai-empty-icon{font-size:42px;opacity:0.18;margin-bottom:10px;font-family:serif;}
-.ai-fab{
-  position:fixed;bottom:24px;right:24px;z-index:9000;
-  width:56px;height:56px;border-radius:50%;
-  background:linear-gradient(135deg,#6366f1,#8b5cf6);
-  color:#fff;border:none;cursor:pointer;font-size:28px;font-weight:300;line-height:1;
-  box-shadow:0 8px 24px rgba(99,102,241,0.4),0 2px 6px rgba(0,0,0,0.2);
-  transition:transform 0.15s,box-shadow 0.15s;
+.ap-card-row{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  background:var(--ap-surface);border:1px solid var(--ap-border);border-radius:6px;
+  margin-bottom:5px;cursor:pointer;font-size:12.5px;
 }
-.ai-fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 12px 32px rgba(99,102,241,0.5),0 2px 8px rgba(0,0,0,0.25);}
-.ai-modal-backdrop{
-  position:fixed;inset:0;background:rgba(5,8,16,0.78);z-index:9500;
-  display:flex;align-items:center;justify-content:center;padding:20px;
-  backdrop-filter:blur(4px);overflow-y:auto;
+.ap-card-row:hover{border-color:var(--ap-border-2);}
+
+/* === List View === */
+.ap-list-group{margin-bottom:18px;}
+.ap-list-group-hdr{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;
+  font-size:12.5px;font-weight:600;color:var(--ap-text);
+  cursor:pointer;border-radius:5px;
 }
-.ai-modal{
-  background:#10162a;border:1px solid rgba(255,255,255,0.08);
-  border-radius:14px;padding:24px;width:100%;max-width:520px;
-  box-shadow:0 24px 80px rgba(0,0,0,0.6);color:#e4e7ef;
+.ap-list-group-hdr:hover{background:rgba(255,255,255,0.03);}
+.ap-list-group-arrow{font-size:9px;color:var(--ap-text-mute);transition:transform 0.15s;display:inline-block;}
+.ap-list-group-arrow.open{transform:rotate(90deg);}
+.ap-list-group-count{font-size:10px;color:var(--ap-text-mute);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:8px;font-family:'DM Mono',monospace;}
+.ap-list-group-actions{margin-left:auto;display:flex;gap:4px;}
+
+.ap-row{
+  display:grid;grid-template-columns:auto 64px 1fr auto auto auto auto;
+  gap:12px;align-items:center;
+  padding:8px 12px;border-radius:5px;
+  font-size:13px;color:var(--ap-text);cursor:pointer;
+  border-bottom:1px solid rgba(255,255,255,0.025);
 }
-.ai-modal h3{font-size:16px;font-weight:600;color:#fff;margin-bottom:16px;letter-spacing:-0.01em;}
-.ai-field{margin-bottom:14px;}
-.ai-field label{display:block;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#7c849a;margin-bottom:5px;}
-.ai-input,.ai-select,.ai-textarea{
-  width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
-  color:#f3f4f6;padding:9px 12px;border-radius:6px;font-family:inherit;font-size:13px;outline:none;
-  transition:border-color 0.12s,background 0.12s;
+.ap-row:hover{background:rgba(255,255,255,0.03);}
+.ap-row.selected{background:rgba(124,92,255,0.10);}
+.ap-row.subtask{padding-left:42px;background:rgba(255,255,255,0.012);}
+.ap-row.subtask .ap-row-title{font-size:12.5px;color:var(--ap-text-dim);}
+.ap-row-title{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ap-row-title.done{color:var(--ap-text-mute);text-decoration:line-through;}
+.ap-row-id{font-family:'DM Mono',monospace;font-size:11px;color:var(--ap-text-mute);}
+.ap-row-due{font-size:11px;color:var(--ap-text-mute);white-space:nowrap;font-family:'DM Mono',monospace;}
+.ap-row-due.overdue{color:#f87171;}
+.ap-row-due.soon{color:#fbbf24;}
+.ap-row-mile{
+  font-size:10px;color:#a78bfa;background:rgba(167,139,250,0.1);
+  padding:2px 7px;border-radius:4px;white-space:nowrap;
 }
-.ai-input:focus,.ai-select:focus,.ai-textarea:focus{border-color:#6366f1;background:rgba(99,102,241,0.06);}
-.ai-select option,.ai-filter option{background:#10162a;color:#f3f4f6;}
-.ai-select optgroup{background:#10162a;color:#a5b4fc;}
-.ai-textarea{resize:vertical;min-height:70px;line-height:1.5;}
-.ai-rating{display:flex;gap:4px;}
-.ai-rating-btn{
-  flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
-  color:#9ca3af;font-family:inherit;font-size:13px;font-weight:600;padding:8px 0;
+.ap-row-pct{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ap-text-mute);font-family:'DM Mono',monospace;}
+.ap-row-pct-bar{width:36px;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;}
+.ap-row-pct-bar-fill{height:100%;background:var(--ap-accent);}
+
+.ap-add-task-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 12px;border-radius:5px;cursor:pointer;
+  font-size:12px;color:var(--ap-text-mute);margin-top:4px;
+}
+.ap-add-task-row:hover{color:var(--ap-accent-2);background:rgba(255,255,255,0.03);}
+.ap-add-task-input{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 12px;border-radius:5px;
+  background:rgba(124,92,255,0.06);border:1px solid rgba(124,92,255,0.3);
+  margin-top:4px;
+}
+.ap-add-task-input input{
+  flex:1;background:transparent;border:none;color:var(--ap-text);
+  font-family:inherit;font-size:13px;outline:none;
+}
+.ap-add-task-input input::placeholder{color:var(--ap-text-mute);}
+
+/* === Board (Kanban) === */
+.ap-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;height:calc(100vh - 280px);min-height:400px;}
+.ap-col{
+  flex:0 0 280px;background:var(--ap-bg-2);
+  border:1px solid var(--ap-border);border-radius:8px;
+  display:flex;flex-direction:column;
+}
+.ap-col-hdr{
+  padding:10px 12px;font-size:12px;font-weight:600;
+  display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--ap-border);
+}
+.ap-col-count{font-size:10px;color:var(--ap-text-mute);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:8px;margin-left:auto;font-family:'DM Mono',monospace;}
+.ap-col-body{padding:8px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;}
+.ap-card{
+  background:var(--ap-surface);border:1px solid var(--ap-border);
+  border-radius:6px;padding:9px 11px;cursor:pointer;
+  transition:border-color 0.1s,transform 0.1s;
+}
+.ap-card:hover{border-color:var(--ap-border-2);transform:translateY(-1px);}
+.ap-card.dragging{opacity:0.4;}
+.ap-card-hdr{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.ap-card-id{font-family:'DM Mono',monospace;font-size:10px;color:var(--ap-text-mute);}
+.ap-card-title{font-size:12.5px;color:var(--ap-text);line-height:1.4;margin-bottom:7px;}
+.ap-card-foot{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--ap-text-mute);}
+.ap-col-add{
+  margin:6px 8px 8px;padding:6px;border:1px dashed rgba(255,255,255,0.1);
+  border-radius:5px;font-size:11px;color:var(--ap-text-mute);text-align:center;cursor:pointer;
+}
+.ap-col-add:hover{border-color:var(--ap-accent);color:var(--ap-accent-2);}
+
+/* === Gantt === */
+.ap-gantt{position:relative;background:var(--ap-surface);border:1px solid var(--ap-border);border-radius:8px;overflow:auto;max-height:calc(100vh - 250px);}
+.ap-gantt-hdr{display:flex;height:32px;border-bottom:1px solid var(--ap-border);background:var(--ap-bg-2);position:sticky;top:0;z-index:2;}
+.ap-gantt-hdr-spacer{width:240px;flex-shrink:0;border-right:1px solid var(--ap-border);padding:8px 12px;font-size:11px;color:var(--ap-text-mute);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;display:flex;align-items:center;}
+.ap-gantt-hdr-track{flex:1;display:flex;font-size:10px;color:var(--ap-text-mute);position:relative;}
+.ap-gantt-hdr-cell{flex-shrink:0;padding:8px 4px;border-right:1px solid rgba(255,255,255,0.04);text-align:center;display:flex;flex-direction:column;justify-content:center;}
+.ap-gantt-hdr-cell.weekend{background:rgba(255,255,255,0.015);}
+.ap-gantt-hdr-cell .gw{font-weight:600;color:var(--ap-text-dim);}
+.ap-gantt-row{display:flex;border-bottom:1px solid rgba(255,255,255,0.03);height:36px;align-items:center;position:relative;}
+.ap-gantt-row:hover{background:rgba(255,255,255,0.015);}
+.ap-gantt-label{
+  width:240px;flex-shrink:0;padding:0 12px;
+  background:var(--ap-bg-2);border-right:1px solid var(--ap-border);height:100%;
+  display:flex;align-items:center;font-size:12px;color:var(--ap-text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;gap:8px;
+}
+.ap-gantt-label:hover{background:var(--ap-surface);}
+.ap-gantt-track{flex:1;position:relative;height:100%;}
+.ap-gantt-bar{
+  position:absolute;top:8px;height:20px;border-radius:4px;
+  display:flex;align-items:center;padding:0 8px;font-size:10px;color:#fff;
+  cursor:pointer;font-weight:500;overflow:hidden;background:var(--ap-accent);
+  transition:filter 0.1s;
+}
+.ap-gantt-bar:hover{filter:brightness(1.2);}
+.ap-gantt-bar.done{background:#10b981;}
+.ap-gantt-bar.inprogress{background:#3b82f6;}
+.ap-gantt-bar.todo{background:#f59e0b;}
+.ap-gantt-bar.backlog{background:#6b7280;}
+.ap-gantt-bar.cancelled{background:#6b7280;text-decoration:line-through;opacity:0.6;}
+.ap-gantt-bar.inreview{background:#a855f7;}
+.ap-gantt-mile{
+  position:absolute;top:8px;width:20px;height:20px;background:#a78bfa;
+  transform:rotate(45deg);border:2px solid var(--ap-bg);cursor:pointer;
+  margin-left:-10px;
+}
+.ap-gantt-mile:hover{filter:brightness(1.3);}
+.ap-gantt-today{position:absolute;top:0;width:1.5px;background:#ef4444;opacity:0.8;pointer-events:none;z-index:1;}
+.ap-gantt-svg{position:absolute;top:32px;left:240px;pointer-events:none;z-index:1;}
+.ap-gantt-line{stroke:#a78bfa;stroke-width:1.5;fill:none;opacity:0.7;}
+.ap-gantt-empty{padding:60px 20px;text-align:center;color:var(--ap-text-mute);font-size:13px;}
+.ap-gantt-zoom{display:flex;gap:4px;margin-bottom:12px;}
+.ap-gantt-zoom button{
+  background:rgba(255,255,255,0.04);border:1px solid var(--ap-border);
+  color:var(--ap-text-dim);font-family:inherit;font-size:11px;padding:5px 12px;
   border-radius:5px;cursor:pointer;
 }
-.ai-rating-btn:hover{color:#fff;border-color:rgba(255,255,255,0.18);}
-.ai-rating-btn.active{background:rgba(99,102,241,0.22);color:#c7d2fe;border-color:#6366f1;}
-.ai-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.ai-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;align-items:center;}
-.ai-btn{font-family:inherit;font-size:13px;font-weight:600;padding:9px 18px;border:none;border-radius:6px;cursor:pointer;}
-.ai-btn-primary{background:#6366f1;color:#fff;}
-.ai-btn-primary:hover{background:#5048e5;}
-.ai-btn-ghost{background:transparent;color:#9ca3af;border:1px solid rgba(255,255,255,0.1);}
-.ai-btn-ghost:hover{color:#fff;border-color:rgba(255,255,255,0.2);}
-.ai-btn-danger{background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,0.3);}
-.ai-btn-danger:hover{background:rgba(239,68,68,0.12);color:#fff;}
-.ai-cat-create-inline{
-  background:rgba(99,102,241,0.08);border:1px dashed rgba(99,102,241,0.35);
-  border-radius:6px;padding:10px;margin-top:6px;
+.ap-gantt-zoom button:hover{color:var(--ap-text);}
+.ap-gantt-zoom button.active{background:var(--ap-accent-soft);color:var(--ap-accent-2);border-color:rgba(124,92,255,0.4);}
+
+/* === Milestones === */
+.ap-mile{
+  background:var(--ap-surface);border:1px solid var(--ap-border);
+  border-radius:8px;padding:14px 16px;margin-bottom:8px;cursor:pointer;
+  transition:border-color 0.1s;
 }
-.ai-pin-wrap{
-  min-height:calc(100vh - 78px);background:#0a0e1a;
+.ap-mile:hover{border-color:var(--ap-border-2);}
+.ap-mile-hdr{display:flex;align-items:center;gap:10px;}
+.ap-mile-icon{
+  width:18px;height:18px;background:#a78bfa;transform:rotate(45deg);
+  flex-shrink:0;border:2px solid var(--ap-bg);
+}
+.ap-mile-name{font-size:14px;font-weight:600;color:var(--ap-text);flex:1;}
+.ap-mile-due{font-size:11px;color:var(--ap-text-dim);font-family:'DM Mono',monospace;}
+.ap-mile-due.overdue{color:#f87171;}
+.ap-mile-progress{margin-top:10px;display:flex;align-items:center;gap:10px;}
+.ap-mile-progress-bar{flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;}
+.ap-mile-progress-fill{height:100%;background:linear-gradient(90deg,#a78bfa,#7c5cff);}
+.ap-mile-progress-pct{font-family:'DM Mono',monospace;font-size:11px;color:var(--ap-text-dim);min-width:40px;text-align:right;}
+
+/* === Detail panel (slide-in from right) === */
+.ap-detail-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9400;
+  opacity:0;pointer-events:none;transition:opacity 0.15s;
+}
+.ap-detail-overlay.open{opacity:1;pointer-events:auto;}
+.ap-detail{
+  position:fixed;top:0;right:-580px;width:580px;height:100vh;
+  background:var(--ap-bg-2);border-left:1px solid var(--ap-border);
+  box-shadow:-12px 0 40px rgba(0,0,0,0.5);
+  z-index:9401;display:flex;flex-direction:column;
+  transition:right 0.22s ease;
+  color:var(--ap-text);font-family:'Inter','DM Sans',sans-serif;font-size:13px;
+  caret-color:transparent;
+}
+.ap-detail.open{right:0;}
+.ap-detail input,.ap-detail textarea,.ap-detail select{caret-color:auto;user-select:text;}
+.ap-detail-hdr{
+  padding:14px 18px;border-bottom:1px solid var(--ap-border);
+  display:flex;align-items:center;gap:10px;
+}
+.ap-detail-id{font-family:'DM Mono',monospace;font-size:11px;color:var(--ap-text-mute);background:rgba(255,255,255,0.04);padding:2px 7px;border-radius:4px;}
+.ap-detail-actions{margin-left:auto;display:flex;gap:5px;}
+.ap-icon-btn{
+  background:transparent;border:1px solid transparent;color:var(--ap-text-mute);
+  width:26px;height:26px;border-radius:5px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-family:inherit;
+}
+.ap-icon-btn:hover{background:rgba(255,255,255,0.05);color:var(--ap-text);border-color:var(--ap-border);}
+.ap-icon-btn.danger:hover{color:#f87171;border-color:rgba(248,113,113,0.3);background:rgba(248,113,113,0.08);}
+
+.ap-detail-body{flex:1;overflow-y:auto;padding:18px 22px 28px;}
+.ap-detail-title{
+  font-size:20px;font-weight:600;color:#fff;letter-spacing:-0.015em;
+  background:transparent;border:none;outline:none;width:100%;
+  font-family:inherit;padding:4px 0;line-height:1.3;
+}
+.ap-detail-meta{display:grid;grid-template-columns:120px 1fr;gap:10px 14px;margin-top:18px;align-items:center;}
+.ap-detail-meta-label{font-size:11px;color:var(--ap-text-mute);font-weight:600;letter-spacing:0.04em;text-transform:uppercase;}
+.ap-detail-meta-val select,.ap-detail-meta-val input{
+  background:rgba(255,255,255,0.04);border:1px solid var(--ap-border);
+  color:var(--ap-text);font-family:inherit;font-size:12px;padding:5px 8px;border-radius:5px;outline:none;width:auto;min-width:120px;
+}
+.ap-detail-meta-val select option{background:var(--ap-bg-2);color:var(--ap-text);}
+.ap-detail-meta-val input[type="range"]{width:100%;min-width:200px;}
+.ap-detail-meta-val input[type="number"]{width:80px;min-width:0;}
+
+.ap-detail-section{margin-top:24px;}
+.ap-detail-section-hdr{
+  font-size:11px;font-weight:600;color:var(--ap-text-mute);
+  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ap-detail-desc{
+  background:rgba(255,255,255,0.02);border:1px solid var(--ap-border);
+  border-radius:6px;padding:10px 12px;color:var(--ap-text);font-size:13px;
+  min-height:80px;line-height:1.55;outline:none;font-family:inherit;width:100%;resize:vertical;
+}
+.ap-detail-desc:focus{border-color:var(--ap-accent);}
+
+.ap-sub-row{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;font-size:12.5px;cursor:pointer;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.ap-sub-row:hover{background:rgba(255,255,255,0.03);}
+.ap-sub-row .ap-sub-title.done{color:var(--ap-text-mute);text-decoration:line-through;}
+.ap-sub-add{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;
+  font-size:12px;color:var(--ap-text-mute);cursor:pointer;border-radius:5px;
+}
+.ap-sub-add:hover{color:var(--ap-accent-2);background:rgba(255,255,255,0.03);}
+
+.ap-dep-row{
+  display:flex;align-items:center;gap:8px;padding:5px 9px;border-radius:5px;
+  font-size:12px;color:var(--ap-text-dim);background:rgba(255,255,255,0.02);
+  margin-bottom:4px;border:1px solid var(--ap-border);
+}
+.ap-dep-row .ap-icon-btn{margin-left:auto;width:20px;height:20px;font-size:11px;}
+
+/* === Quick Add Modal === */
+.ap-modal-bd{
+  position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;
+  display:flex;align-items:flex-start;justify-content:center;padding:80px 20px 20px;
+  backdrop-filter:blur(6px);
+}
+.ap-modal{
+  background:var(--ap-bg-2);border:1px solid var(--ap-border);
+  border-radius:12px;width:100%;max-width:560px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.7);overflow:hidden;
+  font-family:'Inter','DM Sans',sans-serif;color:var(--ap-text);
+}
+.ap-modal input,.ap-modal textarea,.ap-modal select{caret-color:auto;}
+.ap-modal-hdr{padding:13px 18px;border-bottom:1px solid var(--ap-border);font-size:12px;color:var(--ap-text-mute);display:flex;align-items:center;gap:8px;}
+.ap-modal-body{padding:18px;}
+.ap-modal-title-input{
+  background:transparent;border:none;outline:none;width:100%;
+  color:#fff;font-family:inherit;font-size:18px;font-weight:500;padding:0 0 12px;
+}
+.ap-modal-desc{
+  background:transparent;border:none;outline:none;width:100%;
+  color:var(--ap-text-dim);font-family:inherit;font-size:13px;line-height:1.55;
+  resize:none;min-height:50px;padding:0;
+}
+.ap-modal-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--ap-border);}
+.ap-meta-chip{
+  background:rgba(255,255,255,0.04);border:1px solid var(--ap-border);
+  color:var(--ap-text-dim);font-family:inherit;font-size:11px;
+  padding:5px 10px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+}
+.ap-meta-chip:hover{background:rgba(255,255,255,0.07);color:var(--ap-text);}
+.ap-meta-chip.set{background:var(--ap-accent-soft);border-color:rgba(124,92,255,0.4);color:var(--ap-accent-2);}
+.ap-meta-chip select,.ap-meta-chip input{background:transparent;border:none;outline:none;color:inherit;font-family:inherit;font-size:11px;}
+.ap-meta-chip select option{background:var(--ap-bg-2);color:var(--ap-text);}
+.ap-modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--ap-border);background:var(--ap-bg);}
+.ap-btn{
+  font-family:inherit;font-size:12px;font-weight:500;
+  padding:7px 14px;border-radius:5px;cursor:pointer;border:1px solid transparent;
+}
+.ap-btn-primary{background:var(--ap-accent);color:#fff;}
+.ap-btn-primary:hover{background:#6d4ef0;}
+.ap-btn-ghost{background:transparent;color:var(--ap-text-dim);border-color:var(--ap-border);}
+.ap-btn-ghost:hover{color:var(--ap-text);border-color:var(--ap-border-2);}
+
+/* === Command Palette === */
+.ap-cmd-bd{
+  position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9700;
+  display:flex;align-items:flex-start;justify-content:center;padding:14vh 20px 20px;
+  backdrop-filter:blur(8px);
+}
+.ap-cmd{
+  background:var(--ap-bg-2);border:1px solid var(--ap-border-2);
+  border-radius:12px;width:100%;max-width:580px;
+  box-shadow:0 30px 80px rgba(0,0,0,0.8);overflow:hidden;
+}
+.ap-cmd-input-wrap{padding:14px 18px;border-bottom:1px solid var(--ap-border);}
+.ap-cmd-input{
+  width:100%;background:transparent;border:none;outline:none;
+  color:#fff;font-family:'Inter','DM Sans',sans-serif;font-size:15px;caret-color:#fff;
+}
+.ap-cmd-list{max-height:50vh;overflow-y:auto;padding:6px;}
+.ap-cmd-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;border-radius:6px;cursor:pointer;
+  font-size:13px;color:var(--ap-text-dim);
+}
+.ap-cmd-item.selected{background:var(--ap-accent-soft);color:var(--ap-text);}
+.ap-cmd-item .ap-cmd-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0;}
+.ap-cmd-item .ap-cmd-kind{font-size:10px;color:var(--ap-text-mute);margin-left:auto;letter-spacing:0.05em;text-transform:uppercase;font-weight:600;}
+.ap-cmd-empty{padding:24px;text-align:center;color:var(--ap-text-mute);font-size:12px;}
+
+/* === Floating Quick Add === */
+.ap-fab{
+  position:fixed;bottom:24px;right:24px;z-index:9000;
+  background:linear-gradient(135deg,var(--ap-accent),#a78bfa);
+  color:#fff;border:none;
+  padding:11px 18px 11px 14px;border-radius:999px;
+  font-family:'Inter','DM Sans',sans-serif;font-size:13px;font-weight:500;
+  cursor:pointer;display:flex;align-items:center;gap:8px;
+  box-shadow:0 12px 32px rgba(124,92,255,0.4),0 4px 12px rgba(0,0,0,0.3);
+  transition:transform 0.15s,box-shadow 0.15s;
+}
+.ap-fab:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(124,92,255,0.5);}
+.ap-fab kbd{
+  background:rgba(255,255,255,0.18);font-family:'DM Mono',monospace;
+  font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;color:#fff;
+}
+
+/* === PIN gate === */
+.ap-pin-wrap{
+  min-height:calc(100vh - 78px);background:var(--ap-bg);
   display:flex;align-items:center;justify-content:center;
+  font-family:'Inter','DM Sans',sans-serif;
 }
-.ai-pin-box{
-  background:#10162a;border:1px solid rgba(255,255,255,0.08);
+.ap-pin-box{
+  background:var(--ap-bg-2);border:1px solid var(--ap-border);
   padding:36px 32px;border-radius:14px;width:340px;text-align:center;
   box-shadow:0 24px 80px rgba(0,0,0,0.6);
 }
-.ai-pin-title{color:#fff;font-size:15px;font-weight:600;margin-bottom:18px;letter-spacing:-0.01em;}
-.ai-pin-input{
-  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#fff;
+.ap-pin-title{color:#fff;font-size:14px;font-weight:500;margin-bottom:18px;letter-spacing:-0.01em;}
+.ap-pin-input{
+  background:rgba(255,255,255,0.04);border:1px solid var(--ap-border);color:#fff;
   padding:12px;border-radius:8px;font-family:'DM Mono',monospace;font-size:18px;
-  text-align:center;letter-spacing:8px;width:160px;outline:none;
+  text-align:center;letter-spacing:8px;width:160px;outline:none;caret-color:#fff;
 }
-.ai-pin-input:focus{border-color:#6366f1;}
-.ai-pin-err{color:#fca5a5;font-size:12px;margin-top:10px;display:none;}
+.ap-pin-input:focus{border-color:var(--ap-accent);}
+.ap-pin-err{color:#f87171;font-size:12px;margin-top:10px;display:none;}
+
+/* === Tab nav badge === */
 .ai-tab-badge{
-  display:inline-block;background:#6366f1;color:#fff;
+  display:inline-block;background:#7c5cff;color:#fff;
   font-size:9px;font-weight:700;padding:2px 6px;border-radius:9px;margin-left:5px;
   vertical-align:middle;line-height:1;min-width:14px;
 }
+
+.ap-empty{text-align:center;padding:80px 20px;color:var(--ap-text-mute);font-size:13px;}
+.ap-empty-icon{font-size:48px;opacity:0.18;margin-bottom:14px;}
+
 </style>
 </head>
 <body>
@@ -2326,7 +2615,7 @@ function switchTab(name,btn){
   if(name==='xfer')   renderXfer();
   if(name==='files')  renderFiles();
   if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
-  if(name==='action') { if(!actionUnlocked){actionPinPrompt();return;} actionInit(); }
+  if(name==='action') { if(!apUnlocked){apPinPrompt();return;} apInit(); }
   if(name==='import') renderImport();
 }
 
@@ -7945,150 +8234,232 @@ if(_saved && _saved !== '1'){
   }catch(e){ sessionStorage.removeItem('helm_auth'); }
 }
 
-// ── ACTION ITEMS (David only — PIN gated, reuses CMD_PIN '1144') ─────
-// Phase 1: Categories (3-layer hierarchy) + List view + Quick Add + status workflow.
-// Phase 2 will add the Whiteboard view; Phase 3 the Project/Timeline views.
+// ─────────────────────────────────────────────────────────────────────────
+// ACTION ITEMS — Premium Project Management (David only, PIN 1144)
+// Inspired by Linear (speed, command-K, slide-in detail), Notion (multi-view,
+// fluid editing) and Zoho Projects (Projects → Tasklists → Tasks ladder +
+// Milestones + Gantt). Single-user — no assignees / comments / mentions.
 //
-// Required Supabase tables (run once):
-//   create table if not exists helm_action_categories(
-//     id bigserial primary key, name text not null,
-//     parent_id bigint references helm_action_categories(id) on delete cascade,
-//     color text, x numeric default 0, y numeric default 0,
-//     sort_order int default 0, archived boolean default false,
-//     created_at timestamptz default now()
-//   );
-//   create table if not exists helm_action_items(
-//     id bigserial primary key, title text not null, body text,
-//     category_id bigint references helm_action_categories(id) on delete set null,
-//     parent_item_id bigint references helm_action_items(id) on delete set null,
-//     difficulty smallint default 3, urgency smallint default 3,
-//     status text default 'Inbox', blocked_reason text, due_date date,
-//     x numeric default 0, y numeric default 0,
-//     last_worked_at timestamptz, completed_at timestamptz,
-//     archived boolean default false,
-//     created_at timestamptz default now(), updated_at timestamptz default now()
-//   );
-//   create table if not exists helm_action_links(
-//     id bigserial primary key,
-//     from_item_id bigint not null references helm_action_items(id) on delete cascade,
-//     to_item_id bigint not null references helm_action_items(id) on delete cascade,
-//     link_type text default 'related', label text,
-//     created_at timestamptz default now()
-//   );
-//   alter table helm_action_categories enable row level security;
-//   alter table helm_action_items enable row level security;
-//   alter table helm_action_links enable row level security;
-//   create policy "helm_action_categories_all" on helm_action_categories for all using(true) with check(true);
-//   create policy "helm_action_items_all" on helm_action_items for all using(true) with check(true);
-//   create policy "helm_action_links_all" on helm_action_links for all using(true) with check(true);
+// REQUIRED SUPABASE TABLES (run once):
+//
+// drop table if exists helm_action_links cascade;
+// drop table if exists helm_action_items cascade;
+// drop table if exists helm_action_categories cascade;
+//
+// create table if not exists helm_action_projects(
+//   id bigserial primary key, identifier text unique, name text not null,
+//   description text, emoji text default '📁', color text default '#7c5cff',
+//   status text default 'Active', start_date date, due_date date,
+//   archived boolean default false, sort_order int default 0,
+//   created_at timestamptz default now(), updated_at timestamptz default now()
+// );
+// create table if not exists helm_action_tasklists(
+//   id bigserial primary key,
+//   project_id bigint not null references helm_action_projects(id) on delete cascade,
+//   name text not null, sort_order int default 0,
+//   archived boolean default false, created_at timestamptz default now()
+// );
+// create table if not exists helm_action_milestones(
+//   id bigserial primary key,
+//   project_id bigint not null references helm_action_projects(id) on delete cascade,
+//   name text not null, description text, due_date date, completed_at timestamptz,
+//   color text default '#a78bfa', sort_order int default 0,
+//   created_at timestamptz default now()
+// );
+// create table if not exists helm_action_tasks(
+//   id bigserial primary key,
+//   project_id bigint not null references helm_action_projects(id) on delete cascade,
+//   tasklist_id bigint references helm_action_tasklists(id) on delete set null,
+//   milestone_id bigint references helm_action_milestones(id) on delete set null,
+//   parent_task_id bigint references helm_action_tasks(id) on delete cascade,
+//   task_number int, title text not null, description text,
+//   status text default 'Backlog', priority smallint default 0,
+//   start_date date, due_date date, estimated_hours numeric,
+//   percent_complete smallint default 0, sort_order int default 0,
+//   archived boolean default false, completed_at timestamptz,
+//   created_at timestamptz default now(), updated_at timestamptz default now()
+// );
+// create table if not exists helm_action_dependencies(
+//   id bigserial primary key,
+//   task_id bigint not null references helm_action_tasks(id) on delete cascade,
+//   depends_on_task_id bigint not null references helm_action_tasks(id) on delete cascade,
+//   dep_type text default 'FS', created_at timestamptz default now(),
+//   unique(task_id, depends_on_task_id)
+// );
+// create table if not exists helm_action_activity(
+//   id bigserial primary key,
+//   project_id bigint references helm_action_projects(id) on delete cascade,
+//   task_id bigint references helm_action_tasks(id) on delete cascade,
+//   action text not null, detail jsonb, created_at timestamptz default now()
+// );
+// alter table helm_action_projects     enable row level security;
+// alter table helm_action_tasklists    enable row level security;
+// alter table helm_action_milestones   enable row level security;
+// alter table helm_action_tasks        enable row level security;
+// alter table helm_action_dependencies enable row level security;
+// alter table helm_action_activity     enable row level security;
+// create policy "ap_projects_all"     on helm_action_projects     for all using(true) with check(true);
+// create policy "ap_tasklists_all"    on helm_action_tasklists    for all using(true) with check(true);
+// create policy "ap_milestones_all"   on helm_action_milestones   for all using(true) with check(true);
+// create policy "ap_tasks_all"        on helm_action_tasks        for all using(true) with check(true);
+// create policy "ap_dependencies_all" on helm_action_dependencies for all using(true) with check(true);
+// create policy "ap_activity_all"     on helm_action_activity     for all using(true) with check(true);
 
-let actionUnlocked = false;
-let actionData = {categories:[], items:[]};
-let actionState = {view:'list', activeCategoryId:null, filterStatus:null, sortBy:'priority'};
-// Categories whose children are hidden in the sidebar tree. Empty set = all expanded.
-let actionCollapsed = new Set();
-// Inline-add cursor: undefined = no input shown, null = top-level, number = parent id
-let actionInlineAddParent;
-let actionInlineCommitting = false;
-const ACTION_PIN = '1144';
-const ACTION_STATUS_LIST = ['Inbox','Active','InProgress','Blocked','Done'];
-const ACTION_PALETTE = ['#6366f1','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#f43f5e','#84cc16','#3b82f6','#a855f7','#14b8a6','#fb923c','#ef4444','#22d3ee','#eab308'];
+let apUnlocked = false;
+let apShortcutsBound = false;
+let apData = {projects:[], tasklists:[], milestones:[], tasks:[], dependencies:[], activity:[]};
+let apView = {
+  current: 'my-tasks',
+  projectView: 'list',
+  projectId: null,
+  selectedTaskId: null,
+  inlineAddTasklistId: null,
+  collapsedTasklists: new Set(),
+  collapsedGroups: new Set(),
+  ganttZoom: 'week',
+  cmdQuery: '',
+  cmdSelected: 0,
+};
+const AP_PIN = '1144';
+const AP_STATUSES = [
+  {id:'Backlog',    label:'Backlog',     color:'#6b7280', glyph:'\u25CB'},
+  {id:'Todo',       label:'Todo',        color:'#f59e0b', glyph:'\u25D0'},
+  {id:'InProgress', label:'In Progress', color:'#3b82f6', glyph:'\u25D1'},
+  {id:'InReview',   label:'In Review',   color:'#a855f7', glyph:'\u25D5'},
+  {id:'Done',       label:'Done',        color:'#10b981', glyph:'\u2714'},
+  {id:'Cancelled',  label:'Cancelled',   color:'#6b7280', glyph:'\u00D7'},
+];
+const AP_PRIORITIES = [
+  {id:0,label:'No priority',short:'\u2014'},
+  {id:1,label:'Low',short:'L'},
+  {id:2,label:'Medium',short:'M'},
+  {id:3,label:'High',short:'H'},
+  {id:4,label:'Urgent',short:'U'},
+];
+const AP_PROJECT_EMOJIS = ['🚀','💼','🎯','📊','🏗️','💡','📈','🔧','⚡','🎨','📚','🌟','🔥','💎','🛠️','📝','🧭','🪐','✈️','🎁'];
+const AP_PROJECT_COLORS = ['#7c5cff','#ec4899','#10b981','#f59e0b','#3b82f6','#06b6d4','#a855f7','#22c55e','#f43f5e','#fb923c'];
 
-function actionColorFor(category){
-  if(category && category.color) return category.color;
-  const id = category ? category.id : 0;
-  return ACTION_PALETTE[Math.abs(id) % ACTION_PALETTE.length];
-}
-
-function actionPinPrompt(){
-  const tab = document.getElementById('tab-action');
-  tab.innerHTML = `
-    <div class="ai-pin-wrap">
-      <div class="ai-pin-box">
-        <div class="ai-pin-title">Enter PIN to access Action Items</div>
-        <input type="password" id="aiPinInput" maxlength="10" class="ai-pin-input"
-          onkeydown="if(event.key==='Enter')actionCheckPin()">
+// ── PIN gate ──
+function apPinPrompt(){
+  document.getElementById('tab-action').innerHTML = `
+    <div class="ap-pin-wrap">
+      <div class="ap-pin-box">
+        <div class="ap-pin-title">Enter PIN to access Action Items</div>
+        <input type="password" id="apPinInput" maxlength="10" class="ap-pin-input"
+          onkeydown="if(event.key==='Enter')apCheckPin()">
         <div style="margin-top:14px;">
-          <button class="ai-btn ai-btn-primary" onclick="actionCheckPin()" style="width:100%;">Unlock</button>
+          <button class="ap-btn ap-btn-primary" onclick="apCheckPin()" style="width:100%;">Unlock</button>
         </div>
-        <div id="aiPinErr" class="ai-pin-err">Incorrect PIN</div>
+        <div id="apPinErr" class="ap-pin-err">Incorrect PIN</div>
       </div>
     </div>`;
-  setTimeout(()=>{const el=document.getElementById('aiPinInput');if(el)el.focus();},80);
+  setTimeout(()=>{const el=document.getElementById('apPinInput');if(el)el.focus();},80);
 }
-function actionCheckPin(){
-  const v = document.getElementById('aiPinInput').value;
-  if(v === ACTION_PIN){
-    actionUnlocked = true;
-    actionInit();
-  } else {
-    document.getElementById('aiPinErr').style.display='block';
-    document.getElementById('aiPinInput').value='';
-    document.getElementById('aiPinInput').focus();
+function apCheckPin(){
+  const v = document.getElementById('apPinInput').value;
+  if(v === AP_PIN){ apUnlocked = true; apInit(); }
+  else {
+    document.getElementById('apPinErr').style.display='block';
+    document.getElementById('apPinInput').value='';
+    document.getElementById('apPinInput').focus();
   }
 }
 
-async function actionInit(){
-  await actionLoadAll();
-  actionRender();
-  actionUpdateBadge();
+// ── Init / load ──
+async function apInit(){
+  await apLoadAll();
+  apMountShortcuts();
+  apRender();
+  apUpdateBadge();
+}
+async function apLoadAll(){
+  try{
+    const [proj, tl, ms, tasks, deps, act] = await Promise.all([
+      db.from('helm_action_projects').select('*').eq('archived',false).order('sort_order'),
+      db.from('helm_action_tasklists').select('*').eq('archived',false).order('sort_order'),
+      db.from('helm_action_milestones').select('*').order('sort_order'),
+      db.from('helm_action_tasks').select('*').eq('archived',false).order('sort_order'),
+      db.from('helm_action_dependencies').select('*'),
+      db.from('helm_action_activity').select('*').order('created_at',{ascending:false}).limit(60),
+    ]);
+    if(proj.error){ console.error('AP projects:',proj.error); toast('Projects: '+proj.error.message); }
+    apData.projects = proj.data || [];
+    apData.tasklists = tl.data || [];
+    apData.milestones = ms.data || [];
+    apData.tasks = tasks.data || [];
+    apData.dependencies = deps.data || [];
+    apData.activity = act.data || [];
+  }catch(err){ console.error('AP load:',err); toast('Load failed: '+err.message); }
 }
 
-async function actionLoadAll(){
-  const [catsRes, itemsRes] = await Promise.all([
-    db.from('helm_action_categories').select('*').eq('archived',false).order('sort_order'),
-    db.from('helm_action_items').select('*').eq('archived',false).order('updated_at',{ascending:false}),
-  ]);
-  if(catsRes.error){console.error('AI categories load:',catsRes.error); toast('Categories: '+catsRes.error.message); actionData.categories=[];}
-  else actionData.categories = catsRes.data || [];
-  if(itemsRes.error){console.error('AI items load:',itemsRes.error); toast('Items: '+itemsRes.error.message); actionData.items=[];}
-  else actionData.items = itemsRes.data || [];
+// ── Helpers ──
+function apById(arr,id){ return arr.find(x=>x.id===id); }
+function apProject(id){ return apById(apData.projects, id); }
+function apTask(id){ return apById(apData.tasks, id); }
+function apTasklist(id){ return apById(apData.tasklists, id); }
+function apMilestone(id){ return apById(apData.milestones, id); }
+function apTasksByProject(pid){ return apData.tasks.filter(t=>t.project_id===pid); }
+function apTopTasks(filter){
+  return apData.tasks.filter(t=>!t.parent_task_id && (filter ? filter(t) : true));
 }
-
-function actionAgeDays(item){
-  const ts = item.last_worked_at || item.updated_at || item.created_at;
-  if(!ts) return 0;
-  return Math.floor((Date.now() - new Date(ts).getTime()) / 86400000);
+function apSubtasks(parentId){ return apData.tasks.filter(t=>t.parent_task_id===parentId); }
+function apProjectProgress(pid){
+  const tasks = apTopTasks(t=>t.project_id===pid);
+  if(!tasks.length) return 0;
+  const sum = tasks.reduce((s,t)=>s+(t.status==='Done'?100:(t.percent_complete||0)),0);
+  return Math.round(sum / tasks.length);
 }
-function actionPriorityScore(item){
-  // urgency weighted slightly higher than difficulty
-  const u = parseInt(item.urgency)||3;
-  const d = parseInt(item.difficulty)||3;
-  return Math.round(((u*1.2 + d*0.8) / 12) * 10);
+function apMilestoneProgress(mid){
+  const tasks = apData.tasks.filter(t=>t.milestone_id===mid && !t.parent_task_id);
+  if(!tasks.length) return 0;
+  const done = tasks.filter(t=>t.status==='Done').length;
+  return Math.round((done / tasks.length)*100);
 }
-function actionStaleClass(item){
-  if(item.status === 'Done') return '';
-  const age = actionAgeDays(item);
-  if(age >= 21) return 'danger';
-  if(age >= 10) return 'warn';
+function apFmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d+'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Math.round((dt-today)/86400000);
+  if(days===0) return 'Today';
+  if(days===1) return 'Tomorrow';
+  if(days===-1) return 'Yesterday';
+  if(days>1 && days<7) return dt.toLocaleDateString('en-US',{weekday:'short'});
+  if(days<-1 && days>-7) return Math.abs(days)+'d ago';
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function apDueClass(d, status){
+  if(!d || status==='Done' || status==='Cancelled') return '';
+  const dt = new Date(d+'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Math.round((dt-today)/86400000);
+  if(days < 0) return 'overdue';
+  if(days <= 2) return 'soon';
   return '';
 }
-function actionStaleFlag(item){ return actionAgeDays(item) >= 14 && item.status !== 'Done'; }
-function actionAgeLabel(item){
-  const days = actionAgeDays(item);
-  if(days === 0) return 'today';
-  if(days === 1) return '1d';
-  if(days < 14) return days+'d';
-  if(days < 60) return Math.round(days/7)+'w';
-  return Math.round(days/30)+'mo';
+function apStatusObj(s){ return AP_STATUSES.find(x=>x.id===s) || AP_STATUSES[0]; }
+function apPriorityObj(p){ return AP_PRIORITIES.find(x=>x.id===p) || AP_PRIORITIES[0]; }
+function apPriorityColor(p){ return ['#6b7280','#22d3ee','#f59e0b','#fb923c','#ef4444'][p]||'#6b7280'; }
+function apTaskFullId(t){
+  const proj = apProject(t.project_id);
+  if(!proj || !proj.identifier) return '#'+t.id;
+  return (proj.identifier||'?')+'-'+(t.task_number||t.id);
 }
-
-function actionDigest(){
-  const items = actionData.items;
-  return {
-    inbox: items.filter(i=>i.status==='Inbox').length,
-    active: items.filter(i=>i.status==='Active').length,
-    inProg: items.filter(i=>i.status==='InProgress').length,
-    blocked: items.filter(i=>i.status==='Blocked' && actionAgeDays(i)>=14).length,
-    stale: items.filter(i=>actionStaleFlag(i)).length,
-  };
+function apOverdueCount(projectId){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tasks = projectId ? apTasksByProject(projectId) : apData.tasks;
+  return tasks.filter(t=>{
+    if(!t.due_date || t.status==='Done' || t.status==='Cancelled') return false;
+    return new Date(t.due_date+'T00:00:00') < today;
+  }).length;
 }
-
-function actionUpdateBadge(){
+function apOpenCount(projectId){
+  const tasks = projectId ? apTasksByProject(projectId) : apData.tasks;
+  return tasks.filter(t=>t.status!=='Done' && t.status!=='Cancelled' && !t.parent_task_id).length;
+}
+function apUpdateBadge(){
   const btn = document.getElementById('actionTabBtn');
   if(!btn) return;
-  const d = actionDigest();
-  const count = d.active + d.inProg;
+  const count = apData.tasks.filter(t=>!t.parent_task_id && (t.status==='InProgress' || t.status==='Todo')).length;
   const existing = btn.querySelector('.ai-tab-badge');
   if(existing) existing.remove();
   if(count > 0){
@@ -8099,573 +8470,1221 @@ function actionUpdateBadge(){
   }
 }
 
-function actionRender(){
-  const tab = document.getElementById('tab-action');
-  const d = actionDigest();
-  const lastTouched = actionData.items
-    .filter(i=>i.status!=='Done')
-    .sort((a,b)=>new Date(b.last_worked_at||b.updated_at||b.created_at)-new Date(a.last_worked_at||a.updated_at||a.created_at))[0];
-
-  const digestPills = [
-    `<span class="ai-digest-pill">${d.inbox} inbox</span>`,
-    `<span class="ai-digest-pill">${d.active} active</span>`,
-    `<span class="ai-digest-pill">${d.inProg} in progress</span>`,
-    d.blocked>0 ? `<span class="ai-digest-pill danger">${d.blocked} blocked &gt;14d</span>`:'',
-    d.stale>0 ? `<span class="ai-digest-pill warn">${d.stale} stale</span>`:'',
-    lastTouched ? `<span class="ai-digest-pill" title="Last touched">› ${esc(lastTouched.title.slice(0,40))}${lastTouched.title.length>40?'…':''}</span>`:'',
-  ].filter(Boolean).join('');
-
-  tab.innerHTML = `
-    <div class="ai-root">
-      <div class="ai-topbar">
-        <div class="ai-title">Action Items <span class="ai-title-accent">// command surface</span></div>
-        <div class="ai-digest">${digestPills}</div>
-        <div class="ai-views">
-          <button class="ai-view-btn ${actionState.view==='list'?'active':''}" onclick="actionSetView('list')">List</button>
-          <button class="ai-view-btn" disabled title="Phase 2">Whiteboard</button>
-          <button class="ai-view-btn" disabled title="Phase 3">Projects</button>
-        </div>
-      </div>
-      <div class="ai-main">
-        <div class="ai-sidebar" id="aiSidebar"></div>
-        <div class="ai-content" id="aiContent"></div>
-      </div>
-      <button class="ai-fab" onclick="actionOpenQuickAdd()" title="Quick Add">+</button>
-    </div>
-  `;
-  actionRenderSidebar();
-  actionRenderContent();
+// ── Status / priority renderers ──
+function apStatusChip(status, taskId){
+  const s = apStatusObj(status);
+  return `<span class="ap-status-chip" onclick="event.stopPropagation();apCycleStatus(${taskId})" title="${s.label} (click to cycle)">
+    <span class="ap-status-dot" style="background:${s.color}"></span>${s.label==='In Progress'?'In Prog':s.label}
+  </span>`;
+}
+function apPrioBars(p){
+  const color = apPriorityColor(p);
+  if(p===0) return `<span class="ap-prio-bars" style="color:${color};opacity:0.45;"><span class="ap-prio-bar"></span><span class="ap-prio-bar"></span><span class="ap-prio-bar"></span></span>`;
+  return `<span class="ap-prio-bars" style="color:${color};">
+    <span class="ap-prio-bar ${p>=1?'on':''}"></span>
+    <span class="ap-prio-bar ${p>=2?'on':''}"></span>
+    <span class="ap-prio-bar ${p>=3?'on':''}"></span>
+  </span>`;
 }
 
-function actionRenderSidebar(){
-  const sb = document.getElementById('aiSidebar');
-  if(!sb) return;
-  const cats = actionData.categories;
-  const items = actionData.items;
+// ── Render entry ──
+function apRender(){
+  const tab = document.getElementById('tab-action');
+  tab.innerHTML = `
+    <div class="ap-root">
+      <div class="ap-side" id="apSide"></div>
+      <div class="ap-main" id="apMain"></div>
+    </div>
+    <button class="ap-fab" onclick="apOpenQuickAdd()" title="Quick Add (C)">
+      <span style="font-size:16px;line-height:1;">+</span>
+      <span>New task</span>
+      <kbd>C</kbd>
+    </button>
+    <div class="ap-detail-overlay" id="apDetailOverlay" onclick="apCloseTask()"></div>
+    <div class="ap-detail" id="apDetail"></div>
+  `;
+  apRenderSidebar();
+  apRenderMain();
+}
 
-  function children(parentId){ return cats.filter(c=>c.parent_id===parentId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0) || (a.name||'').localeCompare(b.name||'')); }
-  function descendants(catId){
-    const out=[catId]; let added=true;
-    while(added){ added=false;
-      for(const c of cats) if(c.parent_id!==null && out.includes(c.parent_id) && !out.includes(c.id)){out.push(c.id); added=true;}
+function apRenderSidebar(){
+  const side = document.getElementById('apSide');
+  const v = apView;
+  const cx = k => v.current===k ? 'active':'';
+  let projectsHTML = '';
+  for(const p of apData.projects){
+    const active = (v.current==='project' && v.projectId===p.id) ? 'active':'';
+    const cnt = apOpenCount(p.id);
+    projectsHTML += `
+      <div class="ap-side-row ${active}" onclick="apOpenProject(${p.id})">
+        <span class="ap-side-icon" style="background:${p.color}1a;border-radius:5px;">${esc(p.emoji||'📁')}</span>
+        <span class="ap-side-name">${esc(p.name)}</span>
+        ${cnt>0?`<span class="ap-side-count">${cnt}</span>`:''}
+      </div>`;
+  }
+  const inboxN = apData.tasks.filter(t=>t.status==='Backlog' && !t.parent_task_id).length;
+  const todayN = apData.tasks.filter(t=>{
+    if(!t.due_date || t.status==='Done' || t.status==='Cancelled' || t.parent_task_id) return false;
+    const today = new Date().toISOString().slice(0,10);
+    return t.due_date <= today;
+  }).length;
+  const myN = apOpenCount(null);
+
+  side.innerHTML = `
+    <div class="ap-side-hdr">
+      <span class="ap-side-hdr-mark">A</span>
+      <span style="flex:1;">Action Items</span>
+    </div>
+    <div class="ap-side-section">
+      <div class="ap-side-row ${cx('inbox')}" onclick="apSetView('inbox')">
+        <span class="ap-side-icon">\u{1F4E5}</span><span class="ap-side-name">Inbox</span>
+        ${inboxN>0?`<span class="ap-side-count">${inboxN}</span>`:''}
+      </div>
+      <div class="ap-side-row ${cx('today')}" onclick="apSetView('today')">
+        <span class="ap-side-icon">\u2B50</span><span class="ap-side-name">Today</span>
+        ${todayN>0?`<span class="ap-side-count">${todayN}</span>`:''}
+      </div>
+      <div class="ap-side-row ${cx('my-tasks')}" onclick="apSetView('my-tasks')">
+        <span class="ap-side-icon">\u2713</span><span class="ap-side-name">My Tasks</span>
+        ${myN>0?`<span class="ap-side-count">${myN}</span>`:''}
+      </div>
+      <div class="ap-side-row ${cx('activity')}" onclick="apSetView('activity')">
+        <span class="ap-side-icon">\u{1F4DC}</span><span class="ap-side-name">Activity</span>
+      </div>
+    </div>
+    <div class="ap-side-section">
+      <div class="ap-side-section-label">
+        <span>Projects</span>
+        <button class="ap-icon-btn" onclick="apCreateProjectPrompt()" title="New project">+</button>
+      </div>
+      ${projectsHTML}
+      ${apData.projects.length===0?`<div class="ap-side-row ap-add" onclick="apCreateProjectPrompt()">+ Create project</div>`:''}
+    </div>
+    <div class="ap-side-foot">
+      <kbd>\u2318K</kbd> Command palette<br>
+      <kbd>C</kbd> Quick add &nbsp;<kbd>Esc</kbd> Close
+    </div>
+  `;
+}
+
+function apRenderMain(){
+  const v = apView;
+  if(v.current === 'project' && v.projectId) apRenderProject(v.projectId);
+  else if(v.current === 'inbox') apRenderInbox();
+  else if(v.current === 'today') apRenderToday();
+  else if(v.current === 'my-tasks') apRenderMyTasks();
+  else if(v.current === 'activity') apRenderActivity();
+  else apRenderMyTasks();
+}
+
+function apSetView(name){ apView.current=name; apView.projectId=null; apRender(); }
+function apOpenProject(id){ apView.current='project'; apView.projectId=id; apView.projectView=apView.projectView||'list'; apRender(); }
+function apSetProjectView(view){ apView.projectView=view; apRender(); }
+
+// ── Project header + view tabs ──
+function apProjectHeader(p){
+  const progress = apProjectProgress(p.id);
+  const overdue = apOverdueCount(p.id);
+  const total = apOpenCount(p.id);
+  const v = apView.projectView;
+  const tabBtn = (k,label) => `<button class="ap-viewtab ${v===k?'active':''}" onclick="apSetProjectView('${k}')">${label}</button>`;
+  return `
+    <div class="ap-top">
+      <div class="ap-top-row">
+        <div class="ap-top-icon" style="background:${p.color}1a;">${esc(p.emoji||'📁')}</div>
+        <div class="ap-top-titlewrap">
+          <input class="ap-top-title" value="${esc(p.name)}" onblur="apRenameProject(${p.id},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+        </div>
+        ${p.identifier?`<span class="ap-top-id">${esc(p.identifier)}</span>`:''}
+        <div class="ap-top-progresswrap">
+          <div class="ap-top-progress"><div class="ap-top-progress-fill" style="width:${progress}%"></div></div>
+          <span style="font-family:'DM Mono',monospace;font-size:12px;">${progress}%</span>
+        </div>
+        <button class="ap-icon-btn danger" onclick="apDeleteProject(${p.id})" title="Archive project">\u{1F5D1}</button>
+      </div>
+      <div class="ap-top-meta">
+        <span class="ap-meta-pill">${total} open</span>
+        ${overdue>0?`<span class="ap-meta-pill danger">${overdue} overdue</span>`:''}
+        ${p.due_date?`<span class="ap-meta-pill">Due ${apFmtDate(p.due_date)}</span>`:''}
+        ${apData.milestones.filter(m=>m.project_id===p.id).length>0?`<span class="ap-meta-pill">${apData.milestones.filter(m=>m.project_id===p.id).length} milestone${apData.milestones.filter(m=>m.project_id===p.id).length===1?'':'s'}</span>`:''}
+      </div>
+      <div class="ap-viewtabs">
+        ${tabBtn('dashboard','Dashboard')}
+        ${tabBtn('list','List')}
+        ${tabBtn('board','Board')}
+        ${tabBtn('gantt','Gantt')}
+        ${tabBtn('milestones','Milestones')}
+      </div>
+    </div>
+  `;
+}
+
+function apRenderProject(pid){
+  const main = document.getElementById('apMain');
+  const p = apProject(pid);
+  if(!p){ main.innerHTML = '<div class="ap-empty">Project not found.</div>'; return; }
+  const view = apView.projectView;
+  let body = '';
+  if(view === 'dashboard') body = apViewDashboard(p);
+  else if(view === 'list') body = apViewList(p);
+  else if(view === 'board') body = apViewBoard(p);
+  else if(view === 'gantt') body = apViewGantt(p);
+  else if(view === 'milestones') body = apViewMilestones(p);
+  main.innerHTML = apProjectHeader(p) + `<div class="ap-body">${body}</div>`;
+  if(view==='gantt') apGanttDrawArrows(p);
+}
+
+// ── Dashboard view ──
+function apViewDashboard(p){
+  const tasks = apTasksByProject(p.id);
+  const top = apTopTasks(t=>t.project_id===p.id);
+  const open = top.filter(t=>t.status!=='Done' && t.status!=='Cancelled').length;
+  const doneN = top.filter(t=>t.status==='Done').length;
+  const inProg = top.filter(t=>t.status==='InProgress').length;
+  const overdue = apOverdueCount(p.id);
+  const milestones = apData.milestones.filter(m=>m.project_id===p.id);
+  const recent = apData.activity.filter(a=>a.project_id===p.id).slice(0,8);
+  const upcoming = top
+    .filter(t=>t.status!=='Done' && t.status!=='Cancelled')
+    .sort((a,b)=>(b.priority||0)-(a.priority||0) || ((a.due_date||'9999')>(b.due_date||'9999')?1:-1))
+    .slice(0,5);
+
+  return `
+    <div class="ap-kpi-grid">
+      <div class="ap-kpi"><div class="ap-kpi-label">Open</div><div class="ap-kpi-val">${open}</div></div>
+      <div class="ap-kpi"><div class="ap-kpi-label">In Progress</div><div class="ap-kpi-val">${inProg}</div></div>
+      <div class="ap-kpi"><div class="ap-kpi-label">Done</div><div class="ap-kpi-val">${doneN}</div></div>
+      <div class="ap-kpi"><div class="ap-kpi-label">Overdue</div><div class="ap-kpi-val">${overdue}</div>${overdue>0?'<div class="ap-kpi-sub danger">Needs attention</div>':'<div class="ap-kpi-sub ok">On track</div>'}</div>
+    </div>
+
+    <div class="ap-section">
+      <div class="ap-section-hdr">Top Priority — Next Up</div>
+      ${upcoming.length === 0 ? '<div style="color:var(--ap-text-mute);font-size:12px;padding:8px;">Nothing waiting. Add a task with C.</div>' : upcoming.map(t=>`
+        <div class="ap-card-row" onclick="apOpenTask(${t.id})">
+          ${apPrioBars(t.priority||0)}
+          <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--ap-text-mute);min-width:56px;">${esc(apTaskFullId(t))}</span>
+          <span style="flex:1;color:var(--ap-text);">${esc(t.title)}</span>
+          ${t.due_date?`<span class="ap-row-due ${apDueClass(t.due_date,t.status)}">${apFmtDate(t.due_date)}</span>`:''}
+          ${apStatusChip(t.status, t.id)}
+        </div>`).join('')}
+    </div>
+
+    ${milestones.length>0 ? `
+    <div class="ap-section">
+      <div class="ap-section-hdr">Milestones</div>
+      ${milestones.map(m=>{
+        const pct = apMilestoneProgress(m.id);
+        const overdueM = m.due_date && new Date(m.due_date+'T00:00:00') < new Date() && pct<100 ? 'overdue':'';
+        return `<div class="ap-mile" onclick="apEditMilestonePrompt(${m.id})">
+          <div class="ap-mile-hdr">
+            <div class="ap-mile-icon" style="background:${m.color||'#a78bfa'};"></div>
+            <div class="ap-mile-name">${esc(m.name)}</div>
+            <div class="ap-mile-due ${overdueM}">${m.due_date?apFmtDate(m.due_date):'No due date'}</div>
+          </div>
+          <div class="ap-mile-progress">
+            <div class="ap-mile-progress-bar"><div class="ap-mile-progress-fill" style="width:${pct}%"></div></div>
+            <div class="ap-mile-progress-pct">${pct}%</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    ${recent.length>0?`
+    <div class="ap-section">
+      <div class="ap-section-hdr">Recent Activity</div>
+      ${recent.map(a=>`<div style="padding:6px 8px;font-size:12px;color:var(--ap-text-dim);border-bottom:1px solid rgba(255,255,255,0.03);">
+        <span style="color:var(--ap-text-mute);font-family:'DM Mono',monospace;font-size:10px;margin-right:8px;">${new Date(a.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</span>
+        ${esc(a.action)}${a.detail&&a.detail.title?` — ${esc(a.detail.title)}`:''}
+      </div>`).join('')}
+    </div>`:''}
+  `;
+}
+
+// ── List view (with tasklist groups + subtasks + inline add) ──
+function apViewList(p){
+  const tasklists = apData.tasklists.filter(tl=>tl.project_id===p.id);
+  let html = '';
+  for(const tl of tasklists){
+    const tasks = apData.tasks.filter(t=>t.tasklist_id===tl.id && !t.parent_task_id);
+    const collapsed = apView.collapsedTasklists.has(tl.id);
+    html += `<div class="ap-list-group">
+      <div class="ap-list-group-hdr" onclick="apToggleTasklist(${tl.id})">
+        <span class="ap-list-group-arrow ${collapsed?'':'open'}">\u25B8</span>
+        <span data-selectable>${esc(tl.name)}</span>
+        <span class="ap-list-group-count">${tasks.length}</span>
+        <span class="ap-list-group-actions">
+          <button class="ap-icon-btn" onclick="event.stopPropagation();apRenameTasklist(${tl.id})" title="Rename">\u270E</button>
+          <button class="ap-icon-btn danger" onclick="event.stopPropagation();apDeleteTasklist(${tl.id})" title="Archive">\u00D7</button>
+        </span>
+      </div>`;
+    if(!collapsed){
+      for(const t of tasks){
+        html += apListRow(t, false);
+        for(const sub of apSubtasks(t.id)) html += apListRow(sub, true);
+      }
+      // Inline add task
+      if(apView.inlineAddTasklistId === tl.id){
+        html += `<div class="ap-add-task-input">
+          <span class="ap-status-dot" style="background:#6b7280"></span>
+          <input id="apInlineTask" placeholder="Task title + Enter (Esc to cancel)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();apInlineCommitTask(${tl.id});}else if(event.key==='Escape'){event.preventDefault();apInlineCancelTask();}"
+            onblur="apInlineMaybeCommitTask(${tl.id})">
+        </div>`;
+      } else {
+        html += `<div class="ap-add-task-row" onclick="apInlineAddTask(${tl.id})">
+          <span style="font-size:14px;line-height:1;">+</span><span>Add task</span>
+        </div>`;
+      }
     }
-    return out;
+    html += `</div>`;
   }
-  function countItems(catId){
-    const ids = new Set(descendants(catId));
-    return items.filter(i=>ids.has(i.category_id) && i.status!=='Done').length;
+  // Tasks with no tasklist
+  const orphan = apData.tasks.filter(t=>t.project_id===p.id && !t.tasklist_id && !t.parent_task_id);
+  if(orphan.length){
+    html += `<div class="ap-list-group"><div class="ap-list-group-hdr"><span class="ap-list-group-arrow open">\u25B8</span><span>Unsorted</span><span class="ap-list-group-count">${orphan.length}</span></div>`;
+    for(const t of orphan){ html += apListRow(t,false); for(const sub of apSubtasks(t.id)) html += apListRow(sub,true); }
+    html += `</div>`;
   }
-  function renderInlineInputRow(depth){
-    return `<div class="ai-cat-inline-input-row depth-${depth}" onclick="event.stopPropagation();">
-      <span class="ai-cat-arrow-spacer"></span>
-      <span class="ai-cat-dot" style="background:#6366f1;opacity:0.6;"></span>
-      <input id="aiInlineNew" placeholder="Name + Enter to add, Esc to cancel"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();actionInlineCommit();}else if(event.key==='Escape'){event.preventDefault();actionInlineCancel();}"
-        onblur="actionInlineMaybeCommit()">
+  // New tasklist row
+  html += `<div class="ap-add-task-row" style="margin-top:18px;border:1px dashed rgba(255,255,255,0.1);padding:10px;justify-content:center;border-radius:6px;" onclick="apCreateTasklistPrompt(${p.id})">+ New section</div>`;
+  if(tasklists.length===0 && orphan.length===0){
+    html += `<div class="ap-empty"><div class="ap-empty-icon">\u2756</div>No tasks yet. Press <kbd style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;">C</kbd> to add one, or click <strong style="color:var(--ap-accent-2);">+ New section</strong> above.</div>`;
+  }
+  return html;
+}
+
+function apListRow(t, isSub){
+  const due = t.due_date ? `<span class="ap-row-due ${apDueClass(t.due_date,t.status)}">${apFmtDate(t.due_date)}</span>` : '<span></span>';
+  const ms = t.milestone_id ? (apMilestone(t.milestone_id) ? `<span class="ap-row-mile">\u25C6 ${esc(apMilestone(t.milestone_id).name)}</span>` : '<span></span>') : '<span></span>';
+  const pct = (t.percent_complete||0) > 0 && t.status !== 'Done'
+    ? `<span class="ap-row-pct">${t.percent_complete}%<span class="ap-row-pct-bar"><span class="ap-row-pct-bar-fill" style="width:${t.percent_complete}%"></span></span></span>`
+    : '<span></span>';
+  const titleCls = t.status==='Done' || t.status==='Cancelled' ? 'done':'';
+  return `<div class="ap-row ${isSub?'subtask':''} ${apView.selectedTaskId===t.id?'selected':''}" onclick="apOpenTask(${t.id})">
+    ${apPrioBars(t.priority||0)}
+    <span class="ap-row-id">${esc(apTaskFullId(t))}</span>
+    <span class="ap-row-title ${titleCls}" data-selectable>${esc(t.title)}</span>
+    ${ms}
+    ${due}
+    ${pct}
+    ${apStatusChip(t.status, t.id)}
+  </div>`;
+}
+
+function apToggleTasklist(id){
+  if(apView.collapsedTasklists.has(id)) apView.collapsedTasklists.delete(id);
+  else apView.collapsedTasklists.add(id);
+  apRenderMain();
+}
+
+// ── Inline add task ──
+function apInlineAddTask(tasklistId){
+  apView.inlineAddTasklistId = tasklistId;
+  apRenderMain();
+  setTimeout(()=>{const el=document.getElementById('apInlineTask'); if(el){ el.focus(); }}, 30);
+}
+function apInlineCancelTask(){ apView.inlineAddTasklistId=null; apRenderMain(); }
+let apInlineCommittingTask = false;
+async function apInlineCommitTask(tasklistId){
+  if(apInlineCommittingTask) return;
+  apInlineCommittingTask = true;
+  try{
+    const el = document.getElementById('apInlineTask');
+    if(!el) return;
+    const title = el.value.trim();
+    if(!title){ apInlineCancelTask(); return; }
+    const tl = apTasklist(tasklistId);
+    if(!tl) return;
+    await apCreateTask({project_id: tl.project_id, tasklist_id: tasklistId, title, status:'Backlog'});
+    apView.inlineAddTasklistId = null;
+    apRenderMain();
+  } finally { apInlineCommittingTask = false; }
+}
+function apInlineMaybeCommitTask(tasklistId){
+  if(apInlineCommittingTask) return;
+  const el = document.getElementById('apInlineTask');
+  if(!el) return;
+  const title = el.value.trim();
+  if(!title){ apInlineCancelTask(); return; }
+  apInlineCommitTask(tasklistId);
+}
+
+// ── Board view ──
+function apViewBoard(p){
+  const tasks = apTopTasks(t=>t.project_id===p.id);
+  let html = `<div class="ap-board" id="apBoard">`;
+  for(const s of AP_STATUSES){
+    const colTasks = tasks.filter(t=>t.status===s.id);
+    html += `<div class="ap-col" data-status="${s.id}" ondragover="event.preventDefault();" ondrop="apDropOnBoard(event,'${s.id}')">
+      <div class="ap-col-hdr">
+        <span class="ap-status-dot" style="background:${s.color}"></span>
+        <span>${s.label}</span>
+        <span class="ap-col-count">${colTasks.length}</span>
+      </div>
+      <div class="ap-col-body">
+        ${colTasks.map(t=>apBoardCard(t)).join('')}
+        <div class="ap-col-add" onclick="apQuickAddInStatus(${p.id},'${s.id}')">+ Add task</div>
+      </div>
     </div>`;
   }
-
-  function renderNode(c, depth){
-    const color = actionColorFor(c);
-    const cnt = countItems(c.id);
-    const active = actionState.activeCategoryId === c.id ? 'active':'';
-    const kids = children(c.id);
-    const hasKids = kids.length > 0;
-    const couldHaveKids = depth < 2;
-    const isInlineHere = actionInlineAddParent === c.id;
-    // Force-expand if the inline-add cursor is targeting this parent, otherwise honor user toggle
-    const expanded = isInlineHere || !actionCollapsed.has(c.id);
-    const arrowHTML = hasKids
-      ? `<button class="ai-cat-arrow ${expanded?'open':''}" onclick="event.stopPropagation();actionToggleExpand(${c.id})" title="${expanded?'Collapse':'Expand'}">\u25B8</button>`
-      : `<span class="ai-cat-arrow-spacer"></span>`;
-    let html = `
-      <div class="ai-cat-row depth-${depth} ${active}" onclick="actionSetCategory(${c.id})">
-        ${arrowHTML}
-        <span class="ai-cat-dot" style="background:${color}"></span>
-        <span class="ai-cat-name">${esc(c.name)}</span>
-        <span class="ai-cat-actions">
-          <button class="ai-cat-act" onclick="event.stopPropagation();actionRenameCategory(${c.id})" title="Rename">\u270E</button>
-          <button class="ai-cat-act" onclick="event.stopPropagation();actionDeleteCategory(${c.id})" title="Archive">&times;</button>
-        </span>
-        ${cnt>0?`<span class="ai-cat-count">${cnt}</span>`:''}
-      </div>`;
-    if(expanded){
-      for(const child of kids) html += renderNode(child, depth+1);
-      if(couldHaveKids){
-        if(isInlineHere){
-          html += renderInlineInputRow(depth+1);
-        } else {
-          const subLabel = depth === 0 ? 'subcategory' : 'sub-subcategory';
-          html += `<div class="ai-cat-add-stub depth-${depth+1}" onclick="event.stopPropagation();actionInlineAddCategory(${c.id})" title="Add ${subLabel}">+ Add ${subLabel}</div>`;
-        }
-      }
-    }
-    return html;
-  }
-
-  const allActive = actionState.activeCategoryId === null ? 'active':'';
-  let html = `
-    <div class="ai-sidebar-hdr">
-      <span>Categories</span>
-      <button class="ai-sb-add" onclick="actionInlineAddCategory(null)" title="New main category">+</button>
+  html += `</div>`;
+  return html;
+}
+function apBoardCard(t){
+  const tl = t.tasklist_id ? apTasklist(t.tasklist_id) : null;
+  const due = t.due_date?`<span class="ap-row-due ${apDueClass(t.due_date,t.status)}">${apFmtDate(t.due_date)}</span>`:'';
+  return `<div class="ap-card" draggable="true"
+    ondragstart="apDragStart(event,${t.id})" ondragend="this.classList.remove('dragging')"
+    onclick="apOpenTask(${t.id})">
+    <div class="ap-card-hdr">
+      ${apPrioBars(t.priority||0)}
+      <span class="ap-card-id">${esc(apTaskFullId(t))}</span>
+      ${tl?`<span style="font-size:10px;color:var(--ap-text-mute);margin-left:auto;">${esc(tl.name)}</span>`:''}
     </div>
-    <div class="ai-cat-row ${allActive}" onclick="actionSetCategory(null)">
-      <span class="ai-cat-arrow-spacer"></span>
-      <span class="ai-cat-dot" style="background:#475569"></span>
-      <span class="ai-cat-name">All items</span>
-      <span class="ai-cat-count">${items.filter(i=>i.status!=='Done').length}</span>
+    <div class="ap-card-title" data-selectable>${esc(t.title)}</div>
+    <div class="ap-card-foot">
+      ${due}
+      ${(t.percent_complete||0)>0 ? `<span class="ap-row-pct">${t.percent_complete}%</span>`:''}
     </div>
-  `;
-  for(const c of children(null)) html += renderNode(c, 0);
-  // Top-level inline add (or stub if not active)
-  if(actionInlineAddParent === null){
-    html += renderInlineInputRow(0);
-  } else {
-    html += `<div class="ai-cat-add-row" onclick="actionInlineAddCategory(null)">+ Add main category</div>`;
-  }
-  if(cats.length === 0){
-    html += `<div style="padding:14px 8px;text-align:center;color:#7c849a;font-size:11px;line-height:1.5;">Click <strong style="color:#a5b4fc;">+ Add main category</strong> above to start.</div>`;
-  }
-  sb.innerHTML = html;
+  </div>`;
+}
+function apDragStart(e, taskId){
+  e.dataTransfer.setData('text/plain', String(taskId));
+  e.target.classList.add('dragging');
+}
+async function apDropOnBoard(e, newStatus){
+  e.preventDefault();
+  const taskId = parseInt(e.dataTransfer.getData('text/plain'));
+  if(!taskId) return;
+  await apUpdateTask(taskId, {status:newStatus, ...(newStatus==='Done'?{percent_complete:100,completed_at:new Date().toISOString()}:{})});
+  apRenderMain();
+  apUpdateBadge();
+}
+async function apQuickAddInStatus(projectId, status){
+  const title = prompt('Task title:');
+  if(!title || !title.trim()) return;
+  const firstTl = apData.tasklists.find(tl=>tl.project_id===projectId);
+  await apCreateTask({project_id: projectId, tasklist_id: firstTl?firstTl.id:null, title:title.trim(), status});
+  apRenderMain();
 }
 
-function actionRenderContent(){
-  const c = document.getElementById('aiContent');
-  if(!c) return;
-  let items = actionData.items.slice();
-
-  // Filter by category (descendants included)
-  if(actionState.activeCategoryId !== null){
-    const ids = new Set([actionState.activeCategoryId]);
-    let added=true;
-    while(added){ added=false;
-      for(const cat of actionData.categories){
-        if(cat.parent_id!==null && ids.has(cat.parent_id) && !ids.has(cat.id)){ ids.add(cat.id); added=true; }
-      }
+// ── Gantt view ──
+function apViewGantt(p){
+  const tasks = apTopTasks(t=>t.project_id===p.id && (t.start_date || t.due_date));
+  const milestones = apData.milestones.filter(m=>m.project_id===p.id && m.due_date);
+  const zoomBtn = (z,label) => `<button class="${apView.ganttZoom===z?'active':''}" onclick="apView.ganttZoom='${z}';apRenderMain();">${label}</button>`;
+  if(tasks.length===0 && milestones.length===0){
+    return `<div class="ap-gantt-zoom">${zoomBtn('week','Week')}${zoomBtn('month','Month')}${zoomBtn('quarter','Quarter')}</div>
+      <div class="ap-gantt-empty">No scheduled work yet. Give a task a start &amp; due date and it'll show up here.</div>`;
+  }
+  // Compute date range
+  const dates = [];
+  for(const t of tasks){
+    if(t.start_date) dates.push(t.start_date);
+    if(t.due_date) dates.push(t.due_date);
+  }
+  for(const m of milestones) if(m.due_date) dates.push(m.due_date);
+  dates.push(new Date().toISOString().slice(0,10));
+  dates.sort();
+  const minD = new Date(dates[0]+'T00:00:00');
+  const maxD = new Date(dates[dates.length-1]+'T00:00:00');
+  // Pad
+  minD.setDate(minD.getDate() - 3);
+  maxD.setDate(maxD.getDate() + 7);
+  const dayCount = Math.ceil((maxD - minD)/86400000) + 1;
+  const dayWidth = apView.ganttZoom==='week'?40 : apView.ganttZoom==='month'?20 : 8;
+  const trackWidth = dayCount * dayWidth;
+  // Header
+  let hdrCells = '';
+  for(let i=0;i<dayCount;i++){
+    const d = new Date(minD); d.setDate(minD.getDate()+i);
+    const dow = d.getDay();
+    const weekend = (dow===0||dow===6) ? 'weekend':'';
+    const showLabel = apView.ganttZoom==='week' || (apView.ganttZoom==='month' && d.getDate()%5===1) || (apView.ganttZoom==='quarter' && d.getDate()===1);
+    hdrCells += `<div class="ap-gantt-hdr-cell ${weekend}" style="width:${dayWidth}px;">
+      ${showLabel?`<div class="gw">${d.getDate()}</div><div>${d.toLocaleDateString('en-US',{month:'short'})}</div>`:''}
+    </div>`;
+  }
+  // Today line
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayOffset = Math.round((today - minD)/86400000) * dayWidth;
+  // Rows
+  let rowsHTML = '';
+  const allRows = [...tasks.map(t=>({type:'task',obj:t})), ...milestones.map(m=>({type:'mile',obj:m}))];
+  for(const r of allRows){
+    if(r.type==='task'){
+      const t = r.obj;
+      const start = new Date((t.start_date||t.due_date)+'T00:00:00');
+      const end = new Date((t.due_date||t.start_date)+'T00:00:00');
+      const left = Math.round((start - minD)/86400000) * dayWidth;
+      const w = Math.max(dayWidth, (Math.round((end - start)/86400000) + 1) * dayWidth);
+      const cls = t.status==='Done'?'done' : t.status==='InProgress'?'inprogress' : t.status==='Todo'?'todo' : t.status==='InReview'?'inreview' : t.status==='Cancelled'?'cancelled' : 'backlog';
+      rowsHTML += `<div class="ap-gantt-row" data-task="${t.id}">
+        <div class="ap-gantt-label" onclick="apOpenTask(${t.id})">
+          ${apPrioBars(t.priority||0)}
+          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;">${esc(t.title)}</span>
+        </div>
+        <div class="ap-gantt-track" style="width:${trackWidth}px;">
+          <div class="ap-gantt-bar ${cls}" style="left:${left}px;width:${w-2}px;" onclick="apOpenTask(${t.id})" title="${esc(t.title)} (${apStatusObj(t.status).label})">
+            ${esc(t.title.slice(0,Math.max(1,Math.floor(w/8))))}
+          </div>
+        </div>
+      </div>`;
+    } else {
+      const m = r.obj;
+      const d = new Date(m.due_date+'T00:00:00');
+      const left = Math.round((d - minD)/86400000) * dayWidth;
+      rowsHTML += `<div class="ap-gantt-row" data-mile="${m.id}">
+        <div class="ap-gantt-label" onclick="apEditMilestonePrompt(${m.id})">
+          <div class="ap-mile-icon" style="width:12px;height:12px;background:${m.color||'#a78bfa'};border:none;"></div>
+          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;color:var(--ap-accent-2);">${esc(m.name)}</span>
+        </div>
+        <div class="ap-gantt-track" style="width:${trackWidth}px;">
+          <div class="ap-gantt-mile" style="left:${left}px;background:${m.color||'#a78bfa'};" onclick="apEditMilestonePrompt(${m.id})" title="${esc(m.name)} — ${apFmtDate(m.due_date)}"></div>
+        </div>
+      </div>`;
     }
-    items = items.filter(i=>ids.has(i.category_id));
   }
-
-  if(actionState.filterStatus){
-    items = items.filter(i=>i.status === actionState.filterStatus);
-  } else {
-    items = items.filter(i=>i.status !== 'Done');
-  }
-
-  if(actionState.sortBy === 'priority') items.sort((a,b)=>actionPriorityScore(b)-actionPriorityScore(a));
-  else if(actionState.sortBy === 'age') items.sort((a,b)=>actionAgeDays(b)-actionAgeDays(a));
-  else if(actionState.sortBy === 'created') items.sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
-  else if(actionState.sortBy === 'title') items.sort((a,b)=>(a.title||'').localeCompare(b.title||''));
-
-  const cat = actionState.activeCategoryId ? actionData.categories.find(x=>x.id===actionState.activeCategoryId) : null;
-  const title = cat ? cat.name : 'All Items';
-  const filterPill = (label, val) => `<button class="ai-filter ${(actionState.filterStatus||'')===val?'active':''}" onclick="actionSetFilter('${val}')">${label}</button>`;
-
-  let html = `
-    <div class="ai-content-hdr">
-      <div>
-        <div class="ai-content-title">${esc(title)}</div>
-        <div class="ai-content-sub">${items.length} ${items.length===1?'item':'items'}${actionState.filterStatus?' · '+actionState.filterStatus:''}</div>
+  return `
+    <div class="ap-gantt-zoom">${zoomBtn('week','Week')}${zoomBtn('month','Month')}${zoomBtn('quarter','Quarter')}</div>
+    <div class="ap-gantt" id="apGantt">
+      <div class="ap-gantt-hdr">
+        <div class="ap-gantt-hdr-spacer">Task / Milestone</div>
+        <div class="ap-gantt-hdr-track" style="width:${trackWidth}px;">${hdrCells}</div>
       </div>
-      <div class="ai-filters">
-        <button class="ai-add-cat-btn" onclick="actionInlineAddCategory(null)" title="New main category (inline)">+ Category</button>
-        ${filterPill('All','')}
-        ${filterPill('Inbox','Inbox')}
-        ${filterPill('Active','Active')}
-        ${filterPill('In Progress','InProgress')}
-        ${filterPill('Blocked','Blocked')}
-        ${filterPill('Done','Done')}
-        <select class="ai-filter" onchange="actionSetSort(this.value)">
-          <option value="priority" ${actionState.sortBy==='priority'?'selected':''}>Sort: Priority</option>
-          <option value="age" ${actionState.sortBy==='age'?'selected':''}>Sort: Oldest</option>
-          <option value="created" ${actionState.sortBy==='created'?'selected':''}>Sort: Newest</option>
-          <option value="title" ${actionState.sortBy==='title'?'selected':''}>Sort: A-Z</option>
-        </select>
+      <div class="ap-gantt-grid" style="position:relative;">
+        ${todayOffset>=0?`<div class="ap-gantt-today" style="left:${240+todayOffset}px;height:${(allRows.length)*36}px;"></div>`:''}
+        <svg class="ap-gantt-svg" id="apGanttSvg" width="${trackWidth}" height="${allRows.length*36}" style="overflow:visible;">
+          <defs><marker id="ap-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L8,4 L0,8 z" fill="#a78bfa"/>
+          </marker></defs>
+        </svg>
+        ${rowsHTML}
       </div>
     </div>
   `;
+}
 
-  if(items.length === 0){
-    html += `<div class="ai-empty"><div class="ai-empty-icon">\u2756</div><div>Nothing here yet.<br><span style="font-size:11px;color:#5f6479;">Click + (bottom right) to capture an idea.</span></div></div>`;
-  } else {
-    html += '<div class="ai-list">';
-    for(const it of items){
-      const cat = actionData.categories.find(c=>c.id===it.category_id);
-      const color = actionColorFor(cat);
-      const score = actionPriorityScore(it);
-      const ageCls = actionStaleClass(it);
-      const stale = actionStaleFlag(it);
-      const sat = Math.min(score/10, 1);
-      const barColor = score>=8?'#ef4444':score>=6?'#f59e0b':score>=4?'#6366f1':'#374151';
-      html += `
-        <div class="ai-item ${stale?'stale':''}" style="border-left-color:${color};" onclick="actionOpenItem(${it.id})">
-          <span class="ai-item-priority" style="background:${barColor};opacity:${(0.4+sat*0.6).toFixed(2)};"></span>
-          <div class="ai-item-main">
-            <div class="ai-item-title">${esc(it.title||'(untitled)')}</div>
-            ${it.body?`<div class="ai-item-sub">${esc(it.body.replace(/\s+/g,' ').slice(0,140))}${it.body.length>140?'…':''}</div>`:''}
+function apGanttDrawArrows(p){
+  const svg = document.getElementById('apGanttSvg');
+  if(!svg) return;
+  const deps = apData.dependencies.filter(d=>{
+    const a = apTask(d.task_id), b = apTask(d.depends_on_task_id);
+    return a && b && a.project_id===p.id && b.project_id===p.id;
+  });
+  // Find row positions
+  const rows = svg.parentElement.querySelectorAll('.ap-gantt-row');
+  const rowMap = {};
+  rows.forEach((row,i)=>{
+    const tid = row.getAttribute('data-task');
+    if(tid) rowMap[tid] = {y: i*36 + 18, bar: row.querySelector('.ap-gantt-bar')};
+  });
+  let arrows = svg.innerHTML.includes('marker') ? svg.innerHTML.split('</defs>')[0]+'</defs>' : svg.innerHTML;
+  for(const dep of deps){
+    const from = rowMap[dep.depends_on_task_id], to = rowMap[dep.task_id];
+    if(!from || !to || !from.bar || !to.bar) continue;
+    const fx = from.bar.offsetLeft + from.bar.offsetWidth, fy = from.y;
+    const tx = to.bar.offsetLeft, ty = to.y;
+    const midX = Math.max(fx + 8, tx - 8);
+    arrows += `<path class="ap-gantt-line" d="M ${fx} ${fy} H ${midX} V ${ty} H ${tx}" marker-end="url(#ap-arrow)"/>`;
+  }
+  svg.innerHTML = arrows;
+}
+
+// ── Milestones view ──
+function apViewMilestones(p){
+  const milestones = apData.milestones.filter(m=>m.project_id===p.id);
+  let html = `<div style="margin-bottom:14px;display:flex;justify-content:flex-end;">
+    <button class="ap-btn ap-btn-primary" onclick="apCreateMilestonePrompt(${p.id})">+ Milestone</button>
+  </div>`;
+  if(!milestones.length){ html += `<div class="ap-empty"><div class="ap-empty-icon">\u25C6</div>No milestones yet.</div>`; return html; }
+  for(const m of milestones){
+    const pct = apMilestoneProgress(m.id);
+    const tasks = apData.tasks.filter(t=>t.milestone_id===m.id && !t.parent_task_id);
+    const overdue = m.due_date && new Date(m.due_date+'T00:00:00') < new Date() && pct<100 ? 'overdue':'';
+    html += `<div class="ap-mile" onclick="apEditMilestonePrompt(${m.id})">
+      <div class="ap-mile-hdr">
+        <div class="ap-mile-icon" style="background:${m.color||'#a78bfa'};"></div>
+        <div class="ap-mile-name">${esc(m.name)}</div>
+        <div class="ap-mile-due ${overdue}">${m.due_date?apFmtDate(m.due_date):'No due date'}</div>
+      </div>
+      ${m.description?`<div style="font-size:12px;color:var(--ap-text-dim);margin-top:6px;">${esc(m.description)}</div>`:''}
+      <div class="ap-mile-progress">
+        <div class="ap-mile-progress-bar"><div class="ap-mile-progress-fill" style="width:${pct}%"></div></div>
+        <div class="ap-mile-progress-pct">${pct}%</div>
+      </div>
+      <div style="font-size:11px;color:var(--ap-text-mute);margin-top:8px;">${tasks.length} task${tasks.length===1?'':'s'}</div>
+    </div>`;
+  }
+  return html;
+}
+
+// ── Cross-project views ──
+function apRenderMyTasks(){
+  const main = document.getElementById('apMain');
+  const tasks = apData.tasks.filter(t=>!t.parent_task_id && t.status!=='Done' && t.status!=='Cancelled')
+    .sort((a,b)=>(b.priority||0)-(a.priority||0));
+  main.innerHTML = `
+    <div class="ap-top">
+      <div class="ap-top-row">
+        <div class="ap-top-icon">\u2713</div>
+        <div class="ap-top-titlewrap"><div class="ap-top-title" style="cursor:default;">My Tasks</div></div>
+      </div>
+      <div class="ap-top-meta"><span class="ap-meta-pill">${tasks.length} open</span></div>
+    </div>
+    <div class="ap-body">
+      ${apGroupedTaskList(tasks, 'project')}
+    </div>`;
+}
+function apRenderToday(){
+  const main = document.getElementById('apMain');
+  const today = new Date().toISOString().slice(0,10);
+  const tasks = apData.tasks.filter(t=>!t.parent_task_id && t.due_date && t.due_date<=today && t.status!=='Done' && t.status!=='Cancelled')
+    .sort((a,b)=>(a.due_date||'').localeCompare(b.due_date||''));
+  main.innerHTML = `
+    <div class="ap-top">
+      <div class="ap-top-row">
+        <div class="ap-top-icon">\u2B50</div>
+        <div class="ap-top-titlewrap"><div class="ap-top-title" style="cursor:default;">Today &amp; Overdue</div></div>
+      </div>
+      <div class="ap-top-meta"><span class="ap-meta-pill">${tasks.length} due now</span></div>
+    </div>
+    <div class="ap-body">
+      ${tasks.length===0?'<div class="ap-empty">Nothing due. Enjoy.</div>':apGroupedTaskList(tasks, 'project')}
+    </div>`;
+}
+function apRenderInbox(){
+  const main = document.getElementById('apMain');
+  const tasks = apData.tasks.filter(t=>!t.parent_task_id && t.status==='Backlog')
+    .sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+  main.innerHTML = `
+    <div class="ap-top">
+      <div class="ap-top-row">
+        <div class="ap-top-icon">\u{1F4E5}</div>
+        <div class="ap-top-titlewrap"><div class="ap-top-title" style="cursor:default;">Inbox</div></div>
+      </div>
+      <div class="ap-top-meta"><span class="ap-meta-pill">${tasks.length} to triage</span></div>
+    </div>
+    <div class="ap-body">
+      ${tasks.length===0?'<div class="ap-empty">Inbox zero.</div>':apGroupedTaskList(tasks, 'project')}
+    </div>`;
+}
+function apRenderActivity(){
+  const main = document.getElementById('apMain');
+  const acts = apData.activity.slice(0,80);
+  main.innerHTML = `
+    <div class="ap-top">
+      <div class="ap-top-row">
+        <div class="ap-top-icon">\u{1F4DC}</div>
+        <div class="ap-top-titlewrap"><div class="ap-top-title" style="cursor:default;">Activity</div></div>
+      </div>
+    </div>
+    <div class="ap-body">
+      ${acts.length===0?'<div class="ap-empty">No activity yet.</div>':acts.map(a=>{
+        const proj = a.project_id?apProject(a.project_id):null;
+        const task = a.task_id?apTask(a.task_id):null;
+        return `<div style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12.5px;color:var(--ap-text-dim);${task?'cursor:pointer;':''}" ${task?`onclick="apOpenTask(${task.id})"`:''}>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--ap-text-mute);min-width:120px;">${new Date(a.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</span>
+            ${proj?`<span style="font-size:11px;color:var(--ap-accent-2);">${esc(proj.emoji||'')} ${esc(proj.name)}</span>`:''}
+            <span>${esc(a.action)}${a.detail&&a.detail.title?` — ${esc(a.detail.title)}`:''}</span>
           </div>
-          ${cat?`<span class="ai-item-cat" style="background:${color}22;color:${color};border:1px solid ${color}55;">${esc(cat.name)}</span>`:'<span></span>'}
-          <span class="ai-item-status ai-status-${it.status}">${it.status==='InProgress'?'In Prog':it.status}</span>
-          <span class="ai-item-score" title="Priority ${score}/10 (urgency ${it.urgency}, difficulty ${it.difficulty})">${score}</span>
-          <span class="ai-item-age ${ageCls}" title="${it.last_worked_at?'Last touched':'Created'}">${actionAgeLabel(it)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+function apGroupedTaskList(tasks, by){
+  if(!tasks.length) return '<div class="ap-empty">Nothing here.</div>';
+  // Group by project
+  const groups = {};
+  for(const t of tasks){
+    const k = by==='project' ? (t.project_id||0) : 'all';
+    if(!groups[k]) groups[k] = [];
+    groups[k].push(t);
+  }
+  let html = '';
+  for(const [k, gtasks] of Object.entries(groups)){
+    const proj = by==='project' ? apProject(parseInt(k)) : null;
+    if(proj){
+      html += `<div class="ap-list-group">
+        <div class="ap-list-group-hdr" onclick="apOpenProject(${proj.id})">
+          <span style="font-size:14px;">${esc(proj.emoji||'📁')}</span>
+          <span data-selectable>${esc(proj.name)}</span>
+          <span class="ap-list-group-count">${gtasks.length}</span>
         </div>`;
     }
-    html += '</div>';
+    for(const t of gtasks) html += apListRow(t, false);
+    if(proj) html += `</div>`;
   }
-  c.innerHTML = html;
+  return html;
 }
 
-function actionSetCategory(id){ actionState.activeCategoryId=id; actionRenderSidebar(); actionRenderContent(); }
-function actionSetFilter(val){ actionState.filterStatus = val || null; actionRenderContent(); }
-function actionSetSort(val){ actionState.sortBy = val; actionRenderContent(); }
-function actionSetView(v){ actionState.view = v; actionRender(); }
-
-// ── Quick Add Modal ──
-function actionCatOptionsHTML(parentId, depth, selectedId){
-  let opts = '';
-  const kids = actionData.categories.filter(c=>c.parent_id===parentId).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  for(const c of kids){
-    const indent = '\u00A0\u00A0\u00A0\u00A0'.repeat(depth);
-    const sel = (selectedId===c.id) ? 'selected' : '';
-    opts += `<option value="${c.id}" ${sel}>${indent}${esc(c.name)}</option>`;
-    opts += actionCatOptionsHTML(c.id, depth+1, selectedId);
-  }
-  return opts;
+// ── Slide-in detail panel ──
+function apOpenTask(taskId){
+  apView.selectedTaskId = taskId;
+  const t = apTask(taskId);
+  if(!t) return;
+  apRenderTaskPanel(t);
+  document.getElementById('apDetailOverlay').classList.add('open');
+  document.getElementById('apDetail').classList.add('open');
 }
+function apCloseTask(){
+  apView.selectedTaskId = null;
+  document.getElementById('apDetailOverlay').classList.remove('open');
+  document.getElementById('apDetail').classList.remove('open');
+}
+function apRenderTaskPanel(t){
+  const detail = document.getElementById('apDetail');
+  const proj = apProject(t.project_id);
+  const tasklists = proj ? apData.tasklists.filter(tl=>tl.project_id===proj.id) : [];
+  const milestones = proj ? apData.milestones.filter(m=>m.project_id===proj.id) : [];
+  const subtasks = apSubtasks(t.id);
+  const blockedBy = apData.dependencies.filter(d=>d.task_id===t.id);
+  const blocking = apData.dependencies.filter(d=>d.depends_on_task_id===t.id);
+  const created = new Date(t.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 
-function actionOpenQuickAdd(){
-  const backdrop = document.createElement('div');
-  backdrop.className = 'ai-modal-backdrop';
-  backdrop.id = 'aiQuickModal';
-  backdrop.onclick = (e)=>{ if(e.target===backdrop) actionCloseModal(); };
-  backdrop.innerHTML = `
-    <div class="ai-modal">
-      <h3>New Action Item</h3>
-      <div class="ai-field">
-        <label>Title</label>
-        <input class="ai-input" id="aiqTitle" placeholder="What's the idea or task?">
+  detail.innerHTML = `
+    <div class="ap-detail-hdr">
+      <span class="ap-detail-id">${esc(apTaskFullId(t))}</span>
+      ${proj?`<span style="font-size:11px;color:var(--ap-text-dim);"><span style="margin-right:5px;">${esc(proj.emoji||'')}</span>${esc(proj.name)}</span>`:''}
+      <div class="ap-detail-actions">
+        <button class="ap-icon-btn" onclick="apDuplicateTask(${t.id})" title="Duplicate">\u29C9</button>
+        <button class="ap-icon-btn danger" onclick="apArchiveTask(${t.id})" title="Archive">\u{1F5D1}</button>
+        <button class="ap-icon-btn" onclick="apCloseTask()" title="Close (Esc)">\u00D7</button>
       </div>
-      <div class="ai-field">
-        <label>Notes (optional)</label>
-        <textarea class="ai-textarea" id="aiqBody" placeholder="Context, links, reasoning…"></textarea>
-      </div>
-      <div class="ai-field">
-        <label>Category</label>
-        <select class="ai-select" id="aiqCat" onchange="actionQuickCatChange(this)">
-          <option value="">— Pick a category —</option>
-          ${actionCatOptionsHTML(null,0,null)}
-          <option value="__new__">+ Create new category</option>
-        </select>
-        <div id="aiqNewCat" class="ai-cat-create-inline" style="display:none;">
-          <input class="ai-input" id="aiqNewCatName" placeholder="New category name…" style="margin-bottom:6px;">
-          <select class="ai-select" id="aiqNewCatParent">
-            <option value="">— Top-level —</option>
-            ${actionCatOptionsHTML(null,0,null)}
+    </div>
+    <div class="ap-detail-body">
+      <input class="ap-detail-title" value="${esc(t.title)}" onblur="apUpdateTaskField(${t.id},'title',this.value)">
+
+      <div class="ap-detail-meta">
+        <div class="ap-detail-meta-label">Status</div>
+        <div class="ap-detail-meta-val">
+          <select onchange="apUpdateTaskField(${t.id},'status',this.value)">
+            ${AP_STATUSES.map(s=>`<option value="${s.id}" ${t.status===s.id?'selected':''}>${s.label}</option>`).join('')}
           </select>
-          <div style="font-size:10px;color:#7c849a;margin-top:4px;">Max 3 layers. Parent must be top-level or layer 2.</div>
+        </div>
+        <div class="ap-detail-meta-label">Priority</div>
+        <div class="ap-detail-meta-val">
+          <select onchange="apUpdateTaskField(${t.id},'priority',parseInt(this.value))">
+            ${AP_PRIORITIES.map(p=>`<option value="${p.id}" ${t.priority===p.id?'selected':''}>${p.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ap-detail-meta-label">Tasklist</div>
+        <div class="ap-detail-meta-val">
+          <select onchange="apUpdateTaskField(${t.id},'tasklist_id',this.value?parseInt(this.value):null)">
+            <option value="">— None —</option>
+            ${tasklists.map(tl=>`<option value="${tl.id}" ${t.tasklist_id===tl.id?'selected':''}>${esc(tl.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ap-detail-meta-label">Milestone</div>
+        <div class="ap-detail-meta-val">
+          <select onchange="apUpdateTaskField(${t.id},'milestone_id',this.value?parseInt(this.value):null)">
+            <option value="">— None —</option>
+            ${milestones.map(m=>`<option value="${m.id}" ${t.milestone_id===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="ap-detail-meta-label">Start date</div>
+        <div class="ap-detail-meta-val">
+          <input type="date" value="${t.start_date||''}" onchange="apUpdateTaskField(${t.id},'start_date',this.value||null)">
+        </div>
+        <div class="ap-detail-meta-label">Due date</div>
+        <div class="ap-detail-meta-val">
+          <input type="date" value="${t.due_date||''}" onchange="apUpdateTaskField(${t.id},'due_date',this.value||null)">
+        </div>
+        <div class="ap-detail-meta-label">% Complete</div>
+        <div class="ap-detail-meta-val">
+          <input type="range" min="0" max="100" step="5" value="${t.percent_complete||0}"
+            oninput="document.getElementById('apPctVal').textContent=this.value+'%'"
+            onchange="apUpdateTaskField(${t.id},'percent_complete',parseInt(this.value))">
+          <span id="apPctVal" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--ap-text-dim);margin-left:8px;">${t.percent_complete||0}%</span>
+        </div>
+        <div class="ap-detail-meta-label">Estimate (hrs)</div>
+        <div class="ap-detail-meta-val">
+          <input type="number" step="0.5" value="${t.estimated_hours||''}" onchange="apUpdateTaskField(${t.id},'estimated_hours',this.value?parseFloat(this.value):null)">
         </div>
       </div>
-      <div class="ai-row">
-        <div class="ai-field">
-          <label>Difficulty (1=easy, 5=hard)</label>
-          <div class="ai-rating" id="aiqDiff">
-            ${[1,2,3,4,5].map(n=>`<button class="ai-rating-btn ${n===3?'active':''}" data-val="${n}" onclick="actionRatingClick('aiqDiff',${n})">${n}</button>`).join('')}
-          </div>
-        </div>
-        <div class="ai-field">
-          <label>Urgency (1=low, 5=high)</label>
-          <div class="ai-rating" id="aiqUrg">
-            ${[1,2,3,4,5].map(n=>`<button class="ai-rating-btn ${n===3?'active':''}" data-val="${n}" onclick="actionRatingClick('aiqUrg',${n})">${n}</button>`).join('')}
-          </div>
-        </div>
+
+      <div class="ap-detail-section">
+        <div class="ap-detail-section-hdr"><span>Description</span></div>
+        <textarea class="ap-detail-desc" placeholder="Add context, notes, links..." onblur="apUpdateTaskField(${t.id},'description',this.value)">${esc(t.description||'')}</textarea>
       </div>
-      <div class="ai-field">
-        <label>Due date (optional)</label>
-        <input type="date" class="ai-input" id="aiqDue">
+
+      ${!t.parent_task_id ? `
+      <div class="ap-detail-section">
+        <div class="ap-detail-section-hdr">
+          <span>Subtasks (${subtasks.length}${subtasks.length>0?` · ${subtasks.filter(s=>s.status==='Done').length} done`:''})</span>
+        </div>
+        ${subtasks.map(s=>`<div class="ap-sub-row" onclick="apOpenTask(${s.id})">
+          ${apStatusChip(s.status, s.id)}
+          <span class="ap-sub-title ${s.status==='Done'?'done':''}" data-selectable>${esc(s.title)}</span>
+          ${s.due_date?`<span class="ap-row-due ${apDueClass(s.due_date,s.status)}" style="margin-left:auto;">${apFmtDate(s.due_date)}</span>`:''}
+        </div>`).join('')}
+        <div class="ap-sub-add" onclick="apAddSubtaskInline(${t.id})">+ Add subtask</div>
+        <div id="apSubAddWrap"></div>
+      </div>` : `
+      <div class="ap-detail-section" style="font-size:11px;color:var(--ap-text-mute);">
+        Subtask of <a style="color:var(--ap-accent-2);cursor:pointer;text-decoration:underline;" onclick="apOpenTask(${t.parent_task_id})">${esc((apTask(t.parent_task_id)||{}).title||'parent')}</a>
+      </div>`}
+
+      <div class="ap-detail-section">
+        <div class="ap-detail-section-hdr"><span>Blocked by</span><button class="ap-icon-btn" onclick="apAddDependencyPrompt(${t.id},'blockedBy')" title="Add dependency">+</button></div>
+        ${blockedBy.length===0?'<div style="font-size:11px;color:var(--ap-text-mute);padding:4px 8px;">Nothing blocks this.</div>':blockedBy.map(d=>{
+          const dt = apTask(d.depends_on_task_id);
+          if(!dt) return '';
+          return `<div class="ap-dep-row">
+            ${apStatusChip(dt.status, dt.id)}
+            <span style="cursor:pointer;" onclick="apOpenTask(${dt.id})">${esc(apTaskFullId(dt))} · ${esc(dt.title)}</span>
+            <button class="ap-icon-btn" onclick="apRemoveDependency(${d.id})" title="Remove">\u00D7</button>
+          </div>`;
+        }).join('')}
       </div>
-      <div class="ai-modal-actions">
-        <button class="ai-btn ai-btn-ghost" onclick="actionCloseModal()">Cancel</button>
-        <button class="ai-btn ai-btn-primary" onclick="actionSaveQuickAdd()">Add to Inbox</button>
+
+      <div class="ap-detail-section">
+        <div class="ap-detail-section-hdr"><span>Blocking</span></div>
+        ${blocking.length===0?'<div style="font-size:11px;color:var(--ap-text-mute);padding:4px 8px;">Not blocking anything.</div>':blocking.map(d=>{
+          const dt = apTask(d.task_id);
+          if(!dt) return '';
+          return `<div class="ap-dep-row">
+            ${apStatusChip(dt.status, dt.id)}
+            <span style="cursor:pointer;" onclick="apOpenTask(${dt.id})">${esc(apTaskFullId(dt))} · ${esc(dt.title)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <div class="ap-detail-section" style="font-size:10px;color:var(--ap-text-mute);">
+        Created ${created} · Last edited ${apFmtDate(t.updated_at?t.updated_at.slice(0,10):null) || 'recently'}
       </div>
     </div>
   `;
-  document.body.appendChild(backdrop);
-  setTimeout(()=>{const el=document.getElementById('aiqTitle');if(el)el.focus();},80);
 }
 
-function actionQuickCatChange(sel){
-  document.getElementById('aiqNewCat').style.display = (sel.value === '__new__') ? 'block' : 'none';
+function apAddSubtaskInline(parentId){
+  const wrap = document.getElementById('apSubAddWrap');
+  if(!wrap) return;
+  wrap.innerHTML = `<div class="ap-add-task-input" style="margin:6px 0 0;">
+    <span class="ap-status-dot" style="background:#6b7280"></span>
+    <input id="apSubInput" placeholder="Subtask title + Enter (Esc to cancel)"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();apCommitSubtask(${parentId});}else if(event.key==='Escape'){event.preventDefault();document.getElementById('apSubAddWrap').innerHTML='';}"
+      onblur="setTimeout(()=>{const w=document.getElementById('apSubAddWrap');if(w)w.innerHTML='';},150)">
+  </div>`;
+  setTimeout(()=>{const el=document.getElementById('apSubInput');if(el)el.focus();},30);
 }
-function actionRatingClick(groupId, val){
-  const g = document.getElementById(groupId);
-  g.querySelectorAll('.ai-rating-btn').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.val)===val));
+async function apCommitSubtask(parentId){
+  const el = document.getElementById('apSubInput');
+  if(!el) return;
+  const title = el.value.trim();
+  if(!title) return;
+  const parent = apTask(parentId);
+  if(!parent) return;
+  await apCreateTask({project_id: parent.project_id, tasklist_id: parent.tasklist_id, parent_task_id: parentId, title});
+  apOpenTask(parentId);
 }
-function actionGetRating(groupId){
-  const active = document.getElementById(groupId).querySelector('.ai-rating-btn.active');
-  return active ? parseInt(active.dataset.val) : 3;
+
+async function apAddDependencyPrompt(taskId, kind){
+  const t = apTask(taskId);
+  const choices = apData.tasks.filter(x=>x.id!==taskId && x.project_id===t.project_id && !x.parent_task_id);
+  const list = choices.map(c=>`${apTaskFullId(c)} — ${c.title}`).join('\n');
+  const ans = prompt('Enter task ID this depends on (e.g., HELM-3):\n\nAvailable:\n'+list);
+  if(!ans) return;
+  // Match by full identifier or just task_number
+  const want = ans.trim().toUpperCase();
+  const match = choices.find(c=>{
+    const fid = apTaskFullId(c).toUpperCase();
+    return fid===want || String(c.task_number)===ans.trim() || String(c.id)===ans.trim();
+  });
+  if(!match){ toast('No match for "'+ans+'"'); return; }
+  const {data, error} = await db.from('helm_action_dependencies').insert({
+    task_id: taskId, depends_on_task_id: match.id, dep_type:'FS',
+  }).select().single();
+  if(error){ toast('Failed: '+error.message); return; }
+  apData.dependencies.push(data);
+  toast('Dependency added', true);
+  apOpenTask(taskId);
 }
-function actionCloseModal(){
-  ['aiQuickModal','aiEditModal','aiCatModal'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.remove();
+async function apRemoveDependency(depId){
+  const {error} = await db.from('helm_action_dependencies').delete().eq('id',depId);
+  if(error){ toast('Failed: '+error.message); return; }
+  apData.dependencies = apData.dependencies.filter(d=>d.id!==depId);
+  if(apView.selectedTaskId) apOpenTask(apView.selectedTaskId);
+}
+
+// ── CRUD ──
+async function apLogActivity(action, projectId, taskId, detail){
+  try{ await db.from('helm_action_activity').insert({action, project_id:projectId||null, task_id:taskId||null, detail:detail||null}); }
+  catch(e){}
+}
+
+async function apCreateProjectPrompt(){
+  const name = prompt('Project name:');
+  if(!name || !name.trim()) return;
+  const ident = prompt('Short identifier (e.g., HELM, CSR) — used in task IDs like HELM-42:', name.trim().slice(0,4).toUpperCase().replace(/[^A-Z0-9]/g,''));
+  if(!ident) return;
+  const emoji = AP_PROJECT_EMOJIS[Math.floor(Math.random()*AP_PROJECT_EMOJIS.length)];
+  const color = AP_PROJECT_COLORS[apData.projects.length % AP_PROJECT_COLORS.length];
+  const {data, error} = await db.from('helm_action_projects').insert({
+    name: name.trim(), identifier: ident.trim().toUpperCase(),
+    emoji, color, sort_order: apData.projects.length,
+  }).select().single();
+  if(error){ toast('Failed: '+error.message); return; }
+  apData.projects.push(data);
+  // Auto-create a default tasklist
+  const {data: tl} = await db.from('helm_action_tasklists').insert({
+    project_id: data.id, name:'Active', sort_order: 0,
+  }).select().single();
+  if(tl) apData.tasklists.push(tl);
+  apLogActivity('Project created', data.id, null, {title:data.name});
+  apOpenProject(data.id);
+  toast(name+' created', true);
+}
+async function apRenameProject(id, newName){
+  const p = apProject(id);
+  if(!p || newName.trim()===p.name) return;
+  const {error} = await db.from('helm_action_projects').update({name:newName.trim()}).eq('id',id);
+  if(error){ toast('Failed: '+error.message); return; }
+  p.name = newName.trim();
+  apRenderSidebar();
+}
+async function apDeleteProject(id){
+  if(!confirm('Archive this project and all its tasks?')) return;
+  await db.from('helm_action_projects').update({archived:true}).eq('id',id);
+  await db.from('helm_action_tasks').update({archived:true}).eq('project_id',id);
+  apData.projects = apData.projects.filter(p=>p.id!==id);
+  apData.tasks = apData.tasks.filter(t=>t.project_id!==id);
+  apData.tasklists = apData.tasklists.filter(tl=>tl.project_id!==id);
+  apView.current='my-tasks'; apView.projectId=null;
+  apRender(); apUpdateBadge();
+  toast('Project archived', true);
+}
+async function apCreateTasklistPrompt(projectId){
+  const name = prompt('Section name (e.g., "Active Sprint", "Backlog"):');
+  if(!name || !name.trim()) return;
+  const sort = apData.tasklists.filter(tl=>tl.project_id===projectId).length;
+  const {data, error} = await db.from('helm_action_tasklists').insert({
+    project_id: projectId, name:name.trim(), sort_order: sort,
+  }).select().single();
+  if(error){ toast('Failed: '+error.message); return; }
+  apData.tasklists.push(data);
+  apRenderMain();
+}
+async function apRenameTasklist(id){
+  const tl = apTasklist(id);
+  if(!tl) return;
+  const name = prompt('Rename section:', tl.name);
+  if(!name || !name.trim() || name.trim()===tl.name) return;
+  const {error} = await db.from('helm_action_tasklists').update({name:name.trim()}).eq('id',id);
+  if(error){ toast('Failed: '+error.message); return; }
+  tl.name = name.trim();
+  apRenderMain();
+}
+async function apDeleteTasklist(id){
+  const tl = apTasklist(id);
+  if(!tl) return;
+  const tcount = apData.tasks.filter(t=>t.tasklist_id===id).length;
+  if(!confirm(`Archive section "${tl.name}"${tcount?` and ${tcount} tasks`:''}?`)) return;
+  await db.from('helm_action_tasklists').update({archived:true}).eq('id',id);
+  if(tcount) await db.from('helm_action_tasks').update({archived:true}).eq('tasklist_id',id);
+  apData.tasklists = apData.tasklists.filter(x=>x.id!==id);
+  apData.tasks = apData.tasks.filter(t=>t.tasklist_id!==id);
+  apRenderMain(); apUpdateBadge();
+}
+
+async function apCreateTask(payload){
+  // Derive task_number per project
+  const proj = apProject(payload.project_id);
+  if(proj){
+    const num = apData.tasks.filter(t=>t.project_id===proj.id).reduce((m,t)=>Math.max(m, t.task_number||0),0) + 1;
+    payload.task_number = num;
+  }
+  payload.sort_order = apData.tasks.filter(t=>t.tasklist_id===payload.tasklist_id).length;
+  const {data, error} = await db.from('helm_action_tasks').insert(payload).select().single();
+  if(error){ toast('Failed: '+error.message); return null; }
+  apData.tasks.push(data);
+  apLogActivity('Task created', data.project_id, data.id, {title:data.title});
+  apUpdateBadge();
+  return data;
+}
+async function apUpdateTask(id, updates){
+  updates.updated_at = new Date().toISOString();
+  const {data, error} = await db.from('helm_action_tasks').update(updates).eq('id',id).select().single();
+  if(error){ toast('Save failed: '+error.message); return null; }
+  const idx = apData.tasks.findIndex(t=>t.id===id);
+  if(idx>=0) apData.tasks[idx] = data;
+  apUpdateBadge();
+  return data;
+}
+async function apUpdateTaskField(id, field, value){
+  const update = {[field]:value};
+  if(field==='status' && value==='Done'){ update.percent_complete=100; update.completed_at=new Date().toISOString(); }
+  if(field==='status' && value!=='Done'){ update.completed_at=null; }
+  const old = apTask(id);
+  await apUpdateTask(id, update);
+  if(field==='status') apLogActivity('Status changed', old.project_id, id, {from:old.status, to:value, title:old.title});
+  // Re-render whatever's open
+  if(apView.current==='project') apRenderMain();
+  else apRenderMain();
+  if(apView.selectedTaskId===id){ const t=apTask(id); if(t) apRenderTaskPanel(t); }
+}
+async function apCycleStatus(taskId){
+  const t = apTask(taskId);
+  if(!t) return;
+  const idx = AP_STATUSES.findIndex(s=>s.id===t.status);
+  const next = AP_STATUSES[(idx+1)%AP_STATUSES.length];
+  await apUpdateTaskField(taskId, 'status', next.id);
+}
+async function apDuplicateTask(id){
+  const t = apTask(id); if(!t) return;
+  const dup = await apCreateTask({
+    project_id:t.project_id, tasklist_id:t.tasklist_id, milestone_id:t.milestone_id,
+    title:t.title+' (copy)', description:t.description, priority:t.priority,
+    status:'Backlog', start_date:t.start_date, due_date:t.due_date,
+    estimated_hours:t.estimated_hours,
+  });
+  if(dup){ apCloseTask(); apRenderMain(); toast('Duplicated', true); }
+}
+async function apArchiveTask(id){
+  if(!confirm('Archive this task?')) return;
+  await db.from('helm_action_tasks').update({archived:true}).eq('id',id);
+  const t = apTask(id);
+  if(t) apLogActivity('Task archived', t.project_id, id, {title:t.title});
+  apData.tasks = apData.tasks.filter(x=>x.id!==id && x.parent_task_id!==id);
+  apCloseTask();
+  apRenderMain();
+  apUpdateBadge();
+}
+
+async function apCreateMilestonePrompt(projectId){
+  const name = prompt('Milestone name:');
+  if(!name || !name.trim()) return;
+  const due = prompt('Due date (YYYY-MM-DD), or blank:');
+  const {data, error} = await db.from('helm_action_milestones').insert({
+    project_id:projectId, name:name.trim(), due_date:due&&due.trim()?due.trim():null,
+    sort_order: apData.milestones.filter(m=>m.project_id===projectId).length,
+  }).select().single();
+  if(error){ toast('Failed: '+error.message); return; }
+  apData.milestones.push(data);
+  apRenderMain();
+}
+async function apEditMilestonePrompt(id){
+  const m = apMilestone(id); if(!m) return;
+  const what = prompt('Edit milestone — type "name", "due", "delete", or Cancel:', 'name');
+  if(!what) return;
+  if(what==='name'){
+    const name = prompt('Name:', m.name);
+    if(!name) return;
+    await db.from('helm_action_milestones').update({name:name.trim()}).eq('id',id);
+    m.name = name.trim();
+  } else if(what==='due'){
+    const due = prompt('Due date (YYYY-MM-DD or blank):', m.due_date||'');
+    if(due===null) return;
+    await db.from('helm_action_milestones').update({due_date:due.trim()||null}).eq('id',id);
+    m.due_date = due.trim()||null;
+  } else if(what==='delete'){
+    if(!confirm('Delete milestone?')) return;
+    await db.from('helm_action_milestones').delete().eq('id',id);
+    apData.milestones = apData.milestones.filter(x=>x.id!==id);
+  }
+  apRenderMain();
+}
+
+// ── Quick Add modal ──
+let apQuickPick = {projectId:null, tasklistId:null, status:'Backlog', priority:0, due:null};
+function apOpenQuickAdd(){
+  // Default project: current view's project, or first project
+  const defaultPid = apView.projectId || (apData.projects[0] ? apData.projects[0].id : null);
+  apQuickPick = {projectId:defaultPid, tasklistId:null, status:'Backlog', priority:0, due:null};
+  if(defaultPid){
+    const firstTl = apData.tasklists.find(tl=>tl.project_id===defaultPid);
+    if(firstTl) apQuickPick.tasklistId = firstTl.id;
+  }
+  const bd = document.createElement('div');
+  bd.className = 'ap-modal-bd';
+  bd.id = 'apQuickModal';
+  bd.onclick = e=>{ if(e.target===bd) apCloseQuickAdd(); };
+  bd.innerHTML = apRenderQuickAdd();
+  document.body.appendChild(bd);
+  setTimeout(()=>{const el=document.getElementById('apQTitle');if(el)el.focus();},30);
+}
+function apCloseQuickAdd(){
+  const m = document.getElementById('apQuickModal');
+  if(m) m.remove();
+}
+function apRenderQuickAdd(){
+  const projOpts = apData.projects.map(p=>`<option value="${p.id}" ${apQuickPick.projectId===p.id?'selected':''}>${esc(p.emoji||'')} ${esc(p.name)}</option>`).join('');
+  const tasklists = apQuickPick.projectId ? apData.tasklists.filter(tl=>tl.project_id===apQuickPick.projectId) : [];
+  const tlOpts = tasklists.map(tl=>`<option value="${tl.id}" ${apQuickPick.tasklistId===tl.id?'selected':''}>${esc(tl.name)}</option>`).join('');
+  const statusObj = apStatusObj(apQuickPick.status);
+  const prioObj = apPriorityObj(apQuickPick.priority);
+  return `
+    <div class="ap-modal">
+      <div class="ap-modal-hdr">
+        <span style="color:var(--ap-text-mute);">Quick add task</span>
+        <span style="margin-left:auto;font-size:10px;">Esc to close · ⌘Enter to save</span>
+      </div>
+      <div class="ap-modal-body">
+        <input class="ap-modal-title-input" id="apQTitle" placeholder="What needs doing?"
+          onkeydown="if(event.key==='Escape'){event.preventDefault();apCloseQuickAdd();}else if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();apSaveQuickAdd();}">
+        <textarea class="ap-modal-desc" id="apQDesc" placeholder="Add notes (optional)"></textarea>
+        <div class="ap-modal-meta">
+          <label class="ap-meta-chip ${apData.projects.length>0?'set':''}">
+            <span>📁</span>
+            ${apData.projects.length===0
+              ? `<span style="color:var(--ap-text-mute);">No projects — click + below</span>`
+              : `<select onchange="apQuickPick.projectId=parseInt(this.value);apQuickPick.tasklistId=null;document.getElementById('apQuickModal').innerHTML=apRenderQuickAdd();setTimeout(()=>{const el=document.getElementById('apQTitle');if(el)el.focus();},10);">${projOpts}</select>`}
+          </label>
+          ${tasklists.length>0?`
+          <label class="ap-meta-chip set">
+            <span>📂</span>
+            <select onchange="apQuickPick.tasklistId=parseInt(this.value)">${tlOpts}</select>
+          </label>`:''}
+          <label class="ap-meta-chip set">
+            <span class="ap-status-dot" style="background:${statusObj.color}"></span>
+            <select onchange="apQuickPick.status=this.value;document.getElementById('apQuickModal').innerHTML=apRenderQuickAdd();setTimeout(()=>{const el=document.getElementById('apQTitle');if(el)el.focus();},10);">
+              ${AP_STATUSES.map(s=>`<option value="${s.id}" ${apQuickPick.status===s.id?'selected':''}>${s.label}</option>`).join('')}
+            </select>
+          </label>
+          <label class="ap-meta-chip ${apQuickPick.priority>0?'set':''}">
+            ${apPrioBars(apQuickPick.priority)}
+            <select onchange="apQuickPick.priority=parseInt(this.value);document.getElementById('apQuickModal').innerHTML=apRenderQuickAdd();setTimeout(()=>{const el=document.getElementById('apQTitle');if(el)el.focus();},10);">
+              ${AP_PRIORITIES.map(p=>`<option value="${p.id}" ${apQuickPick.priority===p.id?'selected':''}>${p.label}</option>`).join('')}
+            </select>
+          </label>
+          <label class="ap-meta-chip ${apQuickPick.due?'set':''}">
+            <span>📅</span>
+            <input type="date" value="${apQuickPick.due||''}" onchange="apQuickPick.due=this.value||null;">
+          </label>
+          ${apData.projects.length===0?`<button class="ap-meta-chip" onclick="apCreateProjectPrompt()">+ Project</button>`:''}
+        </div>
+      </div>
+      <div class="ap-modal-foot">
+        <button class="ap-btn ap-btn-ghost" onclick="apCloseQuickAdd()">Cancel</button>
+        <button class="ap-btn ap-btn-primary" onclick="apSaveQuickAdd()">Add task</button>
+      </div>
+    </div>`;
+}
+async function apSaveQuickAdd(){
+  const titleEl = document.getElementById('apQTitle');
+  const descEl = document.getElementById('apQDesc');
+  const title = titleEl ? titleEl.value.trim() : '';
+  if(!title){ toast('Title required'); return; }
+  if(!apQuickPick.projectId){ toast('Pick or create a project first'); return; }
+  const created = await apCreateTask({
+    project_id: apQuickPick.projectId,
+    tasklist_id: apQuickPick.tasklistId,
+    title, description: descEl ? (descEl.value.trim()||null) : null,
+    status: apQuickPick.status, priority: apQuickPick.priority,
+    due_date: apQuickPick.due || null,
+  });
+  if(created){
+    apCloseQuickAdd();
+    apRender();
+    toast('Added: '+title, true);
+  }
+}
+
+// ── Command palette (Cmd+K) ──
+function apOpenCmdPalette(){
+  if(document.getElementById('apCmdModal')) return;
+  apView.cmdQuery=''; apView.cmdSelected=0;
+  const bd = document.createElement('div');
+  bd.className = 'ap-cmd-bd';
+  bd.id = 'apCmdModal';
+  bd.onclick = e=>{ if(e.target===bd) apCloseCmd(); };
+  bd.innerHTML = `
+    <div class="ap-cmd">
+      <div class="ap-cmd-input-wrap">
+        <input type="text" id="apCmdInput" class="ap-cmd-input" placeholder="Type a command, jump to a task or project..."
+          oninput="apView.cmdQuery=this.value;apView.cmdSelected=0;apRenderCmdResults();"
+          onkeydown="apCmdKey(event)">
+      </div>
+      <div class="ap-cmd-list" id="apCmdResults"></div>
+    </div>`;
+  document.body.appendChild(bd);
+  setTimeout(()=>{const el=document.getElementById('apCmdInput');if(el)el.focus();},30);
+  apRenderCmdResults();
+}
+function apCloseCmd(){
+  const m = document.getElementById('apCmdModal');
+  if(m) m.remove();
+}
+function apCmdKey(e){
+  const items = apCmdResults();
+  if(e.key==='Escape'){ e.preventDefault(); apCloseCmd(); return; }
+  if(e.key==='ArrowDown'){ e.preventDefault(); apView.cmdSelected = Math.min(apView.cmdSelected+1, items.length-1); apRenderCmdResults(); return; }
+  if(e.key==='ArrowUp'){ e.preventDefault(); apView.cmdSelected = Math.max(apView.cmdSelected-1, 0); apRenderCmdResults(); return; }
+  if(e.key==='Enter'){ e.preventDefault(); const item = items[apView.cmdSelected]; if(item){ apCloseCmd(); item.run(); } return; }
+}
+function apCmdResults(){
+  const q = apView.cmdQuery.trim().toLowerCase();
+  const items = [];
+  // Static commands
+  const cmds = [
+    {icon:'+', label:'New task', kind:'Action', run:apOpenQuickAdd},
+    {icon:'📁', label:'New project', kind:'Action', run:apCreateProjectPrompt},
+    {icon:'📥', label:'Go to Inbox', kind:'Nav', run:()=>apSetView('inbox')},
+    {icon:'⭐', label:'Go to Today', kind:'Nav', run:()=>apSetView('today')},
+    {icon:'✓', label:'Go to My Tasks', kind:'Nav', run:()=>apSetView('my-tasks')},
+    {icon:'📜', label:'Go to Activity', kind:'Nav', run:()=>apSetView('activity')},
+  ];
+  for(const c of cmds){
+    if(!q || c.label.toLowerCase().includes(q)) items.push(c);
+  }
+  // Projects
+  for(const p of apData.projects){
+    if(!q || p.name.toLowerCase().includes(q)){
+      items.push({icon:p.emoji||'📁', label:'Open '+p.name, kind:'Project', run:()=>apOpenProject(p.id)});
+    }
+  }
+  // Tasks
+  if(q.length >= 2){
+    const matches = apData.tasks.filter(t=>t.title.toLowerCase().includes(q) || apTaskFullId(t).toLowerCase().includes(q)).slice(0,15);
+    for(const t of matches){
+      items.push({icon:'•', label:apTaskFullId(t)+' · '+t.title, kind:'Task', run:()=>apOpenTask(t.id)});
+    }
+  }
+  return items.slice(0, 20);
+}
+function apRenderCmdResults(){
+  const el = document.getElementById('apCmdResults');
+  if(!el) return;
+  const items = apCmdResults();
+  if(!items.length){ el.innerHTML = '<div class="ap-cmd-empty">No results</div>'; return; }
+  el.innerHTML = items.map((it,i)=>`<div class="ap-cmd-item ${i===apView.cmdSelected?'selected':''}" onclick="apRunCmd(${i})">
+    <span class="ap-cmd-icon">${esc(it.icon)}</span>
+    <span>${esc(it.label)}</span>
+    <span class="ap-cmd-kind">${esc(it.kind)}</span>
+  </div>`).join('');
+}
+function apRunCmd(i){
+  const items = apCmdResults();
+  const it = items[i];
+  if(!it) return;
+  apCloseCmd();
+  it.run();
+}
+
+// ── Keyboard shortcuts ──
+function apMountShortcuts(){
+  if(apShortcutsBound) return;
+  apShortcutsBound = true;
+  document.addEventListener('keydown', e=>{
+    // Only when on action items tab and unlocked
+    if(!apUnlocked) return;
+    if(!document.body.classList.contains('on-action-tab')) return;
+    const t = e.target;
+    const inField = t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.tagName==='SELECT' || t.isContentEditable);
+    if((e.metaKey||e.ctrlKey) && (e.key==='k' || e.key==='K')){
+      e.preventDefault(); apOpenCmdPalette(); return;
+    }
+    if(inField) return;
+    if(e.key==='c' || e.key==='C'){ e.preventDefault(); apOpenQuickAdd(); }
+    else if(e.key==='Escape'){
+      if(document.getElementById('apCmdModal')) apCloseCmd();
+      else if(document.getElementById('apQuickModal')) apCloseQuickAdd();
+      else if(apView.selectedTaskId) apCloseTask();
+    }
   });
 }
-function actionToggleExpand(catId){
-  if(actionCollapsed.has(catId)) actionCollapsed.delete(catId);
-  else actionCollapsed.add(catId);
-  actionRenderSidebar();
-}
 
-function actionGetCategoryDepth(catId){
-  const cat = actionData.categories.find(c=>c.id===catId);
-  if(!cat) return 0;
-  if(cat.parent_id === null) return 0;
-  return 1 + actionGetCategoryDepth(cat.parent_id);
-}
-
-async function actionSaveQuickAdd(){
-  const title = document.getElementById('aiqTitle').value.trim();
-  if(!title){ toast('Title required'); return; }
-  const catSel = document.getElementById('aiqCat').value;
-  let categoryId = null;
-
-  if(catSel === '__new__'){
-    const nm = document.getElementById('aiqNewCatName').value.trim();
-    if(!nm){ toast('New category name required'); return; }
-    const parentRaw = document.getElementById('aiqNewCatParent').value;
-    const parent = parentRaw ? parseInt(parentRaw) : null;
-    if(parent !== null){
-      const depth = actionGetCategoryDepth(parent);
-      if(depth >= 2){ toast('Max 3 layers — pick a top-level or layer-2 parent'); return; }
-    }
-    const {data, error} = await db.from('helm_action_categories').insert({
-      name: nm, parent_id: parent, sort_order: actionData.categories.length,
-    }).select().single();
-    if(error){ toast('Category create failed: '+error.message); return; }
-    actionData.categories.push(data);
-    categoryId = data.id;
-  } else if(catSel){
-    categoryId = parseInt(catSel);
-  } else {
-    toast('Pick a category'); return;
-  }
-
-  const body = document.getElementById('aiqBody').value.trim() || null;
-  const difficulty = actionGetRating('aiqDiff');
-  const urgency = actionGetRating('aiqUrg');
-  const due = document.getElementById('aiqDue').value || null;
-
-  const {data, error} = await db.from('helm_action_items').insert({
-    title, body, category_id: categoryId, difficulty, urgency, due_date: due, status: 'Inbox',
-  }).select().single();
-  if(error){ toast('Save failed: '+error.message); return; }
-  actionData.items.unshift(data);
-  actionCloseModal();
-  toast('Captured to Inbox', true);
-  actionRender();
-  actionUpdateBadge();
-}
-
-// ── Inline category add (no modal) ──
-function actionInlineAddCategory(parentId){
-  // parentId === null  → adding a top-level (main) category
-  // parentId === number → adding a sub under that parent
-  const p = (parentId === undefined) ? null : parentId;
-  if(p !== null){
-    const depth = actionGetCategoryDepth(p);
-    if(depth >= 2){ toast('Max 3 layers \u2014 cannot add deeper here'); return; }
-    actionCollapsed.delete(p); // expand so the input is visible inside
-  }
-  actionInlineAddParent = p;
-  actionRenderSidebar();
-  setTimeout(()=>{
-    const el = document.getElementById('aiInlineNew');
-    if(el){ el.focus(); el.select(); }
-  }, 30);
-}
-
-async function actionInlineCommit(){
-  if(actionInlineCommitting) return;
-  actionInlineCommitting = true;
-  try {
-    const el = document.getElementById('aiInlineNew');
-    if(!el){ return; }
-    const name = el.value.trim();
-    if(!name){ actionInlineCancel(); return; }
-    const parent = actionInlineAddParent;
-    if(parent !== null){
-      const depth = actionGetCategoryDepth(parent);
-      if(depth >= 2){ toast('Max 3 layers'); actionInlineCancel(); return; }
-    }
-    const {data, error} = await db.from('helm_action_categories').insert({
-      name, parent_id: parent, sort_order: actionData.categories.length,
-    }).select().single();
-    if(error){ toast('Failed: '+error.message); return; }
-    actionData.categories.push(data);
-    actionInlineAddParent = undefined;
-    actionRenderSidebar();
-    actionRenderContent();
-    toast('Added: '+name, true);
-  } finally {
-    actionInlineCommitting = false;
-  }
-}
-
-function actionInlineCancel(){
-  actionInlineAddParent = undefined;
-  actionRenderSidebar();
-}
-
-function actionInlineMaybeCommit(){
-  // Blur fires after Enter/Escape paths set the flag; bail if we already handled.
-  if(actionInlineCommitting) return;
-  const el = document.getElementById('aiInlineNew');
-  if(!el) return;
-  const name = el.value.trim();
-  if(!name){ actionInlineCancel(); return; }
-  actionInlineCommit();
-}
-async function actionRenameCategory(catId){
-  const cat = actionData.categories.find(c=>c.id===catId);
-  if(!cat) return;
-  const name = prompt('Rename category:', cat.name);
-  if(!name || !name.trim() || name.trim()===cat.name) return;
-  const {error} = await db.from('helm_action_categories').update({name: name.trim()}).eq('id',catId);
-  if(error){ toast('Failed: '+error.message); return; }
-  cat.name = name.trim();
-  actionRenderSidebar();
-  actionRenderContent();
-}
-async function actionDeleteCategory(catId){
-  const cat = actionData.categories.find(c=>c.id===catId);
-  if(!cat) return;
-  const all = [catId]; let added=true;
-  while(added){ added=false;
-    for(const c of actionData.categories){
-      if(c.parent_id !== null && all.includes(c.parent_id) && !all.includes(c.id)){ all.push(c.id); added=true; }
-    }
-  }
-  const itemCount = actionData.items.filter(i=>all.includes(i.category_id)).length;
-  const subCount = all.length - 1;
-  const subPart = subCount>0?` and ${subCount} subcategor${subCount===1?'y':'ies'}`:'';
-  const itemPart = itemCount>0?` plus ${itemCount} item${itemCount===1?'':'s'}`:'';
-  if(!confirm(`Archive "${cat.name}"${subPart}${itemPart}?\n\nThis is reversible only via SQL.`)) return;
-  await db.from('helm_action_categories').update({archived:true}).in('id',all);
-  if(itemCount>0) await db.from('helm_action_items').update({archived:true}).in('category_id',all);
-  actionData.categories = actionData.categories.filter(c=>!all.includes(c.id));
-  actionData.items = actionData.items.filter(i=>!all.includes(i.category_id));
-  if(all.includes(actionState.activeCategoryId)) actionState.activeCategoryId = null;
-  actionRender();
-  actionUpdateBadge();
-  toast('Archived', true);
-}
-
-// ── Item edit ──
-function actionOpenItem(itemId){
-  const it = actionData.items.find(i=>i.id===itemId);
-  if(!it) return;
-  const ageDays = actionAgeDays(it);
-  const created = new Date(it.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-
-  const backdrop = document.createElement('div');
-  backdrop.className = 'ai-modal-backdrop';
-  backdrop.id = 'aiEditModal';
-  backdrop.onclick = (e)=>{ if(e.target===backdrop) actionCloseModal(); };
-  backdrop.innerHTML = `
-    <div class="ai-modal" style="max-width:580px;">
-      <h3 style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <span>Edit Item</span>
-        <span style="font-size:10px;font-weight:500;color:#7c849a;letter-spacing:0.06em;">CREATED ${created.toUpperCase()} · ${ageDays}D AGO</span>
-      </h3>
-      <div class="ai-field">
-        <label>Title</label>
-        <input class="ai-input" id="aieTitle" value="${esc(it.title||'')}">
-      </div>
-      <div class="ai-field">
-        <label>Notes</label>
-        <textarea class="ai-textarea" id="aieBody">${esc(it.body||'')}</textarea>
-      </div>
-      <div class="ai-row">
-        <div class="ai-field">
-          <label>Category</label>
-          <select class="ai-select" id="aieCat">${actionCatOptionsHTML(null,0,it.category_id)}</select>
-        </div>
-        <div class="ai-field">
-          <label>Status</label>
-          <select class="ai-select" id="aieStatus" onchange="document.getElementById('aieBlockedWrap').style.display=this.value==='Blocked'?'':'none';">
-            ${ACTION_STATUS_LIST.map(s=>`<option value="${s}" ${it.status===s?'selected':''}>${s==='InProgress'?'In Progress':s}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-      <div class="ai-row">
-        <div class="ai-field">
-          <label>Difficulty</label>
-          <div class="ai-rating" id="aieDiff">
-            ${[1,2,3,4,5].map(n=>`<button class="ai-rating-btn ${(it.difficulty||3)===n?'active':''}" data-val="${n}" onclick="actionRatingClick('aieDiff',${n})">${n}</button>`).join('')}
-          </div>
-        </div>
-        <div class="ai-field">
-          <label>Urgency</label>
-          <div class="ai-rating" id="aieUrg">
-            ${[1,2,3,4,5].map(n=>`<button class="ai-rating-btn ${(it.urgency||3)===n?'active':''}" data-val="${n}" onclick="actionRatingClick('aieUrg',${n})">${n}</button>`).join('')}
-          </div>
-        </div>
-      </div>
-      <div class="ai-field">
-        <label>Due date (optional)</label>
-        <input type="date" class="ai-input" id="aieDue" value="${it.due_date||''}">
-      </div>
-      <div class="ai-field" id="aieBlockedWrap" style="${it.status==='Blocked'?'':'display:none;'}">
-        <label>Blocked reason</label>
-        <input class="ai-input" id="aieBlocked" value="${esc(it.blocked_reason||'')}" placeholder="What's blocking this?">
-      </div>
-      <div class="ai-modal-actions">
-        <button class="ai-btn ai-btn-danger" onclick="actionArchiveItem(${it.id})">Archive</button>
-        <span style="flex:1;"></span>
-        <button class="ai-btn ai-btn-ghost" onclick="actionCloseModal()">Cancel</button>
-        <button class="ai-btn ai-btn-primary" onclick="actionSaveItem(${it.id})">Save</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(backdrop);
-}
-
-async function actionSaveItem(itemId){
-  const title = document.getElementById('aieTitle').value.trim();
-  if(!title){ toast('Title required'); return; }
-  const body = document.getElementById('aieBody').value.trim() || null;
-  const category_id = parseInt(document.getElementById('aieCat').value) || null;
-  const status = document.getElementById('aieStatus').value;
-  const difficulty = actionGetRating('aieDiff');
-  const urgency = actionGetRating('aieUrg');
-  const due_date = document.getElementById('aieDue').value || null;
-  const blocked_reason = status==='Blocked' ? (document.getElementById('aieBlocked').value.trim() || null) : null;
-  const updates = {
-    title, body, category_id, status, difficulty, urgency, due_date, blocked_reason,
-    last_worked_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  if(status==='Done'){ updates.completed_at = new Date().toISOString(); }
-  const {data, error} = await db.from('helm_action_items').update(updates).eq('id',itemId).select().single();
-  if(error){ toast('Save failed: '+error.message); return; }
-  const idx = actionData.items.findIndex(i=>i.id===itemId);
-  if(idx>=0) actionData.items[idx] = data;
-  actionCloseModal();
-  toast('Saved', true);
-  actionRender();
-  actionUpdateBadge();
-}
-
-async function actionArchiveItem(itemId){
-  if(!confirm('Archive this item? (You can restore it via SQL if needed.)')) return;
-  const {error} = await db.from('helm_action_items').update({archived:true}).eq('id',itemId);
-  if(error){ toast('Archive failed: '+error.message); return; }
-  actionData.items = actionData.items.filter(i=>i.id!==itemId);
-  actionCloseModal();
-  toast('Archived', true);
-  actionRender();
-  actionUpdateBadge();
-}
 </script>
 </body>
 </html>
