@@ -1411,6 +1411,191 @@ select.ro-input{cursor:pointer;}
   font-size:11px;color:rgba(255,255,255,0.55);
   line-height:1.55;margin-top:7px;
 }
+
+/* ── ACTION ITEMS (David only) — own visual environment ──────────── */
+#tab-action{padding:0;margin:-0.75rem;}
+.ai-root{
+  min-height:calc(100vh - 78px);
+  background:#0a0e1a;
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(99,102,241,0.10), transparent 50%),
+    radial-gradient(circle at 86% 88%, rgba(236,72,153,0.06), transparent 55%),
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: auto, auto, 32px 32px, 32px 32px;
+  color:#e4e7ef;
+  font-family:'Inter','DM Sans',sans-serif;
+  display:flex;flex-direction:column;
+}
+.ai-topbar{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 22px;border-bottom:1px solid rgba(255,255,255,0.06);
+  background:rgba(10,14,26,0.6);backdrop-filter:blur(8px);
+}
+.ai-title{font-size:18px;font-weight:600;letter-spacing:-0.01em;color:#fff;white-space:nowrap;}
+.ai-title .ai-title-accent{color:#a5b4fc;font-weight:400;margin-left:6px;font-size:13px;}
+.ai-digest{display:flex;gap:6px;flex-wrap:wrap;flex:1;margin-left:18px;}
+.ai-digest-pill{
+  font-size:11px;padding:4px 10px;border-radius:999px;
+  background:rgba(255,255,255,0.05);color:#cbd2e3;border:1px solid rgba(255,255,255,0.08);
+  font-weight:500;
+}
+.ai-digest-pill.warn{background:rgba(245,158,11,0.13);color:#fbbf24;border-color:rgba(245,158,11,0.25);}
+.ai-digest-pill.danger{background:rgba(239,68,68,0.13);color:#fca5a5;border-color:rgba(239,68,68,0.25);}
+.ai-views{display:flex;gap:2px;background:rgba(255,255,255,0.04);padding:3px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);}
+.ai-view-btn{
+  background:transparent;border:none;color:#9ca3af;font-family:inherit;font-size:12px;
+  font-weight:500;padding:6px 14px;border-radius:5px;cursor:pointer;letter-spacing:0.01em;
+}
+.ai-view-btn:hover:not(:disabled){color:#fff;}
+.ai-view-btn.active{background:rgba(99,102,241,0.22);color:#c7d2fe;}
+.ai-view-btn:disabled{opacity:0.32;cursor:not-allowed;}
+.ai-main{display:flex;flex:1;min-height:0;}
+.ai-sidebar{
+  width:260px;border-right:1px solid rgba(255,255,255,0.06);
+  padding:14px 12px;overflow-y:auto;background:rgba(0,0,0,0.18);flex-shrink:0;
+}
+.ai-sidebar-hdr{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;
+  font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#7c849a;
+  padding:0 6px;
+}
+.ai-sb-add{
+  background:transparent;border:1px solid rgba(255,255,255,0.12);color:#c7d2fe;
+  font-family:inherit;font-size:14px;width:22px;height:22px;border-radius:5px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;line-height:1;
+}
+.ai-sb-add:hover{background:rgba(99,102,241,0.18);border-color:rgba(99,102,241,0.4);}
+.ai-cat-row{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;
+  font-size:13px;color:#cbd2e3;margin-bottom:1px;position:relative;
+}
+.ai-cat-row:hover{background:rgba(255,255,255,0.04);}
+.ai-cat-row.active{background:rgba(99,102,241,0.16);color:#fff;}
+.ai-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ai-cat-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ai-cat-count{font-size:10px;color:#7c849a;background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:8px;}
+.ai-cat-row.depth-1{padding-left:22px;font-size:12px;}
+.ai-cat-row.depth-2{padding-left:38px;font-size:12px;color:#a8b0c2;}
+.ai-cat-actions{display:none;gap:2px;}
+.ai-cat-row:hover .ai-cat-actions{display:flex;}
+.ai-cat-act{
+  background:none;border:none;color:#7c849a;cursor:pointer;font-size:11px;padding:2px 5px;border-radius:3px;line-height:1;
+}
+.ai-cat-act:hover{color:#fff;background:rgba(255,255,255,0.08);}
+.ai-content{flex:1;overflow-y:auto;padding:18px 22px;min-width:0;}
+.ai-content-hdr{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.ai-content-title{font-size:15px;font-weight:600;color:#fff;letter-spacing:-0.01em;}
+.ai-content-sub{font-size:12px;color:#7c849a;}
+.ai-filters{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;}
+.ai-filter{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#9ca3af;
+  font-family:inherit;font-size:11px;padding:5px 10px;border-radius:5px;cursor:pointer;
+}
+.ai-filter:hover{color:#fff;border-color:rgba(255,255,255,0.16);}
+.ai-filter.active{background:rgba(99,102,241,0.18);color:#c7d2fe;border-color:rgba(99,102,241,0.4);}
+select.ai-filter{padding:5px 8px;appearance:none;-webkit-appearance:none;}
+.ai-list{display:flex;flex-direction:column;gap:6px;}
+.ai-item{
+  display:grid;grid-template-columns:6px 1fr auto auto auto auto;gap:14px;align-items:center;
+  background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);
+  border-left-width:3px;border-radius:8px;padding:10px 14px 10px 11px;cursor:pointer;
+  transition:all 0.12s;
+}
+.ai-item:hover{background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.14);transform:translateY(-1px);}
+.ai-item.stale{opacity:0.55;}
+.ai-item-priority{width:6px;height:30px;border-radius:3px;background:#374151;}
+.ai-item-main{min-width:0;overflow:hidden;}
+.ai-item-title{font-size:13px;font-weight:500;color:#f3f4f6;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ai-item-sub{font-size:11px;color:#7c849a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ai-item-cat{
+  font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;letter-spacing:0.02em;
+  white-space:nowrap;
+}
+.ai-item-status{font-size:10px;font-weight:600;padding:3px 9px;border-radius:4px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;}
+.ai-status-Inbox{background:rgba(156,163,175,0.15);color:#d1d5db;}
+.ai-status-Active{background:rgba(99,102,241,0.18);color:#c7d2fe;}
+.ai-status-InProgress{background:rgba(16,185,129,0.18);color:#6ee7b7;}
+.ai-status-Blocked{background:rgba(239,68,68,0.18);color:#fca5a5;}
+.ai-status-Done{background:rgba(75,85,99,0.25);color:#9ca3af;}
+.ai-item-score{font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:#a5b4fc;min-width:24px;text-align:right;}
+.ai-item-age{font-family:'DM Mono',monospace;font-size:11px;color:#7c849a;min-width:42px;text-align:right;}
+.ai-item-age.warn{color:#fbbf24;}
+.ai-item-age.danger{color:#fca5a5;}
+.ai-empty{text-align:center;padding:60px 20px;color:#7c849a;font-size:13px;}
+.ai-empty-icon{font-size:42px;opacity:0.18;margin-bottom:10px;font-family:serif;}
+.ai-fab{
+  position:fixed;bottom:24px;right:24px;z-index:9000;
+  width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  color:#fff;border:none;cursor:pointer;font-size:28px;font-weight:300;line-height:1;
+  box-shadow:0 8px 24px rgba(99,102,241,0.4),0 2px 6px rgba(0,0,0,0.2);
+  transition:transform 0.15s,box-shadow 0.15s;
+}
+.ai-fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 12px 32px rgba(99,102,241,0.5),0 2px 8px rgba(0,0,0,0.25);}
+.ai-modal-backdrop{
+  position:fixed;inset:0;background:rgba(5,8,16,0.78);z-index:9500;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  backdrop-filter:blur(4px);overflow-y:auto;
+}
+.ai-modal{
+  background:#10162a;border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;padding:24px;width:100%;max-width:520px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.6);color:#e4e7ef;
+}
+.ai-modal h3{font-size:16px;font-weight:600;color:#fff;margin-bottom:16px;letter-spacing:-0.01em;}
+.ai-field{margin-bottom:14px;}
+.ai-field label{display:block;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#7c849a;margin-bottom:5px;}
+.ai-input,.ai-select,.ai-textarea{
+  width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  color:#f3f4f6;padding:9px 12px;border-radius:6px;font-family:inherit;font-size:13px;outline:none;
+  transition:border-color 0.12s,background 0.12s;
+}
+.ai-input:focus,.ai-select:focus,.ai-textarea:focus{border-color:#6366f1;background:rgba(99,102,241,0.06);}
+.ai-textarea{resize:vertical;min-height:70px;line-height:1.5;}
+.ai-rating{display:flex;gap:4px;}
+.ai-rating-btn{
+  flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  color:#9ca3af;font-family:inherit;font-size:13px;font-weight:600;padding:8px 0;
+  border-radius:5px;cursor:pointer;
+}
+.ai-rating-btn:hover{color:#fff;border-color:rgba(255,255,255,0.18);}
+.ai-rating-btn.active{background:rgba(99,102,241,0.22);color:#c7d2fe;border-color:#6366f1;}
+.ai-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.ai-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;align-items:center;}
+.ai-btn{font-family:inherit;font-size:13px;font-weight:600;padding:9px 18px;border:none;border-radius:6px;cursor:pointer;}
+.ai-btn-primary{background:#6366f1;color:#fff;}
+.ai-btn-primary:hover{background:#5048e5;}
+.ai-btn-ghost{background:transparent;color:#9ca3af;border:1px solid rgba(255,255,255,0.1);}
+.ai-btn-ghost:hover{color:#fff;border-color:rgba(255,255,255,0.2);}
+.ai-btn-danger{background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,0.3);}
+.ai-btn-danger:hover{background:rgba(239,68,68,0.12);color:#fff;}
+.ai-cat-create-inline{
+  background:rgba(99,102,241,0.08);border:1px dashed rgba(99,102,241,0.35);
+  border-radius:6px;padding:10px;margin-top:6px;
+}
+.ai-pin-wrap{
+  min-height:calc(100vh - 78px);background:#0a0e1a;
+  display:flex;align-items:center;justify-content:center;
+}
+.ai-pin-box{
+  background:#10162a;border:1px solid rgba(255,255,255,0.08);
+  padding:36px 32px;border-radius:14px;width:340px;text-align:center;
+  box-shadow:0 24px 80px rgba(0,0,0,0.6);
+}
+.ai-pin-title{color:#fff;font-size:15px;font-weight:600;margin-bottom:18px;letter-spacing:-0.01em;}
+.ai-pin-input{
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#fff;
+  padding:12px;border-radius:8px;font-family:'DM Mono',monospace;font-size:18px;
+  text-align:center;letter-spacing:8px;width:160px;outline:none;
+}
+.ai-pin-input:focus{border-color:#6366f1;}
+.ai-pin-err{color:#fca5a5;font-size:12px;margin-top:10px;display:none;}
+.ai-tab-badge{
+  display:inline-block;background:#6366f1;color:#fff;
+  font-size:9px;font-weight:700;padding:2px 6px;border-radius:9px;margin-left:5px;
+  vertical-align:middle;line-height:1;min-width:14px;
+}
 </style>
 </head>
 <body>
@@ -1472,6 +1657,7 @@ select.ro-input{cursor:pointer;}
     <button id="xferTabBtn" style="display:none" onclick="switchTab('xfer',this)">Xfer Station</button>
     <button id="filesTabBtn" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="cmdTabBtn" style="display:none" onclick="switchTab('cmd',this)">Command <span class="cmd-badge-private">PRIVATE</span></button>
+    <button id="actionTabBtn" style="display:none" onclick="switchTab('action',this)">Action Items</button>
     <button id="importTabBtn" style="display:none" onclick="switchTab('import',this)">Import</button>
   </div>
 
@@ -1484,6 +1670,7 @@ select.ro-input{cursor:pointer;}
     <div id="tab-xfer"   style="display:none"></div>
     <div id="tab-files"  style="display:none"></div>
     <div id="tab-cmd"    style="display:none"></div>
+    <div id="tab-action" style="display:none"></div>
     <div id="tab-import" style="display:none"></div>
   </div>
 </div>
@@ -1969,6 +2156,7 @@ async function login() {
   }
   if(data.username==='david'){
     document.getElementById('cmdTabBtn').style.display='';
+    document.getElementById('actionTabBtn').style.display='';
   }
   startHeartbeat();
   init();
@@ -2079,7 +2267,7 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','add','report','rolloffs','irr','xfer','files','cmd','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','irr','xfer','files','cmd','action','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -2093,6 +2281,7 @@ function switchTab(name,btn){
   if(name==='xfer')   renderXfer();
   if(name==='files')  renderFiles();
   if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
+  if(name==='action') { if(!actionUnlocked){actionPinPrompt();return;} actionInit(); }
   if(name==='import') renderImport();
 }
 
@@ -7703,6 +7892,7 @@ if(_saved && _saved !== '1'){
     }
     if(currentUser.username==='david'){
       document.getElementById('cmdTabBtn').style.display='';
+      document.getElementById('actionTabBtn').style.display='';
     }
     startHeartbeat();
     init().catch(err=>{
@@ -7710,6 +7900,645 @@ if(_saved && _saved !== '1'){
       console.error('Init failed:',err);
     });
   }catch(e){ sessionStorage.removeItem('helm_auth'); }
+}
+
+// ── ACTION ITEMS (David only — PIN gated, reuses CMD_PIN '1144') ─────
+// Phase 1: Categories (3-layer hierarchy) + List view + Quick Add + status workflow.
+// Phase 2 will add the Whiteboard view; Phase 3 the Project/Timeline views.
+//
+// Required Supabase tables (run once):
+//   create table if not exists helm_action_categories(
+//     id bigserial primary key, name text not null,
+//     parent_id bigint references helm_action_categories(id) on delete cascade,
+//     color text, x numeric default 0, y numeric default 0,
+//     sort_order int default 0, archived boolean default false,
+//     created_at timestamptz default now()
+//   );
+//   create table if not exists helm_action_items(
+//     id bigserial primary key, title text not null, body text,
+//     category_id bigint references helm_action_categories(id) on delete set null,
+//     parent_item_id bigint references helm_action_items(id) on delete set null,
+//     difficulty smallint default 3, urgency smallint default 3,
+//     status text default 'Inbox', blocked_reason text, due_date date,
+//     x numeric default 0, y numeric default 0,
+//     last_worked_at timestamptz, completed_at timestamptz,
+//     archived boolean default false,
+//     created_at timestamptz default now(), updated_at timestamptz default now()
+//   );
+//   create table if not exists helm_action_links(
+//     id bigserial primary key,
+//     from_item_id bigint not null references helm_action_items(id) on delete cascade,
+//     to_item_id bigint not null references helm_action_items(id) on delete cascade,
+//     link_type text default 'related', label text,
+//     created_at timestamptz default now()
+//   );
+//   alter table helm_action_categories enable row level security;
+//   alter table helm_action_items enable row level security;
+//   alter table helm_action_links enable row level security;
+//   create policy "helm_action_categories_all" on helm_action_categories for all using(true) with check(true);
+//   create policy "helm_action_items_all" on helm_action_items for all using(true) with check(true);
+//   create policy "helm_action_links_all" on helm_action_links for all using(true) with check(true);
+
+let actionUnlocked = false;
+let actionData = {categories:[], items:[]};
+let actionState = {view:'list', activeCategoryId:null, filterStatus:null, sortBy:'priority'};
+const ACTION_PIN = '1144';
+const ACTION_STATUS_LIST = ['Inbox','Active','InProgress','Blocked','Done'];
+const ACTION_PALETTE = ['#6366f1','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#f43f5e','#84cc16','#3b82f6','#a855f7','#14b8a6','#fb923c','#ef4444','#22d3ee','#eab308'];
+
+function actionColorFor(category){
+  if(category && category.color) return category.color;
+  const id = category ? category.id : 0;
+  return ACTION_PALETTE[Math.abs(id) % ACTION_PALETTE.length];
+}
+
+function actionPinPrompt(){
+  const tab = document.getElementById('tab-action');
+  tab.innerHTML = `
+    <div class="ai-pin-wrap">
+      <div class="ai-pin-box">
+        <div class="ai-pin-title">Enter PIN to access Action Items</div>
+        <input type="password" id="aiPinInput" maxlength="10" class="ai-pin-input"
+          onkeydown="if(event.key==='Enter')actionCheckPin()">
+        <div style="margin-top:14px;">
+          <button class="ai-btn ai-btn-primary" onclick="actionCheckPin()" style="width:100%;">Unlock</button>
+        </div>
+        <div id="aiPinErr" class="ai-pin-err">Incorrect PIN</div>
+      </div>
+    </div>`;
+  setTimeout(()=>{const el=document.getElementById('aiPinInput');if(el)el.focus();},80);
+}
+function actionCheckPin(){
+  const v = document.getElementById('aiPinInput').value;
+  if(v === ACTION_PIN){
+    actionUnlocked = true;
+    actionInit();
+  } else {
+    document.getElementById('aiPinErr').style.display='block';
+    document.getElementById('aiPinInput').value='';
+    document.getElementById('aiPinInput').focus();
+  }
+}
+
+async function actionInit(){
+  await actionLoadAll();
+  actionRender();
+  actionUpdateBadge();
+}
+
+async function actionLoadAll(){
+  const [catsRes, itemsRes] = await Promise.all([
+    db.from('helm_action_categories').select('*').eq('archived',false).order('sort_order'),
+    db.from('helm_action_items').select('*').eq('archived',false).order('updated_at',{ascending:false}),
+  ]);
+  if(catsRes.error){console.error('AI categories load:',catsRes.error); toast('Categories: '+catsRes.error.message); actionData.categories=[];}
+  else actionData.categories = catsRes.data || [];
+  if(itemsRes.error){console.error('AI items load:',itemsRes.error); toast('Items: '+itemsRes.error.message); actionData.items=[];}
+  else actionData.items = itemsRes.data || [];
+}
+
+function actionAgeDays(item){
+  const ts = item.last_worked_at || item.updated_at || item.created_at;
+  if(!ts) return 0;
+  return Math.floor((Date.now() - new Date(ts).getTime()) / 86400000);
+}
+function actionPriorityScore(item){
+  // urgency weighted slightly higher than difficulty
+  const u = parseInt(item.urgency)||3;
+  const d = parseInt(item.difficulty)||3;
+  return Math.round(((u*1.2 + d*0.8) / 12) * 10);
+}
+function actionStaleClass(item){
+  if(item.status === 'Done') return '';
+  const age = actionAgeDays(item);
+  if(age >= 21) return 'danger';
+  if(age >= 10) return 'warn';
+  return '';
+}
+function actionStaleFlag(item){ return actionAgeDays(item) >= 14 && item.status !== 'Done'; }
+function actionAgeLabel(item){
+  const days = actionAgeDays(item);
+  if(days === 0) return 'today';
+  if(days === 1) return '1d';
+  if(days < 14) return days+'d';
+  if(days < 60) return Math.round(days/7)+'w';
+  return Math.round(days/30)+'mo';
+}
+
+function actionDigest(){
+  const items = actionData.items;
+  return {
+    inbox: items.filter(i=>i.status==='Inbox').length,
+    active: items.filter(i=>i.status==='Active').length,
+    inProg: items.filter(i=>i.status==='InProgress').length,
+    blocked: items.filter(i=>i.status==='Blocked' && actionAgeDays(i)>=14).length,
+    stale: items.filter(i=>actionStaleFlag(i)).length,
+  };
+}
+
+function actionUpdateBadge(){
+  const btn = document.getElementById('actionTabBtn');
+  if(!btn) return;
+  const d = actionDigest();
+  const count = d.active + d.inProg;
+  const existing = btn.querySelector('.ai-tab-badge');
+  if(existing) existing.remove();
+  if(count > 0){
+    const span = document.createElement('span');
+    span.className = 'ai-tab-badge';
+    span.textContent = count;
+    btn.appendChild(span);
+  }
+}
+
+function actionRender(){
+  const tab = document.getElementById('tab-action');
+  const d = actionDigest();
+  const lastTouched = actionData.items
+    .filter(i=>i.status!=='Done')
+    .sort((a,b)=>new Date(b.last_worked_at||b.updated_at||b.created_at)-new Date(a.last_worked_at||a.updated_at||a.created_at))[0];
+
+  const digestPills = [
+    `<span class="ai-digest-pill">${d.inbox} inbox</span>`,
+    `<span class="ai-digest-pill">${d.active} active</span>`,
+    `<span class="ai-digest-pill">${d.inProg} in progress</span>`,
+    d.blocked>0 ? `<span class="ai-digest-pill danger">${d.blocked} blocked &gt;14d</span>`:'',
+    d.stale>0 ? `<span class="ai-digest-pill warn">${d.stale} stale</span>`:'',
+    lastTouched ? `<span class="ai-digest-pill" title="Last touched">› ${esc(lastTouched.title.slice(0,40))}${lastTouched.title.length>40?'…':''}</span>`:'',
+  ].filter(Boolean).join('');
+
+  tab.innerHTML = `
+    <div class="ai-root">
+      <div class="ai-topbar">
+        <div class="ai-title">Action Items <span class="ai-title-accent">// command surface</span></div>
+        <div class="ai-digest">${digestPills}</div>
+        <div class="ai-views">
+          <button class="ai-view-btn ${actionState.view==='list'?'active':''}" onclick="actionSetView('list')">List</button>
+          <button class="ai-view-btn" disabled title="Phase 2">Whiteboard</button>
+          <button class="ai-view-btn" disabled title="Phase 3">Projects</button>
+        </div>
+      </div>
+      <div class="ai-main">
+        <div class="ai-sidebar" id="aiSidebar"></div>
+        <div class="ai-content" id="aiContent"></div>
+      </div>
+      <button class="ai-fab" onclick="actionOpenQuickAdd()" title="Quick Add">+</button>
+    </div>
+  `;
+  actionRenderSidebar();
+  actionRenderContent();
+}
+
+function actionRenderSidebar(){
+  const sb = document.getElementById('aiSidebar');
+  if(!sb) return;
+  const cats = actionData.categories;
+  const items = actionData.items;
+
+  function children(parentId){ return cats.filter(c=>c.parent_id===parentId).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0) || (a.name||'').localeCompare(b.name||'')); }
+  function descendants(catId){
+    const out=[catId]; let added=true;
+    while(added){ added=false;
+      for(const c of cats) if(c.parent_id!==null && out.includes(c.parent_id) && !out.includes(c.id)){out.push(c.id); added=true;}
+    }
+    return out;
+  }
+  function countItems(catId){
+    const ids = new Set(descendants(catId));
+    return items.filter(i=>ids.has(i.category_id) && i.status!=='Done').length;
+  }
+  function renderNode(c, depth){
+    const color = actionColorFor(c);
+    const cnt = countItems(c.id);
+    const active = actionState.activeCategoryId === c.id ? 'active':'';
+    let html = `
+      <div class="ai-cat-row depth-${depth} ${active}" onclick="actionSetCategory(${c.id})">
+        <span class="ai-cat-dot" style="background:${color}"></span>
+        <span class="ai-cat-name">${esc(c.name)}</span>
+        <span class="ai-cat-actions">
+          ${depth<2?`<button class="ai-cat-act" onclick="event.stopPropagation();actionAddSubcategory(${c.id})" title="Add subcategory">+</button>`:''}
+          <button class="ai-cat-act" onclick="event.stopPropagation();actionRenameCategory(${c.id})" title="Rename">\u270E</button>
+          <button class="ai-cat-act" onclick="event.stopPropagation();actionDeleteCategory(${c.id})" title="Archive">&times;</button>
+        </span>
+        ${cnt>0?`<span class="ai-cat-count">${cnt}</span>`:''}
+      </div>`;
+    for(const child of children(c.id)) html += renderNode(child, depth+1);
+    return html;
+  }
+
+  const allActive = actionState.activeCategoryId === null ? 'active':'';
+  let html = `
+    <div class="ai-sidebar-hdr">
+      <span>Categories</span>
+      <button class="ai-sb-add" onclick="actionAddCategory()" title="New top-level category">+</button>
+    </div>
+    <div class="ai-cat-row ${allActive}" onclick="actionSetCategory(null)">
+      <span class="ai-cat-dot" style="background:#475569"></span>
+      <span class="ai-cat-name">All items</span>
+      <span class="ai-cat-count">${items.filter(i=>i.status!=='Done').length}</span>
+    </div>
+  `;
+  for(const c of children(null)) html += renderNode(c, 0);
+  if(cats.length === 0){
+    html += `<div style="padding:18px 8px;text-align:center;color:#7c849a;font-size:11px;line-height:1.5;">No categories yet.<br>Click + to create one,<br>or use Quick Add.</div>`;
+  }
+  sb.innerHTML = html;
+}
+
+function actionRenderContent(){
+  const c = document.getElementById('aiContent');
+  if(!c) return;
+  let items = actionData.items.slice();
+
+  // Filter by category (descendants included)
+  if(actionState.activeCategoryId !== null){
+    const ids = new Set([actionState.activeCategoryId]);
+    let added=true;
+    while(added){ added=false;
+      for(const cat of actionData.categories){
+        if(cat.parent_id!==null && ids.has(cat.parent_id) && !ids.has(cat.id)){ ids.add(cat.id); added=true; }
+      }
+    }
+    items = items.filter(i=>ids.has(i.category_id));
+  }
+
+  if(actionState.filterStatus){
+    items = items.filter(i=>i.status === actionState.filterStatus);
+  } else {
+    items = items.filter(i=>i.status !== 'Done');
+  }
+
+  if(actionState.sortBy === 'priority') items.sort((a,b)=>actionPriorityScore(b)-actionPriorityScore(a));
+  else if(actionState.sortBy === 'age') items.sort((a,b)=>actionAgeDays(b)-actionAgeDays(a));
+  else if(actionState.sortBy === 'created') items.sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+  else if(actionState.sortBy === 'title') items.sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+
+  const cat = actionState.activeCategoryId ? actionData.categories.find(x=>x.id===actionState.activeCategoryId) : null;
+  const title = cat ? cat.name : 'All Items';
+  const filterPill = (label, val) => `<button class="ai-filter ${(actionState.filterStatus||'')===val?'active':''}" onclick="actionSetFilter('${val}')">${label}</button>`;
+
+  let html = `
+    <div class="ai-content-hdr">
+      <div>
+        <div class="ai-content-title">${esc(title)}</div>
+        <div class="ai-content-sub">${items.length} ${items.length===1?'item':'items'}${actionState.filterStatus?' · '+actionState.filterStatus:''}</div>
+      </div>
+      <div class="ai-filters">
+        ${filterPill('All','')}
+        ${filterPill('Inbox','Inbox')}
+        ${filterPill('Active','Active')}
+        ${filterPill('In Progress','InProgress')}
+        ${filterPill('Blocked','Blocked')}
+        ${filterPill('Done','Done')}
+        <select class="ai-filter" onchange="actionSetSort(this.value)">
+          <option value="priority" ${actionState.sortBy==='priority'?'selected':''}>Sort: Priority</option>
+          <option value="age" ${actionState.sortBy==='age'?'selected':''}>Sort: Oldest</option>
+          <option value="created" ${actionState.sortBy==='created'?'selected':''}>Sort: Newest</option>
+          <option value="title" ${actionState.sortBy==='title'?'selected':''}>Sort: A-Z</option>
+        </select>
+      </div>
+    </div>
+  `;
+
+  if(items.length === 0){
+    html += `<div class="ai-empty"><div class="ai-empty-icon">\u2756</div><div>Nothing here yet.<br><span style="font-size:11px;color:#5f6479;">Click + (bottom right) to capture an idea.</span></div></div>`;
+  } else {
+    html += '<div class="ai-list">';
+    for(const it of items){
+      const cat = actionData.categories.find(c=>c.id===it.category_id);
+      const color = actionColorFor(cat);
+      const score = actionPriorityScore(it);
+      const ageCls = actionStaleClass(it);
+      const stale = actionStaleFlag(it);
+      const sat = Math.min(score/10, 1);
+      const barColor = score>=8?'#ef4444':score>=6?'#f59e0b':score>=4?'#6366f1':'#374151';
+      html += `
+        <div class="ai-item ${stale?'stale':''}" style="border-left-color:${color};" onclick="actionOpenItem(${it.id})">
+          <span class="ai-item-priority" style="background:${barColor};opacity:${(0.4+sat*0.6).toFixed(2)};"></span>
+          <div class="ai-item-main">
+            <div class="ai-item-title">${esc(it.title||'(untitled)')}</div>
+            ${it.body?`<div class="ai-item-sub">${esc(it.body.replace(/\s+/g,' ').slice(0,140))}${it.body.length>140?'…':''}</div>`:''}
+          </div>
+          ${cat?`<span class="ai-item-cat" style="background:${color}22;color:${color};border:1px solid ${color}55;">${esc(cat.name)}</span>`:'<span></span>'}
+          <span class="ai-item-status ai-status-${it.status}">${it.status==='InProgress'?'In Prog':it.status}</span>
+          <span class="ai-item-score" title="Priority ${score}/10 (urgency ${it.urgency}, difficulty ${it.difficulty})">${score}</span>
+          <span class="ai-item-age ${ageCls}" title="${it.last_worked_at?'Last touched':'Created'}">${actionAgeLabel(it)}</span>
+        </div>`;
+    }
+    html += '</div>';
+  }
+  c.innerHTML = html;
+}
+
+function actionSetCategory(id){ actionState.activeCategoryId=id; actionRenderSidebar(); actionRenderContent(); }
+function actionSetFilter(val){ actionState.filterStatus = val || null; actionRenderContent(); }
+function actionSetSort(val){ actionState.sortBy = val; actionRenderContent(); }
+function actionSetView(v){ actionState.view = v; actionRender(); }
+
+// ── Quick Add Modal ──
+function actionCatOptionsHTML(parentId, depth, selectedId){
+  let opts = '';
+  const kids = actionData.categories.filter(c=>c.parent_id===parentId).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  for(const c of kids){
+    const indent = '\u00A0\u00A0\u00A0\u00A0'.repeat(depth);
+    const sel = (selectedId===c.id) ? 'selected' : '';
+    opts += `<option value="${c.id}" ${sel}>${indent}${esc(c.name)}</option>`;
+    opts += actionCatOptionsHTML(c.id, depth+1, selectedId);
+  }
+  return opts;
+}
+
+function actionOpenQuickAdd(){
+  const backdrop = document.createElement('div');
+  backdrop.className = 'ai-modal-backdrop';
+  backdrop.id = 'aiQuickModal';
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) actionCloseModal(); };
+  backdrop.innerHTML = `
+    <div class="ai-modal">
+      <h3>New Action Item</h3>
+      <div class="ai-field">
+        <label>Title</label>
+        <input class="ai-input" id="aiqTitle" placeholder="What's the idea or task?">
+      </div>
+      <div class="ai-field">
+        <label>Notes (optional)</label>
+        <textarea class="ai-textarea" id="aiqBody" placeholder="Context, links, reasoning…"></textarea>
+      </div>
+      <div class="ai-field">
+        <label>Category</label>
+        <select class="ai-select" id="aiqCat" onchange="actionQuickCatChange(this)">
+          <option value="">— Pick a category —</option>
+          ${actionCatOptionsHTML(null,0,null)}
+          <option value="__new__">+ Create new category</option>
+        </select>
+        <div id="aiqNewCat" class="ai-cat-create-inline" style="display:none;">
+          <input class="ai-input" id="aiqNewCatName" placeholder="New category name…" style="margin-bottom:6px;">
+          <select class="ai-select" id="aiqNewCatParent">
+            <option value="">— Top-level —</option>
+            ${actionCatOptionsHTML(null,0,null)}
+          </select>
+          <div style="font-size:10px;color:#7c849a;margin-top:4px;">Max 3 layers. Parent must be top-level or layer 2.</div>
+        </div>
+      </div>
+      <div class="ai-row">
+        <div class="ai-field">
+          <label>Difficulty (1=easy, 5=hard)</label>
+          <div class="ai-rating" id="aiqDiff">
+            ${[1,2,3,4,5].map(n=>`<button class="ai-rating-btn ${n===3?'active':''}" data-val="${n}" onclick="actionRatingClick('aiqDiff',${n})">${n}</button>`).join('')}
+          </div>
+        </div>
+        <div class="ai-field">
+          <label>Urgency (1=low, 5=high)</label>
+          <div class="ai-rating" id="aiqUrg">
+            ${[1,2,3,4,5].map(n=>`<button class="ai-rating-btn ${n===3?'active':''}" data-val="${n}" onclick="actionRatingClick('aiqUrg',${n})">${n}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="ai-field">
+        <label>Due date (optional)</label>
+        <input type="date" class="ai-input" id="aiqDue">
+      </div>
+      <div class="ai-modal-actions">
+        <button class="ai-btn ai-btn-ghost" onclick="actionCloseModal()">Cancel</button>
+        <button class="ai-btn ai-btn-primary" onclick="actionSaveQuickAdd()">Add to Inbox</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  setTimeout(()=>{const el=document.getElementById('aiqTitle');if(el)el.focus();},80);
+}
+
+function actionQuickCatChange(sel){
+  document.getElementById('aiqNewCat').style.display = (sel.value === '__new__') ? 'block' : 'none';
+}
+function actionRatingClick(groupId, val){
+  const g = document.getElementById(groupId);
+  g.querySelectorAll('.ai-rating-btn').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.val)===val));
+}
+function actionGetRating(groupId){
+  const active = document.getElementById(groupId).querySelector('.ai-rating-btn.active');
+  return active ? parseInt(active.dataset.val) : 3;
+}
+function actionCloseModal(){
+  const m = document.getElementById('aiQuickModal'); if(m) m.remove();
+  const e = document.getElementById('aiEditModal');  if(e) e.remove();
+}
+
+function actionGetCategoryDepth(catId){
+  const cat = actionData.categories.find(c=>c.id===catId);
+  if(!cat) return 0;
+  if(cat.parent_id === null) return 0;
+  return 1 + actionGetCategoryDepth(cat.parent_id);
+}
+
+async function actionSaveQuickAdd(){
+  const title = document.getElementById('aiqTitle').value.trim();
+  if(!title){ toast('Title required'); return; }
+  const catSel = document.getElementById('aiqCat').value;
+  let categoryId = null;
+
+  if(catSel === '__new__'){
+    const nm = document.getElementById('aiqNewCatName').value.trim();
+    if(!nm){ toast('New category name required'); return; }
+    const parentRaw = document.getElementById('aiqNewCatParent').value;
+    const parent = parentRaw ? parseInt(parentRaw) : null;
+    if(parent !== null){
+      const depth = actionGetCategoryDepth(parent);
+      if(depth >= 2){ toast('Max 3 layers — pick a top-level or layer-2 parent'); return; }
+    }
+    const {data, error} = await db.from('helm_action_categories').insert({
+      name: nm, parent_id: parent, sort_order: actionData.categories.length,
+    }).select().single();
+    if(error){ toast('Category create failed: '+error.message); return; }
+    actionData.categories.push(data);
+    categoryId = data.id;
+  } else if(catSel){
+    categoryId = parseInt(catSel);
+  } else {
+    toast('Pick a category'); return;
+  }
+
+  const body = document.getElementById('aiqBody').value.trim() || null;
+  const difficulty = actionGetRating('aiqDiff');
+  const urgency = actionGetRating('aiqUrg');
+  const due = document.getElementById('aiqDue').value || null;
+
+  const {data, error} = await db.from('helm_action_items').insert({
+    title, body, category_id: categoryId, difficulty, urgency, due_date: due, status: 'Inbox',
+  }).select().single();
+  if(error){ toast('Save failed: '+error.message); return; }
+  actionData.items.unshift(data);
+  actionCloseModal();
+  toast('Captured to Inbox', true);
+  actionRender();
+  actionUpdateBadge();
+}
+
+// ── Category management ──
+async function actionAddCategory(){
+  const name = prompt('New top-level category name:');
+  if(!name || !name.trim()) return;
+  const {data, error} = await db.from('helm_action_categories').insert({
+    name: name.trim(), parent_id: null, sort_order: actionData.categories.length,
+  }).select().single();
+  if(error){ toast('Failed: '+error.message); return; }
+  actionData.categories.push(data);
+  actionRenderSidebar();
+  toast('Category added', true);
+}
+async function actionAddSubcategory(parentId){
+  const depth = actionGetCategoryDepth(parentId);
+  if(depth >= 2){ toast('Max 3 layers — cannot add deeper here'); return; }
+  const name = prompt('New subcategory name:');
+  if(!name || !name.trim()) return;
+  const {data, error} = await db.from('helm_action_categories').insert({
+    name: name.trim(), parent_id: parentId, sort_order: actionData.categories.length,
+  }).select().single();
+  if(error){ toast('Failed: '+error.message); return; }
+  actionData.categories.push(data);
+  actionRenderSidebar();
+  toast('Subcategory added', true);
+}
+async function actionRenameCategory(catId){
+  const cat = actionData.categories.find(c=>c.id===catId);
+  if(!cat) return;
+  const name = prompt('Rename category:', cat.name);
+  if(!name || !name.trim() || name.trim()===cat.name) return;
+  const {error} = await db.from('helm_action_categories').update({name: name.trim()}).eq('id',catId);
+  if(error){ toast('Failed: '+error.message); return; }
+  cat.name = name.trim();
+  actionRenderSidebar();
+  actionRenderContent();
+}
+async function actionDeleteCategory(catId){
+  const cat = actionData.categories.find(c=>c.id===catId);
+  if(!cat) return;
+  const all = [catId]; let added=true;
+  while(added){ added=false;
+    for(const c of actionData.categories){
+      if(c.parent_id !== null && all.includes(c.parent_id) && !all.includes(c.id)){ all.push(c.id); added=true; }
+    }
+  }
+  const itemCount = actionData.items.filter(i=>all.includes(i.category_id)).length;
+  const subCount = all.length - 1;
+  const subPart = subCount>0?` and ${subCount} subcategor${subCount===1?'y':'ies'}`:'';
+  const itemPart = itemCount>0?` plus ${itemCount} item${itemCount===1?'':'s'}`:'';
+  if(!confirm(`Archive "${cat.name}"${subPart}${itemPart}?\n\nThis is reversible only via SQL.`)) return;
+  await db.from('helm_action_categories').update({archived:true}).in('id',all);
+  if(itemCount>0) await db.from('helm_action_items').update({archived:true}).in('category_id',all);
+  actionData.categories = actionData.categories.filter(c=>!all.includes(c.id));
+  actionData.items = actionData.items.filter(i=>!all.includes(i.category_id));
+  if(all.includes(actionState.activeCategoryId)) actionState.activeCategoryId = null;
+  actionRender();
+  actionUpdateBadge();
+  toast('Archived', true);
+}
+
+// ── Item edit ──
+function actionOpenItem(itemId){
+  const it = actionData.items.find(i=>i.id===itemId);
+  if(!it) return;
+  const ageDays = actionAgeDays(it);
+  const created = new Date(it.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'ai-modal-backdrop';
+  backdrop.id = 'aiEditModal';
+  backdrop.onclick = (e)=>{ if(e.target===backdrop) actionCloseModal(); };
+  backdrop.innerHTML = `
+    <div class="ai-modal" style="max-width:580px;">
+      <h3 style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <span>Edit Item</span>
+        <span style="font-size:10px;font-weight:500;color:#7c849a;letter-spacing:0.06em;">CREATED ${created.toUpperCase()} · ${ageDays}D AGO</span>
+      </h3>
+      <div class="ai-field">
+        <label>Title</label>
+        <input class="ai-input" id="aieTitle" value="${esc(it.title||'')}">
+      </div>
+      <div class="ai-field">
+        <label>Notes</label>
+        <textarea class="ai-textarea" id="aieBody">${esc(it.body||'')}</textarea>
+      </div>
+      <div class="ai-row">
+        <div class="ai-field">
+          <label>Category</label>
+          <select class="ai-select" id="aieCat">${actionCatOptionsHTML(null,0,it.category_id)}</select>
+        </div>
+        <div class="ai-field">
+          <label>Status</label>
+          <select class="ai-select" id="aieStatus" onchange="document.getElementById('aieBlockedWrap').style.display=this.value==='Blocked'?'':'none';">
+            ${ACTION_STATUS_LIST.map(s=>`<option value="${s}" ${it.status===s?'selected':''}>${s==='InProgress'?'In Progress':s}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="ai-row">
+        <div class="ai-field">
+          <label>Difficulty</label>
+          <div class="ai-rating" id="aieDiff">
+            ${[1,2,3,4,5].map(n=>`<button class="ai-rating-btn ${(it.difficulty||3)===n?'active':''}" data-val="${n}" onclick="actionRatingClick('aieDiff',${n})">${n}</button>`).join('')}
+          </div>
+        </div>
+        <div class="ai-field">
+          <label>Urgency</label>
+          <div class="ai-rating" id="aieUrg">
+            ${[1,2,3,4,5].map(n=>`<button class="ai-rating-btn ${(it.urgency||3)===n?'active':''}" data-val="${n}" onclick="actionRatingClick('aieUrg',${n})">${n}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="ai-field">
+        <label>Due date (optional)</label>
+        <input type="date" class="ai-input" id="aieDue" value="${it.due_date||''}">
+      </div>
+      <div class="ai-field" id="aieBlockedWrap" style="${it.status==='Blocked'?'':'display:none;'}">
+        <label>Blocked reason</label>
+        <input class="ai-input" id="aieBlocked" value="${esc(it.blocked_reason||'')}" placeholder="What's blocking this?">
+      </div>
+      <div class="ai-modal-actions">
+        <button class="ai-btn ai-btn-danger" onclick="actionArchiveItem(${it.id})">Archive</button>
+        <span style="flex:1;"></span>
+        <button class="ai-btn ai-btn-ghost" onclick="actionCloseModal()">Cancel</button>
+        <button class="ai-btn ai-btn-primary" onclick="actionSaveItem(${it.id})">Save</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+async function actionSaveItem(itemId){
+  const title = document.getElementById('aieTitle').value.trim();
+  if(!title){ toast('Title required'); return; }
+  const body = document.getElementById('aieBody').value.trim() || null;
+  const category_id = parseInt(document.getElementById('aieCat').value) || null;
+  const status = document.getElementById('aieStatus').value;
+  const difficulty = actionGetRating('aieDiff');
+  const urgency = actionGetRating('aieUrg');
+  const due_date = document.getElementById('aieDue').value || null;
+  const blocked_reason = status==='Blocked' ? (document.getElementById('aieBlocked').value.trim() || null) : null;
+  const updates = {
+    title, body, category_id, status, difficulty, urgency, due_date, blocked_reason,
+    last_worked_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if(status==='Done'){ updates.completed_at = new Date().toISOString(); }
+  const {data, error} = await db.from('helm_action_items').update(updates).eq('id',itemId).select().single();
+  if(error){ toast('Save failed: '+error.message); return; }
+  const idx = actionData.items.findIndex(i=>i.id===itemId);
+  if(idx>=0) actionData.items[idx] = data;
+  actionCloseModal();
+  toast('Saved', true);
+  actionRender();
+  actionUpdateBadge();
+}
+
+async function actionArchiveItem(itemId){
+  if(!confirm('Archive this item? (You can restore it via SQL if needed.)')) return;
+  const {error} = await db.from('helm_action_items').update({archived:true}).eq('id',itemId);
+  if(error){ toast('Archive failed: '+error.message); return; }
+  actionData.items = actionData.items.filter(i=>i.id!==itemId);
+  actionCloseModal();
+  toast('Archived', true);
+  actionRender();
+  actionUpdateBadge();
 }
 </script>
 </body>
