@@ -1413,7 +1413,10 @@ select.ro-input{cursor:pointer;}
 }
 
 /* ── ACTION ITEMS (David only) — own visual environment ──────────── */
-#tab-action{padding:0;margin:-0.75rem;}
+/* When this tab is active, escape the .main max-width:1060px so the
+   dark canvas spans the full viewport. Toggled in switchTab(). */
+body.on-action-tab .main{max-width:none;padding:0;width:100%;}
+#tab-action{padding:0;margin:0;width:100%;}
 .ai-root{
   min-height:calc(100vh - 78px);
   background:#0a0e1a;
@@ -2272,6 +2275,8 @@ function switchTab(name,btn){
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
+  // Action Items needs to escape .main's max-width — toggle a body flag for CSS
+  document.body.classList.toggle('on-action-tab', name==='action');
   // Only re-render lookup on first visit; preserve state after that
   if(name==='lookup' && !lookupRendered) renderLookup();
   if(name==='add')    renderAdd();
