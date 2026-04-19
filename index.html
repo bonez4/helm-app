@@ -4842,8 +4842,11 @@ function irrShowReclassify(data, file) {
   return new Promise(resolve => {
     const icTickets = [];
     for (const [tn, t] of Object.entries(data.tickets)) {
-      if (t.code === 'ZZISLAND' || t.code === 'ZZEASTEND') {
-        icTickets.push({ ticket: tn, code: t.code, tons: t.tons, company: t.code === 'ZZISLAND' ? 'Island Rubbish' : 'East End' });
+      if (t.code === 'ZZISLAND' || t.code === 'ZZEASTEND' || t.code === 'ZZDELTA') {
+        const company = t.code === 'ZZISLAND' ? 'Island Rubbish'
+                      : t.code === 'ZZEASTEND' ? 'East End'
+                      : 'Delta (Reis Pile)';
+        icTickets.push({ ticket: tn, code: t.code, tons: t.tons, company });
       }
     }
     if (!icTickets.length) { resolve(); irrFinalizeDailyUpload(data, file); return; }
@@ -4854,8 +4857,13 @@ function irrShowReclassify(data, file) {
 
     let rows = '';
     for (const t of icTickets) {
+      // Delta tickets are already pile — no point showing the Pile checkbox. Only Exclude.
+      const pileCb = t.code === 'ZZDELTA'
+        ? '<span style="color:var(--gray-300);font-size:11px;">\u2014</span>'
+        : `<input type="checkbox" value="${t.ticket}" class="reclass-cb" data-action="pile">`;
       rows += `<tr>
-        <td><input type="checkbox" value="${t.ticket}" class="reclass-cb"></td>
+        <td style="text-align:center;">${pileCb}</td>
+        <td style="text-align:center;"><input type="checkbox" value="${t.ticket}" class="reclass-cb" data-action="exclude"></td>
         <td>${t.ticket}</td>
         <td>${t.company}</td>
         <td style="font-family:'DM Mono',monospace;text-align:right;">${t.tons.toFixed(2)}</td>
@@ -4865,13 +4873,17 @@ function irrShowReclassify(data, file) {
     const overlay = document.createElement('div');
     overlay.className = 'icr-driver-modal';
     overlay.id = 'icrReclassModal';
-    overlay.innerHTML = `<div class="icr-driver-box" style="max-width:500px;">
-      <h3>Flag Pile Pickups — ${data.date || 'Today'}</h3>
-      <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;">Check any Island Rubbish or East End tickets that are pile pickups (not rolloffs). Flagged tickets will be moved to the walk-in category.</div>
-      <div style="max-height:300px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">
+    overlay.innerHTML = `<div class="icr-driver-box" style="max-width:580px;">
+      <h3>Review IC Tickets \u2014 ${data.date || 'Today'}</h3>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;line-height:1.5;">
+        <b>Pile</b>: move Island/East End pile pickups to walk-in.<br>
+        <b>Exclude</b>: drop ticket from the report entirely (tons/tickets/revenue all removed). Use this for misclassified or duplicate tickets.
+      </div>
+      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead><tr style="border-bottom:1px solid var(--gray-200);">
-            <th style="padding:6px 8px;width:30px;"></th>
+          <thead><tr style="border-bottom:1px solid var(--gray-200);background:var(--gray-50);">
+            <th style="padding:6px 8px;width:40px;">Pile</th>
+            <th style="padding:6px 8px;width:54px;">Exclude</th>
             <th style="padding:6px 8px;text-align:left;">Ticket</th>
             <th style="padding:6px 8px;text-align:left;">Company</th>
             <th style="padding:6px 8px;text-align:right;">Tons</th>
@@ -4880,8 +4892,8 @@ function irrShowReclassify(data, file) {
         </table>
       </div>
       <div class="icr-driver-btns" style="margin-top:14px;">
-        <button style="background:var(--gray-100);color:var(--gray-600);" onclick="irrReclassifyConfirm(false)">No Pile Pickups</button>
-        <button style="background:var(--teal);color:white;" onclick="irrReclassifyConfirm(true)">Confirm</button>
+        <button style="background:var(--gray-100);color:var(--gray-600);" onclick="irrReclassifyConfirm(false)">Nothing to flag</button>
+        <button style="background:var(--teal);color:white;" onclick="irrReclassifyConfirm(true)">Apply</button>
       </div>
     </div>`;
     document.body.appendChild(overlay);
@@ -4898,28 +4910,47 @@ function irrReclassifyConfirm(applyChanges) {
   const resolve = window._reclassResolve;
 
   if (applyChanges) {
-    const checked = document.querySelectorAll('.reclass-cb:checked');
-    const flagged = new Set();
-    checked.forEach(cb => flagged.add(cb.value));
+    const actions = {}; // ticket -> 'pile' | 'exclude'
+    // Exclude wins if both are checked
+    document.querySelectorAll('.reclass-cb[data-action="exclude"]:checked').forEach(cb => {
+      actions[cb.value] = 'exclude';
+    });
+    document.querySelectorAll('.reclass-cb[data-action="pile"]:checked').forEach(cb => {
+      if (!actions[cb.value]) actions[cb.value] = 'pile';
+    });
 
-    if (flagged.size > 0) {
-      // Move flagged tickets from island/santos to walkin
-      for (const tn of flagged) {
+    if (Object.keys(actions).length > 0) {
+      const b = data.buckets;
+      let piledCount = 0, excludedCount = 0;
+      for (const [tn, action] of Object.entries(actions)) {
         const t = data.tickets[tn];
         if (!t) continue;
-        const b = data.buckets;
-        if (t.code === 'ZZISLAND') {
-          b.island.tons -= t.tons; b.island.tickets--;
-          b.walkin.tons += t.tons; b.walkin.tickets++;
-        } else if (t.code === 'ZZEASTEND') {
-          b.santos.tons -= t.tons; b.santos.tickets--;
-          b.walkin.tons += t.tons; b.walkin.tickets++;
+        // Remove from source bucket
+        const src = t.code === 'ZZISLAND' ? b.island
+                  : t.code === 'ZZEASTEND' ? b.santos
+                  : t.code === 'ZZDELTA'   ? b.pile
+                  : null;
+        if (!src) continue;
+        src.tons    -= t.tons;
+        src.tickets -= 1;
+        if (action === 'pile') {
+          b.walkin.tons    += t.tons;
+          b.walkin.tickets += 1;
+          t.code = 'WALKIN_RECLASS';
+          piledCount++;
+        } else {
+          // Exclude — drop entirely. Zero the ticket so downstream revenue passes skip it.
+          t.code = 'EXCLUDED';
+          t.tons = 0;
+          excludedCount++;
         }
-        t.code = 'WALKIN_RECLASS'; // mark so it doesn't get re-counted
       }
-      // Recalculate revenue
+      // Recalculate Island/East End revenue from the updated bucket state
       irrCalcRevenue(data.buckets, data.date);
-      toast(flagged.size + ' ticket(s) moved to walk-in', true);
+      const msg = [];
+      if (piledCount)    msg.push(`${piledCount} moved to walk-in`);
+      if (excludedCount) msg.push(`${excludedCount} excluded`);
+      toast(msg.join(' \u00b7 '), true);
     }
   }
 
