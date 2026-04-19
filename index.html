@@ -4857,13 +4857,16 @@ function irrShowReclassify(data, file) {
 
     let rows = '';
     for (const t of icTickets) {
-      // Delta tickets are already pile — no point showing the Pile checkbox. Only Exclude.
+      // Delta tickets are already pile — no Pile checkbox shown. Others get all three.
       const pileCb = t.code === 'ZZDELTA'
         ? '<span style="color:var(--gray-300);font-size:11px;">\u2014</span>'
         : `<input type="checkbox" value="${t.ticket}" class="reclass-cb" data-action="pile">`;
+      const walkinCb = `<input type="checkbox" value="${t.ticket}" class="reclass-cb" data-action="walkin">`;
+      const excludeCb = `<input type="checkbox" value="${t.ticket}" class="reclass-cb" data-action="exclude">`;
       rows += `<tr>
+        <td style="text-align:center;">${excludeCb}</td>
         <td style="text-align:center;">${pileCb}</td>
-        <td style="text-align:center;"><input type="checkbox" value="${t.ticket}" class="reclass-cb" data-action="exclude"></td>
+        <td style="text-align:center;">${walkinCb}</td>
         <td>${t.ticket}</td>
         <td>${t.company}</td>
         <td style="font-family:'DM Mono',monospace;text-align:right;">${t.tons.toFixed(2)}</td>
@@ -4873,17 +4876,19 @@ function irrShowReclassify(data, file) {
     const overlay = document.createElement('div');
     overlay.className = 'icr-driver-modal';
     overlay.id = 'icrReclassModal';
-    overlay.innerHTML = `<div class="icr-driver-box" style="max-width:580px;">
+    overlay.innerHTML = `<div class="icr-driver-box" style="max-width:640px;">
       <h3>Review IC Tickets \u2014 ${data.date || 'Today'}</h3>
       <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;line-height:1.5;">
-        <b>Pile</b>: move Island/East End pile pickups to walk-in.<br>
-        <b>Exclude</b>: drop ticket from the report entirely (tons/tickets/revenue all removed). Use this for misclassified or duplicate tickets.
+        <b>Exclude</b>: drop the ticket entirely (tons/tickets/revenue removed). Use for misclassified or duplicate tickets.<br>
+        <b>Pile Pickup</b>: Island/East End pile pickup \u2014 move to walk-in.<br>
+        <b>Walk In</b>: this IC ticket was actually a walk-in customer \u2014 move to walk-in.
       </div>
       <div style="max-height:320px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead><tr style="border-bottom:1px solid var(--gray-200);background:var(--gray-50);">
-            <th style="padding:6px 8px;width:40px;">Pile</th>
-            <th style="padding:6px 8px;width:54px;">Exclude</th>
+            <th style="padding:6px 8px;width:58px;">Exclude</th>
+            <th style="padding:6px 8px;width:70px;">Pile Pickup</th>
+            <th style="padding:6px 8px;width:54px;">Walk In</th>
             <th style="padding:6px 8px;text-align:left;">Ticket</th>
             <th style="padding:6px 8px;text-align:left;">Company</th>
             <th style="padding:6px 8px;text-align:right;">Tons</th>
@@ -4910,18 +4915,21 @@ function irrReclassifyConfirm(applyChanges) {
   const resolve = window._reclassResolve;
 
   if (applyChanges) {
-    const actions = {}; // ticket -> 'pile' | 'exclude'
-    // Exclude wins if both are checked
+    const actions = {}; // ticket -> 'exclude' | 'pile' | 'walkin'
+    // Exclude wins over pile/walk-in; pile and walk-in are functionally the same (move to walk-in)
     document.querySelectorAll('.reclass-cb[data-action="exclude"]:checked').forEach(cb => {
       actions[cb.value] = 'exclude';
     });
     document.querySelectorAll('.reclass-cb[data-action="pile"]:checked').forEach(cb => {
       if (!actions[cb.value]) actions[cb.value] = 'pile';
     });
+    document.querySelectorAll('.reclass-cb[data-action="walkin"]:checked').forEach(cb => {
+      if (!actions[cb.value]) actions[cb.value] = 'walkin';
+    });
 
     if (Object.keys(actions).length > 0) {
       const b = data.buckets;
-      let piledCount = 0, excludedCount = 0;
+      let piledCount = 0, walkinCount = 0, excludedCount = 0;
       for (const [tn, action] of Object.entries(actions)) {
         const t = data.tickets[tn];
         if (!t) continue;
@@ -4933,11 +4941,11 @@ function irrReclassifyConfirm(applyChanges) {
         if (!src) continue;
         src.tons    -= t.tons;
         src.tickets -= 1;
-        if (action === 'pile') {
+        if (action === 'pile' || action === 'walkin') {
           b.walkin.tons    += t.tons;
           b.walkin.tickets += 1;
           t.code = 'WALKIN_RECLASS';
-          piledCount++;
+          if (action === 'pile') piledCount++; else walkinCount++;
         } else {
           // Exclude — drop entirely. Zero the ticket so downstream revenue passes skip it.
           t.code = 'EXCLUDED';
@@ -4948,7 +4956,8 @@ function irrReclassifyConfirm(applyChanges) {
       // Recalculate Island/East End revenue from the updated bucket state
       irrCalcRevenue(data.buckets, data.date);
       const msg = [];
-      if (piledCount)    msg.push(`${piledCount} moved to walk-in`);
+      if (piledCount)    msg.push(`${piledCount} pile \u2192 walk-in`);
+      if (walkinCount)   msg.push(`${walkinCount} walk-in`);
       if (excludedCount) msg.push(`${excludedCount} excluded`);
       toast(msg.join(' \u00b7 '), true);
     }
