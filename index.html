@@ -345,24 +345,8 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .search-hint{font-size:11px;color:var(--gray-400);margin-top:4px;margin-left:2px;}
 .lookup-watermark{
   display:none;flex-direction:column;align-items:center;justify-content:flex-start;
-  gap:6px;margin-top:max(4vh,28px);padding:0 20px;
+  gap:6px;margin-top:max(3vh,20px);padding:0 20px;
   text-align:center;width:100%;
-}
-.lookup-watermark::before{
-  content:'welcome back,';font-family:'Inter','DM Sans',sans-serif;font-weight:300;
-  font-size:clamp(10px,0.95vw,12px);letter-spacing:0.32em;text-transform:uppercase;
-  color:var(--gray-400);opacity:0.7;margin-bottom:-4px;
-}
-.lookup-watermark-name{
-  font-family:'Playfair Display','DM Serif Display',serif;font-style:italic;font-weight:400;
-  font-size:clamp(36px,6vw,72px);line-height:1;
-  color:var(--navy);opacity:0.14;letter-spacing:-0.015em;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
-  text-transform:lowercase;pointer-events:none;user-select:none;
-}
-.lookup-watermark-name::first-letter{text-transform:uppercase;}
-.lookup-watermark-flourish{
-  width:clamp(36px,6vw,72px);height:1px;background:var(--navy);opacity:0.15;margin-top:2px;
 }
 .lw-cards{
   display:grid;grid-template-columns:1fr 1fr;gap:16px;
@@ -2333,8 +2317,6 @@ function renderLookup(){
     <div id="srchResults" style="margin-top:.5rem"></div>
     <div id="clientCardInline" style="margin-top:12px"></div>
     <div id="lookupWatermark" class="lookup-watermark">
-      <span class="lookup-watermark-name">${esc(displayName)}</span>
-      <span class="lookup-watermark-flourish"></span>
       <div class="lw-cards">
         <div class="lw-rates">
           <div class="lw-rates-title">Service Rate Sheet</div>
