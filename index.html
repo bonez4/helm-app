@@ -1404,6 +1404,9 @@ select.ro-input{cursor:pointer;}
    Single-user — no assignees, no comments, no @-mentions.
    ───────────────────────────────────────────────────────────────────────── */
 body.on-action-tab .main{max-width:none;padding:0;width:100%;}
+body.on-action-tab{caret-color:transparent;}
+body.on-action-tab input,body.on-action-tab textarea,body.on-action-tab select,
+body.on-action-tab [contenteditable=true],body.on-action-tab [contenteditable=""]{caret-color:auto;}
 #tab-action{padding:0;margin:0;width:100%;}
 .ap-root{
   --ap-bg:        #08090f;
@@ -1733,21 +1736,22 @@ body.on-action-tab .main{max-width:none;padding:0;width:100%;}
 
 /* === Detail panel (slide-in from right) === */
 .ap-detail-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9400;
+  position:fixed;inset:0;background:rgba(4,5,10,0.55);z-index:9400;
   opacity:0;pointer-events:none;transition:opacity 0.15s;
+  caret-color:transparent;
 }
 .ap-detail-overlay.open{opacity:1;pointer-events:auto;}
 .ap-detail{
   position:fixed;top:0;right:-580px;width:580px;height:100vh;
-  background:var(--ap-bg-2);border-left:1px solid var(--ap-border);
-  box-shadow:-12px 0 40px rgba(0,0,0,0.5);
+  background:#14172a;border-left:1px solid rgba(255,255,255,0.14);
+  box-shadow:-16px 0 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(124,92,255,0.10);
   z-index:9401;display:flex;flex-direction:column;
   transition:right 0.22s ease;
   color:var(--ap-text);font-family:'Inter','DM Sans',sans-serif;font-size:13px;
   caret-color:transparent;
 }
 .ap-detail.open{right:0;}
-.ap-detail input,.ap-detail textarea,.ap-detail select{caret-color:auto;user-select:text;}
+.ap-detail input,.ap-detail textarea,.ap-detail select,.ap-detail [contenteditable]{caret-color:auto;user-select:text;}
 .ap-detail-hdr{
   padding:14px 18px;border-bottom:1px solid var(--ap-border);
   display:flex;align-items:center;gap:10px;
@@ -1812,39 +1816,63 @@ body.on-action-tab .main{max-width:none;padding:0;width:100%;}
 
 /* === Quick Add Modal === */
 .ap-modal-bd{
-  position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;
+  position:fixed;inset:0;background:rgba(4,5,10,0.82);z-index:9500;
   display:flex;align-items:flex-start;justify-content:center;padding:80px 20px 20px;
-  backdrop-filter:blur(6px);
+  backdrop-filter:blur(8px);
+  caret-color:transparent;font-family:'Inter','DM Sans',sans-serif;
 }
+.ap-modal-bd input,.ap-modal-bd textarea,.ap-modal-bd select{caret-color:auto;}
 .ap-modal{
-  background:var(--ap-bg-2);border:1px solid var(--ap-border);
+  background:#1a1d2a;border:1px solid rgba(255,255,255,0.16);
   border-radius:12px;width:100%;max-width:560px;
-  box-shadow:0 24px 80px rgba(0,0,0,0.7);overflow:hidden;
+  box-shadow:0 30px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(124,92,255,0.18), 0 0 60px rgba(124,92,255,0.08);
+  overflow:hidden;
   font-family:'Inter','DM Sans',sans-serif;color:var(--ap-text);
 }
-.ap-modal input,.ap-modal textarea,.ap-modal select{caret-color:auto;}
-.ap-modal-hdr{padding:13px 18px;border-bottom:1px solid var(--ap-border);font-size:12px;color:var(--ap-text-mute);display:flex;align-items:center;gap:8px;}
+.ap-modal-hdr{
+  padding:13px 18px;border-bottom:1px solid rgba(255,255,255,0.08);
+  font-size:12px;color:var(--ap-text-dim);
+  display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.2);
+}
 .ap-modal-body{padding:18px;}
 .ap-modal-title-input{
   background:transparent;border:none;outline:none;width:100%;
   color:#fff;font-family:inherit;font-size:18px;font-weight:500;padding:0 0 12px;
 }
+.ap-modal-title-input::placeholder{color:rgba(255,255,255,0.3);}
 .ap-modal-desc{
   background:transparent;border:none;outline:none;width:100%;
-  color:var(--ap-text-dim);font-family:inherit;font-size:13px;line-height:1.55;
+  color:var(--ap-text);font-family:inherit;font-size:13px;line-height:1.55;
   resize:none;min-height:50px;padding:0;
 }
-.ap-modal-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--ap-border);}
+.ap-modal-desc::placeholder{color:rgba(255,255,255,0.3);}
+.ap-modal-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);}
 .ap-meta-chip{
-  background:rgba(255,255,255,0.04);border:1px solid var(--ap-border);
-  color:var(--ap-text-dim);font-family:inherit;font-size:11px;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+  color:var(--ap-text);font-family:inherit;font-size:11px;
   padding:5px 10px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
 }
-.ap-meta-chip:hover{background:rgba(255,255,255,0.07);color:var(--ap-text);}
-.ap-meta-chip.set{background:var(--ap-accent-soft);border-color:rgba(124,92,255,0.4);color:var(--ap-accent-2);}
+.ap-meta-chip:hover{background:rgba(255,255,255,0.10);color:#fff;border-color:rgba(255,255,255,0.20);}
+.ap-meta-chip.set{background:var(--ap-accent-soft);border-color:rgba(124,92,255,0.5);color:var(--ap-accent-2);}
 .ap-meta-chip select,.ap-meta-chip input{background:transparent;border:none;outline:none;color:inherit;font-family:inherit;font-size:11px;}
-.ap-meta-chip select option{background:var(--ap-bg-2);color:var(--ap-text);}
-.ap-modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--ap-border);background:var(--ap-bg);}
+.ap-meta-chip select option{background:#1a1d2a;color:var(--ap-text);}
+.ap-modal-foot{
+  display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;
+  border-top:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.25);
+}
+/* Generic prompt modal field */
+.ap-prompt-field{margin-bottom:12px;}
+.ap-prompt-field label{
+  display:block;font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--ap-text-mute);margin-bottom:6px;
+}
+.ap-prompt-field input,.ap-prompt-field textarea{
+  width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);
+  color:#fff;font-family:inherit;font-size:13px;padding:9px 12px;border-radius:6px;outline:none;
+}
+.ap-prompt-field input:focus,.ap-prompt-field textarea:focus{
+  border-color:var(--ap-accent);background:rgba(124,92,255,0.06);
+}
 .ap-btn{
   font-family:inherit;font-size:12px;font-weight:500;
   padding:7px 14px;border-radius:5px;cursor:pointer;border:1px solid transparent;
@@ -1856,14 +1884,16 @@ body.on-action-tab .main{max-width:none;padding:0;width:100%;}
 
 /* === Command Palette === */
 .ap-cmd-bd{
-  position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9700;
+  position:fixed;inset:0;background:rgba(4,5,10,0.78);z-index:9700;
   display:flex;align-items:flex-start;justify-content:center;padding:14vh 20px 20px;
-  backdrop-filter:blur(8px);
+  backdrop-filter:blur(10px);
+  caret-color:transparent;
 }
+.ap-cmd-bd input{caret-color:#fff;}
 .ap-cmd{
-  background:var(--ap-bg-2);border:1px solid var(--ap-border-2);
+  background:#1a1d2a;border:1px solid rgba(255,255,255,0.18);
   border-radius:12px;width:100%;max-width:580px;
-  box-shadow:0 30px 80px rgba(0,0,0,0.8);overflow:hidden;
+  box-shadow:0 30px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(124,92,255,0.18);overflow:hidden;
 }
 .ap-cmd-input-wrap{padding:14px 18px;border-bottom:1px solid var(--ap-border);}
 .ap-cmd-input{
@@ -2615,7 +2645,7 @@ function switchTab(name,btn){
   if(name==='xfer')   renderXfer();
   if(name==='files')  renderFiles();
   if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
-  if(name==='action') { if(!apUnlocked){apPinPrompt();return;} apInit(); }
+  if(name==='action') { apInit(); }
   if(name==='import') renderImport();
 }
 
@@ -8305,7 +8335,6 @@ if(_saved && _saved !== '1'){
 // create policy "ap_dependencies_all" on helm_action_dependencies for all using(true) with check(true);
 // create policy "ap_activity_all"     on helm_action_activity     for all using(true) with check(true);
 
-let apUnlocked = false;
 let apShortcutsBound = false;
 let apData = {projects:[], tasklists:[], milestones:[], tasks:[], dependencies:[], activity:[]};
 let apView = {
@@ -8338,32 +8367,6 @@ const AP_PRIORITIES = [
 ];
 const AP_PROJECT_EMOJIS = ['🚀','💼','🎯','📊','🏗️','💡','📈','🔧','⚡','🎨','📚','🌟','🔥','💎','🛠️','📝','🧭','🪐','✈️','🎁'];
 const AP_PROJECT_COLORS = ['#7c5cff','#ec4899','#10b981','#f59e0b','#3b82f6','#06b6d4','#a855f7','#22c55e','#f43f5e','#fb923c'];
-
-// ── PIN gate ──
-function apPinPrompt(){
-  document.getElementById('tab-action').innerHTML = `
-    <div class="ap-pin-wrap">
-      <div class="ap-pin-box">
-        <div class="ap-pin-title">Enter PIN to access Action Items</div>
-        <input type="password" id="apPinInput" maxlength="10" class="ap-pin-input"
-          onkeydown="if(event.key==='Enter')apCheckPin()">
-        <div style="margin-top:14px;">
-          <button class="ap-btn ap-btn-primary" onclick="apCheckPin()" style="width:100%;">Unlock</button>
-        </div>
-        <div id="apPinErr" class="ap-pin-err">Incorrect PIN</div>
-      </div>
-    </div>`;
-  setTimeout(()=>{const el=document.getElementById('apPinInput');if(el)el.focus();},80);
-}
-function apCheckPin(){
-  const v = document.getElementById('apPinInput').value;
-  if(v === AP_PIN){ apUnlocked = true; apInit(); }
-  else {
-    document.getElementById('apPinErr').style.display='block';
-    document.getElementById('apPinInput').value='';
-    document.getElementById('apPinInput').focus();
-  }
-}
 
 // ── Init / load ──
 async function apInit(){
@@ -8561,8 +8564,8 @@ function apRenderSidebar(){
       ${apData.projects.length===0?`<div class="ap-side-row ap-add" onclick="apCreateProjectPrompt()">+ Create project</div>`:''}
     </div>
     <div class="ap-side-foot">
-      <kbd>\u2318K</kbd> Command palette<br>
-      <kbd>C</kbd> Quick add &nbsp;<kbd>Esc</kbd> Close
+      <kbd>\u2318K</kbd> palette &nbsp; <kbd>C</kbd> capture<br>
+      <kbd>Esc</kbd> close anything
     </div>
   `;
 }
@@ -8861,10 +8864,14 @@ async function apDropOnBoard(e, newStatus){
   apUpdateBadge();
 }
 async function apQuickAddInStatus(projectId, status){
-  const title = prompt('Task title:');
-  if(!title || !title.trim()) return;
+  const result = await apPrompt({
+    title: 'New task',
+    fields: [{key:'title', label:'Task title', placeholder:"What's the task?", required:true}],
+    submitLabel: 'Add task',
+  });
+  if(!result) return;
   const firstTl = apData.tasklists.find(tl=>tl.project_id===projectId);
-  await apCreateTask({project_id: projectId, tasklist_id: firstTl?firstTl.id:null, title:title.trim(), status});
+  await apCreateTask({project_id: projectId, tasklist_id: firstTl?firstTl.id:null, title:result.title, status});
   apRenderMain();
 }
 
@@ -9282,30 +9289,135 @@ async function apCommitSubtask(parentId){
 
 async function apAddDependencyPrompt(taskId, kind){
   const t = apTask(taskId);
+  if(!t) return;
   const choices = apData.tasks.filter(x=>x.id!==taskId && x.project_id===t.project_id && !x.parent_task_id);
-  const list = choices.map(c=>`${apTaskFullId(c)} — ${c.title}`).join('\n');
-  const ans = prompt('Enter task ID this depends on (e.g., HELM-3):\n\nAvailable:\n'+list);
-  if(!ans) return;
-  // Match by full identifier or just task_number
-  const want = ans.trim().toUpperCase();
-  const match = choices.find(c=>{
-    const fid = apTaskFullId(c).toUpperCase();
-    return fid===want || String(c.task_number)===ans.trim() || String(c.id)===ans.trim();
-  });
-  if(!match){ toast('No match for "'+ans+'"'); return; }
-  const {data, error} = await db.from('helm_action_dependencies').insert({
-    task_id: taskId, depends_on_task_id: match.id, dep_type:'FS',
-  }).select().single();
-  if(error){ toast('Failed: '+error.message); return; }
-  apData.dependencies.push(data);
-  toast('Dependency added', true);
-  apOpenTask(taskId);
+  if(!choices.length){ toast('No other tasks in this project to depend on'); return; }
+  // Build a dark modal with a select
+  const bd = document.createElement('div');
+  bd.className = 'ap-modal-bd';
+  bd.id = 'apDepModal';
+  bd.onclick = e=>{ if(e.target===bd) bd.remove(); };
+  const opts = choices.map(c=>`<option value="${c.id}">${esc(apTaskFullId(c))} — ${esc(c.title)}</option>`).join('');
+  bd.innerHTML = `
+    <div class="ap-modal" style="max-width:480px;">
+      <div class="ap-modal-hdr"><span style="color:#fff;font-weight:500;">Add dependency</span><span style="margin-left:auto;font-size:10px;">Esc to cancel</span></div>
+      <div class="ap-modal-body">
+        <div class="ap-prompt-field">
+          <label>This task is blocked by</label>
+          <select id="apDepSel" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#fff;font-family:inherit;font-size:13px;padding:9px 12px;border-radius:6px;outline:none;">
+            ${opts}
+          </select>
+        </div>
+      </div>
+      <div class="ap-modal-foot">
+        <button class="ap-btn ap-btn-ghost" data-act="cancel">Cancel</button>
+        <button class="ap-btn ap-btn-primary" data-act="ok">Add dependency</button>
+      </div>
+    </div>`;
+  document.body.appendChild(bd);
+  const close = ()=>bd.remove();
+  bd.querySelector('[data-act=cancel]').onclick = close;
+  bd.querySelector('[data-act=ok]').onclick = async ()=>{
+    const sel = document.getElementById('apDepSel');
+    if(!sel) return;
+    const depOn = parseInt(sel.value);
+    const {data, error} = await db.from('helm_action_dependencies').insert({
+      task_id: taskId, depends_on_task_id: depOn, dep_type:'FS',
+    }).select().single();
+    if(error){ toast('Failed: '+error.message); return; }
+    apData.dependencies.push(data);
+    close();
+    toast('Dependency added', true);
+    apOpenTask(taskId);
+  };
+  bd.addEventListener('keydown', e=>{ if(e.key==='Escape'){e.preventDefault();close();} });
+  setTimeout(()=>{const el=document.getElementById('apDepSel');if(el)el.focus();},30);
 }
 async function apRemoveDependency(depId){
   const {error} = await db.from('helm_action_dependencies').delete().eq('id',depId);
   if(error){ toast('Failed: '+error.message); return; }
   apData.dependencies = apData.dependencies.filter(d=>d.id!==depId);
   if(apView.selectedTaskId) apOpenTask(apView.selectedTaskId);
+}
+
+// ── Generic dark prompt (replaces native prompt() / confirm()) ──
+function apPrompt(opts){
+  // opts: { title, fields: [{key,label,value,placeholder,type,required}], submitLabel, danger }
+  return new Promise(resolve=>{
+    const bd = document.createElement('div');
+    bd.className = 'ap-modal-bd';
+    bd.id = 'apPromptModal';
+    const onClose = (val)=>{ bd.remove(); resolve(val); };
+    bd.onclick = e=>{ if(e.target===bd) onClose(null); };
+    const fieldsHTML = (opts.fields||[]).map((f,i)=>{
+      const id = 'apPF_'+i;
+      const tag = f.type==='textarea' ? 'textarea' : 'input';
+      const typeAttr = (f.type && f.type!=='textarea') ? `type="${f.type}"` : '';
+      const valAttr = f.type==='textarea' ? '' : `value="${esc(f.value||'')}"`;
+      const inner = f.type==='textarea' ? esc(f.value||'') : '';
+      return `<div class="ap-prompt-field">
+        <label>${esc(f.label||f.key)}</label>
+        <${tag} id="${id}" data-key="${esc(f.key)}" ${typeAttr} ${valAttr} placeholder="${esc(f.placeholder||'')}">${inner}</${tag}>
+      </div>`;
+    }).join('');
+    bd.innerHTML = `
+      <div class="ap-modal" style="max-width:420px;">
+        <div class="ap-modal-hdr">
+          <span style="color:#fff;font-weight:500;">${esc(opts.title||'')}</span>
+          <span style="margin-left:auto;font-size:10px;">Esc to cancel</span>
+        </div>
+        <div class="ap-modal-body">${fieldsHTML}</div>
+        <div class="ap-modal-foot">
+          <button class="ap-btn ap-btn-ghost" data-act="cancel">Cancel</button>
+          <button class="ap-btn ${opts.danger?'ap-btn-ghost':'ap-btn-primary'}" data-act="ok" ${opts.danger?'style="color:#f87171;border-color:rgba(248,113,113,0.4);"':''}>${esc(opts.submitLabel||'OK')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(bd);
+    const collect = ()=>{
+      const out = {};
+      for(const f of (opts.fields||[])){
+        const el = bd.querySelector(`[data-key="${f.key}"]`);
+        out[f.key] = el ? el.value.trim() : '';
+        if(f.required && !out[f.key]) return null;
+      }
+      return out;
+    };
+    const submit = ()=>{ const v = collect(); if(v===null){ toast('Required field is empty'); return; } onClose(v); };
+    bd.querySelector('[data-act=cancel]').onclick = ()=>onClose(null);
+    bd.querySelector('[data-act=ok]').onclick = submit;
+    bd.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){ e.preventDefault(); onClose(null); }
+      else if(e.key==='Enter' && e.target.tagName!=='TEXTAREA'){ e.preventDefault(); submit(); }
+    });
+    setTimeout(()=>{ const first=bd.querySelector('input,textarea'); if(first){ first.focus(); first.select && first.select(); } },30);
+  });
+}
+
+function apConfirm(message, opts){
+  // opts: {title, danger, confirmLabel}
+  return new Promise(resolve=>{
+    const bd = document.createElement('div');
+    bd.className = 'ap-modal-bd';
+    const onClose = (val)=>{ bd.remove(); resolve(val); };
+    bd.onclick = e=>{ if(e.target===bd) onClose(false); };
+    bd.innerHTML = `
+      <div class="ap-modal" style="max-width:380px;">
+        <div class="ap-modal-hdr"><span style="color:#fff;font-weight:500;">${esc((opts&&opts.title)||'Confirm')}</span></div>
+        <div class="ap-modal-body" style="font-size:13px;color:var(--ap-text);line-height:1.5;">${esc(message)}</div>
+        <div class="ap-modal-foot">
+          <button class="ap-btn ap-btn-ghost" data-act="cancel">Cancel</button>
+          <button class="ap-btn ${opts&&opts.danger?'ap-btn-ghost':'ap-btn-primary'}" ${opts&&opts.danger?'style="color:#f87171;border-color:rgba(248,113,113,0.4);"':''} data-act="ok">${esc((opts&&opts.confirmLabel)||'Confirm')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(bd);
+    bd.querySelector('[data-act=cancel]').onclick = ()=>onClose(false);
+    bd.querySelector('[data-act=ok]').onclick = ()=>onClose(true);
+    bd.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){ e.preventDefault(); onClose(false); }
+      else if(e.key==='Enter'){ e.preventDefault(); onClose(true); }
+    });
+    setTimeout(()=>{ const ok=bd.querySelector('[data-act=ok]'); if(ok) ok.focus(); },30);
+  });
 }
 
 // ── CRUD ──
@@ -9315,14 +9427,19 @@ async function apLogActivity(action, projectId, taskId, detail){
 }
 
 async function apCreateProjectPrompt(){
-  const name = prompt('Project name:');
-  if(!name || !name.trim()) return;
-  const ident = prompt('Short identifier (e.g., HELM, CSR) — used in task IDs like HELM-42:', name.trim().slice(0,4).toUpperCase().replace(/[^A-Z0-9]/g,''));
-  if(!ident) return;
+  const result = await apPrompt({
+    title: 'New project',
+    fields: [
+      {key:'name', label:'Project name', placeholder:'e.g. HELM Development', required:true},
+      {key:'identifier', label:'Short identifier (used in task IDs like HELM-42)', placeholder:'HELM', required:true},
+    ],
+    submitLabel: 'Create project',
+  });
+  if(!result) return;
   const emoji = AP_PROJECT_EMOJIS[Math.floor(Math.random()*AP_PROJECT_EMOJIS.length)];
   const color = AP_PROJECT_COLORS[apData.projects.length % AP_PROJECT_COLORS.length];
   const {data, error} = await db.from('helm_action_projects').insert({
-    name: name.trim(), identifier: ident.trim().toUpperCase(),
+    name: result.name, identifier: result.identifier.toUpperCase().replace(/[^A-Z0-9]/g,''),
     emoji, color, sort_order: apData.projects.length,
   }).select().single();
   if(error){ toast('Failed: '+error.message); return; }
@@ -9334,7 +9451,7 @@ async function apCreateProjectPrompt(){
   if(tl) apData.tasklists.push(tl);
   apLogActivity('Project created', data.id, null, {title:data.name});
   apOpenProject(data.id);
-  toast(name+' created', true);
+  toast(result.name+' created', true);
 }
 async function apRenameProject(id, newName){
   const p = apProject(id);
@@ -9345,7 +9462,8 @@ async function apRenameProject(id, newName){
   apRenderSidebar();
 }
 async function apDeleteProject(id){
-  if(!confirm('Archive this project and all its tasks?')) return;
+  const ok = await apConfirm('Archive this project and all its tasks? You can restore it via SQL if needed.', {title:'Archive project', danger:true, confirmLabel:'Archive'});
+  if(!ok) return;
   await db.from('helm_action_projects').update({archived:true}).eq('id',id);
   await db.from('helm_action_tasks').update({archived:true}).eq('project_id',id);
   apData.projects = apData.projects.filter(p=>p.id!==id);
@@ -9356,11 +9474,15 @@ async function apDeleteProject(id){
   toast('Project archived', true);
 }
 async function apCreateTasklistPrompt(projectId){
-  const name = prompt('Section name (e.g., "Active Sprint", "Backlog"):');
-  if(!name || !name.trim()) return;
+  const result = await apPrompt({
+    title: 'New section',
+    fields: [{key:'name', label:'Section name', placeholder:'e.g. Active Sprint, Backlog', required:true}],
+    submitLabel: 'Create section',
+  });
+  if(!result) return;
   const sort = apData.tasklists.filter(tl=>tl.project_id===projectId).length;
   const {data, error} = await db.from('helm_action_tasklists').insert({
-    project_id: projectId, name:name.trim(), sort_order: sort,
+    project_id: projectId, name:result.name, sort_order: sort,
   }).select().single();
   if(error){ toast('Failed: '+error.message); return; }
   apData.tasklists.push(data);
@@ -9369,18 +9491,23 @@ async function apCreateTasklistPrompt(projectId){
 async function apRenameTasklist(id){
   const tl = apTasklist(id);
   if(!tl) return;
-  const name = prompt('Rename section:', tl.name);
-  if(!name || !name.trim() || name.trim()===tl.name) return;
-  const {error} = await db.from('helm_action_tasklists').update({name:name.trim()}).eq('id',id);
+  const result = await apPrompt({
+    title: 'Rename section',
+    fields: [{key:'name', label:'Section name', value:tl.name, required:true}],
+    submitLabel: 'Save',
+  });
+  if(!result || result.name===tl.name) return;
+  const {error} = await db.from('helm_action_tasklists').update({name:result.name}).eq('id',id);
   if(error){ toast('Failed: '+error.message); return; }
-  tl.name = name.trim();
+  tl.name = result.name;
   apRenderMain();
 }
 async function apDeleteTasklist(id){
   const tl = apTasklist(id);
   if(!tl) return;
   const tcount = apData.tasks.filter(t=>t.tasklist_id===id).length;
-  if(!confirm(`Archive section "${tl.name}"${tcount?` and ${tcount} tasks`:''}?`)) return;
+  const ok = await apConfirm(`Archive section "${tl.name}"${tcount?` and ${tcount} task${tcount===1?'':'s'}`:''}?`, {title:'Archive section', danger:true, confirmLabel:'Archive'});
+  if(!ok) return;
   await db.from('helm_action_tasklists').update({archived:true}).eq('id',id);
   if(tcount) await db.from('helm_action_tasks').update({archived:true}).eq('tasklist_id',id);
   apData.tasklists = apData.tasklists.filter(x=>x.id!==id);
@@ -9442,7 +9569,8 @@ async function apDuplicateTask(id){
   if(dup){ apCloseTask(); apRenderMain(); toast('Duplicated', true); }
 }
 async function apArchiveTask(id){
-  if(!confirm('Archive this task?')) return;
+  const ok = await apConfirm('Archive this task?', {title:'Archive task', danger:true, confirmLabel:'Archive'});
+  if(!ok) return;
   await db.from('helm_action_tasks').update({archived:true}).eq('id',id);
   const t = apTask(id);
   if(t) apLogActivity('Task archived', t.project_id, id, {title:t.title});
@@ -9453,11 +9581,17 @@ async function apArchiveTask(id){
 }
 
 async function apCreateMilestonePrompt(projectId){
-  const name = prompt('Milestone name:');
-  if(!name || !name.trim()) return;
-  const due = prompt('Due date (YYYY-MM-DD), or blank:');
+  const result = await apPrompt({
+    title: 'New milestone',
+    fields: [
+      {key:'name', label:'Milestone name', placeholder:'e.g. v1 launch', required:true},
+      {key:'due_date', label:'Due date (optional)', type:'date'},
+    ],
+    submitLabel: 'Create milestone',
+  });
+  if(!result) return;
   const {data, error} = await db.from('helm_action_milestones').insert({
-    project_id:projectId, name:name.trim(), due_date:due&&due.trim()?due.trim():null,
+    project_id:projectId, name:result.name, due_date:result.due_date||null,
     sort_order: apData.milestones.filter(m=>m.project_id===projectId).length,
   }).select().single();
   if(error){ toast('Failed: '+error.message); return; }
@@ -9466,23 +9600,26 @@ async function apCreateMilestonePrompt(projectId){
 }
 async function apEditMilestonePrompt(id){
   const m = apMilestone(id); if(!m) return;
-  const what = prompt('Edit milestone — type "name", "due", "delete", or Cancel:', 'name');
-  if(!what) return;
-  if(what==='name'){
-    const name = prompt('Name:', m.name);
-    if(!name) return;
-    await db.from('helm_action_milestones').update({name:name.trim()}).eq('id',id);
-    m.name = name.trim();
-  } else if(what==='due'){
-    const due = prompt('Due date (YYYY-MM-DD or blank):', m.due_date||'');
-    if(due===null) return;
-    await db.from('helm_action_milestones').update({due_date:due.trim()||null}).eq('id',id);
-    m.due_date = due.trim()||null;
-  } else if(what==='delete'){
-    if(!confirm('Delete milestone?')) return;
-    await db.from('helm_action_milestones').delete().eq('id',id);
-    apData.milestones = apData.milestones.filter(x=>x.id!==id);
-  }
+  const result = await apPrompt({
+    title: 'Edit milestone',
+    fields: [
+      {key:'name', label:'Name', value:m.name, required:true},
+      {key:'due_date', label:'Due date', type:'date', value:m.due_date||''},
+    ],
+    submitLabel: 'Save',
+  });
+  if(!result) return;
+  const updates = {name:result.name, due_date:result.due_date||null};
+  await db.from('helm_action_milestones').update(updates).eq('id',id);
+  m.name = updates.name; m.due_date = updates.due_date;
+  apRenderMain();
+}
+async function apDeleteMilestone(id){
+  const m = apMilestone(id); if(!m) return;
+  const ok = await apConfirm(`Delete milestone "${m.name}"? Tasks will be unlinked, not deleted.`, {title:'Delete milestone', danger:true, confirmLabel:'Delete'});
+  if(!ok) return;
+  await db.from('helm_action_milestones').delete().eq('id',id);
+  apData.milestones = apData.milestones.filter(x=>x.id!==id);
   apRenderMain();
 }
 
@@ -9667,8 +9804,7 @@ function apMountShortcuts(){
   if(apShortcutsBound) return;
   apShortcutsBound = true;
   document.addEventListener('keydown', e=>{
-    // Only when on action items tab and unlocked
-    if(!apUnlocked) return;
+    // Only when on action items tab
     if(!document.body.classList.contains('on-action-tab')) return;
     const t = e.target;
     const inField = t && (t.tagName==='INPUT' || t.tagName==='TEXTAREA' || t.tagName==='SELECT' || t.isContentEditable);
