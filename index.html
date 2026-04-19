@@ -6175,20 +6175,16 @@ async function icrExportFile(){
   setTimeout(()=>URL.revokeObjectURL(xlsLink.href), 1000);
 
   // ── PDF ──
-  // html2canvas needs a real laid-out element. Hide it with opacity, not off-screen positioning.
-  const pdfDiv = document.createElement('div');
-  pdfDiv.style.position = 'absolute';
-  pdfDiv.style.left = '0';
-  pdfDiv.style.top = '0';
-  pdfDiv.style.width = '1100px';
-  pdfDiv.style.background = '#fff';
-  pdfDiv.style.opacity = '0';
-  pdfDiv.style.pointerEvents = 'none';
-  pdfDiv.style.zIndex = '-1';
-  pdfDiv.innerHTML = tableHtml;
-  document.body.appendChild(pdfDiv);
-  // Allow a frame for layout
-  await new Promise(r => requestAnimationFrame(r));
+  // html2canvas honors opacity/visibility, so a hidden element renders blank.
+  // Render in a brief visible overlay — same pattern as irrDownloadPDF.
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,0.98);z-index:99998;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px;';
+  const inner = document.createElement('div');
+  inner.style.cssText = 'background:#fff;width:1100px;max-width:100%;';
+  inner.innerHTML = tableHtml;
+  overlay.appendChild(inner);
+  document.body.appendChild(overlay);
+  await new Promise(r => setTimeout(r, 80));
 
   const pdfOptions = {
     margin: [10,10,10,10],
@@ -6199,13 +6195,13 @@ async function icrExportFile(){
   };
 
   try {
-    await html2pdf().set(pdfOptions).from(pdfDiv).save();
+    await html2pdf().set(pdfOptions).from(inner).save();
     toast('Export complete: PDF + Excel downloaded', true);
   } catch(err) {
     console.error('PDF export error:', err);
     toast('PDF export failed (Excel still saved): '+err.message);
   } finally {
-    document.body.removeChild(pdfDiv);
+    document.body.removeChild(overlay);
   }
 }
 
