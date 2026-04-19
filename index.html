@@ -5941,7 +5941,8 @@ function icrRenderReport(allData, container) {
       <h3>${weekLabel}</h3>
       <button class="icr-nav-btn" onclick="icrNextWeek()">&rarr;</button>
       <input type="date" value="${icrWeekStart}" onchange="icrJumpToWeek(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
-      <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
+      <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrExportFile()">Export File</button>
+      <button class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
       <button class="icr-nav-btn" style="background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
       <button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
     </div>
@@ -5951,9 +5952,6 @@ function icrRenderReport(allData, container) {
         <th class="icr-spacer"></th><th>WTD</th><th class="icr-spacer"></th><th>MTD</th><th class="icr-spacer"></th><th>YTD</th>
       </tr></thead>
       <tbody>
-        ${companyBlock('REIS','reis',false)}
-        ${companyBlock('SANTOS','santos',false)}
-        ${companyBlock('ISLAND','island',false)}
         ${companyBlock('TOTALS',null,true)}
         ${(()=>{
           // Vinagro outbound block
@@ -5971,10 +5969,13 @@ function icrRenderReport(allData, container) {
             vRow('Loads',d=>d.loads>0?d.loads:'--',vWtd.loads||'--',vMtd.loads||'--',vYtd.loads||'--')+
             vRow('Total Tons',d=>d.tons>0?f2(d.tons):'--',f2(vWtd.tons),f2(vMtd.tons),f2(vYtd.tons))+
             '<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(12)+'</tr>'+
-            '<tr class="icr-total-hdr"><td>SUMMARY (ALL SOURCES)</td>'+'<td></td>'.repeat(12)+'</tr>'+
+            '<tr class="icr-total-hdr"><td>TOTAL TONNAGE INBOUND V OUTBOUND</td>'+'<td></td>'.repeat(12)+'</tr>'+
             '<tr><td style="font-weight:600">Total Inbound (all sources incl. walk-ins)</td>'+iDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(tiWtd)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(tiMtd)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(tiYtd)+'</td></tr>'+
             '<tr><td style="font-weight:600">Total Outbound</td>'+vDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(vWtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(vMtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(vYtd.tons)+'</td></tr>';
         })()}
+        ${companyBlock('REIS','reis',false)}
+        ${companyBlock('ISLAND','island',false)}
+        ${companyBlock('SANTOS','santos',false)}
       </tbody>
     </table>`;
 }
@@ -6003,6 +6004,203 @@ function icrPrintWeekly(){
     </div>
   </div>`;
   document.body.appendChild(overlay);
+}
+
+async function icrExportFile(){
+  toast('Generating export...');
+
+  const weekMonday = new Date(icrWeekStart+'T00:00:00');
+  const weekDates = [];
+  for(let i=0;i<6;i++){
+    const d = new Date(weekMonday); d.setDate(weekMonday.getDate()+i);
+    weekDates.push(d.toISOString().split('T')[0]);
+  }
+
+  const [reportsRes, manualData] = await Promise.all([
+    db.from('irr_reports').select('*').in('report_date', weekDates),
+    crcFetchManual(icrWeekStart)
+  ]);
+  const rowsRaw = reportsRes.data || [];
+
+  await irrLoadRates();
+  for(const d of rowsRaw){
+    const {ir, er} = irrRatesFor(d.report_date);
+    if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0)
+      d.island_revenue=(ir.hook_fee*d.island_tickets)+((ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0));
+    if(er && !(parseFloat(d.santos_revenue)>0) && (d.santos_tickets||0)>0)
+      d.santos_revenue=(er.hook_fee*d.santos_tickets)+((er.per_ton*(1+(er.ton_markup||0)))*parseFloat(d.santos_tons||0));
+  }
+
+  const byDate = {};
+  for(const r of rowsRaw) byDate[r.report_date] = r;
+
+  const daily = weekDates.map(d => {
+    const r = byDate[d];
+    if(!r) return {rev:0,loads:0,tons:0,inbound:0,outbound:0,hasData:false};
+    const rev = (parseFloat(r.reis_tip_revenue)||0)+(parseFloat(r.reis_svc_revenue)||0)
+              + (parseFloat(r.island_revenue)||0)+(parseFloat(r.santos_revenue)||0);
+    const loads = (r.reis_tickets||0)+(r.island_tickets||0)+(r.santos_tickets||0);
+    const tons = (parseFloat(r.reis_tons)||0)+(parseFloat(r.island_tons)||0)+(parseFloat(r.santos_tons)||0);
+    const inbound = parseFloat(r.total_inbound_tons)||0;
+    const outbound = parseFloat(r.vinagro_tons)||0;
+    return {rev, loads, tons, inbound, outbound, hasData:true};
+  });
+
+  const totRev = daily.reduce((s,d)=>s+d.rev,0);
+  const totLoads = daily.reduce((s,d)=>s+d.loads,0);
+  const totTons = daily.reduce((s,d)=>s+d.tons,0);
+  const totInbound = daily.reduce((s,d)=>s+d.inbound,0);
+  const totOutbound = daily.reduce((s,d)=>s+d.outbound,0);
+  const daysWithData = daily.filter(d=>d.hasData).length;
+
+  const manual = manualData || {};
+  const man = (field, idx) => (manual[field]||{})[idx];
+
+  function totHrs(idx){
+    const ov = parseFloat(man('totalHours',idx));
+    if(!isNaN(ov)) return ov;
+    const st = parseFloat(man('stHours',idx))||0;
+    const ot = parseFloat(man('otHours',idx))||0;
+    return (st+ot) > 0 ? (st+ot) : null;
+  }
+  function hrsDrv(idx){
+    const ov = parseFloat(man('hrsDrvr',idx));
+    if(!isNaN(ov)) return ov;
+    const th = totHrs(idx);
+    const drv = parseFloat(man('drivers',idx));
+    if(th && drv>0) return th/drv;
+    return null;
+  }
+  function hrsLd(idx){
+    const ov = parseFloat(man('hrsLoad',idx));
+    if(!isNaN(ov)) return ov;
+    const th = totHrs(idx);
+    if(th && daily[idx].loads>0) return th/daily[idx].loads;
+    return null;
+  }
+
+  let sumDrv=0, nDrv=0, sumST=0, sumOT=0, sumTH=0;
+  for(let i=0;i<6;i++){
+    const drv = parseFloat(man('drivers',i));
+    const st = parseFloat(man('stHours',i));
+    const ot = parseFloat(man('otHours',i));
+    const th = totHrs(i);
+    if(!isNaN(drv)){sumDrv+=drv; nDrv++;}
+    if(!isNaN(st)) sumST+=st;
+    if(!isNaN(ot)) sumOT+=ot;
+    if(th!==null) sumTH+=th;
+  }
+
+  const fM = n => '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmt2 = n => (n===null||n===undefined||isNaN(n))?'':n.toFixed(2);
+
+  const dayHeaders = ['Mon','Tues','Wed','Thur','Fri','Sat'];
+  const weekLabel = weekMonday.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const fileLabel = String(weekMonday.getMonth()+1).padStart(2,'0')+'-'+String(weekMonday.getDate()).padStart(2,'0')+'-'+String(weekMonday.getFullYear()).slice(2);
+
+  const cellBase = 'padding:5px 8px;border:1px solid #ccc;font-family:Arial,Helvetica,sans-serif;font-size:11px;';
+  const labelStyle = cellBase+'text-align:left;font-weight:600;background:#fafafa;';
+  const numCell = (val) => `<td style="${cellBase}text-align:right;">${val}</td>`;
+  const totCell = (val) => `<td style="${cellBase}text-align:right;font-weight:700;background:#f5f5f5;">${val}</td>`;
+
+  function sdCell(diff, isTotal){
+    let display='', color='';
+    if(diff > 0.005) { color='#c00'; display=diff.toFixed(2)+' (Deficit)'; }
+    else if(diff < -0.005) { color='#0a7c2a'; display=diff.toFixed(2)+' (Surplus)'; }
+    else { color='#666'; display='0.00'; }
+    const bg = isTotal ? 'background:#f5f5f5;' : '';
+    return `<td style="${cellBase}text-align:right;color:${color};font-weight:${isTotal?'700':'600'};${bg}">${display}</td>`;
+  }
+
+  const dateCells = weekDates.map(d=>{
+    const dt = new Date(d+'T00:00:00');
+    return numCell(String(dt.getMonth()+1).padStart(2,'0')+'/'+String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getFullYear()).slice(2));
+  }).join('');
+
+  const rowHTML = (label, dailyVals, totalVal) =>
+    `<tr><td style="${labelStyle}">${label}</td>${dailyVals.map(v=>numCell(v)).join('')}${totCell(totalVal)}</tr>`;
+  const blankRow = `<tr><td colspan="8" style="border:none;height:8px;background:#fff;"></td></tr>`;
+
+  const sdDaily = daily.map(d=> d.hasData ? sdCell(d.inbound - d.outbound, false) : `<td style="${cellBase}"></td>`).join('');
+  const sdTotalCell = sdCell(totInbound - totOutbound, true);
+
+  const tableBody = `
+    <tr><td style="${labelStyle}">Date</td>${dateCells}${totCell('Total')}</tr>
+    ${rowHTML('Revenue', daily.map(d=>d.rev>0?fM(d.rev):''), fM(totRev))}
+    ${rowHTML('Loads', daily.map(d=>d.loads>0?d.loads:''), totLoads||'')}
+    ${rowHTML('Tons', daily.map(d=>d.tons>0?d.tons.toFixed(2):''), totTons.toFixed(2))}
+    ${rowHTML('Loads/Day', daily.map(()=>''), daysWithData>0?(totLoads/daysWithData).toFixed(1):'')}
+    ${rowHTML('Rev/Load', daily.map(d=>d.loads>0?fM(d.rev/d.loads):''), totLoads>0?fM(totRev/totLoads):'')}
+    ${rowHTML('Tons/Load', daily.map(d=>d.loads>0?(d.tons/d.loads).toFixed(2):''), totLoads>0?(totTons/totLoads).toFixed(2):'')}
+    ${blankRow}
+    ${rowHTML('# of drvrs', [0,1,2,3,4,5].map(i=>{const v=parseFloat(man('drivers',i));return isNaN(v)?'':v;}), nDrv>0?sumDrv:'')}
+    ${rowHTML('ST Hrs', [0,1,2,3,4,5].map(i=>{const v=parseFloat(man('stHours',i));return isNaN(v)?'':v;}), sumST>0?sumST.toFixed(2):'')}
+    ${rowHTML('OT Hrs', [0,1,2,3,4,5].map(i=>{const v=parseFloat(man('otHours',i));return isNaN(v)?'':v;}), sumOT>0?sumOT.toFixed(2):'')}
+    ${rowHTML('Total Hrs', [0,1,2,3,4,5].map(i=>fmt2(totHrs(i))), sumTH>0?sumTH.toFixed(2):'')}
+    ${rowHTML('Hrs/Drvr', [0,1,2,3,4,5].map(i=>fmt2(hrsDrv(i))), (sumDrv>0&&sumTH>0)?(sumTH/sumDrv).toFixed(2):'')}
+    ${rowHTML('Hrs/Load', [0,1,2,3,4,5].map(i=>fmt2(hrsLd(i))), (totLoads>0&&sumTH>0)?(sumTH/totLoads).toFixed(2):'')}
+    ${blankRow}
+    ${rowHTML('Inbound C&D Tonnage (Rolloffs + Walk-Ins)', daily.map(d=>d.inbound>0?d.inbound.toFixed(2):''), totInbound.toFixed(2))}
+    ${rowHTML('Outbound C&D Tonnage (Vinagro)', daily.map(d=>d.outbound>0?d.outbound.toFixed(2):''), totOutbound.toFixed(2))}
+    <tr><td style="${labelStyle}">Surplus / Deficit</td>${sdDaily}${sdTotalCell}</tr>
+  `;
+
+  const headerStyle = 'padding:6px 8px;border:1px solid #999;background:#e8e8e8;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;';
+  const tableHtml = `
+    <div style="font-family:Arial,Helvetica,sans-serif;padding:20px;background:#fff;color:#000;">
+      <h2 style="font-size:18px;margin:0 0 4px 0;color:#000;">Consolidated Rolloff Report</h2>
+      <div style="font-size:12px;color:#666;margin-bottom:14px;">Week of ${weekLabel}</div>
+      <table style="border-collapse:collapse;width:100%;border:1px solid #999;">
+        <thead>
+          <tr>
+            <th style="${headerStyle}text-align:left;">Day</th>
+            ${dayHeaders.map(n=>`<th style="${headerStyle}text-align:right;">${n}</th>`).join('')}
+            <th style="${headerStyle}text-align:right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>${tableBody}</tbody>
+      </table>
+    </div>
+  `;
+
+  // ── EXCEL ──
+  const xlsHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Consolidated Rolloff</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>'+tableHtml+'</body></html>';
+  const xlsBlob = new Blob(['\ufeff', xlsHtml], {type:'application/vnd.ms-excel'});
+  const xlsLink = document.createElement('a');
+  xlsLink.href = URL.createObjectURL(xlsBlob);
+  xlsLink.download = 'Consolidated_Rolloff_Week_of_'+fileLabel+'.xlsx';
+  document.body.appendChild(xlsLink);
+  xlsLink.click();
+  document.body.removeChild(xlsLink);
+  setTimeout(()=>URL.revokeObjectURL(xlsLink.href), 1000);
+
+  // ── PDF ──
+  const pdfDiv = document.createElement('div');
+  pdfDiv.style.position = 'fixed';
+  pdfDiv.style.left = '-10000px';
+  pdfDiv.style.top = '0';
+  pdfDiv.style.width = '1100px';
+  pdfDiv.style.background = '#fff';
+  pdfDiv.innerHTML = tableHtml;
+  document.body.appendChild(pdfDiv);
+
+  const pdfOptions = {
+    margin: [10,10,10,10],
+    filename: 'Consolidated_Rolloff_Week_of_'+fileLabel+'.pdf',
+    image: {type:'jpeg',quality:0.98},
+    html2canvas: {scale:2, useCORS:true},
+    jsPDF: {unit:'mm', format:'letter', orientation:'landscape'},
+  };
+
+  try {
+    await html2pdf().set(pdfOptions).from(pdfDiv).save();
+    toast('Export complete: PDF + Excel downloaded', true);
+  } catch(err) {
+    console.error('PDF export error:', err);
+    toast('PDF export failed (Excel still saved): '+err.message);
+  } finally {
+    document.body.removeChild(pdfDiv);
+  }
 }
 
 function icrPrevWeek(){
