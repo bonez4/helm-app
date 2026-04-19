@@ -6168,21 +6168,27 @@ async function icrExportFile(){
   const xlsBlob = new Blob(['\ufeff', xlsHtml], {type:'application/vnd.ms-excel'});
   const xlsLink = document.createElement('a');
   xlsLink.href = URL.createObjectURL(xlsBlob);
-  xlsLink.download = 'Consolidated_Rolloff_Week_of_'+fileLabel+'.xlsx';
+  xlsLink.download = 'Consolidated_Rolloff_Week_of_'+fileLabel+'.xls';
   document.body.appendChild(xlsLink);
   xlsLink.click();
   document.body.removeChild(xlsLink);
   setTimeout(()=>URL.revokeObjectURL(xlsLink.href), 1000);
 
   // ── PDF ──
+  // html2canvas needs a real laid-out element. Hide it with opacity, not off-screen positioning.
   const pdfDiv = document.createElement('div');
-  pdfDiv.style.position = 'fixed';
-  pdfDiv.style.left = '-10000px';
+  pdfDiv.style.position = 'absolute';
+  pdfDiv.style.left = '0';
   pdfDiv.style.top = '0';
   pdfDiv.style.width = '1100px';
   pdfDiv.style.background = '#fff';
+  pdfDiv.style.opacity = '0';
+  pdfDiv.style.pointerEvents = 'none';
+  pdfDiv.style.zIndex = '-1';
   pdfDiv.innerHTML = tableHtml;
   document.body.appendChild(pdfDiv);
+  // Allow a frame for layout
+  await new Promise(r => requestAnimationFrame(r));
 
   const pdfOptions = {
     margin: [10,10,10,10],
