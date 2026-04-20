@@ -547,6 +547,9 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .cli-acct strong{color:var(--gray-800);font-weight:600;}
 .cli-addr{font-size:13px;color:var(--gray-700);margin-bottom:2px;}
 .cli-phone{font-size:13px;color:var(--gray-600);font-family:'DM Mono',monospace;}
+.cli-email{font-size:13px;color:var(--gray-600);margin-top:2px;word-break:break-all;}
+.cli-email a{color:var(--teal);text-decoration:none;}
+.cli-email a:hover{text-decoration:underline;}
 .cli-info-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .cli-info-tiles .info-tile{grid-column:span 1;}
 .cli-info-tiles .info-tile:first-child{grid-column:span 2;}
@@ -2977,6 +2980,7 @@ async function showPanel(c){
             <div class="cli-acct">Acct #: <strong>${esc(c.client_id)}</strong></div>
             <div class="cli-addr">${esc(c.address)}, Nantucket MA</div>
             <div class="cli-phone">${esc(c.phone)||'No phone on file'}</div>
+            <div class="cli-email">${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:'<span style="color:var(--gray-400)">No email on file</span>'}</div>
           </div>
 
           <div class="cli-info-tiles">
