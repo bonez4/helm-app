@@ -3217,7 +3217,7 @@ function renderReport(){
       <div id="notesAddedResults"></div>
     </div>
 
-    <div class="form-card" style="margin-bottom:1rem">
+    <div class="form-card">
       <h2>Export Clients to Excel</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
         Pick which columns to include and which clients to filter. Saves as a .xls you can open in Excel or Google Sheets.
@@ -3273,22 +3273,7 @@ function renderReport(){
         <button class="btn-add" onclick="generateClientExport()">Download Excel</button>
         <span id="exportStatus" style="font-size:12px;color:var(--gray-500);"></span>
       </div>
-    </div>
-
-    <div class="form-card">
-      <h2>Bulk Update Emails</h2>
-      <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
-        Upload a CSV with at least an account # column and an email column. Auto-matches by account # and updates each client. Tip: use the <strong>Export Clients</strong> tool above to get a starter template with the correct account numbers.
-      </p>
-      <div class="import-zone" style="padding:1.25rem 1rem;" id="emailUploadZone" onclick="document.getElementById('emailUploadFile').click()">
-        <div class="import-zone-icon" style="font-size:28px;">\u{1F4E7}</div>
-        <h3>Drop a CSV here, or click to choose</h3>
-        <p>Headers like <code>account_id</code>, <code>client_id</code>, or <code>acct</code> + <code>email</code> are auto-detected.</p>
-        <input type="file" id="emailUploadFile" accept=".csv,text/csv" style="display:none" onchange="handleEmailUploadFile(this.files[0])"/>
-      </div>
-      <div id="emailUploadPreview"></div>
     </div>`;
-  setupEmailUploadDrop();
 }
 
 function setupEmailUploadDrop(){
@@ -4459,6 +4444,20 @@ function renderImport(){
     <div id="importPreview"></div>
 
     <div class="form-card" style="margin-top:1rem">
+      <h2>Bulk Update Emails</h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
+        Upload a CSV with at least an account # column and an email column. Auto-matches by account # and updates each client. Tip: use the <strong>Export Clients to Excel</strong> tool on the Reports tab to get a starter template with the correct account numbers.
+      </p>
+      <div class="import-zone" id="emailUploadZone" style="padding:1.25rem 1rem;" onclick="document.getElementById('emailUploadFile').click()">
+        <div class="import-zone-icon" style="font-size:28px;">\u{1F4E7}</div>
+        <h3>Drop a CSV here, or click to choose</h3>
+        <p>Headers like <code>account_id</code>, <code>client_id</code>, or <code>acct</code> + <code>email</code> are auto-detected.</p>
+        <input type="file" id="emailUploadFile" accept=".csv,text/csv" style="display:none" onchange="handleEmailUploadFile(this.files[0])"/>
+      </div>
+      <div id="emailUploadPreview"></div>
+    </div>
+
+    <div class="form-card" style="margin-top:1rem">
       <h2>Import Roll-offs from CSV</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:1rem">
         CSV headers: <code style="font-family:'DM Mono',monospace;font-size:11px;background:var(--gray-100);padding:2px 6px;border-radius:4px">date, type, customer, address_number, street, notes</code>
@@ -4472,6 +4471,7 @@ function renderImport(){
       </div>
     </div>
     <div id="roImportPreview"></div>`;
+  setupEmailUploadDrop();
 }
 
 async function loadActivityReport(){
