@@ -3199,18 +3199,18 @@ function renderReport(){
       <div id="reportResults"></div>
     </div>
     <div class="form-card">
-      <h2>Clients Added by Date</h2>
+      <h2>Notes Added Today</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
-        Lists every client added to HELM on a specific date.
+        Lists every note input on a specific date, regardless of what date the note's action is for. Useful for auditing what staff entered today (including notes scheduled for future dates).
       </p>
       <div style="display:flex;gap:8px;align-items:end;margin-bottom:0.75rem">
         <div class="form-group" style="margin-bottom:0;flex:0 0 auto">
-          <label>Added Date</label>
-          <input type="date" id="clientsAddedDate" value="${today}" style="width:160px"/>
+          <label>Date Notes Were Input</label>
+          <input type="date" id="notesAddedDate" value="${today}" style="width:160px"/>
         </div>
-        <button class="btn-add" onclick="generateClientsAddedReport()">Generate Report</button>
+        <button class="btn-add" onclick="generateNotesAddedReport()">Generate Report</button>
       </div>
-      <div id="clientsAddedResults"></div>
+      <div id="notesAddedResults"></div>
     </div>`;
 }
 
@@ -3428,54 +3428,60 @@ ${sections}
   });
 }
 
-// ── CLIENTS ADDED BY DATE REPORT ──────────────────────────────────────
-// Requires a created_at timestamp column on the clients table:
-//   ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-async function generateClientsAddedReport(){
-  const date = document.getElementById('clientsAddedDate').value;
+// ── NOTES ADDED TODAY REPORT ──────────────────────────────────────────
+// Filters notes by the timestamp they were INPUT (created_at), not the
+// action_date the note applies to. Useful for auditing what staff entered
+// on a given day, including notes scheduled for future dates.
+async function generateNotesAddedReport(){
+  const date = document.getElementById('notesAddedDate').value;
   if(!date){ toast('Select a date'); return; }
-  const results = document.getElementById('clientsAddedResults');
+  const results = document.getElementById('notesAddedResults');
   results.innerHTML = '<div class="loading">Loading…</div>';
 
-  // Date range covering local-day boundaries (Supabase stores UTC timestamps)
+  // Local-day boundaries → ISO range. created_at is stored in UTC.
   const startDt = new Date(date+'T00:00:00');
   const endDt = new Date(date+'T00:00:00'); endDt.setDate(endDt.getDate()+1);
   const startISO = startDt.toISOString();
   const endISO = endDt.toISOString();
 
-  const {data, error} = await db.from('clients')
+  const {data, error} = await db.from('notes')
     .select('*')
     .gte('created_at', startISO)
     .lt('created_at', endISO)
     .order('created_at');
 
   if(error){
-    const hint = (error.message||'').toLowerCase().includes('created_at')
-      ? '<br><br><strong>Setup needed:</strong> the <code>clients</code> table has no <code>created_at</code> column. Run this SQL in Supabase:<br><code style="display:inline-block;background:#f3f4f6;padding:6px 10px;border-radius:4px;margin-top:6px;">ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();</code>'
-      : '';
-    results.innerHTML = '<div class="empty-state" style="color:var(--err-text);text-align:left;line-height:1.5">Error: '+esc(error.message)+hint+'</div>';
+    results.innerHTML = '<div class="empty-state" style="color:var(--err-text);text-align:left;line-height:1.5">Error: '+esc(error.message)+'</div>';
     return;
   }
-
   if(!data || !data.length){
-    results.innerHTML = '<div class="empty-state">No clients added on '+fmtDate(date)+'</div>';
+    results.innerHTML = '<div class="empty-state">No notes input on '+fmtDate(date)+'</div>';
     return;
   }
 
-  // Group by company
+  // Group by company derived from client_id
   const byCo = {REIS:[], SANTOS:[], OTHER:[]};
-  for(const c of data){
-    const co = getCompany(c.client_id).name;
-    if(co==='REIS') byCo.REIS.push(c);
-    else if(co==='SANTOS') byCo.SANTOS.push(c);
-    else byCo.OTHER.push(c);
+  for(const n of data){
+    const co = getCompany(n.client_id).name;
+    if(co==='REIS') byCo.REIS.push(n);
+    else if(co==='SANTOS') byCo.SANTOS.push(n);
+    else byCo.OTHER.push(n);
   }
+
+  // Counts by action type for a quick summary strip
+  const actionCounts = {};
+  for(const n of data) actionCounts[n.action] = (actionCounts[n.action]||0)+1;
+  const summary = Object.entries(actionCounts)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([a,c])=>`<span class="action-tag ${actionTagClass(a)}" style="margin-right:4px;">${esc(a)} ${c}</span>`)
+    .join('');
 
   let html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
-      <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)} — ${data.length} client${data.length!==1?'s':''} added</div>
-      <button class="btn-add" onclick="printClientsAddedReport('${date}')" style="white-space:nowrap">Print Report</button>
-    </div>`;
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)} — ${data.length} note${data.length!==1?'s':''} input</div>
+      <button class="btn-add" onclick="printNotesAddedReport('${date}')" style="white-space:nowrap">Print Report</button>
+    </div>
+    <div style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:4px;">${summary}</div>`;
 
   const labels = {REIS:'REIS', SANTOS:'SANTOS', OTHER:'Other'};
   const tagCls = {REIS:'co-reis', SANTOS:'co-santos', OTHER:''};
@@ -3485,29 +3491,31 @@ async function generateClientsAddedReport(){
     html += `<div style="margin-bottom:1.5rem">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <h3 style="margin:0;font-size:16px;color:var(--navy)">${labels[key]}</h3>
-        ${tagCls[key]?`<span class="company-tag ${tagCls[key]}">${list.length} clients</span>`:`<span style="font-size:11px;color:var(--gray-400)">${list.length} clients</span>`}
+        ${tagCls[key]?`<span class="company-tag ${tagCls[key]}">${list.length} notes</span>`:`<span style="font-size:11px;color:var(--gray-400)">${list.length} notes</span>`}
       </div>
       <div class="report-group">
         <table class="report-table"><thead><tr>
           <th style="width:28px">#</th>
           <th style="width:64px">Acct</th>
-          <th style="width:54px">Route</th>
-          <th>Name</th>
-          <th>Address</th>
-          <th>Pickup Days</th>
-          <th>Phone</th>
-          <th style="width:80px">Added at</th>
+          <th style="width:90px">Action</th>
+          <th style="width:80px">For Date</th>
+          <th>Client</th>
+          <th>Note</th>
+          <th style="width:90px">By</th>
+          <th style="width:70px">Time</th>
         </tr></thead><tbody>`;
-    list.forEach((c,i)=>{
-      const t = c.created_at ? new Date(c.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+    list.forEach((n,i)=>{
+      const c = findClient(n.client_id);
+      const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+      const forDate = n.action_date ? fmtDateShort(n.action_date) : '—';
       html+=`<tr>
         <td class="rt-num">${i+1}</td>
-        <td class="rt-id">${esc(c.client_id)}</td>
-        <td class="rt-id">${c.route?('R'+c.route):'—'}</td>
-        <td class="rt-name">${esc(c.client_name||'—')}</td>
-        <td class="rt-addr">${esc(c.address||'—')}</td>
-        <td class="rt-addr">${esc(c.service_day||'—')}</td>
-        <td class="rt-phone">${esc(c.phone||'—')}</td>
+        <td class="rt-id">${esc(n.client_id)}</td>
+        <td><span class="action-tag ${actionTagClass(n.action)}">${esc(n.action||'')}</span></td>
+        <td class="rt-id">${forDate}</td>
+        <td class="rt-name">${esc(c.client_name||c.address||'—')}</td>
+        <td class="rt-note">${esc(n.note||'')}</td>
+        <td class="rt-id">${esc(n.user_id||'—')}</td>
         <td class="rt-id">${t}</td>
       </tr>`;
     });
@@ -3515,24 +3523,24 @@ async function generateClientsAddedReport(){
   }
 
   results.innerHTML = html;
-  logActivity('clients_added_report', date);
+  logActivity('notes_added_report', date);
 }
 
-function printClientsAddedReport(date){
+function printNotesAddedReport(date){
   const startDt = new Date(date+'T00:00:00');
   const endDt = new Date(date+'T00:00:00'); endDt.setDate(endDt.getDate()+1);
   const startISO = startDt.toISOString();
   const endISO = endDt.toISOString();
-  db.from('clients').select('*')
+  db.from('notes').select('*')
     .gte('created_at', startISO).lt('created_at', endISO).order('created_at')
     .then(({data, error})=>{
-      if(error || !data || !data.length){ toast(error?error.message:'No clients to print'); return; }
+      if(error || !data || !data.length){ toast(error?error.message:'No notes to print'); return; }
       const byCo = {REIS:[], SANTOS:[], OTHER:[]};
-      for(const c of data){
-        const co = getCompany(c.client_id).name;
-        if(co==='REIS') byCo.REIS.push(c);
-        else if(co==='SANTOS') byCo.SANTOS.push(c);
-        else byCo.OTHER.push(c);
+      for(const n of data){
+        const co = getCompany(n.client_id).name;
+        if(co==='REIS') byCo.REIS.push(n);
+        else if(co==='SANTOS') byCo.SANTOS.push(n);
+        else byCo.OTHER.push(n);
       }
       const labels = {REIS:'REIS', SANTOS:'SANTOS', OTHER:'Other'};
       let sections = '';
@@ -3541,20 +3549,22 @@ function printClientsAddedReport(date){
         if(!list.length) continue;
         sections += `<h2 style="background:#2a5a3a;margin-top:16px;font-size:13px;padding:6px 8px;">${labels[key]} (${list.length})</h2>
           <table><thead><tr>
-            <th style="width:30px">#</th><th style="width:64px">Acct</th><th style="width:52px">Route</th>
-            <th style="width:180px">Name</th><th>Address</th><th style="width:140px">Pickup Days</th>
-            <th style="width:110px">Phone</th><th style="width:80px">Added at</th>
+            <th style="width:30px">#</th><th style="width:64px">Acct</th><th style="width:90px">Action</th>
+            <th style="width:80px">For Date</th><th style="width:180px">Client</th><th>Note</th>
+            <th style="width:100px">By</th><th style="width:70px">Time</th>
           </tr></thead><tbody>`;
-        list.forEach((c,i)=>{
-          const t = c.created_at ? new Date(c.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+        list.forEach((n,i)=>{
+          const c = findClient(n.client_id);
+          const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+          const forDate = n.action_date ? fmtDateShort(n.action_date) : '—';
           sections += `<tr>
             <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
-            <td style="font-size:13px;color:#555">${esc(c.client_id)}</td>
-            <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${c.route?('R'+c.route):'—'}</td>
-            <td style="font-weight:600">${esc(c.client_name||'—')}</td>
-            <td>${esc(c.address||'—')}</td>
-            <td style="font-size:13px;color:#555">${esc(c.service_day||'—')}</td>
-            <td style="font-size:13px;color:#555">${esc(c.phone||'—')}</td>
+            <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
+            <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
+            <td style="font-size:13px;color:#555">${forDate}</td>
+            <td style="font-weight:600">${esc(c.client_name||c.address||'—')}</td>
+            <td style="font-style:italic;color:#444">${esc(n.note||'')}</td>
+            <td style="font-size:13px;color:#555">${esc(n.user_id||'—')}</td>
             <td style="font-size:12px;color:#555">${t}</td>
           </tr>`;
         });
@@ -3563,7 +3573,7 @@ function printClientsAddedReport(date){
       const win = window.open('','_blank');
       win.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"/>
-<title>HELM Clients Added — ${fmtDate(date)}</title>
+<title>HELM Notes Added — ${fmtDate(date)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:18px;}
@@ -3580,8 +3590,8 @@ h2{background:#0f1f3d;color:white;padding:6px 10px;font-size:13px;margin:14px 0 
 @media print{body{padding:10px;font-size:13px;}td{padding:8px 7px;font-size:13px;}@page{margin:0.75cm;}}
 </style></head><body>
 <div class="header">
-  <h1>HELM — Clients Added</h1>
-  <div class="sub">Date: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} client${data.length!==1?'s':''}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
+  <h1>HELM — Notes Added</h1>
+  <div class="sub">Input on: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} note${data.length!==1?'s':''}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
 </div>
 ${sections}
 <div class="footer">
