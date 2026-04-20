@@ -90,9 +90,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
   display:flex;align-items:center;justify-content:space-between;
   padding:0 1rem;position:fixed;top:0;left:0;right:0;z-index:100;
   border-bottom:1px solid rgba(255,255,255,0.06);
+  box-sizing:border-box;
 }
-/* Spacer because topbar is fixed (out of flow) */
-#appScreen{padding-top:44px;}
+/* Topbar is fixed (out of flow) — push everything else below it.
+   Use margin-top on the first flow children so there is no extra
+   gap or scrollbar quirk from padding on #appScreen. */
+.tab-nav{margin-top:44px;}
 /* Global caret suppression: only real input fields show a cursor.
    Stops stray flashing-caret on background clicks across every page. */
 body{caret-color:transparent;}
@@ -1440,8 +1443,9 @@ body.layout-david .tab-nav button.active{
   font-weight:600; border-left-color:var(--teal);
   border-bottom-color:transparent;
 }
+body.layout-david .tab-nav{margin-top:0;}  /* fixed-positioned, no flow margin */
 body.layout-david .main{
-  margin-left:220px; max-width:none; width:calc(100% - 220px);
+  margin-left:220px; margin-top:44px; max-width:none; width:calc(100% - 220px);
   padding:0.75rem 1.25rem;
 }
 /* Workflow + Command tabs: kill main padding so canvas goes edge-to-edge */
