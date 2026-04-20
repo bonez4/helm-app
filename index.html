@@ -1677,15 +1677,17 @@ body.layout-david .ap-top{position:sticky; top:44px; z-index:5;}
 .ap-add-task-row:hover{color:var(--ap-accent-2);background:rgba(255,255,255,0.03);}
 .ap-add-task-input{
   display:flex;align-items:center;gap:8px;
-  padding:7px 12px;border-radius:5px;
-  background:rgba(124,92,255,0.06);border:1px solid rgba(124,92,255,0.3);
+  padding:8px 12px;border-radius:5px;
+  background:rgba(124,92,255,0.10);border:1px solid rgba(124,92,255,0.45);
   margin-top:4px;
 }
 .ap-add-task-input input{
-  flex:1;background:transparent;border:none;color:var(--ap-text);
-  font-family:inherit;font-size:13px;outline:none;
+  flex:1;background:transparent;border:none;color:#fff;
+  font-family:inherit;font-size:13px;outline:none;caret-color:#fff;
+  text-decoration:none;
 }
-.ap-add-task-input input::placeholder{color:var(--ap-text-mute);}
+.ap-add-task-input input::placeholder{color:rgba(255,255,255,0.50);}
+.ap-add-task-input input::-webkit-spelling-error{text-decoration:none;}
 
 /* === Board (Kanban) === */
 .ap-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;height:calc(100vh - 280px);min-height:400px;}
@@ -8821,6 +8823,8 @@ function apViewList(p){
         html += `<div class="ap-add-task-input">
           <span class="ap-status-dot" style="background:#6b7280"></span>
           <input id="apInlineTask" placeholder="Task title + Enter (Esc to cancel)"
+            spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+            style="color:#fff;caret-color:#fff;"
             onkeydown="if(event.key==='Enter'){event.preventDefault();apInlineCommitTask(${tl.id});}else if(event.key==='Escape'){event.preventDefault();apInlineCancelTask();}"
             onblur="apInlineMaybeCommitTask(${tl.id})">
         </div>`;
@@ -9362,6 +9366,8 @@ function apAddSubtaskInline(parentId){
   wrap.innerHTML = `<div class="ap-add-task-input" style="margin:6px 0 0;">
     <span class="ap-status-dot" style="background:#6b7280"></span>
     <input id="apSubInput" placeholder="Subtask title + Enter (Esc to cancel)"
+      spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+      style="color:#fff;caret-color:#fff;"
       onkeydown="if(event.key==='Enter'){event.preventDefault();apCommitSubtask(${parentId});}else if(event.key==='Escape'){event.preventDefault();document.getElementById('apSubAddWrap').innerHTML='';}"
       onblur="setTimeout(()=>{const w=document.getElementById('apSubAddWrap');if(w)w.innerHTML='';},150)">
   </div>`;
