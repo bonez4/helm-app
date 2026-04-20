@@ -8928,8 +8928,11 @@ if(_saved && _saved !== '1'){
 //   start_date date, due_date date, estimated_hours numeric,
 //   percent_complete smallint default 0, sort_order int default 0,
 //   archived boolean default false, completed_at timestamptz,
+//   recurrence jsonb,                          -- {type:'daily'|'weekly'|'monthly_day'|'monthly_last'|'every_n_days', days?:[0-6], day?:1-31, n?:N}
 //   created_at timestamptz default now(), updated_at timestamptz default now()
 // );
+// -- For existing installs:
+// alter table helm_action_tasks add column if not exists recurrence jsonb;
 // create table if not exists helm_action_dependencies(
 //   id bigserial primary key,
 //   task_id bigint not null references helm_action_tasks(id) on delete cascade,
@@ -9062,6 +9065,149 @@ function apFmtTs(ts){
   if(diffSec < 86400) return Math.round(diffSec/3600)+'h ago';
   if(diffSec < 86400*7) return Math.round(diffSec/86400)+'d ago';
   return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+// ── Recurrence helpers ───────────────────────────────────────────────
+// recurrence shape (jsonb on helm_action_tasks):
+//   {type:'daily'}
+//   {type:'weekly', days:[1,5]}            // 0=Sun..6=Sat
+//   {type:'monthly_day', day:15}            // day-of-month
+//   {type:'monthly_last'}                   // last calendar day each month
+//   {type:'every_n_days', n:14}
+function apFmtRecurrence(rec){
+  if(!rec || !rec.type) return '';
+  if(rec.type === 'daily') return 'Daily';
+  if(rec.type === 'weekly'){
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const days = (rec.days||[]).slice().sort();
+    if(!days.length) return 'Weekly (no days picked)';
+    if(days.length===5 && [1,2,3,4,5].every(d=>days.includes(d))) return 'Weekdays';
+    if(days.length===2 && [0,6].every(d=>days.includes(d))) return 'Weekends';
+    if(days.length===7) return 'Daily';
+    return 'Weekly: '+days.map(d=>dayNames[d]).join(', ');
+  }
+  if(rec.type === 'monthly_day'){
+    const d = rec.day || 1;
+    const suffix = (d%10===1 && d!==11)?'st':(d%10===2 && d!==12)?'nd':(d%10===3 && d!==13)?'rd':'th';
+    return 'Monthly on the '+d+suffix;
+  }
+  if(rec.type === 'monthly_last') return 'Last day of every month';
+  if(rec.type === 'every_n_days') return 'Every '+(rec.n||7)+' day'+((rec.n||7)===1?'':'s');
+  return '';
+}
+// Compute the next occurrence date AFTER fromIso. Returns 'YYYY-MM-DD' or null.
+function apComputeNextDue(rec, fromIso){
+  if(!rec || !rec.type) return null;
+  const baseIso = fromIso || new Date().toISOString().slice(0,10);
+  const from = new Date(baseIso+'T00:00:00');
+  // Always advance at least one day past the fromIso anchor
+  from.setDate(from.getDate() + 1);
+  const iso = d => {
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+day;
+  };
+
+  if(rec.type === 'daily') return iso(from);
+  if(rec.type === 'weekly'){
+    const days = rec.days || [];
+    if(!days.length) return null;
+    for(let i=0; i<14; i++){
+      const d = new Date(from);
+      d.setDate(from.getDate() + i);
+      if(days.includes(d.getDay())) return iso(d);
+    }
+    return null;
+  }
+  if(rec.type === 'monthly_day'){
+    const want = Math.max(1, Math.min(31, rec.day || 1));
+    let candidate = new Date(from.getFullYear(), from.getMonth(), want);
+    while(candidate < from){
+      candidate = new Date(candidate.getFullYear(), candidate.getMonth() + 1, want);
+    }
+    return iso(candidate);
+  }
+  if(rec.type === 'monthly_last'){
+    let candidate = new Date(from.getFullYear(), from.getMonth() + 1, 0); // last day of current month
+    if(candidate < from){
+      candidate = new Date(from.getFullYear(), from.getMonth() + 2, 0);
+    }
+    return iso(candidate);
+  }
+  if(rec.type === 'every_n_days'){
+    const n = Math.max(1, rec.n || 7);
+    const d = new Date(from);
+    d.setDate(from.getDate() + n - 1); // -1 because we already advanced 1
+    return iso(d);
+  }
+  return null;
+}
+
+// Recurrence config sub-UI rendered inside the detail panel
+function apRenderRecurConfig(t){
+  const r = t.recurrence;
+  if(!r || !r.type) return '';
+  const inputStyle = 'width:80px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#fff;font-family:inherit;font-size:12px;font-weight:500;padding:6px 10px;border-radius:5px;outline:none;';
+  let cfgHtml = '';
+  if(r.type === 'weekly'){
+    const days = r.days || [];
+    const dayLabels = ['S','M','T','W','T','F','S'];
+    cfgHtml = `<div style="display:flex;gap:4px;">${dayLabels.map((label,i)=>`
+      <button onclick="apToggleRecurDay(${t.id}, ${i})" style="
+        width:30px;height:30px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;
+        background:${days.includes(i)?'rgba(124,92,255,0.32)':'rgba(255,255,255,0.05)'};
+        border:1px solid ${days.includes(i)?'rgba(124,92,255,0.65)':'rgba(255,255,255,0.15)'};
+        color:${days.includes(i)?'#fff':'#cbd2e3'};
+        font-family:inherit;">${label}</button>`).join('')}</div>
+      <div style="font-size:10px;color:#a8b0c2;margin-top:5px;">Sun → Sat. Tap each day this should repeat.</div>`;
+  } else if(r.type === 'monthly_day'){
+    cfgHtml = `<input type="number" min="1" max="31" value="${r.day||1}" style="${inputStyle}"
+      onchange="apSetRecurField(${t.id},'day',parseInt(this.value)||1)">
+      <span style="font-size:11px;color:#a8b0c2;margin-left:8px;">Day of month (1-31). Months without that day will use the closest valid date.</span>`;
+  } else if(r.type === 'every_n_days'){
+    cfgHtml = `<input type="number" min="1" max="365" value="${r.n||7}" style="${inputStyle}"
+      onchange="apSetRecurField(${t.id},'n',parseInt(this.value)||1)">
+      <span style="font-size:11px;color:#a8b0c2;margin-left:8px;">Number of days between repeats.</span>`;
+  }
+  // Show next planned occurrence after current due date
+  const baseDate = t.due_date || new Date().toISOString().slice(0,10);
+  const next = apComputeNextDue(r, baseDate);
+  const summary = apFmtRecurrence(r);
+  return cfgHtml + `<div style="font-size:11px;color:#cbd2e3;margin-top:8px;padding-top:6px;border-top:1px dashed rgba(255,255,255,0.10);">
+    <strong style="color:var(--ap-accent-2);">${esc(summary)}</strong>
+    ${next?` &middot; <span style="color:#a8b0c2;">After this one, next would be <strong>${apFmtDate(next)}</strong></span>`:''}
+  </div>`;
+}
+
+async function apOnRecurTypeChange(id, type){
+  let recurrence = null;
+  if(type === 'daily') recurrence = {type:'daily'};
+  else if(type === 'weekly') recurrence = {type:'weekly', days:[]};
+  else if(type === 'monthly_day') recurrence = {type:'monthly_day', day: new Date().getDate()};
+  else if(type === 'monthly_last') recurrence = {type:'monthly_last'};
+  else if(type === 'every_n_days') recurrence = {type:'every_n_days', n:7};
+  // type === '' means stop repeating → store null
+  await apUpdateTask(id, {recurrence});
+  const t = apTask(id);
+  if(t) apRenderTaskPanel(t);
+}
+async function apToggleRecurDay(id, day){
+  const t = apTask(id);
+  if(!t || !t.recurrence) return;
+  const days = (t.recurrence.days || []).slice();
+  const i = days.indexOf(day);
+  if(i>=0) days.splice(i,1); else { days.push(day); days.sort(); }
+  const nextRec = Object.assign({}, t.recurrence, {days});
+  await apUpdateTask(id, {recurrence: nextRec});
+  const updated = apTask(id);
+  if(updated) apRenderTaskPanel(updated);
+}
+async function apSetRecurField(id, field, value){
+  const t = apTask(id);
+  if(!t || !t.recurrence) return;
+  const nextRec = Object.assign({}, t.recurrence, {[field]: value});
+  await apUpdateTask(id, {recurrence: nextRec});
+  const updated = apTask(id);
+  if(updated) apRenderTaskPanel(updated);
 }
 function apDueClass(d, status){
   if(!d || status==='Done' || status==='Cancelled') return '';
@@ -9398,10 +9544,13 @@ function apListRow(t, isSub){
     ? `<span class="ap-row-pct">${t.percent_complete}%<span class="ap-row-pct-bar"><span class="ap-row-pct-bar-fill" style="width:${t.percent_complete}%"></span></span></span>`
     : '<span></span>';
   const titleCls = t.status==='Done' || t.status==='Cancelled' ? 'done':'';
+  const recurIcon = (t.recurrence && t.recurrence.type)
+    ? `<span title="Repeats: ${esc(apFmtRecurrence(t.recurrence))}" style="margin-left:6px;color:var(--ap-accent-2);font-size:11px;vertical-align:middle;">\u{1F501}</span>`
+    : '';
   return `<div class="ap-row ${isSub?'subtask':''} ${apView.selectedTaskId===t.id?'selected':''}" onclick="apOpenTask(${t.id})">
     ${apPrioBars(t.priority||0)}
     <span class="ap-row-id">${esc(apTaskFullId(t))}</span>
-    <span class="ap-row-title ${titleCls}" data-selectable>${esc(t.title)}</span>
+    <span class="ap-row-title ${titleCls}" data-selectable>${esc(t.title)}${recurIcon}</span>
     ${ms}
     ${due}
     ${pct}
@@ -9833,6 +9982,18 @@ function apRenderTaskPanel(t){
         <div class="ap-detail-meta-val">
           <input type="date" value="${t.due_date||''}" onchange="apUpdateTaskField(${t.id},'due_date',this.value||null)">
         </div>
+        <div class="ap-detail-meta-label">Repeat</div>
+        <div class="ap-detail-meta-val">
+          <select onchange="apOnRecurTypeChange(${t.id}, this.value)">
+            <option value="" ${!t.recurrence||!t.recurrence.type?'selected':''}>Doesn't repeat</option>
+            <option value="daily" ${t.recurrence&&t.recurrence.type==='daily'?'selected':''}>Daily</option>
+            <option value="weekly" ${t.recurrence&&t.recurrence.type==='weekly'?'selected':''}>Weekly on…</option>
+            <option value="monthly_day" ${t.recurrence&&t.recurrence.type==='monthly_day'?'selected':''}>Monthly on a specific day</option>
+            <option value="monthly_last" ${t.recurrence&&t.recurrence.type==='monthly_last'?'selected':''}>Last day of every month</option>
+            <option value="every_n_days" ${t.recurrence&&t.recurrence.type==='every_n_days'?'selected':''}>Every N days</option>
+          </select>
+          <div style="margin-top:8px;">${apRenderRecurConfig(t)}</div>
+        </div>
         <div class="ap-detail-meta-label">% Complete</div>
         <div class="ap-detail-meta-val">
           <input type="range" min="0" max="100" step="5" value="${t.percent_complete||0}"
@@ -10180,8 +10341,25 @@ async function apUpdateTaskField(id, field, value){
   const update = {[field]:value};
   const old = apTask(id);
   if(field==='status' && value==='Done'){
-    update.percent_complete = 100;
-    update.completed_at = new Date().toISOString();
+    // Recurring task? Roll forward to next occurrence instead of completing.
+    if(old && old.recurrence && old.recurrence.type){
+      const baseDate = old.due_date || new Date().toISOString().slice(0,10);
+      const nextDue = apComputeNextDue(old.recurrence, baseDate);
+      if(nextDue){
+        update.status = 'Todo';
+        update.due_date = nextDue;
+        update.percent_complete = 0;
+        update.completed_at = null;
+        toast('Rolled forward → next: '+apFmtDate(nextDue), true);
+      } else {
+        // Recurrence couldn't compute (e.g., weekly with no days picked) → fall back to Done
+        update.percent_complete = 100;
+        update.completed_at = new Date().toISOString();
+      }
+    } else {
+      update.percent_complete = 100;
+      update.completed_at = new Date().toISOString();
+    }
   }
   if(field==='status' && value!=='Done'){
     update.completed_at = null;
@@ -10190,7 +10368,7 @@ async function apUpdateTaskField(id, field, value){
     if(old && old.status === 'Done') update.percent_complete = 0;
   }
   await apUpdateTask(id, update);
-  if(field==='status') apLogActivity('Status changed', old.project_id, id, {from:old.status, to:value, title:old.title});
+  if(field==='status') apLogActivity(update.status==='Todo' && old && old.recurrence ? 'Recurring task rolled' : 'Status changed', old.project_id, id, {from:old.status, to:update.status||value, title:old.title});
   // Re-render whatever's open
   if(apView.current==='project') apRenderMain();
   else apRenderMain();
