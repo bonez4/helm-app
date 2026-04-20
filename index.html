@@ -3202,7 +3202,7 @@ function renderReport(){
       </div>
       <div id="reportResults"></div>
     </div>
-    <div class="form-card">
+    <div class="form-card" style="margin-bottom:1rem">
       <h2>Notes Added Today</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
         Lists every note input on a specific date, regardless of what date the note's action is for. Useful for auditing what staff entered today (including notes scheduled for future dates).
@@ -3215,7 +3215,93 @@ function renderReport(){
         <button class="btn-add" onclick="generateNotesAddedReport()">Generate Report</button>
       </div>
       <div id="notesAddedResults"></div>
+    </div>
+
+    <div class="form-card" style="margin-bottom:1rem">
+      <h2>Export Clients to Excel</h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
+        Pick which columns to include and which clients to filter. Saves as a .xls you can open in Excel or Google Sheets.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--gray-500);margin-bottom:6px;">Columns to include</div>
+          <div id="exportCols" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:var(--gray-700);">
+            ${[
+              {key:'client_id',label:'Account #',def:true},
+              {key:'company',label:'Company',def:true},
+              {key:'client_name',label:'Name',def:true},
+              {key:'address',label:'Address',def:true},
+              {key:'phone',label:'Phone',def:true},
+              {key:'email',label:'Email',def:true},
+              {key:'service_day',label:'Pickup Days',def:true},
+              {key:'route',label:'Route',def:true},
+              {key:'status',label:'Status',def:false},
+              {key:'autopay',label:'Autopay',def:false},
+              {key:'created_at',label:'Date Added',def:false},
+            ].map(c=>`<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 4px;border-radius:3px;"><input type="checkbox" data-col="${c.key}" ${c.def?'checked':''}/> ${c.label}</label>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--gray-500);margin-bottom:6px;">Filters</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--gray-700);">
+            <label style="display:flex;align-items:center;gap:6px;">Company:
+              <select id="expCompany" style="padding:4px 8px;border:1px solid var(--gray-200);border-radius:4px;font-size:12px;">
+                <option value="">All</option><option value="REIS">REIS</option><option value="SANTOS">SANTOS</option>
+              </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;">Status:
+              <select id="expStatus" style="padding:4px 8px;border:1px solid var(--gray-200);border-radius:4px;font-size:12px;">
+                <option value="">All</option><option value="Active">Active only</option><option value="Paused">Paused only</option>
+              </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;">Email:
+              <select id="expEmail" style="padding:4px 8px;border:1px solid var(--gray-200);border-radius:4px;font-size:12px;">
+                <option value="">All</option><option value="with">With email only</option><option value="without">Missing email only</option>
+              </select>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;">Route:
+              <select id="expRoute" style="padding:4px 8px;border:1px solid var(--gray-200);border-radius:4px;font-size:12px;">
+                <option value="">All routes</option>
+                ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}">Route ${n}</option>`).join('')}
+                <option value="none">No route assigned</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-add" onclick="generateClientExport()">Download Excel</button>
+        <span id="exportStatus" style="font-size:12px;color:var(--gray-500);"></span>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h2>Bulk Update Emails</h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
+        Upload a CSV with at least an account # column and an email column. Auto-matches by account # and updates each client. Tip: use the <strong>Export Clients</strong> tool above to get a starter template with the correct account numbers.
+      </p>
+      <div class="import-zone" style="padding:1.25rem 1rem;" id="emailUploadZone" onclick="document.getElementById('emailUploadFile').click()">
+        <div class="import-zone-icon" style="font-size:28px;">\u{1F4E7}</div>
+        <h3>Drop a CSV here, or click to choose</h3>
+        <p>Headers like <code>account_id</code>, <code>client_id</code>, or <code>acct</code> + <code>email</code> are auto-detected.</p>
+        <input type="file" id="emailUploadFile" accept=".csv,text/csv" style="display:none" onchange="handleEmailUploadFile(this.files[0])"/>
+      </div>
+      <div id="emailUploadPreview"></div>
     </div>`;
+  setupEmailUploadDrop();
+}
+
+function setupEmailUploadDrop(){
+  const zone = document.getElementById('emailUploadZone');
+  if(!zone) return;
+  zone.ondragover = e => { e.preventDefault(); zone.style.borderColor = 'var(--teal)'; zone.style.background = 'var(--teal-pale)'; };
+  zone.ondragleave = e => { e.preventDefault(); zone.style.borderColor = ''; zone.style.background = ''; };
+  zone.ondrop = e => {
+    e.preventDefault();
+    zone.style.borderColor = ''; zone.style.background = '';
+    const f = e.dataTransfer.files[0];
+    if(f) handleEmailUploadFile(f);
+  };
 }
 
 // Group notes by route — Route 1...14, then No Route at end. Within a route, sorted by acct #.
@@ -3606,6 +3692,220 @@ ${sections}
 </body></html>`);
       win.document.close();
     });
+}
+
+// ── EXPORT CLIENTS TO EXCEL ───────────────────────────────────────────
+const CLIENT_COL_LABELS = {
+  client_id:'Account #', company:'Company', client_name:'Name',
+  address:'Address', phone:'Phone', email:'Email',
+  service_day:'Pickup Days', route:'Route',
+  status:'Status', autopay:'Autopay', created_at:'Date Added',
+};
+
+function generateClientExport(){
+  const status = document.getElementById('exportStatus');
+  const cols = [...document.querySelectorAll('#exportCols input[type=checkbox]:checked')].map(c=>c.dataset.col);
+  if(!cols.length){ toast('Pick at least one column'); return; }
+
+  // Filters
+  const fCo = document.getElementById('expCompany').value;
+  const fSt = document.getElementById('expStatus').value;
+  const fEm = document.getElementById('expEmail').value;
+  const fRt = document.getElementById('expRoute').value;
+
+  let list = clients.slice();
+  if(fCo) list = list.filter(c=>getCompany(c.client_id).name===fCo);
+  if(fSt) list = list.filter(c=>(c.status||'Active')===fSt);
+  if(fEm==='with') list = list.filter(c=>c.email && c.email.trim());
+  if(fEm==='without') list = list.filter(c=>!c.email || !c.email.trim());
+  if(fRt==='none') list = list.filter(c=>!c.route);
+  else if(fRt) list = list.filter(c=>String(c.route)===String(fRt));
+  // Sort by client_id
+  list.sort((a,b)=>(a.client_id||'').localeCompare(b.client_id||''));
+
+  if(!list.length){ toast('No clients match those filters'); return; }
+  status.textContent = 'Building '+list.length+' rows...';
+
+  // Build header row + body
+  const headerCells = cols.map(k=>`<th style="background:#0f1f3d;color:#fff;padding:6px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border:1px solid #999;">${esc(CLIENT_COL_LABELS[k]||k)}</th>`).join('');
+  const bodyRows = list.map(c=>{
+    const cells = cols.map(k=>{
+      let v;
+      if(k==='company') v = getCompany(c.client_id).name||'';
+      else if(k==='autopay') v = c.autopay ? 'Yes' : 'No';
+      else if(k==='created_at') v = c.created_at ? new Date(c.created_at).toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+      else if(k==='status') v = c.status || 'Active';
+      else v = c[k] || '';
+      return `<td style="padding:5px 10px;border:1px solid #ccc;font-family:Arial,Helvetica,sans-serif;font-size:11px;">${esc(String(v))}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  // Filter summary for header
+  const filterBits = [];
+  if(fCo) filterBits.push(fCo);
+  if(fSt) filterBits.push(fSt);
+  if(fEm==='with') filterBits.push('with email');
+  if(fEm==='without') filterBits.push('missing email');
+  if(fRt==='none') filterBits.push('no route');
+  else if(fRt) filterBits.push('Route '+fRt);
+  const filterStr = filterBits.length ? ' ('+filterBits.join(' / ')+')' : '';
+
+  const today = new Date().toISOString().slice(0,10);
+  const tableHtml = `
+    <h2 style="font-family:Arial,Helvetica,sans-serif;font-size:16px;margin:0 0 4px 0;">HELM Clients Export${esc(filterStr)}</h2>
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#666;margin-bottom:10px;">${list.length} clients · Generated ${today}</div>
+    <table style="border-collapse:collapse;border:1px solid #999;">
+      <thead><tr>${headerCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
+  const xlsHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Clients</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>'+tableHtml+'</body></html>';
+  const blob = new Blob(['\ufeff', xlsHtml], {type:'application/vnd.ms-excel'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'HELM_Clients_'+today.replace(/-/g,'')+'.xls';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  status.textContent = 'Downloaded '+list.length+' clients';
+  logActivity('clients_exported', list.length+' rows');
+}
+
+// ── BULK UPDATE EMAILS FROM CSV ───────────────────────────────────────
+let _emailUploadParsed = null;
+
+function handleEmailUploadFile(file){
+  if(!file) return;
+  const preview = document.getElementById('emailUploadPreview');
+  preview.innerHTML = '<div class="loading">Reading '+esc(file.name)+'...</div>';
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(l=>l.trim());
+      if(lines.length < 2){ preview.innerHTML = '<div class="empty-state" style="color:var(--err-text)">CSV needs a header row + at least one data row</div>'; return; }
+
+      const headerRaw = parseCSVLine(lines[0]);
+      const headers = headerRaw.map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,''));
+
+      // Auto-detect account-id column
+      const acctCandidates = ['accountid','account','accountnum','accountnumber','clientid','acct','acctid','acctnum','id'];
+      const emailCandidates = ['email','emailaddress','emailaddr','eaddress'];
+      let acctIdx = headers.findIndex(h=>acctCandidates.includes(h));
+      let emailIdx = headers.findIndex(h=>emailCandidates.includes(h));
+      // Fallback: any header containing "acct"/"client"+"id" or "email"
+      if(acctIdx === -1) acctIdx = headers.findIndex(h=>(h.includes('account')||h.includes('client')||h.includes('acct')) && (h.includes('id')||h.includes('num')||h.length<=8));
+      if(emailIdx === -1) emailIdx = headers.findIndex(h=>h.includes('email'));
+
+      if(acctIdx === -1 || emailIdx === -1){
+        preview.innerHTML = `<div class="empty-state" style="color:var(--err-text);text-align:left;line-height:1.5">
+          Couldn't auto-detect columns.<br>
+          Found headers: <code>${esc(headerRaw.join(', '))}</code><br>
+          Need one column for account # (e.g. <code>account_id</code>, <code>client_id</code>, <code>acct</code>) and one for <code>email</code>.
+        </div>`;
+        return;
+      }
+
+      // Parse data rows
+      const rows = [];
+      for(let i=1; i<lines.length; i++){
+        const cells = parseCSVLine(lines[i]);
+        const acct = (cells[acctIdx]||'').trim();
+        const email = (cells[emailIdx]||'').trim();
+        if(!acct || !email) continue;
+        rows.push({acct, email});
+      }
+
+      if(!rows.length){ preview.innerHTML = '<div class="empty-state">No valid rows found in CSV</div>'; return; }
+
+      // Match against existing clients
+      const matches = [], unknowns = [], unchanged = [];
+      for(const r of rows){
+        const c = clients.find(x=>x.client_id===r.acct);
+        if(!c){ unknowns.push(r); continue; }
+        if((c.email||'').trim() === r.email){ unchanged.push(r); continue; }
+        matches.push({acct:r.acct, email:r.email, oldEmail:c.email||'', name:c.client_name||''});
+      }
+
+      _emailUploadParsed = matches;
+
+      let html = `<div style="margin-top:14px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:13px;font-weight:600;color:var(--navy);">Preview — ${rows.length} rows in CSV</div>
+          <div style="display:flex;gap:6px;">
+            <span class="day-pill" style="background:var(--ok-bg);color:var(--ok-text);">${matches.length} to update</span>
+            ${unchanged.length?`<span class="day-pill" style="background:var(--gray-100);color:var(--gray-500);">${unchanged.length} unchanged</span>`:''}
+            ${unknowns.length?`<span class="day-pill" style="background:var(--err-bg);color:var(--err-text);">${unknowns.length} unknown acct</span>`:''}
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--gray-500);margin-bottom:8px;">
+          Detected columns: <strong>${esc(headerRaw[acctIdx])}</strong> (account) + <strong>${esc(headerRaw[emailIdx])}</strong> (email)
+        </div>`;
+
+      if(matches.length){
+        html += `<div style="max-height:240px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:var(--radius-sm);background:white;margin-bottom:8px;">
+          <table class="report-table" style="width:100%;font-size:12px;"><thead><tr>
+            <th>Acct</th><th>Name</th><th>Old Email</th><th>New Email</th>
+          </tr></thead><tbody>
+          ${matches.slice(0,200).map(m=>`<tr>
+            <td class="rt-id">${esc(m.acct)}</td>
+            <td>${esc(m.name||'—')}</td>
+            <td style="color:var(--gray-400);">${esc(m.oldEmail||'(none)')}</td>
+            <td style="color:var(--ok-text);font-weight:600;">${esc(m.email)}</td>
+          </tr>`).join('')}
+          ${matches.length>200?`<tr><td colspan="4" style="text-align:center;color:var(--gray-400);font-size:11px;padding:8px;">…${matches.length-200} more rows hidden in preview</td></tr>`:''}
+          </tbody></table>
+        </div>`;
+      }
+
+      if(unknowns.length){
+        html += `<details style="margin-bottom:8px;"><summary style="cursor:pointer;font-size:12px;color:var(--err-text);font-weight:600;">${unknowns.length} accounts not found in HELM (will be skipped)</summary>
+          <div style="font-size:11px;color:var(--gray-500);padding:8px 0;font-family:'DM Mono',monospace;">${unknowns.slice(0,50).map(u=>esc(u.acct)).join(', ')}${unknowns.length>50?` …+${unknowns.length-50} more`:''}</div>
+        </details>`;
+      }
+
+      html += `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+        <button class="btn-add" style="background:var(--gray-400)" onclick="document.getElementById('emailUploadPreview').innerHTML='';_emailUploadParsed=null;document.getElementById('emailUploadFile').value='';">Cancel</button>
+        <button class="btn-add" onclick="confirmEmailUpload()" ${matches.length?'':'disabled style="opacity:0.4;cursor:not-allowed;"'}>Update ${matches.length} email${matches.length===1?'':'s'}</button>
+      </div></div>`;
+
+      preview.innerHTML = html;
+    }catch(err){
+      preview.innerHTML = '<div class="empty-state" style="color:var(--err-text)">Error parsing CSV: '+esc(err.message)+'</div>';
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function confirmEmailUpload(){
+  if(!_emailUploadParsed || !_emailUploadParsed.length){ toast('Nothing to update'); return; }
+  const preview = document.getElementById('emailUploadPreview');
+  const list = _emailUploadParsed;
+  preview.innerHTML = '<div class="loading">Updating '+list.length+' clients…</div>';
+
+  let ok=0, fail=0, errors=[];
+  // Sequential updates so we can track per-row failures cleanly
+  for(const m of list){
+    const {error} = await db.from('clients').update({email: m.email}).eq('client_id', m.acct);
+    if(error){ fail++; errors.push(m.acct+': '+error.message); }
+    else {
+      ok++;
+      // Update local cache
+      const c = clients.find(x=>x.client_id===m.acct);
+      if(c) c.email = m.email;
+    }
+    if((ok+fail) % 25 === 0){
+      preview.innerHTML = '<div class="loading">Updated '+(ok+fail)+' / '+list.length+'…</div>';
+    }
+  }
+
+  preview.innerHTML = `<div style="margin-top:14px;background:var(--ok-bg);border:1px solid var(--ok-text);border-radius:var(--radius-sm);padding:12px;color:var(--ok-text);">
+    <div style="font-size:14px;font-weight:600;margin-bottom:4px;">\u2713 Updated ${ok} email${ok===1?'':'s'}</div>
+    ${fail?`<div style="font-size:12px;color:var(--err-text);margin-top:6px;">${fail} failed:<br><code style="font-size:10px;">${esc(errors.slice(0,10).join('; '))}${errors.length>10?` (+${errors.length-10} more)`:''}</code></div>`:''}
+    <div style="font-size:11px;margin-top:8px;color:var(--gray-600);">Refresh the Client Lookup tab to see updated cards.</div>
+  </div>`;
+  _emailUploadParsed = null;
+  document.getElementById('emailUploadFile').value = '';
+  logActivity('emails_bulk_updated', ok+' updated');
 }
 
 // ── ADD CLIENT ────────────────────────────────────────────────────────
