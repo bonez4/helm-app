@@ -4154,8 +4154,26 @@ function renderRolloffTable(){
     {key:'monthly_tip',label:'Monthly Tip',width:'90px'},
     {key:'notes',label:'Notes',width:'120px'}
   ];
+  // Build datalist of unique customer names from past roll-offs (for autosuggest)
+  const customerSet = new Set();
+  for(const r of rolloffsData){
+    const name = (r.customer||'').trim();
+    if(name) customerSet.add(name);
+  }
+  const customerList = [...customerSet].sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+  const datalistHtml = `<datalist id="rolloffCustomers">${customerList.map(n=>`<option value="${esc(n)}"></option>`).join('')}</datalist>`;
+
+  // Same idea for street name reuse
+  const streetSet = new Set();
+  for(const r of rolloffsData){
+    const s = (r.street||'').trim();
+    if(s) streetSet.add(s);
+  }
+  const streetList = [...streetSet].sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+  const streetDatalist = `<datalist id="rolloffStreets">${streetList.map(s=>`<option value="${esc(s)}"></option>`).join('')}</datalist>`;
+
   const sortIcon=(col)=>rolloffSort.col===col?(rolloffSort.asc?'&#9650;':'&#9660;'):'';
-  let html=`<table class="ro-table"><thead><tr>`;
+  let html=datalistHtml+streetDatalist+`<table class="ro-table"><thead><tr>`;
   cols.forEach(c=>{
     html+=`<th style="width:${c.width};cursor:pointer;user-select:none" onclick="sortRolloffs('${c.key}')">${c.label} <span style="font-size:9px">${sortIcon(c.key)}</span></th>`;
   });
@@ -4172,12 +4190,12 @@ function renderRolloffTable(){
       <option value=""${!r.type?' selected':''}></option>
       ${roTypes.map(t=>`<option value="${t}"${r.type===t?' selected':''}>${t}</option>`).join('')}
     </select></td>`;
-    // Customer cell
-    html+=`<td><input type="text" class="ro-input" value="${esc(r.customer||'')}" onchange="updateRolloff(${r.id},'customer',this.value)" onkeydown="roKeyNav(event,${r.id},'customer')" ${deleted?'disabled':''}/></td>`;
+    // Customer cell — datalist gives autosuggest from past roll-off customers
+    html+=`<td><input type="text" class="ro-input" list="rolloffCustomers" value="${esc(r.customer||'')}" onchange="updateRolloff(${r.id},'customer',this.value)" onkeydown="roKeyNav(event,${r.id},'customer')" ${deleted?'disabled':''}/></td>`;
     // Number cell
     html+=`<td><input type="text" class="ro-input" value="${esc(r.address_number||'')}" onchange="updateRolloff(${r.id},'address_number',this.value)" onkeydown="roKeyNav(event,${r.id},'address_number')" ${deleted?'disabled':''}/></td>`;
-    // Street cell
-    html+=`<td><input type="text" class="ro-input" value="${esc(r.street||'')}" onchange="updateRolloff(${r.id},'street',this.value)" onkeydown="roKeyNav(event,${r.id},'street')" ${deleted?'disabled':''}/></td>`;
+    // Street cell — datalist with previously-used street names
+    html+=`<td><input type="text" class="ro-input" list="rolloffStreets" value="${esc(r.street||'')}" onchange="updateRolloff(${r.id},'street',this.value)" onkeydown="roKeyNav(event,${r.id},'street')" ${deleted?'disabled':''}/></td>`;
     // Monthly Tip cell — checkbox + Yes/No label
     const tipped = !!r.monthly_tip;
     html+=`<td style="text-align:center;"><button class="ro-tip-btn ${tipped?'tipped':''}" onclick="toggleRolloffTip(${r.id})" ${deleted?'disabled':''} title="Click to toggle">${tipped?'Yes':'No'}</button></td>`;
