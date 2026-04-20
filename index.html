@@ -3184,10 +3184,10 @@ async function deleteNote(noteId){
 function renderReport(){
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('tab-report').innerHTML=`
-    <div class="form-card">
+    <div class="form-card" style="margin-bottom:1rem">
       <h2>Daily Action Report</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
-        Generate a report of all actionable notes for a specific date.
+        Generate a report of all actionable notes for a specific date, grouped by route.
       </p>
       <div style="display:flex;gap:8px;align-items:end;margin-bottom:0.75rem">
         <div class="form-group" style="margin-bottom:0;flex:0 0 auto">
@@ -3197,7 +3197,47 @@ function renderReport(){
         <button class="btn-add" onclick="generateReport()">Generate Report</button>
       </div>
       <div id="reportResults"></div>
+    </div>
+    <div class="form-card">
+      <h2>Clients Added by Date</h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
+        Lists every client added to HELM on a specific date.
+      </p>
+      <div style="display:flex;gap:8px;align-items:end;margin-bottom:0.75rem">
+        <div class="form-group" style="margin-bottom:0;flex:0 0 auto">
+          <label>Added Date</label>
+          <input type="date" id="clientsAddedDate" value="${today}" style="width:160px"/>
+        </div>
+        <button class="btn-add" onclick="generateClientsAddedReport()">Generate Report</button>
+      </div>
+      <div id="clientsAddedResults"></div>
     </div>`;
+}
+
+// Group notes by route — Route 1...14, then No Route at end. Within a route, sorted by acct #.
+function groupByRoute(data){
+  const grouped = {};
+  data.forEach(n=>{
+    const c = findClient(n.client_id);
+    const route = (c.route !== null && c.route !== undefined && c.route !== '') ? String(c.route).padStart(2,'0') : 'No Route';
+    if(!grouped[route]) grouped[route] = [];
+    grouped[route].push(n);
+  });
+  const sortedKeys = Object.keys(grouped).sort((a,b)=>{
+    if(a==='No Route') return 1;
+    if(b==='No Route') return -1;
+    return parseInt(a)-parseInt(b);
+  });
+  for(const k of sortedKeys){
+    grouped[k].sort((a,b)=>(a.client_id||'').localeCompare(b.client_id||''));
+  }
+  return {sortedKeys, grouped};
+}
+
+// Action-tag CSS class lookup (reuse the same colors used in client notes)
+function actionTagClass(action){
+  const t = ACTION_TYPES.find(x=>x.value===action);
+  return t ? t.tag : 'at-misc';
 }
 
 function findClient(cid){
@@ -3264,9 +3304,7 @@ async function generateReport(){
   companies.forEach(comp=>{
     const compData=data.filter(comp.filter);
     if(!compData.length) return;
-    // Group by action within this company
-    const compGrouped={};
-    compData.forEach(n=>{(compGrouped[n.action]=compGrouped[n.action]||[]).push(n);});
+    const {sortedKeys, grouped} = groupByRoute(compData);
 
     html+=`<div style="margin-bottom:1.5rem">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -3274,29 +3312,32 @@ async function generateReport(){
         ${comp.cls?`<span class="company-tag ${comp.cls}">${compData.length} items</span>`:`<span style="font-size:11px;color:var(--gray-400)">${compData.length} items</span>`}
       </div>`;
 
-    Object.entries(compGrouped).forEach(([action,notes])=>{
+    sortedKeys.forEach(routeKey=>{
+      const notes = grouped[routeKey];
+      const routeLabel = routeKey === 'No Route' ? 'No Route Assigned' : 'Route '+parseInt(routeKey);
+      const hasNotes = notes.some(n=>n.note);
       html+=`<div class="report-group">
         <div class="report-group-header">
-          <span>${esc(action)}</span>
+          <span>${routeLabel}</span>
           <span>${notes.length}</span>
         </div>
         <table class="report-table"><thead><tr>
           <th style="width:28px">#</th>
           <th style="width:52px">Acct</th>
-          <th style="width:54px">Route</th>
+          <th style="width:80px">Action</th>
           <th>Name</th>
           <th>Address</th>
-          ${notes.some(n=>n.note)?'<th>Note</th>':''}
+          ${hasNotes?'<th>Note</th>':''}
         </tr></thead><tbody>`;
       notes.forEach((n,i)=>{
         const c=findClient(n.client_id);
         html+=`<tr>
           <td class="rt-num">${i+1}</td>
           <td class="rt-id">${esc(n.client_id)}</td>
-          <td class="rt-id">${c.route?('R'+c.route):'—'}</td>
+          <td><span class="action-tag ${actionTagClass(n.action)}">${esc(n.action||'')}</span></td>
           <td class="rt-name">${esc(c.client_name||'—')}</td>
           <td class="rt-addr">${esc(c.address||'—')}</td>
-          ${notes.some(n=>n.note)?`<td class="rt-note">${esc(n.note||'')}</td>`:''}
+          ${hasNotes?`<td class="rt-note">${esc(n.note||'')}</td>`:''}
         </tr>`;
       });
       html+=`</tbody></table></div>`;
@@ -3328,19 +3369,20 @@ function printReport(date){
     companies.forEach(comp=>{
       const compData=data.filter(comp.filter);
       if(!compData.length) return;
-      const compGrouped={};
-      compData.forEach(n=>{(compGrouped[n.action]=compGrouped[n.action]||[]).push(n);});
+      const {sortedKeys, grouped} = groupByRoute(compData);
       sections+=`<h2 style="background:#2a5a3a;margin-top:16px;font-size:13px;padding:6px 8px;">${comp.label} (${compData.length})</h2>`;
-      Object.entries(compGrouped).forEach(([action,notes])=>{
-        const hasNotes=notes.some(n=>n.note);
-        sections+=`<h2>${esc(action)} (${notes.length})</h2>
-        <table><thead><tr><th style="width:30px">#</th><th style="width:58px">Acct</th><th style="width:52px">Route</th><th style="width:180px">Name</th><th>Address</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
+      sortedKeys.forEach(routeKey=>{
+        const notes = grouped[routeKey];
+        const routeLabel = routeKey === 'No Route' ? 'No Route Assigned' : 'Route '+parseInt(routeKey);
+        const hasNotes = notes.some(n=>n.note);
+        sections+=`<h2>${routeLabel} (${notes.length})</h2>
+        <table><thead><tr><th style="width:30px">#</th><th style="width:58px">Acct</th><th style="width:90px">Action</th><th style="width:180px">Name</th><th>Address</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
         notes.forEach((n,i)=>{
           const c=findClient(n.client_id);
           sections+=`<tr>
             <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
             <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
-            <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${c.route?('R'+c.route):'—'}</td>
+            <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
             <td style="font-weight:600">${esc(c.client_name||'—')}</td>
             <td>${esc(c.address||'—')}</td>
             ${hasNotes?`<td style="font-style:italic;color:#555">${esc(n.note||'')}</td>`:''}
@@ -3384,6 +3426,172 @@ ${sections}
 </body></html>`);
     win.document.close();
   });
+}
+
+// ── CLIENTS ADDED BY DATE REPORT ──────────────────────────────────────
+// Requires a created_at timestamp column on the clients table:
+//   ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+async function generateClientsAddedReport(){
+  const date = document.getElementById('clientsAddedDate').value;
+  if(!date){ toast('Select a date'); return; }
+  const results = document.getElementById('clientsAddedResults');
+  results.innerHTML = '<div class="loading">Loading…</div>';
+
+  // Date range covering local-day boundaries (Supabase stores UTC timestamps)
+  const startDt = new Date(date+'T00:00:00');
+  const endDt = new Date(date+'T00:00:00'); endDt.setDate(endDt.getDate()+1);
+  const startISO = startDt.toISOString();
+  const endISO = endDt.toISOString();
+
+  const {data, error} = await db.from('clients')
+    .select('*')
+    .gte('created_at', startISO)
+    .lt('created_at', endISO)
+    .order('created_at');
+
+  if(error){
+    const hint = (error.message||'').toLowerCase().includes('created_at')
+      ? '<br><br><strong>Setup needed:</strong> the <code>clients</code> table has no <code>created_at</code> column. Run this SQL in Supabase:<br><code style="display:inline-block;background:#f3f4f6;padding:6px 10px;border-radius:4px;margin-top:6px;">ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();</code>'
+      : '';
+    results.innerHTML = '<div class="empty-state" style="color:var(--err-text);text-align:left;line-height:1.5">Error: '+esc(error.message)+hint+'</div>';
+    return;
+  }
+
+  if(!data || !data.length){
+    results.innerHTML = '<div class="empty-state">No clients added on '+fmtDate(date)+'</div>';
+    return;
+  }
+
+  // Group by company
+  const byCo = {REIS:[], SANTOS:[], OTHER:[]};
+  for(const c of data){
+    const co = getCompany(c.client_id).name;
+    if(co==='REIS') byCo.REIS.push(c);
+    else if(co==='SANTOS') byCo.SANTOS.push(c);
+    else byCo.OTHER.push(c);
+  }
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)} — ${data.length} client${data.length!==1?'s':''} added</div>
+      <button class="btn-add" onclick="printClientsAddedReport('${date}')" style="white-space:nowrap">Print Report</button>
+    </div>`;
+
+  const labels = {REIS:'REIS', SANTOS:'SANTOS', OTHER:'Other'};
+  const tagCls = {REIS:'co-reis', SANTOS:'co-santos', OTHER:''};
+  for(const key of ['REIS','SANTOS','OTHER']){
+    const list = byCo[key];
+    if(!list.length) continue;
+    html += `<div style="margin-bottom:1.5rem">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <h3 style="margin:0;font-size:16px;color:var(--navy)">${labels[key]}</h3>
+        ${tagCls[key]?`<span class="company-tag ${tagCls[key]}">${list.length} clients</span>`:`<span style="font-size:11px;color:var(--gray-400)">${list.length} clients</span>`}
+      </div>
+      <div class="report-group">
+        <table class="report-table"><thead><tr>
+          <th style="width:28px">#</th>
+          <th style="width:64px">Acct</th>
+          <th style="width:54px">Route</th>
+          <th>Name</th>
+          <th>Address</th>
+          <th>Pickup Days</th>
+          <th>Phone</th>
+          <th style="width:80px">Added at</th>
+        </tr></thead><tbody>`;
+    list.forEach((c,i)=>{
+      const t = c.created_at ? new Date(c.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+      html+=`<tr>
+        <td class="rt-num">${i+1}</td>
+        <td class="rt-id">${esc(c.client_id)}</td>
+        <td class="rt-id">${c.route?('R'+c.route):'—'}</td>
+        <td class="rt-name">${esc(c.client_name||'—')}</td>
+        <td class="rt-addr">${esc(c.address||'—')}</td>
+        <td class="rt-addr">${esc(c.service_day||'—')}</td>
+        <td class="rt-phone">${esc(c.phone||'—')}</td>
+        <td class="rt-id">${t}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table></div></div>`;
+  }
+
+  results.innerHTML = html;
+  logActivity('clients_added_report', date);
+}
+
+function printClientsAddedReport(date){
+  const startDt = new Date(date+'T00:00:00');
+  const endDt = new Date(date+'T00:00:00'); endDt.setDate(endDt.getDate()+1);
+  const startISO = startDt.toISOString();
+  const endISO = endDt.toISOString();
+  db.from('clients').select('*')
+    .gte('created_at', startISO).lt('created_at', endISO).order('created_at')
+    .then(({data, error})=>{
+      if(error || !data || !data.length){ toast(error?error.message:'No clients to print'); return; }
+      const byCo = {REIS:[], SANTOS:[], OTHER:[]};
+      for(const c of data){
+        const co = getCompany(c.client_id).name;
+        if(co==='REIS') byCo.REIS.push(c);
+        else if(co==='SANTOS') byCo.SANTOS.push(c);
+        else byCo.OTHER.push(c);
+      }
+      const labels = {REIS:'REIS', SANTOS:'SANTOS', OTHER:'Other'};
+      let sections = '';
+      for(const key of ['REIS','SANTOS','OTHER']){
+        const list = byCo[key];
+        if(!list.length) continue;
+        sections += `<h2 style="background:#2a5a3a;margin-top:16px;font-size:13px;padding:6px 8px;">${labels[key]} (${list.length})</h2>
+          <table><thead><tr>
+            <th style="width:30px">#</th><th style="width:64px">Acct</th><th style="width:52px">Route</th>
+            <th style="width:180px">Name</th><th>Address</th><th style="width:140px">Pickup Days</th>
+            <th style="width:110px">Phone</th><th style="width:80px">Added at</th>
+          </tr></thead><tbody>`;
+        list.forEach((c,i)=>{
+          const t = c.created_at ? new Date(c.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+          sections += `<tr>
+            <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
+            <td style="font-size:13px;color:#555">${esc(c.client_id)}</td>
+            <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${c.route?('R'+c.route):'—'}</td>
+            <td style="font-weight:600">${esc(c.client_name||'—')}</td>
+            <td>${esc(c.address||'—')}</td>
+            <td style="font-size:13px;color:#555">${esc(c.service_day||'—')}</td>
+            <td style="font-size:13px;color:#555">${esc(c.phone||'—')}</td>
+            <td style="font-size:12px;color:#555">${t}</td>
+          </tr>`;
+        });
+        sections += `</tbody></table>`;
+      }
+      const win = window.open('','_blank');
+      win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/>
+<title>HELM Clients Added — ${fmtDate(date)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:18px;}
+.header{border-bottom:2px solid #0f1f3d;padding-bottom:10px;margin-bottom:10px;}
+.header h1{font-size:20px;font-weight:700;color:#0f1f3d;}
+.header .sub{font-size:13px;color:#444;margin-top:4px;}
+.header .sub span{font-weight:700;color:#000;}
+table{width:100%;border-collapse:collapse;margin-bottom:4px;}
+th{background:#0f1f3d;color:white;padding:7px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+td{padding:9px 8px;border-bottom:1px solid #d5d9e0;font-size:14px;line-height:1.35;}
+tr:nth-child(even) td{background:#f7f8fa;}
+h2{background:#0f1f3d;color:white;padding:6px 10px;font-size:13px;margin:14px 0 0 0;font-weight:600;}
+.footer{margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+@media print{body{padding:10px;font-size:13px;}td{padding:8px 7px;font-size:13px;}@page{margin:0.75cm;}}
+</style></head><body>
+<div class="header">
+  <h1>HELM — Clients Added</h1>
+  <div class="sub">Date: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} client${data.length!==1?'s':''}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
+</div>
+${sections}
+<div class="footer">
+  <span>Reis Trucking — Nantucket, MA</span>
+  <span>HELM Route Management</span>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+      win.document.close();
+    });
 }
 
 // ── ADD CLIENT ────────────────────────────────────────────────────────
