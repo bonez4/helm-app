@@ -8689,7 +8689,7 @@ function apProjectHeader(p){
       <div class="ap-top-row">
         <div class="ap-top-icon" style="background:${p.color}1a;">${esc(p.emoji||'📁')}</div>
         <div class="ap-top-titlewrap">
-          <input class="ap-top-title" value="${esc(p.name)}" onblur="apRenameProject(${p.id},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
+          <input class="ap-top-title" spellcheck="false" value="${esc(p.name)}" onblur="apRenameProject(${p.id},this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">
         </div>
         ${p.identifier?`<span class="ap-top-id">${esc(p.identifier)}</span>`:''}
         <div class="ap-top-progresswrap">
@@ -9248,7 +9248,7 @@ function apRenderTaskPanel(t){
   detail.innerHTML = `
     <div class="ap-detail-hdr">
       <span class="ap-detail-id">${esc(apTaskFullId(t))}</span>
-      ${proj?`<span style="font-size:11px;color:var(--ap-text-dim);"><span style="margin-right:5px;">${esc(proj.emoji||'')}</span>${esc(proj.name)}</span>`:''}
+      ${proj?`<span style="font-size:12px;color:#cbd2e3;font-weight:500;"><span style="margin-right:5px;">${esc(proj.emoji||'')}</span>${esc(proj.name)}</span>`:''}
       <div class="ap-detail-actions">
         <button class="ap-icon-btn" onclick="apDuplicateTask(${t.id})" title="Duplicate">\u29C9</button>
         <button class="ap-icon-btn danger" onclick="apArchiveTask(${t.id})" title="Archive">\u{1F5D1}</button>
@@ -9256,7 +9256,7 @@ function apRenderTaskPanel(t){
       </div>
     </div>
     <div class="ap-detail-body">
-      <input class="ap-detail-title" value="${esc(t.title)}" onblur="apUpdateTaskField(${t.id},'title',this.value)">
+      <input class="ap-detail-title" spellcheck="false" value="${esc(t.title)}" onblur="apUpdateTaskField(${t.id},'title',this.value)">
 
       <div class="ap-detail-meta">
         <div class="ap-detail-meta-label">Status</div>
@@ -9308,7 +9308,7 @@ function apRenderTaskPanel(t){
 
       <div class="ap-detail-section">
         <div class="ap-detail-section-hdr"><span>Description</span></div>
-        <textarea class="ap-detail-desc" placeholder="Add context, notes, links..." onblur="apUpdateTaskField(${t.id},'description',this.value)">${esc(t.description||'')}</textarea>
+        <textarea class="ap-detail-desc" spellcheck="false" placeholder="Add context, notes, links..." onblur="apUpdateTaskField(${t.id},'description',this.value)">${esc(t.description||'')}</textarea>
       </div>
 
       ${!t.parent_task_id ? `
@@ -9324,13 +9324,13 @@ function apRenderTaskPanel(t){
         <div class="ap-sub-add" onclick="apAddSubtaskInline(${t.id})">+ Add subtask</div>
         <div id="apSubAddWrap"></div>
       </div>` : `
-      <div class="ap-detail-section" style="font-size:11px;color:var(--ap-text-mute);">
-        Subtask of <a style="color:var(--ap-accent-2);cursor:pointer;text-decoration:underline;" onclick="apOpenTask(${t.parent_task_id})">${esc((apTask(t.parent_task_id)||{}).title||'parent')}</a>
+      <div class="ap-detail-section" style="font-size:12px;color:#a8b0c2;">
+        Subtask of <a style="color:var(--ap-accent-2);cursor:pointer;text-decoration:underline;font-weight:500;" onclick="apOpenTask(${t.parent_task_id})">${esc((apTask(t.parent_task_id)||{}).title||'parent')}</a>
       </div>`}
 
       <div class="ap-detail-section">
         <div class="ap-detail-section-hdr"><span>Blocked by</span><button class="ap-icon-btn" onclick="apAddDependencyPrompt(${t.id},'blockedBy')" title="Add dependency">+</button></div>
-        ${blockedBy.length===0?'<div style="font-size:11px;color:var(--ap-text-mute);padding:4px 8px;">Nothing blocks this.</div>':blockedBy.map(d=>{
+        ${blockedBy.length===0?'<div style="font-size:12px;color:#a8b0c2;padding:6px 8px;">Nothing blocks this.</div>':blockedBy.map(d=>{
           const dt = apTask(d.depends_on_task_id);
           if(!dt) return '';
           return `<div class="ap-dep-row">
@@ -9343,7 +9343,7 @@ function apRenderTaskPanel(t){
 
       <div class="ap-detail-section">
         <div class="ap-detail-section-hdr"><span>Blocking</span></div>
-        ${blocking.length===0?'<div style="font-size:11px;color:var(--ap-text-mute);padding:4px 8px;">Not blocking anything.</div>':blocking.map(d=>{
+        ${blocking.length===0?'<div style="font-size:12px;color:#a8b0c2;padding:6px 8px;">Not blocking anything.</div>':blocking.map(d=>{
           const dt = apTask(d.task_id);
           if(!dt) return '';
           return `<div class="ap-dep-row">
@@ -9764,8 +9764,9 @@ function apRenderQuickAdd(){
       </div>
       <div class="ap-modal-body">
         <input class="ap-modal-title-input" id="apQTitle" placeholder="What needs doing?"
+          spellcheck="false" autocomplete="off"
           onkeydown="if(event.key==='Escape'){event.preventDefault();apCloseQuickAdd();}else if((event.metaKey||event.ctrlKey)&&event.key==='Enter'){event.preventDefault();apSaveQuickAdd();}">
-        <textarea class="ap-modal-desc" id="apQDesc" placeholder="Add notes (optional)"></textarea>
+        <textarea class="ap-modal-desc" id="apQDesc" placeholder="Add notes (optional)" spellcheck="false"></textarea>
         <div class="ap-modal-meta">
           <label class="ap-meta-chip ${apData.projects.length>0?'set':''}">
             <span>📁</span>
