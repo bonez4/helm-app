@@ -1865,50 +1865,60 @@ body.layout-david .ap-top{position:sticky; top:44px; z-index:5;}
 
 /* === Quick Add Modal === */
 .ap-modal-bd{
-  position:fixed;inset:0;background:rgba(4,5,10,0.82);z-index:9500;
+  position:fixed;inset:0;background:rgba(2,3,8,0.92);z-index:9500;
   display:flex;align-items:flex-start;justify-content:center;padding:80px 20px 20px;
-  backdrop-filter:blur(8px);
+  backdrop-filter:blur(10px);
   caret-color:transparent;font-family:'Inter','DM Sans',sans-serif;
 }
 .ap-modal-bd input,.ap-modal-bd textarea,.ap-modal-bd select{caret-color:auto;}
 .ap-modal{
-  background:#1a1d2a;border:1px solid rgba(255,255,255,0.16);
+  background:#262a3f;border:1px solid rgba(255,255,255,0.22);
   border-radius:12px;width:100%;max-width:560px;
-  box-shadow:0 30px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(124,92,255,0.18), 0 0 60px rgba(124,92,255,0.08);
+  box-shadow:0 30px 100px rgba(0,0,0,0.95),
+             0 0 0 1px rgba(124,92,255,0.30),
+             0 0 80px rgba(124,92,255,0.18);
   overflow:hidden;
-  font-family:'Inter','DM Sans',sans-serif;color:var(--ap-text);
+  font-family:'Inter','DM Sans',sans-serif;color:#f3f4f6;
 }
 .ap-modal-hdr{
-  padding:13px 18px;border-bottom:1px solid rgba(255,255,255,0.08);
-  font-size:12px;color:var(--ap-text-dim);
-  display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.2);
+  padding:13px 18px;border-bottom:1px solid rgba(255,255,255,0.12);
+  font-size:12px;color:#cdd0db;font-weight:500;
+  display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.18);
 }
 .ap-modal-body{padding:18px;}
 .ap-modal-title-input{
   background:transparent;border:none;outline:none;width:100%;
   color:#fff;font-family:inherit;font-size:18px;font-weight:500;padding:0 0 12px;
 }
-.ap-modal-title-input::placeholder{color:rgba(255,255,255,0.3);}
+.ap-modal-title-input::placeholder{color:rgba(255,255,255,0.55);}
 .ap-modal-desc{
   background:transparent;border:none;outline:none;width:100%;
-  color:var(--ap-text);font-family:inherit;font-size:13px;line-height:1.55;
+  color:#fff;font-family:inherit;font-size:13px;line-height:1.55;
   resize:none;min-height:50px;padding:0;
 }
-.ap-modal-desc::placeholder{color:rgba(255,255,255,0.3);}
-.ap-modal-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);}
+.ap-modal-desc::placeholder{color:rgba(255,255,255,0.50);}
+.ap-modal-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.12);}
 .ap-meta-chip{
-  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
-  color:var(--ap-text);font-family:inherit;font-size:11px;
-  padding:5px 10px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.22);
+  color:#f3f4f6;font-family:inherit;font-size:12px;font-weight:500;
+  padding:6px 11px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
 }
-.ap-meta-chip:hover{background:rgba(255,255,255,0.10);color:#fff;border-color:rgba(255,255,255,0.20);}
-.ap-meta-chip.set{background:var(--ap-accent-soft);border-color:rgba(124,92,255,0.5);color:var(--ap-accent-2);}
-.ap-meta-chip select,.ap-meta-chip input{background:transparent;border:none;outline:none;color:inherit;font-family:inherit;font-size:11px;}
-.ap-meta-chip select option{background:#1a1d2a;color:var(--ap-text);}
+.ap-meta-chip:hover{background:rgba(255,255,255,0.16);color:#fff;border-color:rgba(255,255,255,0.32);}
+.ap-meta-chip.set{background:rgba(124,92,255,0.28);border-color:rgba(124,92,255,0.60);color:#fff;}
+.ap-meta-chip select,.ap-meta-chip input{background:transparent;border:none;outline:none;color:inherit;font-family:inherit;font-size:12px;font-weight:500;}
+.ap-meta-chip select option{background:#262a3f;color:#fff;}
 .ap-modal-foot{
   display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;
-  border-top:1px solid rgba(255,255,255,0.08);background:rgba(0,0,0,0.25);
+  border-top:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.20);
 }
+/* Brighten the buttons inside Workflow modals */
+.ap-modal-bd .ap-btn-primary{
+  background:#8b6dff;color:#fff;font-weight:600;
+  box-shadow:0 2px 8px rgba(124,92,255,0.45);
+}
+.ap-modal-bd .ap-btn-primary:hover{background:#9a7eff;box-shadow:0 4px 14px rgba(124,92,255,0.55);}
+.ap-modal-bd .ap-btn-ghost{color:#cdd0db;border-color:rgba(255,255,255,0.28);font-weight:500;}
+.ap-modal-bd .ap-btn-ghost:hover{color:#fff;border-color:rgba(255,255,255,0.45);background:rgba(255,255,255,0.06);}
 /* Generic prompt modal field */
 .ap-prompt-field{margin-bottom:12px;}
 .ap-prompt-field label{
