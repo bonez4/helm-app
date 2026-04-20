@@ -9616,9 +9616,17 @@ async function apUpdateTask(id, updates){
 }
 async function apUpdateTaskField(id, field, value){
   const update = {[field]:value};
-  if(field==='status' && value==='Done'){ update.percent_complete=100; update.completed_at=new Date().toISOString(); }
-  if(field==='status' && value!=='Done'){ update.completed_at=null; }
   const old = apTask(id);
+  if(field==='status' && value==='Done'){
+    update.percent_complete = 100;
+    update.completed_at = new Date().toISOString();
+  }
+  if(field==='status' && value!=='Done'){
+    update.completed_at = null;
+    // Cycling away from Done: drop the auto-100% so project progress isn't
+    // stuck at 100. (Status moves backward → progress moves backward.)
+    if(old && old.status === 'Done') update.percent_complete = 0;
+  }
   await apUpdateTask(id, update);
   if(field==='status') apLogActivity('Status changed', old.project_id, id, {from:old.status, to:value, title:old.title});
   // Re-render whatever's open
