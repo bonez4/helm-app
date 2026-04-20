@@ -88,9 +88,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 .topbar{
   background:var(--navy);height:44px;
   display:flex;align-items:center;justify-content:space-between;
-  padding:0 1rem;position:sticky;top:0;z-index:100;
+  padding:0 1rem;position:fixed;top:0;left:0;right:0;z-index:100;
   border-bottom:1px solid rgba(255,255,255,0.06);
 }
+/* Spacer because topbar is fixed (out of flow) */
+#appScreen{padding-top:44px;}
+/* Global caret suppression: only real input fields show a cursor.
+   Stops stray flashing-caret on background clicks across every page. */
+body{caret-color:transparent;}
+body input,body textarea,body select,body [contenteditable=true],body [contenteditable=""]{caret-color:auto;}
 .topbar-left{display:flex;align-items:center;gap:10px;}
 .topbar-center{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
@@ -1440,7 +1446,11 @@ body.layout-david .main{
 }
 /* Workflow + Command tabs: kill main padding so canvas goes edge-to-edge */
 body.layout-david.on-action-tab .main{padding:0;}
-body.layout-david.on-cmd-tab .main{padding:0.75rem 0;}
+body.layout-david.on-cmd-tab .main{padding:0;}
+body.layout-david.on-cmd-tab .cmd-wrap{
+  border-radius:0;border:none;border-left:none;border-right:none;
+  box-shadow:none;min-height:calc(100vh - 44px);
+}
 /* Command for non-david (theoretically n/a since cmd is david-only) — also full width */
 body.on-cmd-tab .main{max-width:none;}
 /* Workflow internal sidebar accounts only for topbar in david mode (no global tab strip above) */
@@ -2608,6 +2618,11 @@ async function init() {
   renderLookup();
   await Promise.all([loadClients(), loadSkips()]);
   loadUserNotesFromDB(); // background sync; updates textarea in place if already rendered
+  // David's default landing tab = Workflow
+  if(currentUser && currentUser.username === 'david'){
+    const btn = document.getElementById('actionTabBtn');
+    if(btn) switchTab('action', btn);
+  }
 }
 
 function getTodayISO() {
