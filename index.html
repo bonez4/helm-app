@@ -3534,13 +3534,33 @@ async function generateNotesAddedReport(){
     return;
   }
 
-  // Group by company derived from client_id
-  const byCo = {REIS:[], SANTOS:[], OTHER:[]};
+  // Group by For Date (action_date). Notes without an action_date go to a 'No date' bucket.
+  const byForDate = {};
   for(const n of data){
-    const co = getCompany(n.client_id).name;
-    if(co==='REIS') byCo.REIS.push(n);
-    else if(co==='SANTOS') byCo.SANTOS.push(n);
-    else byCo.OTHER.push(n);
+    const k = n.action_date || 'NODATE';
+    (byForDate[k] = byForDate[k] || []).push(n);
+  }
+  // Sort dates ascending; 'NODATE' goes last
+  const dateKeys = Object.keys(byForDate).sort((a,b)=>{
+    if(a==='NODATE') return 1;
+    if(b==='NODATE') return -1;
+    return a.localeCompare(b);
+  });
+  // Within each date, sort by route asc (no route last), then by acct # for ties
+  for(const k of dateKeys){
+    byForDate[k].sort((a,b)=>{
+      const ra = findClient(a.client_id).route;
+      const rb = findClient(b.client_id).route;
+      const aHas = ra !== null && ra !== undefined && ra !== '';
+      const bHas = rb !== null && rb !== undefined && rb !== '';
+      if(aHas && !bHas) return -1;
+      if(!aHas && bHas) return 1;
+      if(aHas && bHas){
+        const diff = parseInt(ra) - parseInt(rb);
+        if(diff !== 0) return diff;
+      }
+      return (a.client_id||'').localeCompare(b.client_id||'');
+    });
   }
 
   // Counts by action type for a quick summary strip
@@ -3558,39 +3578,38 @@ async function generateNotesAddedReport(){
     </div>
     <div style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:4px;">${summary}</div>`;
 
-  const labels = {REIS:'REIS', SANTOS:'SANTOS', OTHER:'Other'};
-  const tagCls = {REIS:'co-reis', SANTOS:'co-santos', OTHER:''};
-  for(const key of ['REIS','SANTOS','OTHER']){
-    const list = byCo[key];
-    if(!list.length) continue;
+  for(const k of dateKeys){
+    const list = byForDate[k];
+    const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + fmtDate(k);
     html += `<div style="margin-bottom:1.5rem">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <h3 style="margin:0;font-size:16px;color:var(--navy)">${labels[key]}</h3>
-        ${tagCls[key]?`<span class="company-tag ${tagCls[key]}">${list.length} notes</span>`:`<span style="font-size:11px;color:var(--gray-400)">${list.length} notes</span>`}
+        <h3 style="margin:0;font-size:16px;color:var(--navy)">${dateLabel}</h3>
+        <span style="font-size:11px;color:var(--gray-400)">${list.length} note${list.length===1?'':'s'}</span>
       </div>
       <div class="report-group">
         <table class="report-table"><thead><tr>
           <th style="width:28px">#</th>
+          <th style="width:54px">Route</th>
           <th style="width:64px">Acct</th>
+          <th style="width:60px">Co</th>
           <th style="width:90px">Action</th>
-          <th style="width:80px">For Date</th>
           <th>Client</th>
           <th>Note</th>
-          <th style="width:90px">By</th>
           <th style="width:70px">Time</th>
         </tr></thead><tbody>`;
     list.forEach((n,i)=>{
       const c = findClient(n.client_id);
+      const co = getCompany(n.client_id);
       const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
-      const forDate = n.action_date ? fmtDateShort(n.action_date) : '—';
+      const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
       html+=`<tr>
         <td class="rt-num">${i+1}</td>
+        <td class="rt-id" style="font-weight:700;color:var(--navy)">${route}</td>
         <td class="rt-id">${esc(n.client_id)}</td>
+        <td>${co.name?`<span class="company-tag ${co.cls}">${co.name.slice(0,1)}</span>`:'—'}</td>
         <td><span class="action-tag ${actionTagClass(n.action)}">${esc(n.action||'')}</span></td>
-        <td class="rt-id">${forDate}</td>
         <td class="rt-name">${esc(c.client_name||c.address||'—')}</td>
         <td class="rt-note">${esc(n.note||'')}</td>
-        <td class="rt-id">${esc(n.user_id||'—')}</td>
         <td class="rt-id">${t}</td>
       </tr>`;
     });
@@ -3610,36 +3629,56 @@ function printNotesAddedReport(date){
     .gte('created_at', startISO).lt('created_at', endISO).order('created_at')
     .then(({data, error})=>{
       if(error || !data || !data.length){ toast(error?error.message:'No notes to print'); return; }
-      const byCo = {REIS:[], SANTOS:[], OTHER:[]};
+      // Group by For Date (action_date), then sort each group by route asc
+      const byForDate = {};
       for(const n of data){
-        const co = getCompany(n.client_id).name;
-        if(co==='REIS') byCo.REIS.push(n);
-        else if(co==='SANTOS') byCo.SANTOS.push(n);
-        else byCo.OTHER.push(n);
+        const k = n.action_date || 'NODATE';
+        (byForDate[k] = byForDate[k] || []).push(n);
       }
-      const labels = {REIS:'REIS', SANTOS:'SANTOS', OTHER:'Other'};
+      const dateKeys = Object.keys(byForDate).sort((a,b)=>{
+        if(a==='NODATE') return 1;
+        if(b==='NODATE') return -1;
+        return a.localeCompare(b);
+      });
+      for(const k of dateKeys){
+        byForDate[k].sort((a,b)=>{
+          const ra = findClient(a.client_id).route;
+          const rb = findClient(b.client_id).route;
+          const aHas = ra !== null && ra !== undefined && ra !== '';
+          const bHas = rb !== null && rb !== undefined && rb !== '';
+          if(aHas && !bHas) return -1;
+          if(!aHas && bHas) return 1;
+          if(aHas && bHas){
+            const diff = parseInt(ra) - parseInt(rb);
+            if(diff !== 0) return diff;
+          }
+          return (a.client_id||'').localeCompare(b.client_id||'');
+        });
+      }
+
       let sections = '';
-      for(const key of ['REIS','SANTOS','OTHER']){
-        const list = byCo[key];
-        if(!list.length) continue;
-        sections += `<h2 style="background:#2a5a3a;margin-top:16px;font-size:13px;padding:6px 8px;">${labels[key]} (${list.length})</h2>
+      for(const k of dateKeys){
+        const list = byForDate[k];
+        const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + fmtDate(k);
+        sections += `<h2>${dateLabel} (${list.length})</h2>
           <table><thead><tr>
-            <th style="width:30px">#</th><th style="width:64px">Acct</th><th style="width:90px">Action</th>
-            <th style="width:80px">For Date</th><th style="width:180px">Client</th><th>Note</th>
-            <th style="width:100px">By</th><th style="width:70px">Time</th>
+            <th style="width:30px">#</th><th style="width:54px">Route</th><th style="width:64px">Acct</th>
+            <th style="width:60px">Co</th><th style="width:90px">Action</th>
+            <th style="width:180px">Client</th><th>Note</th><th style="width:70px">Time</th>
           </tr></thead><tbody>`;
         list.forEach((n,i)=>{
           const c = findClient(n.client_id);
+          const co = getCompany(n.client_id).name;
           const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
-          const forDate = n.action_date ? fmtDateShort(n.action_date) : '—';
+          const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
           sections += `<tr>
             <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
+            <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${route}</td>
             <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
+            <td style="font-size:12px;color:#555">${esc(co||'—')}</td>
             <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
-            <td style="font-size:13px;color:#555">${forDate}</td>
             <td style="font-weight:600">${esc(c.client_name||c.address||'—')}</td>
             <td style="font-style:italic;color:#444">${esc(n.note||'')}</td>
-            <td style="font-size:13px;color:#555">${esc(n.user_id||'—')}</td>
             <td style="font-size:12px;color:#555">${t}</td>
           </tr>`;
         });
