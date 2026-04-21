@@ -1421,49 +1421,49 @@ body.on-action-tab input,body.on-action-tab textarea,body.on-action-tab select,
 body.on-action-tab [contenteditable=true],body.on-action-tab [contenteditable=""]{caret-color:auto;}
 #tab-action{padding:0;margin:0;width:100%;}
 
-/* === DAVID-ONLY LAYOUT: vertical left nav + full-width content for every tab === */
-body.layout-david .tab-nav{
+/* === SIDE-NAV LAYOUT: vertical left nav + full-width content (all users) === */
+body.layout-side .tab-nav{
   position:fixed; top:44px; left:0; bottom:0; width:220px;
   flex-direction:column; align-items:stretch; gap:1px;
   background:#0a0e1a; border-right:1px solid rgba(255,255,255,0.08);
   border-bottom:none; padding:14px 10px; overflow-y:auto;
   z-index:50; box-shadow:1px 0 0 rgba(255,255,255,0.02);
 }
-body.layout-david .tab-nav::-webkit-scrollbar{display:initial;width:6px;}
-body.layout-david .tab-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px;}
-body.layout-david .tab-nav button{
+body.layout-side .tab-nav::-webkit-scrollbar{display:initial;width:6px;}
+body.layout-side .tab-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px;}
+body.layout-side .tab-nav button{
   text-align:left; padding:9px 14px; border-bottom:none;
   border-left:2px solid transparent; border-radius:5px;
   font-size:13px; color:rgba(255,255,255,0.62);
   margin-bottom:0; white-space:nowrap; background:transparent;
   font-family:'Inter','DM Sans',sans-serif; transition:all 0.08s;
 }
-body.layout-david .tab-nav button:hover:not(.active){
+body.layout-side .tab-nav button:hover:not(.active){
   background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.95);
 }
-body.layout-david .tab-nav button.active{
+body.layout-side .tab-nav button.active{
   background:rgba(26,155,138,0.16); color:white;
   font-weight:600; border-left-color:var(--teal);
   border-bottom-color:transparent;
 }
-body.layout-david .tab-nav{margin-top:0;}  /* fixed-positioned, no flow margin */
-body.layout-david .main{
+body.layout-side .tab-nav{margin-top:0;}  /* fixed-positioned, no flow margin */
+body.layout-side .main{
   margin-left:220px; margin-top:44px; max-width:none; width:calc(100% - 220px);
   padding:0.75rem 1.25rem;
 }
 /* Workflow + Command tabs: kill main padding so canvas goes edge-to-edge */
-body.layout-david.on-action-tab .main{padding:0;}
-body.layout-david.on-cmd-tab .main{padding:0;}
-body.layout-david.on-cmd-tab .cmd-wrap{
+body.layout-side.on-action-tab .main{padding:0;}
+body.layout-side.on-cmd-tab .main{padding:0;}
+body.layout-side.on-cmd-tab .cmd-wrap{
   border-radius:0;border:none;border-left:none;border-right:none;
   box-shadow:none;min-height:calc(100vh - 44px);
 }
 /* Command for non-david (theoretically n/a since cmd is david-only) — also full width */
 body.on-cmd-tab .main{max-width:none;}
 /* Workflow internal sidebar accounts only for topbar in david mode (no global tab strip above) */
-body.layout-david .ap-root{min-height:calc(100vh - 44px);}
-body.layout-david .ap-side{height:calc(100vh - 44px); top:44px;}
-body.layout-david .ap-top{position:sticky; top:44px; z-index:5;}
+body.layout-side .ap-root{min-height:calc(100vh - 44px);}
+body.layout-side .ap-side{height:calc(100vh - 44px); top:44px;}
+body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
 .ap-root{
   --ap-bg:        #08090f;
   --ap-bg-2:      #0e1019;
@@ -2625,11 +2625,12 @@ function applyUserTheme(user){
       center.style.display = 'none';
     }
   }
-  // David gets the vertical-nav, full-width-canvas layout for every tab.
-  if(user && user.username === 'david'){
-    document.body.classList.add('layout-david');
+  // Every signed-in user gets the vertical-nav, full-width layout. Removed
+  // on logout / when no user is set so the login screen stays untouched.
+  if(user){
+    document.body.classList.add('layout-side');
   } else {
-    document.body.classList.remove('layout-david');
+    document.body.classList.remove('layout-side');
   }
 }
 function show(id){ document.getElementById(id).style.display='flex'; }
