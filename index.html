@@ -3580,7 +3580,7 @@ async function generateNotesAddedReport(){
 
   for(const k of dateKeys){
     const list = byForDate[k];
-    const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + fmtDate(k);
+    const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + new Date(k+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
     html += `<div style="margin-bottom:1.5rem">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <h3 style="margin:0;font-size:16px;color:var(--navy)">${dateLabel}</h3>
@@ -3659,7 +3659,7 @@ function printNotesAddedReport(date){
       let sections = '';
       for(const k of dateKeys){
         const list = byForDate[k];
-        const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + fmtDate(k);
+        const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + new Date(k+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
         sections += `<h2>${dateLabel} (${list.length})</h2>
           <table><thead><tr>
             <th style="width:30px">#</th><th style="width:54px">Route</th><th style="width:64px">Acct</th>
