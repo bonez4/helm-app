@@ -3607,6 +3607,7 @@ async function generateNotesAddedReport(){
           <th style="width:60px">Co</th>
           <th style="width:90px">Action</th>
           <th>Client</th>
+          <th>Address</th>
           <th>Note</th>
           <th style="width:70px">Time</th>
         </tr></thead><tbody>`;
@@ -3621,7 +3622,8 @@ async function generateNotesAddedReport(){
         <td class="rt-id">${esc(n.client_id)}</td>
         <td>${co.name?`<span class="company-tag ${co.cls}">${co.name.slice(0,1)}</span>`:'—'}</td>
         <td><span class="action-tag ${actionTagClass(n.action)}">${esc(n.action||'')}</span></td>
-        <td class="rt-name">${esc(c.client_name||c.address||'—')}</td>
+        <td class="rt-name">${esc(c.client_name||'—')}</td>
+        <td class="rt-addr">${esc(c.address||'—')}</td>
         <td class="rt-note">${esc(n.note||'')}</td>
         <td class="rt-id">${t}</td>
       </tr>`;
@@ -3677,7 +3679,8 @@ function printNotesAddedReport(date){
           <table><thead><tr>
             <th style="width:30px">#</th><th style="width:54px">Route</th><th style="width:64px">Acct</th>
             <th style="width:60px">Co</th><th style="width:90px">Action</th>
-            <th style="width:180px">Client</th><th>Note</th><th style="width:70px">Time</th>
+            <th style="width:160px">Client</th><th style="width:200px">Address</th><th>Note</th>
+            <th style="width:70px">Time</th>
           </tr></thead><tbody>`;
         list.forEach((n,i)=>{
           const c = findClient(n.client_id);
@@ -3690,7 +3693,8 @@ function printNotesAddedReport(date){
             <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
             <td style="font-size:12px;color:#555">${esc(co||'—')}</td>
             <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
-            <td style="font-weight:600">${esc(c.client_name||c.address||'—')}</td>
+            <td style="font-weight:600">${esc(c.client_name||'—')}</td>
+            <td style="font-size:13px;color:#444">${esc(c.address||'—')}</td>
             <td style="font-style:italic;color:#444">${esc(n.note||'')}</td>
             <td style="font-size:12px;color:#555">${t}</td>
           </tr>`;
