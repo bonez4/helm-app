@@ -4698,18 +4698,12 @@ function exportUntippedRolloffs(){
   const today = new Date();
   const isoDate = today.toISOString().split('T')[0];
   const fmt = d => d ? new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}) : '';
-  const daysOnSite = d => {
-    if(!d) return '';
-    const placed = new Date(d+'T00:00:00');
-    const diff = Math.floor((today - placed) / 86400000);
-    return diff >= 0 ? diff : '';
-  };
 
-  // Build HTML table for Excel export
+  // Columns: A=Date  B=Type  C=Customer  D=Number  E=Street  F=Notes  G=Days  H=Charge
+  // 'Days' is blank for the CSR to fill in. 'Charge' is a formula = G * 4.
   let rows = '';
-  untipped.forEach(r => {
-    const days = daysOnSite(r.date);
-    const charge = typeof days==='number' ? '$'+(days*4).toFixed(2) : '';
+  untipped.forEach((r, i) => {
+    const rowNum = i + 2; // header sits on row 1
     rows += `<tr>
       <td>${fmt(r.date)}</td>
       <td>${esc(r.type||'')}</td>
@@ -4717,8 +4711,8 @@ function exportUntippedRolloffs(){
       <td>${esc(r.address_number||'')}</td>
       <td>${esc(r.street||'')}</td>
       <td>${esc(r.notes||'')}</td>
-      <td style="text-align:right;">${days}</td>
-      <td style="text-align:right;">${charge}</td>
+      <td style="text-align:right;"></td>
+      <td style="text-align:right;" x:fmla="=G${rowNum}*4">=G${rowNum}*4</td>
     </tr>`;
   });
 
@@ -4726,11 +4720,11 @@ function exportUntippedRolloffs(){
     <h2>Untipped Roll-offs as of ${fmt(isoDate)}</h2>
     <table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:11px;">
       <thead style="background:#0f1f3d;color:white;"><tr>
-        <th>Date Placed</th><th>Type</th><th>Customer</th><th>Number</th><th>Street</th><th>Notes</th><th>Days on Site</th><th>Charge @ $4/day</th>
+        <th>Date Placed</th><th>Type</th><th>Customer</th><th>Number</th><th>Street</th><th>Notes</th><th>Days</th><th>Charge (=Days &times; 4)</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <p style="font-size:10px;color:#666;margin-top:10px;">Total rows: ${untipped.length}</p>
+    <p style="font-size:10px;color:#666;margin-top:10px;">Total rows: ${untipped.length}. Fill in the <strong>Days</strong> column for each row \u2014 the <strong>Charge</strong> column auto-multiplies by 4.</p>
   </body></html>`;
 
   const blob = new Blob(['\ufeff', html], {type:'application/vnd.ms-excel'});
