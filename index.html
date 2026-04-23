@@ -5314,6 +5314,16 @@ function irrGenerateEmail(data, ytd) {
     ${row('Walk-In Revenue',     fM(walkinRevToday))}
   `;
 
+  // Section 4: Pile Pickups (Reis ZZDELTA jobs). Combined "loads · tons" per period.
+  const pileLine = (p) => (p.pileTickets||0) + ' loads &nbsp;\u00B7&nbsp; ' + f2(p.pileTons||0) + ' tons';
+  const sec4 = `
+    ${sectionHdr('Pile Pickups (Reis)')}
+    ${row('Today', pileLine(t))}
+    ${row('WTD',   pileLine(w))}
+    ${row('MTD',   pileLine(m))}
+    ${row('YTD',   pileLine(y))}
+  `;
+
   const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:560px;line-height:1.55;">
   <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
   <p style="margin:0 0 14px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
@@ -5321,6 +5331,7 @@ function irrGenerateEmail(data, ytd) {
     ${sec1}
     ${sec2}
     ${sec3}
+    ${sec4}
   </table></div>`;
 
   return {subject, body};
@@ -5377,6 +5388,7 @@ async function irrLoadYTD(asOfDate) {
   const mtdYoyEnd   = lyYear+'-'+pad(asOf.month)+'-'+pad(lyDay);
 
   const fields = 'reis_tons,island_tons,santos_tons,walkin_tons,vinagro_tons,'
+               + 'pile_tons,pile_tickets,'
                + 'reis_tip_revenue,reis_svc_revenue,island_revenue,santos_revenue,walkin_tip_revenue';
 
   async function fetchRange(start, end){
@@ -5386,7 +5398,7 @@ async function irrLoadYTD(asOfDate) {
     return data || [];
   }
   function sum(rows){
-    const r = {rolloff:0, walkin:0, vin:0, rollRev:0, walkRev:0};
+    const r = {rolloff:0, walkin:0, vin:0, pileTons:0, pileTickets:0, rollRev:0, walkRev:0};
     for(const d of rows){
       const reis   = parseFloat(d.reis_tons)||0;
       const island = parseFloat(d.island_tons)||0;
@@ -5396,6 +5408,8 @@ async function irrLoadYTD(asOfDate) {
       r.rolloff += reis + island + santos;
       r.walkin  += walkin;
       r.vin     += vin;
+      r.pileTons    += parseFloat(d.pile_tons)||0;
+      r.pileTickets += parseInt(d.pile_tickets)||0;
       r.rollRev += (parseFloat(d.reis_tip_revenue)||0) + (parseFloat(d.reis_svc_revenue)||0)
                 + (parseFloat(d.island_revenue)||0)   + (parseFloat(d.santos_revenue)||0);
       r.walkRev += parseFloat(d.walkin_tip_revenue)||0;
