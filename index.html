@@ -5328,14 +5328,11 @@ function irrGenerateEmail(data, ytd) {
     ${row('Walk-In Revenue',     fM(walkinRevToday))}
   `;
 
-  // Section 4: Pile Pickups (Reis ZZDELTA jobs). Combined "loads · tons" per period.
+  // Section 4: Pile Pickups (Reis ZZDELTA jobs) — today only.
   const pileLine = (p) => (p.pileTickets||0) + ' loads &nbsp;\u00B7&nbsp; ' + f2(p.pileTons||0) + ' tons';
   const sec4 = `
     ${sectionHdr('Pile Pickups (Reis)')}
     ${row('Today', pileLine(t))}
-    ${row('WTD',   pileLine(w))}
-    ${row('MTD',   pileLine(m))}
-    ${row('YTD',   pileLine(y))}
   `;
 
   const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:560px;line-height:1.55;">
@@ -5568,9 +5565,6 @@ function irrRenderReportView(data, ytd) {
       <div class="irr-section-hdr">Pile Pickups (Reis)</div>
       <table class="irr-table"><tbody>
         ${rowH('Today', pileLine(t))}
-        ${rowH('WTD',   pileLine(w))}
-        ${rowH('MTD',   pileLine(m))}
-        ${rowH('YTD',   pileLine(y))}
       </tbody></table>
 
       <hr style="border:none;border-top:1px solid var(--gray-200);margin:24px 0 16px;">
