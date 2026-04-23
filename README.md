@@ -230,15 +230,20 @@ Four sub-views:
   - Exclude wins if multiple boxes are checked
 - Driver hours prompt — asks for Island Rubbish driver count + hours
 - Auto-save — raw .xls saved to Files → shared "Daily Scale Reports" folder
-- Generates formatted **daily email** with the following layout:
-  - **Total Revenue (Rolloff + Walk-In)** headline
-  - **Vinagro Output** (loads, tons)
-  - **Walk-In / Drive-Through** (tickets, tons, revenue)
-  - **Day Totals** — Total Inbound / Total Outbound / Net
-  - **WTD Net** + **YTD Net**
-  - Reis Rolloff / Island Rubbish / East End / All Rolloffs Combined blocks (Loads · Hook Fee Rev · Tonnage Rev · Total Rev · Rev/Load · Tons · Tons/Load)
-  - Pile Pickups (Reis) if > 0
-  - Year-to-Date Comparison per company + total inbound + Vinagro (cur vs prior)
+- Generates formatted **daily email** in a unified three-section layout (no per-company breakdown):
+  - **Section 1: Rolloff Internal Volume** (combined Reis + Island + East End rolloff tonnage)
+    - Today / WTD / MTD
+    - **MOM** — same-period prior month for direct comparison
+    - YTD
+    - **YOY** — same-period prior year for direct comparison
+  - **Section 2: Inbound vs Outbound — Xfer Station, Rolloffs + Walk-Ins**
+    - One row per period (Today / WTD / MTD / YTD), formatted `inbound, outbound : net`
+    - Net = inbound − outbound. **Red** when net is positive (material accumulating); **green** when net is negative (material clearing out)
+    - Plus **MTD YOY** and **YTD YOY** rows showing the same-period prior-year figures
+  - **Section 3: Revenue (today only)**
+    - Total Revenue Today
+    - Rolloff Revenue (today)
+    - Walk-In Revenue (today)
 - Copy to clipboard / Gmail draft creation
 - Historical report viewer (click any past date)
 - **Historical bulk import** — upload date-range .xls to upsert history
@@ -467,6 +472,7 @@ helm-app/
 
 ## Recent Major Changes
 
+- **April 23, 2026** — Daily email rebuild: three unified sections (Rolloff Internal Volume / Inbound vs Outbound / Revenue), no per-company breakdown. Adds MOM + YOY comparison rows. Net inbound vs outbound colored red (accumulating) / green (clearing).
 - **April 19, 2026** — Hook fee vs disposal fee split. Disposal fees (mattress, appliance, freon, monitor, tire) now route based on ticket: Reis rolloff ticket → tonnage revenue; walk-in → walk-in revenue. Move Rolloff stays in hook fees.
 - **April 19, 2026** — Review IC Tickets modal extended: includes Delta; three columns (Exclude / Pile Pickup / Walk In).
 - **April 18, 2026** — Consolidated Rolloff sub-tab added under IRR Scale. Excel export + shared manual hours/drivers entry.
