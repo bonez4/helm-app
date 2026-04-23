@@ -5310,9 +5310,9 @@ function irrGenerateEmail(data, ytd) {
     const curNet  = (Number(curIn)||0)  - (Number(curOut)||0);
     const prevNet = (Number(prevIn)||0) - (Number(prevOut)||0);
     return `
-      <div>TY: ${inOut(curIn, curOut)}</div>
-      <div>LY: ${inOut(prevIn, prevOut)}</div>
-      <div>\u0394: ${pctChange(curIn, prevIn)} in, ${pctChange(curOut, prevOut)} out, ${pctChange(curNet, prevNet)} net</div>
+      <div>This Year: ${inOut(curIn, curOut)}</div>
+      <div>Last Year: ${inOut(prevIn, prevOut)}</div>
+      <div>Delta: ${pctChange(curIn, prevIn)} in, ${pctChange(curOut, prevOut)} out, ${pctChange(curNet, prevNet)} net</div>
     `;
   };
 
@@ -5562,9 +5562,9 @@ function irrRenderReportView(data, ytd) {
     const curNet  = (Number(curIn)||0)  - (Number(curOut)||0);
     const prevNet = (Number(prevIn)||0) - (Number(prevOut)||0);
     return `
-      <div>TY: ${inOut(curIn, curOut)}</div>
-      <div>LY: ${inOut(prevIn, prevOut)}</div>
-      <div>\u0394: ${pctChange(curIn, prevIn)} in, ${pctChange(curOut, prevOut)} out, ${pctChange(curNet, prevNet)} net</div>
+      <div>This Year: ${inOut(curIn, curOut)}</div>
+      <div>Last Year: ${inOut(prevIn, prevOut)}</div>
+      <div>Delta: ${pctChange(curIn, prevIn)} in, ${pctChange(curOut, prevOut)} out, ${pctChange(curNet, prevNet)} net</div>
     `;
   };
   const pileLine = (p) => (p.pileTickets||0)+' loads &nbsp;&middot;&nbsp; '+f2(p.pileTons||0)+' tons';
