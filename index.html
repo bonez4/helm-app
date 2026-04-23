@@ -5291,6 +5291,31 @@ function irrGenerateEmail(data, ytd) {
     return ` <span style="color:${color};font-weight:bold;">(${sign}${magnitude} tons${pct} vs ${vsLabel})</span>`;
   };
 
+  // Percent-change span for YOY comparison rows. Standard growth coloring:
+  //   positive (this yr > last yr) = green, negative = red. Handles zero/sign-flip prev.
+  const pctChange = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(p) < 0.005){
+      if(Math.abs(c) < 0.005) return '<span style="color:#666;">\u2014</span>';
+      return '<span style="color:#2e7d32;font-weight:bold;">new</span>';
+    }
+    const d = (c - p) / Math.abs(p) * 100; // abs(p) → sign of d reflects actual direction even if p<0
+    const sign  = d >= 0 ? '+' : '\u2212';
+    const color = d > 0.05 ? '#2e7d32' : d < -0.05 ? '#c62828' : '#666';
+    return `<span style="color:${color};font-weight:bold;">${sign}${Math.abs(d).toFixed(1)}%</span>`;
+  };
+
+  // Stacked YOY block: this year, last year, and the % change for in/out/net.
+  const yoyBlock = (curIn, curOut, prevIn, prevOut) => {
+    const curNet  = (Number(curIn)||0)  - (Number(curOut)||0);
+    const prevNet = (Number(prevIn)||0) - (Number(prevOut)||0);
+    return `
+      <div>TY: ${inOut(curIn, curOut)}</div>
+      <div>LY: ${inOut(prevIn, prevOut)}</div>
+      <div>\u0394: ${pctChange(curIn, prevIn)} in, ${pctChange(curOut, prevOut)} out, ${pctChange(curNet, prevNet)} net</div>
+    `;
+  };
+
   // ytd shape: {today,wtd,mtd,mom,ytd,yoy,mtdYoy} — each with {rolloff,walkin,vin,...}
   const t = ytd.today || {rolloff:0,walkin:0,vin:0};
   const w = ytd.wtd   || {rolloff:0,walkin:0,vin:0};
@@ -5317,8 +5342,8 @@ function irrGenerateEmail(data, ytd) {
     ${row('MTD',     inOut(m.rolloff+m.walkin,  m.vin))}
     ${row('YTD',     inOut(y.rolloff+y.walkin,  y.vin))}
     ${blank()}
-    ${row('MTD YOY', inOut(my.rolloff+my.walkin, my.vin))}
-    ${row('YTD YOY', inOut(yo.rolloff+yo.walkin, yo.vin))}
+    ${row('MTD YOY', yoyBlock(m.rolloff+m.walkin, m.vin, my.rolloff+my.walkin, my.vin))}
+    ${row('YTD YOY', yoyBlock(y.rolloff+y.walkin, y.vin, yo.rolloff+yo.walkin, yo.vin))}
   `;
 
   const sec3 = `
@@ -5522,6 +5547,26 @@ function irrRenderReportView(data, ytd) {
     const pct = prev > 0.005 ? `, ${sign}${(Math.abs(d)/prev*100).toFixed(1)}%` : (cur > 0.005 ? ', new' : '');
     return ` <span style="color:${color};font-weight:700;font-size:11px;">(${sign}${magnitude} tons${pct} vs ${vsLabel})</span>`;
   };
+  const pctChange = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(p) < 0.005){
+      if(Math.abs(c) < 0.005) return '<span style="color:#666;">\u2014</span>';
+      return '<span style="color:#2e7d32;font-weight:700;">new</span>';
+    }
+    const d = (c - p) / Math.abs(p) * 100;
+    const sign  = d >= 0 ? '+' : '\u2212';
+    const color = d > 0.05 ? '#2e7d32' : d < -0.05 ? '#c62828' : '#666';
+    return `<span style="color:${color};font-weight:700;">${sign}${Math.abs(d).toFixed(1)}%</span>`;
+  };
+  const yoyBlock = (curIn, curOut, prevIn, prevOut) => {
+    const curNet  = (Number(curIn)||0)  - (Number(curOut)||0);
+    const prevNet = (Number(prevIn)||0) - (Number(prevOut)||0);
+    return `
+      <div>TY: ${inOut(curIn, curOut)}</div>
+      <div>LY: ${inOut(prevIn, prevOut)}</div>
+      <div>\u0394: ${pctChange(curIn, prevIn)} in, ${pctChange(curOut, prevOut)} out, ${pctChange(curNet, prevNet)} net</div>
+    `;
+  };
   const pileLine = (p) => (p.pileTickets||0)+' loads &nbsp;&middot;&nbsp; '+f2(p.pileTons||0)+' tons';
   const rowH = (label, val, bold) => `<tr>
     <td${bold?' style="font-weight:700"':''}>${label}</td>
@@ -5551,8 +5596,8 @@ function irrRenderReportView(data, ytd) {
         ${rowH('MTD',     inOut(m.rolloff+m.walkin,  m.vin))}
         ${rowH('YTD',     inOut(y.rolloff+y.walkin,  y.vin))}
         ${blankRow}
-        ${rowH('MTD YOY', inOut(my.rolloff+my.walkin, my.vin))}
-        ${rowH('YTD YOY', inOut(yo.rolloff+yo.walkin, yo.vin))}
+        ${rowH('MTD YOY', yoyBlock(m.rolloff+m.walkin, m.vin, my.rolloff+my.walkin, my.vin))}
+        ${rowH('YTD YOY', yoyBlock(y.rolloff+y.walkin, y.vin, yo.rolloff+yo.walkin, yo.vin))}
       </tbody></table>
 
       <div class="irr-section-hdr">Revenue (today)</div>
