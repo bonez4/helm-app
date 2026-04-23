@@ -5291,28 +5291,28 @@ function irrGenerateEmail(data, ytd) {
     return ` <span style="color:${color};font-weight:bold;">(${sign}${magnitude} tons${pct} vs ${vsLabel})</span>`;
   };
 
-  // Percent-change span for YOY comparison rows. Standard growth coloring:
-  //   positive (this yr > last yr) = green, negative = red. Handles zero/sign-flip prev.
-  const pctChange = (cur, prev) => {
-    const c = Number(cur)||0, p = Number(prev)||0;
-    if(Math.abs(p) < 0.005){
-      if(Math.abs(c) < 0.005) return '<span style="color:#666;">\u2014</span>';
-      return '<span style="color:#2e7d32;font-weight:bold;">new</span>';
+  // Two-line YOY block comparing inbound tonnage prior-year vs current-year.
+  //   Line 1: "2025: 245.00 tons, 2026: 287.40 tons"
+  //   Line 2: "Delta: +17.3% higher"   (green = higher, red = lower)
+  const curYear  = parseInt((data.date||'').split('/')[2]) || new Date().getFullYear();
+  const prevYear = curYear - 1;
+  const yoyBlock = (curIn, prevIn) => {
+    const cur = Number(curIn)||0, prev = Number(prevIn)||0;
+    const d = cur - prev;
+    let pctStr, label;
+    if(Math.abs(prev) < 0.005){
+      if(Math.abs(cur) < 0.005){ pctStr = '0.0%'; label = 'unchanged'; }
+      else { pctStr = 'new'; label = '(no prior-year data)'; }
+    } else {
+      const pctVal = (d/Math.abs(prev))*100;
+      const sign = pctVal >= 0 ? '+' : '\u2212';
+      pctStr = `${sign}${Math.abs(pctVal).toFixed(1)}%`;
+      label = pctVal > 0.05 ? 'higher' : pctVal < -0.05 ? 'lower' : 'unchanged';
     }
-    const d = (c - p) / Math.abs(p) * 100; // abs(p) → sign of d reflects actual direction even if p<0
-    const sign  = d >= 0 ? '+' : '\u2212';
-    const color = d > 0.05 ? '#2e7d32' : d < -0.05 ? '#c62828' : '#666';
-    return `<span style="color:${color};font-weight:bold;">${sign}${Math.abs(d).toFixed(1)}%</span>`;
-  };
-
-  // Stacked YOY block: this year, last year, and the % change for in/out/net.
-  const yoyBlock = (curIn, curOut, prevIn, prevOut) => {
-    const curNet  = (Number(curIn)||0)  - (Number(curOut)||0);
-    const prevNet = (Number(prevIn)||0) - (Number(prevOut)||0);
+    const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
     return `
-      <div>This Year: ${inOut(curIn, curOut)}</div>
-      <div>Last Year: ${inOut(prevIn, prevOut)}</div>
-      <div>Delta: ${pctChange(curIn, prevIn)} in, ${pctChange(curOut, prevOut)} out, ${pctChange(curNet, prevNet)} net</div>
+      <div>${prevYear}: ${f2(prev)} tons, ${curYear}: ${f2(cur)} tons</div>
+      <div>Delta: <span style="color:${color};font-weight:bold;">${pctStr} ${label}</span></div>
     `;
   };
 
@@ -5342,8 +5342,8 @@ function irrGenerateEmail(data, ytd) {
     ${row('MTD',     inOut(m.rolloff+m.walkin,  m.vin))}
     ${row('YTD',     inOut(y.rolloff+y.walkin,  y.vin))}
     ${blank()}
-    ${row('MTD YOY', yoyBlock(m.rolloff+m.walkin, m.vin, my.rolloff+my.walkin, my.vin))}
-    ${row('YTD YOY', yoyBlock(y.rolloff+y.walkin, y.vin, yo.rolloff+yo.walkin, yo.vin))}
+    ${row('MTD YOY', yoyBlock(m.rolloff+m.walkin, my.rolloff+my.walkin))}
+    ${row('YTD YOY', yoyBlock(y.rolloff+y.walkin, yo.rolloff+yo.walkin))}
   `;
 
   const sec3 = `
@@ -5547,24 +5547,26 @@ function irrRenderReportView(data, ytd) {
     const pct = prev > 0.005 ? `, ${sign}${(Math.abs(d)/prev*100).toFixed(1)}%` : (cur > 0.005 ? ', new' : '');
     return ` <span style="color:${color};font-weight:700;font-size:11px;">(${sign}${magnitude} tons${pct} vs ${vsLabel})</span>`;
   };
-  const pctChange = (cur, prev) => {
-    const c = Number(cur)||0, p = Number(prev)||0;
-    if(Math.abs(p) < 0.005){
-      if(Math.abs(c) < 0.005) return '<span style="color:#666;">\u2014</span>';
-      return '<span style="color:#2e7d32;font-weight:700;">new</span>';
+  // Two-line YOY block — inbound tonnage prior-year vs current-year + % delta
+  const curYear  = parseInt((data.date||'').split('/')[2]) || new Date().getFullYear();
+  const prevYear = curYear - 1;
+  const yoyBlock = (curIn, prevIn) => {
+    const cur = Number(curIn)||0, prev = Number(prevIn)||0;
+    const d = cur - prev;
+    let pctStr, label;
+    if(Math.abs(prev) < 0.005){
+      if(Math.abs(cur) < 0.005){ pctStr = '0.0%'; label = 'unchanged'; }
+      else { pctStr = 'new'; label = '(no prior-year data)'; }
+    } else {
+      const pctVal = (d/Math.abs(prev))*100;
+      const sign = pctVal >= 0 ? '+' : '\u2212';
+      pctStr = `${sign}${Math.abs(pctVal).toFixed(1)}%`;
+      label = pctVal > 0.05 ? 'higher' : pctVal < -0.05 ? 'lower' : 'unchanged';
     }
-    const d = (c - p) / Math.abs(p) * 100;
-    const sign  = d >= 0 ? '+' : '\u2212';
-    const color = d > 0.05 ? '#2e7d32' : d < -0.05 ? '#c62828' : '#666';
-    return `<span style="color:${color};font-weight:700;">${sign}${Math.abs(d).toFixed(1)}%</span>`;
-  };
-  const yoyBlock = (curIn, curOut, prevIn, prevOut) => {
-    const curNet  = (Number(curIn)||0)  - (Number(curOut)||0);
-    const prevNet = (Number(prevIn)||0) - (Number(prevOut)||0);
+    const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
     return `
-      <div>This Year: ${inOut(curIn, curOut)}</div>
-      <div>Last Year: ${inOut(prevIn, prevOut)}</div>
-      <div>Delta: ${pctChange(curIn, prevIn)} in, ${pctChange(curOut, prevOut)} out, ${pctChange(curNet, prevNet)} net</div>
+      <div>${prevYear}: ${f2(prev)} tons, ${curYear}: ${f2(cur)} tons</div>
+      <div>Delta: <span style="color:${color};font-weight:700;">${pctStr} ${label}</span></div>
     `;
   };
   const pileLine = (p) => (p.pileTickets||0)+' loads &nbsp;&middot;&nbsp; '+f2(p.pileTons||0)+' tons';
@@ -5596,8 +5598,8 @@ function irrRenderReportView(data, ytd) {
         ${rowH('MTD',     inOut(m.rolloff+m.walkin,  m.vin))}
         ${rowH('YTD',     inOut(y.rolloff+y.walkin,  y.vin))}
         ${blankRow}
-        ${rowH('MTD YOY', yoyBlock(m.rolloff+m.walkin, m.vin, my.rolloff+my.walkin, my.vin))}
-        ${rowH('YTD YOY', yoyBlock(y.rolloff+y.walkin, y.vin, yo.rolloff+yo.walkin, yo.vin))}
+        ${rowH('MTD YOY', yoyBlock(m.rolloff+m.walkin, my.rolloff+my.walkin))}
+        ${rowH('YTD YOY', yoyBlock(y.rolloff+y.walkin, yo.rolloff+yo.walkin))}
       </tbody></table>
 
       <div class="irr-section-hdr">Revenue (today)</div>
