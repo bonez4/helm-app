@@ -5234,98 +5234,101 @@ function irrFmtDate(dateStr) {
 function irrFmt(n,dec=2){return (isNaN(n)||n===null||n===undefined)?'--':n.toFixed(dec);}
 function irrFmtMoney(n){return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
+// Generates the daily scale summary email in the unified three-section format:
+//   1. Rolloff Internal Volume — combined rolloff tonnage with MOM/YOY
+//   2. Inbound vs Outbound — rolloff+walkin in, vinagro out, net colored red/green
+//   3. Revenue (today only) — total split into rolloff vs walk-in
 function irrGenerateEmail(data, ytd) {
   const {date, buckets} = data;
-  const {reis,pile,island,santos,vinagro,walkin} = buckets;
-  const totalTons = reis.tons+pile.tons+island.tons+santos.tons+walkin.tons;
-  const totalTickets = reis.tickets+pile.tickets+island.tickets+santos.tickets+walkin.tickets;
   const displayDate = irrFmtDate(date);
   const subject = 'IRR Scale Report \u2014 '+(date||'Today');
 
-  const reisRev=(reis.tipRevenue||0)+(reis.rolloffFees||0);
-  const islandRev=island.revenue||0;
-  const santosRev=santos.revenue||0;
+  // Today revenue is computed from the freshly-parsed buckets (always current,
+  // even if the row hasn't fully round-tripped through the DB yet).
+  const {reis,island,santos,walkin} = buckets;
+  const rolloffRevToday = (reis.tipRevenue||0) + (reis.rolloffFees||0)
+                        + (island.revenue||0) + (santos.revenue||0);
+  const walkinRevToday  = walkin.tipRevenue||0;
+  const totalRevToday   = rolloffRevToday + walkinRevToday;
 
-  const R=(label,val,bold=false)=>`<tr>
-    <td style="padding:3px 0;color:#222;font-size:14px;${bold?'font-weight:bold;':''}">${label}</td>
-    <td style="padding:3px 0;color:#222;font-size:14px;text-align:right;${bold?'font-weight:bold;':''}">${val}</td></tr>`;
-  const H=(text)=>`<tr><td colspan="2" style="padding:16px 0 4px 0;">
-    <span style="font-weight:bold;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;color:#000;">${text}</span></td></tr>`;
-  const S=()=>`<tr><td colspan="2" style="padding:6px 0;"></td></tr>`;
+  // Helpers
+  const f2 = n => (Number(n)||0).toFixed(2);
+  const fM = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const labelStyle = 'padding:3px 0;color:#222;font-size:14px;';
+  const valStyle   = 'padding:3px 0;color:#222;font-size:14px;text-align:right;';
+  const row = (label, val, bold) => `<tr>
+    <td style="${labelStyle}${bold?'font-weight:bold;':''}">${label}</td>
+    <td style="${valStyle}${bold?'font-weight:bold;':''}">${val}</td>
+  </tr>`;
+  const sectionHdr = (text) => `<tr><td colspan="2" style="padding:18px 0 6px 0;border-top:1px solid #d0d0d0;">
+    <span style="font-weight:bold;font-size:15px;color:#000;">${text}</span>
+  </td></tr>`;
+  const firstSectionHdr = (text) => `<tr><td colspan="2" style="padding:6px 0 6px 0;">
+    <span style="font-weight:bold;font-size:15px;color:#000;">${text}</span>
+  </td></tr>`;
+  const blank = () => `<tr><td colspan="2" style="padding:5px 0;"></td></tr>`;
 
-  // Company detail block
-  function companyBlock(name, tickets, tons, hookRev, tonRev) {
-    const total=hookRev+tonRev;
-    return H(name)+
-      R('Loads',tickets)+
-      R('Hook Fee Revenue',irrFmtMoney(hookRev))+
-      R('Tonnage Revenue',irrFmtMoney(tonRev))+
-      R('Total Revenue',irrFmtMoney(total),true)+
-      R('Revenue / Load',tickets>0?irrFmtMoney(total/tickets):'--')+
-      R('Total Tons',irrFmt(tons))+
-      R('Tons / Load',tickets>0?irrFmt(tons/tickets):'--');
-  }
+  // Inbound, Outbound : Net (colored). Positive net = red (accumulating).
+  // Negative net = green (clearing). Zero = neutral.
+  const inOut = (inb, out) => {
+    const net = (Number(inb)||0) - (Number(out)||0);
+    const color = net > 0.005 ? '#c62828' : net < -0.005 ? '#2e7d32' : '#444';
+    const netStr = `<span style="color:${color};font-weight:bold;">${f2(Math.abs(net))}</span>`;
+    return `${f2(inb)}, ${f2(out)} : ${netStr}`;
+  };
 
-  // Split Island/East End revenue into hook vs tonnage using rates (respects 4/17/2026 cutoff)
-  const {ir, er} = irrRatesFor(date);
-  const islandHook=(ir?ir.hook_fee:250)*island.tickets;
-  const islandTonRev=islandRev-islandHook;
-  const santosHook=(er?er.hook_fee:200)*santos.tickets;
-  const santosTonRev=santosRev-santosHook;
+  // ytd shape: {today,wtd,mtd,mom,ytd,yoy,mtdYoy} — each with {rolloff,walkin,vin,...}
+  const t = ytd.today || {rolloff:0,walkin:0,vin:0};
+  const w = ytd.wtd   || {rolloff:0,walkin:0,vin:0};
+  const m = ytd.mtd   || {rolloff:0,walkin:0,vin:0};
+  const mo= ytd.mom   || {rolloff:0,walkin:0,vin:0};
+  const y = ytd.ytd   || {rolloff:0,walkin:0,vin:0};
+  const yo= ytd.yoy   || {rolloff:0,walkin:0,vin:0};
+  const my= ytd.mtdYoy|| {rolloff:0,walkin:0,vin:0};
 
-  const rolloffRev = reisRev + islandRev + santosRev;
-  const totalRev = rolloffRev + (walkin.tipRevenue||0);
-  const netDay = totalTons - vinagro.tons;
-  const wtdNet = (ytd.wtdInbound||0) - (ytd.wtdOutbound||0);
-  const ytdNet = (ytd.ytd2026||0) - (ytd.vin2026||0);
+  const sec1 = `
+    ${firstSectionHdr('Rolloff Internal Volume')}
+    ${row('Today', f2(t.rolloff)+' tons')}
+    ${row('WTD',   f2(w.rolloff)+' tons')}
+    ${row('MTD',   f2(m.rolloff)+' tons')}
+    ${row('MOM',   f2(mo.rolloff)+' tons')}
+    ${row('YTD',   f2(y.rolloff)+' tons')}
+    ${row('YOY',   f2(yo.rolloff)+' tons')}
+  `;
 
-  const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:500px;line-height:1.6;">
+  const sec2 = `
+    ${sectionHdr('Inbound V. Outbound \u2014 Xfer Station, Rolloffs + Walk-Ins')}
+    ${row('Today',   inOut(t.rolloff+t.walkin,  t.vin))}
+    ${row('WTD',     inOut(w.rolloff+w.walkin,  w.vin))}
+    ${row('MTD',     inOut(m.rolloff+m.walkin,  m.vin))}
+    ${row('YTD',     inOut(y.rolloff+y.walkin,  y.vin))}
+    ${blank()}
+    ${row('MTD YOY', inOut(my.rolloff+my.walkin, my.vin))}
+    ${row('YTD YOY', inOut(yo.rolloff+yo.walkin, yo.vin))}
+  `;
+
+  const sec3 = `
+    ${sectionHdr('Revenue (today)')}
+    ${row('Total Revenue Today', fM(totalRevToday), true)}
+    ${row('Rolloff Revenue',     fM(rolloffRevToday))}
+    ${row('Walk-In Revenue',     fM(walkinRevToday))}
+  `;
+
+  const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:560px;line-height:1.55;">
   <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
-  <p style="margin:0 0 16px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
+  <p style="margin:0 0 14px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
   <table style="width:100%;border-collapse:collapse;">
-    <tr>
-      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;">Total Revenue (Rolloff + Walk-In)</td>
-      <td style="padding:4px 0;font-weight:bold;font-size:14px;color:#000;text-align:right;">${irrFmtMoney(totalRev)}</td>
-    </tr>
-    ${H('Vinagro Output')}
-    ${R('Loads',vinagro.tickets)}
-    ${R('Total Tons',irrFmt(vinagro.tons))}
-    ${H('Walk-In / Drive-Through')}
-    ${R('Tickets',walkin.tickets)}
-    ${R('Total Tons',irrFmt(walkin.tons))}
-    ${R('Total Revenue',irrFmtMoney(walkin.tipRevenue||0))}
-    ${H('Day Totals')}
-    ${R('Total Inbound',irrFmt(totalTons)+' tons')}
-    ${R('Total Outbound',irrFmt(vinagro.tons)+' tons')}
-    ${R('Net (Inbound \u2212 Outbound)',irrFmt(netDay)+' tons',true)}
-    ${S()}
-    ${R('WTD Net (Inbound \u2212 Outbound)',irrFmt(wtdNet)+' tons',true)}
-    ${R('YTD Net (Inbound \u2212 Outbound)',irrFmt(ytdNet)+' tons',true)}
-    ${companyBlock('Reis Rolloff', reis.tickets, reis.tons, reis.rolloffFees||0, reis.tipRevenue||0)}
-    ${companyBlock('Island Rubbish', island.tickets, island.tons, islandHook, islandTonRev)}
-    ${companyBlock('East End', santos.tickets, santos.tons, santosHook, santosTonRev)}
-    ${companyBlock('All Rolloffs Combined', reis.tickets+island.tickets+santos.tickets, reis.tons+island.tons+santos.tons, (reis.rolloffFees||0)+islandHook+santosHook, (reis.tipRevenue||0)+islandTonRev+santosTonRev)}
-    ${pile.tickets>0?(H('Pile Pickups (Reis)')+R('Loads / Tons',pile.tickets+' tickets &nbsp; '+irrFmt(pile.tons)+' tons')):''}
-    ${H('Year-to-Date Comparison')}
-    ${R('Reis YTD',irrFmt(ytd.reisYtdCur)+' tons',true)}
-    ${R('Reis Prior Year',irrFmt(ytd.reisYtdPrev)+' tons')}
-    ${S()}
-    ${R('Island Rubbish YTD',irrFmt(ytd.islandYtdCur)+' tons',true)}
-    ${R('Island Prior Year',irrFmt(ytd.islandYtdPrev)+' tons')}
-    ${S()}
-    ${R('East End YTD',irrFmt(ytd.santosYtdCur)+' tons',true)}
-    ${R('East End Prior Year',irrFmt(ytd.santosYtdPrev)+' tons')}
-    ${S()}
-    ${R('Total Inbound YTD',irrFmt(ytd.ytd2026)+' tons',true)}
-    ${R('Total Inbound Prior Year',irrFmt(ytd.ytd2025)+' tons')}
-    ${S()}
-    ${R('Vinagro YTD',irrFmt(ytd.vin2026)+' tons',true)}
-    ${R('Vinagro Prior Year',irrFmt(ytd.vin2025)+' tons')}
+    ${sec1}
+    ${sec2}
+    ${sec3}
   </table></div>`;
 
   return {subject, body};
 }
 
+// Loads all the period rollups the daily email needs: today, WTD, MTD,
+// MOM (same days of prior month), YTD, YOY (same days of prior year),
+// and MTD YOY (same MTD slice of prior year). All sums come from irr_reports.
 async function irrLoadYTD(asOfDate) {
   let asOf;
   if(asOfDate){
@@ -5335,44 +5338,94 @@ async function irrLoadYTD(asOfDate) {
     const d=new Date();
     asOf={year:d.getFullYear(),month:d.getMonth()+1,day:d.getDate()};
   }
-  const pad=n=>String(n).padStart(2,'0');
-  const curEnd=asOf.year+'-'+pad(asOf.month)+'-'+pad(asOf.day);
-  const curStart=asOf.year+'-01-01';
-  const prevEnd=(asOf.year-1)+'-'+pad(asOf.month)+'-'+pad(asOf.day);
-  const prevStart=(asOf.year-1)+'-01-01';
+  const pad = n => String(n).padStart(2,'0');
+  const asOfIso = asOf.year+'-'+pad(asOf.month)+'-'+pad(asOf.day);
+  const asOfDt  = new Date(asOf.year, asOf.month-1, asOf.day);
 
-  // Monday of the report week (ISO: Mon-Sun)
-  const asOfDt = new Date(asOf.year, asOf.month-1, asOf.day);
+  // WTD = Monday this week → today
   const dow = asOfDt.getDay();
   const diff = asOfDt.getDate() - dow + (dow===0?-6:1);
   const monday = new Date(asOfDt); monday.setDate(diff);
   const wtdStart = monday.getFullYear()+'-'+pad(monday.getMonth()+1)+'-'+pad(monday.getDate());
 
-  const fields='total_inbound_tons,vinagro_tons,reis_tons,island_tons,santos_tons';
+  // MTD = 1st of this month → today
+  const mtdStart = asOf.year+'-'+pad(asOf.month)+'-01';
 
-  const {data:curData}=await db.from('irr_reports').select(fields).gte('report_date',curStart).lte('report_date',curEnd);
-  const {data:prevData}=await db.from('irr_reports').select(fields).gte('report_date',prevStart).lte('report_date',prevEnd);
-  const {data:wtdData}=await db.from('irr_reports').select(fields).gte('report_date',wtdStart).lte('report_date',curEnd);
+  // MOM = 1st of prior month → same day-of-month of prior month (capped at last day)
+  let pmYear = asOf.year, pmMonth = asOf.month - 1;
+  if(pmMonth < 1){ pmMonth = 12; pmYear -= 1; }
+  const pmLastDay = new Date(pmYear, pmMonth, 0).getDate();
+  const pmDay = Math.min(asOf.day, pmLastDay);
+  const momStart = pmYear+'-'+pad(pmMonth)+'-01';
+  const momEnd   = pmYear+'-'+pad(pmMonth)+'-'+pad(pmDay);
 
+  // YTD = Jan 1 this year → today
+  const ytdStart = asOf.year+'-01-01';
+
+  // YOY = Jan 1 prior year → same date of prior year (handle Feb 29)
+  const lyYear = asOf.year - 1;
+  let lyDay = asOf.day;
+  if(asOf.month === 2 && asOf.day === 29){
+    const isLeap = (lyYear%4===0 && lyYear%100!==0) || lyYear%400===0;
+    if(!isLeap) lyDay = 28;
+  }
+  const yoyStart = lyYear+'-01-01';
+  const yoyEnd   = lyYear+'-'+pad(asOf.month)+'-'+pad(lyDay);
+
+  // MTD YOY = 1st of (same month, prior year) → same day-of-month, prior year
+  const mtdYoyStart = lyYear+'-'+pad(asOf.month)+'-01';
+  const mtdYoyEnd   = lyYear+'-'+pad(asOf.month)+'-'+pad(lyDay);
+
+  const fields = 'reis_tons,island_tons,santos_tons,walkin_tons,vinagro_tons,'
+               + 'reis_tip_revenue,reis_svc_revenue,island_revenue,santos_revenue,walkin_tip_revenue';
+
+  async function fetchRange(start, end){
+    const {data, error} = await db.from('irr_reports').select(fields)
+      .gte('report_date', start).lte('report_date', end);
+    if(error) console.error('irrLoadYTD fetch '+start+'..'+end+' →', error);
+    return data || [];
+  }
   function sum(rows){
-    const r={total:0,vin:0,reis:0,island:0,santos:0};
-    if(rows) for(const d of rows){
-      r.total+=parseFloat(d.total_inbound_tons)||0;
-      r.vin+=parseFloat(d.vinagro_tons)||0;
-      r.reis+=parseFloat(d.reis_tons)||0;
-      r.island+=parseFloat(d.island_tons)||0;
-      r.santos+=parseFloat(d.santos_tons)||0;
+    const r = {rolloff:0, walkin:0, vin:0, rollRev:0, walkRev:0};
+    for(const d of rows){
+      const reis   = parseFloat(d.reis_tons)||0;
+      const island = parseFloat(d.island_tons)||0;
+      const santos = parseFloat(d.santos_tons)||0;
+      const walkin = parseFloat(d.walkin_tons)||0;
+      const vin    = parseFloat(d.vinagro_tons)||0;
+      r.rolloff += reis + island + santos;
+      r.walkin  += walkin;
+      r.vin     += vin;
+      r.rollRev += (parseFloat(d.reis_tip_revenue)||0) + (parseFloat(d.reis_svc_revenue)||0)
+                + (parseFloat(d.island_revenue)||0)   + (parseFloat(d.santos_revenue)||0);
+      r.walkRev += parseFloat(d.walkin_tip_revenue)||0;
     }
     return r;
   }
-  const cur=sum(curData), prev=sum(prevData), wtd=sum(wtdData);
+
+  const [tD, wD, mD, momD, yD, yoyD, mYoyD] = await Promise.all([
+    fetchRange(asOfIso,    asOfIso),
+    fetchRange(wtdStart,   asOfIso),
+    fetchRange(mtdStart,   asOfIso),
+    fetchRange(momStart,   momEnd),
+    fetchRange(ytdStart,   asOfIso),
+    fetchRange(yoyStart,   yoyEnd),
+    fetchRange(mtdYoyStart, mtdYoyEnd),
+  ]);
+
   return {
-    ytd2026:cur.total, ytd2025:prev.total,
-    vin2026:cur.vin, vin2025:prev.vin,
-    reisYtdCur:cur.reis, reisYtdPrev:prev.reis,
-    islandYtdCur:cur.island, islandYtdPrev:prev.island,
-    santosYtdCur:cur.santos, santosYtdPrev:prev.santos,
-    wtdInbound:wtd.total, wtdOutbound:wtd.vin,
+    today:  sum(tD),
+    wtd:    sum(wD),
+    mtd:    sum(mD),
+    mom:    sum(momD),
+    ytd:    sum(yD),
+    yoy:    sum(yoyD),
+    mtdYoy: sum(mYoyD),
+    _ranges: {
+      today:[asOfIso, asOfIso], wtd:[wtdStart, asOfIso], mtd:[mtdStart, asOfIso],
+      mom:[momStart, momEnd], ytd:[ytdStart, asOfIso], yoy:[yoyStart, yoyEnd],
+      mtdYoy:[mtdYoyStart, mtdYoyEnd],
+    },
   };
 }
 
