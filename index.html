@@ -5277,6 +5277,20 @@ function irrGenerateEmail(data, ytd) {
     return `${f2(inb)}, ${f2(out)} : ${netStr}`;
   };
 
+  // Delta vs prior period for MOM / YOY rows. Green when current > prior
+  // (business is up), red when current < prior. Renders as
+  //   "(+42.30 tons, +17.3% vs MTD)"
+  const delta = (curVal, prevVal, vsLabel) => {
+    const cur = Number(curVal)||0, prev = Number(prevVal)||0;
+    const d = cur - prev;
+    if(Math.abs(d) < 0.005 && Math.abs(cur) < 0.005 && Math.abs(prev) < 0.005) return '';
+    const sign  = d >= 0 ? '+' : '\u2212';
+    const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
+    const magnitude = Math.abs(d).toFixed(2);
+    const pct = prev > 0.005 ? `, ${sign}${(Math.abs(d)/prev*100).toFixed(1)}%` : (cur > 0.005 ? ', new' : '');
+    return ` <span style="color:${color};font-weight:bold;">(${sign}${magnitude} tons${pct} vs ${vsLabel})</span>`;
+  };
+
   // ytd shape: {today,wtd,mtd,mom,ytd,yoy,mtdYoy} — each with {rolloff,walkin,vin,...}
   const t = ytd.today || {rolloff:0,walkin:0,vin:0};
   const w = ytd.wtd   || {rolloff:0,walkin:0,vin:0};
@@ -5291,9 +5305,9 @@ function irrGenerateEmail(data, ytd) {
     ${row('Today', f2(t.rolloff)+' tons')}
     ${row('WTD',   f2(w.rolloff)+' tons')}
     ${row('MTD',   f2(m.rolloff)+' tons')}
-    ${row('MOM',   f2(mo.rolloff)+' tons')}
+    ${row('MOM',   f2(mo.rolloff)+' tons'+delta(m.rolloff, mo.rolloff, 'MTD'))}
     ${row('YTD',   f2(y.rolloff)+' tons')}
-    ${row('YOY',   f2(yo.rolloff)+' tons')}
+    ${row('YOY',   f2(yo.rolloff)+' tons'+delta(y.rolloff, yo.rolloff, 'YTD'))}
   `;
 
   const sec2 = `
