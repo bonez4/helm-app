@@ -5299,20 +5299,18 @@ function irrGenerateEmail(data, ytd) {
   const yoyBlock = (curIn, prevIn) => {
     const cur = Number(curIn)||0, prev = Number(prevIn)||0;
     const d = cur - prev;
-    let pctStr, label;
+    let pctStr;
     if(Math.abs(prev) < 0.005){
-      if(Math.abs(cur) < 0.005){ pctStr = '0.0%'; label = 'unchanged'; }
-      else { pctStr = 'new'; label = '(no prior-year data)'; }
+      pctStr = Math.abs(cur) < 0.005 ? '0.0%' : 'new';
     } else {
       const pctVal = (d/Math.abs(prev))*100;
       const sign = pctVal >= 0 ? '+' : '\u2212';
       pctStr = `${sign}${Math.abs(pctVal).toFixed(1)}%`;
-      label = pctVal > 0.05 ? 'higher' : pctVal < -0.05 ? 'lower' : 'unchanged';
     }
     const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
     return `
       <div>${prevYear}: ${f2(prev)} tons, ${curYear}: ${f2(cur)} tons</div>
-      <div>Delta: <span style="color:${color};font-weight:bold;">${pctStr} ${label}</span></div>
+      <div>Delta: <span style="color:${color};font-weight:bold;">${pctStr}</span></div>
     `;
   };
 
@@ -5553,20 +5551,18 @@ function irrRenderReportView(data, ytd) {
   const yoyBlock = (curIn, prevIn) => {
     const cur = Number(curIn)||0, prev = Number(prevIn)||0;
     const d = cur - prev;
-    let pctStr, label;
+    let pctStr;
     if(Math.abs(prev) < 0.005){
-      if(Math.abs(cur) < 0.005){ pctStr = '0.0%'; label = 'unchanged'; }
-      else { pctStr = 'new'; label = '(no prior-year data)'; }
+      pctStr = Math.abs(cur) < 0.005 ? '0.0%' : 'new';
     } else {
       const pctVal = (d/Math.abs(prev))*100;
       const sign = pctVal >= 0 ? '+' : '\u2212';
       pctStr = `${sign}${Math.abs(pctVal).toFixed(1)}%`;
-      label = pctVal > 0.05 ? 'higher' : pctVal < -0.05 ? 'lower' : 'unchanged';
     }
     const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
     return `
       <div>${prevYear}: ${f2(prev)} tons, ${curYear}: ${f2(cur)} tons</div>
-      <div>Delta: <span style="color:${color};font-weight:700;">${pctStr} ${label}</span></div>
+      <div>Delta: <span style="color:${color};font-weight:700;">${pctStr}</span></div>
     `;
   };
   const pileLine = (p) => (p.pileTickets||0)+' loads &nbsp;&middot;&nbsp; '+f2(p.pileTons||0)+' tons';
