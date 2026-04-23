@@ -230,20 +230,22 @@ Four sub-views:
   - Exclude wins if multiple boxes are checked
 - Driver hours prompt — asks for Island Rubbish driver count + hours
 - Auto-save — raw .xls saved to Files → shared "Daily Scale Reports" folder
-- Generates formatted **daily email** in a unified three-section layout (no per-company breakdown):
+- Generates formatted **daily email** in a unified four-section layout (no per-company breakdown). Identical structure renders both inside the Daily Scale Report tab and as the email body the Copy/Gmail buttons emit:
   - **Section 1: Rolloff Internal Volume** (combined Reis + Island + East End rolloff tonnage)
-    - Today / WTD / MTD
-    - **MOM** — same-period prior month for direct comparison
-    - YTD
-    - **YOY** — same-period prior year for direct comparison
+    - Today / WTD / MTD / **MOM** / YTD / **YOY**
+    - **Today row is highlighted across the whole row** (soft yellow `#fff4cc`)
+    - **MOM** = sum across the same days of the prior month (capped if prior month is shorter); shows the prior-period absolute total + a signed `(+X.XX tons, +Y.Y% vs MTD)` delta colored green when this month is up, red when down
+    - **YOY** = sum from Jan 1 of prior year through the prior-year equivalent of today (handles Feb 29 → Feb 28 in non-leap years); shows the same `(±X tons, ±Y% vs YTD)` delta
   - **Section 2: Inbound vs Outbound — Xfer Station, Rolloffs + Walk-Ins**
-    - One row per period (Today / WTD / MTD / YTD), formatted `inbound, outbound : net`
+    - Today / WTD / MTD / YTD rows, each formatted `inbound, outbound : net`
     - Net = inbound − outbound. **Red** when net is positive (material accumulating); **green** when net is negative (material clearing out)
-    - Plus **MTD YOY** and **YTD YOY** rows showing the same-period prior-year figures
+    - **Today row is highlighted across the whole row** (matches Section 1)
+    - **MTD YOY** and **YTD YOY** rows render as a two-line block: `2025: X.XX tons, 2026: Y.YY tons` followed by `Delta: ±Z%` (green when current year is up, red when down). The single tonnage figure is total inbound (rolloff + walkin); year labels track the report's date so historical reports show the correct year pair
   - **Section 3: Revenue (today only)**
-    - Total Revenue Today
+    - Total Revenue Today (bold)
     - Rolloff Revenue (today)
     - Walk-In Revenue (today)
+  - **Section 4: Pile Pickups (Reis)** — single line: `Today: X loads · Y.YY tons`
 - Copy to clipboard / Gmail draft creation
 - Historical report viewer (click any past date)
 - **Historical bulk import** — upload date-range .xls to upsert history
@@ -472,7 +474,7 @@ helm-app/
 
 ## Recent Major Changes
 
-- **April 23, 2026** — Daily email rebuild: three unified sections (Rolloff Internal Volume / Inbound vs Outbound / Revenue), no per-company breakdown. Adds MOM + YOY comparison rows. Net inbound vs outbound colored red (accumulating) / green (clearing).
+- **April 23, 2026** — Daily email rebuild: four unified sections (Rolloff Internal Volume / Inbound vs Outbound / Revenue / Pile Pickups), no per-company breakdown. MOM + YOY rows on Section 1 show prior-period totals plus a signed (±tons, ±%) delta. MTD YOY / YTD YOY on Section 2 render as a two-line block (`2025: X tons, 2026: Y tons` + `Delta: ±Z%`). Net inbound vs outbound colored red (accumulating) / green (clearing). Today rows in Sections 1 and 2 highlighted edge-to-edge in soft yellow. Same layout drives both the email body and the in-app Daily Scale Report view (irrRenderReportView), all from one shared `irrLoadYTD` data fetch.
 - **April 19, 2026** — Hook fee vs disposal fee split. Disposal fees (mattress, appliance, freon, monitor, tire) now route based on ticket: Reis rolloff ticket → tonnage revenue; walk-in → walk-in revenue. Move Rolloff stays in hook fees.
 - **April 19, 2026** — Review IC Tickets modal extended: includes Delta; three columns (Exclude / Pile Pickup / Walk In).
 - **April 18, 2026** — Consolidated Rolloff sub-tab added under IRR Scale. Excel export + shared manual hours/drivers entry.
