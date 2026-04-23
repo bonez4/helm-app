@@ -5489,34 +5489,47 @@ async function irrLoadHistory() {
 
 function irrRenderReportView(data, ytd) {
   const {date, buckets} = data;
-  const {reis,pile,island,santos,vinagro,walkin} = buckets;
-  const totalTons = reis.tons+pile.tons+island.tons+santos.tons+walkin.tons;
-  const totalTickets = reis.tickets+pile.tickets+island.tickets+santos.tickets+walkin.tickets;
-  const reisRev=(reis.tipRevenue||0)+(reis.rolloffFees||0);
-  const islandRev=island.revenue||0;
-  const santosRev=santos.revenue||0;
+  const {reis,island,santos,walkin} = buckets;
   const email = irrGenerateEmail(data, ytd);
 
-  function companyCard(name, tickets, tons, hookRev, tonRev) {
-    const total=hookRev+tonRev;
-    return `<div class="irr-section-hdr">${name}</div>
-      <table class="irr-table"><tbody>
-        <tr><td>Loads</td><td style="text-align:right" colspan="2">${tickets}</td></tr>
-        <tr><td>Hook Fee Revenue</td><td style="text-align:right" colspan="2">${irrFmtMoney(hookRev)}</td></tr>
-        <tr><td>Tonnage Revenue</td><td style="text-align:right" colspan="2">${irrFmtMoney(tonRev)}</td></tr>
-        <tr><td style="font-weight:700">Total Revenue</td><td style="text-align:right;font-weight:700" colspan="2">${irrFmtMoney(total)}</td></tr>
-        <tr><td>Revenue / Load</td><td style="text-align:right" colspan="2">${tickets>0?irrFmtMoney(total/tickets):'--'}</td></tr>
-        <tr><td>Total Tons</td><td style="text-align:right" colspan="2">${irrFmt(tons)}</td></tr>
-        <tr><td>Tons / Load</td><td style="text-align:right" colspan="2">${tickets>0?irrFmt(tons/tickets):'--'}</td></tr>
-      </tbody></table>`;
-  }
+  // Today's revenue from the freshly-parsed buckets (always current)
+  const rolloffRevToday = (reis.tipRevenue||0) + (reis.rolloffFees||0)
+                        + (island.revenue||0) + (santos.revenue||0);
+  const walkinRevToday  = walkin.tipRevenue||0;
+  const totalRevToday   = rolloffRevToday + walkinRevToday;
 
-  // Split Island/East End revenue into hook vs tonnage using rates (respects 4/17/2026 cutoff)
-  const {ir, er} = irrRatesFor(date);
-  const islandHook=(ir?ir.hook_fee:250)*island.tickets;
-  const islandTonRev=islandRev-islandHook;
-  const santosHook=(er?er.hook_fee:200)*santos.tickets;
-  const santosTonRev=santosRev-santosHook;
+  // Period buckets — mirrors what irrGenerateEmail uses
+  const t = ytd.today || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
+  const w = ytd.wtd   || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
+  const m = ytd.mtd   || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
+  const mo= ytd.mom   || {rolloff:0,walkin:0,vin:0};
+  const y = ytd.ytd   || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
+  const yo= ytd.yoy   || {rolloff:0,walkin:0,vin:0};
+  const my= ytd.mtdYoy|| {rolloff:0,walkin:0,vin:0};
+
+  // Helpers (parallel the email's formatting)
+  const f2 = n => (Number(n)||0).toFixed(2);
+  const fM = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const inOut = (inb, out) => {
+    const net = (Number(inb)||0) - (Number(out)||0);
+    const color = net > 0.005 ? '#c62828' : net < -0.005 ? '#2e7d32' : '#444';
+    return `${f2(inb)}, ${f2(out)} : <span style="color:${color};font-weight:700">${f2(Math.abs(net))}</span>`;
+  };
+  const delta = (curVal, prevVal, vsLabel) => {
+    const cur = Number(curVal)||0, prev = Number(prevVal)||0;
+    const d = cur - prev;
+    if(Math.abs(d) < 0.005 && Math.abs(cur) < 0.005 && Math.abs(prev) < 0.005) return '';
+    const sign  = d >= 0 ? '+' : '\u2212';
+    const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
+    const magnitude = Math.abs(d).toFixed(2);
+    const pct = prev > 0.005 ? `, ${sign}${(Math.abs(d)/prev*100).toFixed(1)}%` : (cur > 0.005 ? ', new' : '');
+    return ` <span style="color:${color};font-weight:700;font-size:11px;">(${sign}${magnitude} tons${pct} vs ${vsLabel})</span>`;
+  };
+  const pileLine = (p) => (p.pileTickets||0)+' loads &nbsp;&middot;&nbsp; '+f2(p.pileTons||0)+' tons';
+  const rowH = (label, val, bold) => `<tr>
+    <td${bold?' style="font-weight:700"':''}>${label}</td>
+    <td${bold?' style="font-weight:700"':''}>${val}</td></tr>`;
+  const blankRow = '<tr><td colspan="2" style="padding:5px 0;border:none;"></td></tr>';
 
   return `
     <div class="irr-report">
@@ -5524,30 +5537,40 @@ function irrRenderReportView(data, ytd) {
         Daily Scale Report &mdash; <strong style="color:var(--teal)">${irrFmtDate(date)}</strong>
       </h3>
 
-      ${companyCard('Reis Rolloff', reis.tickets, reis.tons, reis.rolloffFees||0, reis.tipRevenue||0)}
-      ${companyCard('Island Rubbish', island.tickets, island.tons, islandHook, islandTonRev)}
-      ${companyCard('East End', santos.tickets, santos.tons, santosHook, santosTonRev)}
-      ${companyCard('All Rolloffs Combined', reis.tickets+(island.tickets||0)+(santos.tickets||0), reis.tons+(island.tons||0)+(santos.tons||0), (reis.rolloffFees||0)+islandHook+santosHook, (reis.tipRevenue||0)+islandTonRev+santosTonRev)}
-
-      ${pile.tickets>0?`<div class="irr-section-hdr">Pile Pickups (Reis)</div>
+      <div class="irr-section-hdr">Rolloff Internal Volume</div>
       <table class="irr-table"><tbody>
-        <tr><td>Loads</td><td style="text-align:right">${pile.tickets}</td><td style="text-align:right">${irrFmt(pile.tons)} tons</td></tr>
-      </tbody></table>`:''}
-
-      <div class="irr-section-hdr">Walk-In / Drive-Through</div>
-      <table class="irr-table"><tbody>
-        <tr><td>Tickets</td><td style="text-align:right" colspan="2">${walkin.tickets}</td></tr>
-        <tr><td>Total Tons</td><td style="text-align:right" colspan="2">${irrFmt(walkin.tons)}</td></tr>
-        <tr><td>Total Revenue</td><td style="text-align:right" colspan="2">${irrFmtMoney(walkin.tipRevenue||0)}</td></tr>
+        ${rowH('Today', f2(t.rolloff)+' tons')}
+        ${rowH('WTD',   f2(w.rolloff)+' tons')}
+        ${rowH('MTD',   f2(m.rolloff)+' tons')}
+        ${rowH('MOM',   f2(mo.rolloff)+' tons'+delta(m.rolloff, mo.rolloff, 'MTD'))}
+        ${rowH('YTD',   f2(y.rolloff)+' tons')}
+        ${rowH('YOY',   f2(yo.rolloff)+' tons'+delta(y.rolloff, yo.rolloff, 'YTD'))}
       </tbody></table>
 
+      <div class="irr-section-hdr">Inbound V. Outbound &mdash; Xfer Station, Rolloffs + Walk-Ins</div>
       <table class="irr-table"><tbody>
-        <tr class="irr-total"><td>Total Inbound</td><td style="text-align:right">${totalTickets} tickets</td><td style="text-align:right">${irrFmt(totalTons)} tons</td></tr>
+        ${rowH('Today',   inOut(t.rolloff+t.walkin,  t.vin))}
+        ${rowH('WTD',     inOut(w.rolloff+w.walkin,  w.vin))}
+        ${rowH('MTD',     inOut(m.rolloff+m.walkin,  m.vin))}
+        ${rowH('YTD',     inOut(y.rolloff+y.walkin,  y.vin))}
+        ${blankRow}
+        ${rowH('MTD YOY', inOut(my.rolloff+my.walkin, my.vin))}
+        ${rowH('YTD YOY', inOut(yo.rolloff+yo.walkin, yo.vin))}
       </tbody></table>
 
-      <div class="irr-section-hdr">Vinagro Output (Outbound)</div>
+      <div class="irr-section-hdr">Revenue (today)</div>
       <table class="irr-table"><tbody>
-        <tr><td>Loads</td><td style="text-align:right">${vinagro.tickets}</td><td style="text-align:right">${irrFmt(vinagro.tons)} tons</td></tr>
+        ${rowH('Total Revenue Today', fM(totalRevToday), true)}
+        ${rowH('Rolloff Revenue',     fM(rolloffRevToday))}
+        ${rowH('Walk-In Revenue',     fM(walkinRevToday))}
+      </tbody></table>
+
+      <div class="irr-section-hdr">Pile Pickups (Reis)</div>
+      <table class="irr-table"><tbody>
+        ${rowH('Today', pileLine(t))}
+        ${rowH('WTD',   pileLine(w))}
+        ${rowH('MTD',   pileLine(m))}
+        ${rowH('YTD',   pileLine(y))}
       </tbody></table>
 
       <hr style="border:none;border-top:1px solid var(--gray-200);margin:24px 0 16px;">
