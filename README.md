@@ -380,6 +380,25 @@ When re-importing historical data, verify Reis service fees average $180-$210 pe
 - Current year YTD: sum of `irr_reports` where `report_date >= {year}-01-01 AND report_date <= today`
 - Prior year same-period: sum through same MM-DD in prior year (grows day by day with current year)
 
+### HELM revenue vs Scale-file "Report Totals" — why they differ
+
+A common question: "the scale .xls says $51,863 in revenue, but HELM's daily email says $56,335 — is something wrong?"
+
+Nothing's wrong. HELM's revenue is **not** a copy of the file's grand total. It's a recomputation that intentionally diverges in three predictable places. When you reconcile by hand, the gap will always come from one or more of these:
+
+1. **Hardcoded rolloff service fees (post-4/17/2026).** Scale tickets often list rolloff service line items (DELIVERY, EMPTY, DOUBLE DROP, MOVE) at $0/EA or at older rates. HELM ignores the file value and applies the current schedule (`$100 / $250 / $250 / $60`). Effect: HELM total > file total whenever the file under-prices these.
+
+2. **Per-unit disposal fees applied at fixed prices.** Mattress / appliance / freon / monitor / tire line items are billed by HELM at hardcoded rates regardless of file value (`$50 / $11 / $45 / $16.50 / $16.50`). If the file shows them at $0 but the count is N, HELM still bills N × rate.
+
+3. **Intercompany hook fees that the file doesn't carry.** The scale file's tip-fee total reflects net tons × rate for IC tickets but does NOT add a hook fee per IC ticket — that's an inter-company billing arrangement, not a scale-house charge. HELM, by design, computes IC revenue as `hook_fee × tickets + per_ton × tons` (see `irr_rates`), so it adds **$250 per Island ticket + $250 per East End ticket** on top of the per-ton portion. On a heavy IC day this is the largest single contributor to the gap.
+
+Quick reconciliation pattern when investigating a difference:
+- Total file rolloff-service line items, compare against what HELM applies (1×$100 + N×$250 etc) → service uplift component
+- Count IC tickets (East End + Island), multiply by $250 → IC hook lift component
+- Sum should approximately equal `HELM total − file Report Totals`
+
+Reclassifications also matter: if any IC tickets were marked **Pile Pickup**, **Walk In**, or **Exclude** in the Review IC modal during upload, that revenue moved between buckets (or was removed entirely) — the on-screen / email totals reflect the post-reclassification state, not the raw file.
+
 ---
 
 ## Deployment
@@ -474,6 +493,7 @@ helm-app/
 
 ## Recent Major Changes
 
+- **April 23, 2026** — Documented the HELM-vs-scale-file revenue reconciliation in Parsing Notes. The gap between HELM's daily total and the file's "Report Totals" line is by design — comes from (1) hardcoded post-4/17 service fees overriding file values, (2) hardcoded per-unit disposal fees, and (3) IC hook fees that aren't on the scale ticket.
 - **April 23, 2026** — Daily email rebuild: four unified sections (Rolloff Internal Volume / Inbound vs Outbound / Revenue / Pile Pickups), no per-company breakdown. MOM + YOY rows on Section 1 show prior-period totals plus a signed (±tons, ±%) delta. MTD YOY / YTD YOY on Section 2 render as a two-line block (`2025: X tons, 2026: Y tons` + `Delta: ±Z%`). Net inbound vs outbound colored red (accumulating) / green (clearing). Today rows in Sections 1 and 2 highlighted edge-to-edge in soft yellow. Same layout drives both the email body and the in-app Daily Scale Report view (irrRenderReportView), all from one shared `irrLoadYTD` data fetch.
 - **April 19, 2026** — Hook fee vs disposal fee split. Disposal fees (mattress, appliance, freon, monitor, tire) now route based on ticket: Reis rolloff ticket → tonnage revenue; walk-in → walk-in revenue. Move Rolloff stays in hook fees.
 - **April 19, 2026** — Review IC Tickets modal extended: includes Delta; three columns (Exclude / Pile Pickup / Walk In).
