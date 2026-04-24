@@ -5243,13 +5243,24 @@ function irrGenerateEmail(data, ytd) {
   const displayDate = irrFmtDate(date);
   const subject = 'IRR Scale Report \u2014 '+(date||'Today');
 
-  // Today revenue is computed from the freshly-parsed buckets (always current,
+  // Today figures come from the freshly-parsed buckets (always current,
   // even if the row hasn't fully round-tripped through the DB yet).
-  const {reis,island,santos,walkin} = buckets;
-  const rolloffRevToday = (reis.tipRevenue||0) + (reis.rolloffFees||0)
-                        + (island.revenue||0) + (santos.revenue||0);
-  const walkinRevToday  = walkin.tipRevenue||0;
-  const totalRevToday   = rolloffRevToday + walkinRevToday;
+  const {reis,island,santos,walkin,pile} = buckets;
+  // Today's load + ticket counts
+  const rolloffLoadsToday = (reis.tickets||0) + (island.tickets||0) + (santos.tickets||0);
+  const walkinTicketsToday = (walkin.tickets||0) + (pile?pile.tickets||0:0); // pile pickups roll into walk-in display
+
+  // Revenue split — separate hook fees from tonnage so we can show subtotals
+  const {ir, er} = irrRatesFor(date);
+  const islandHook   = (ir ? ir.hook_fee : 250) * (island.tickets||0);
+  const islandTonRev = (island.revenue||0) - islandHook;
+  const santosHook   = (er ? er.hook_fee : 250) * (santos.tickets||0);
+  const santosTonRev = (santos.revenue||0) - santosHook;
+  const rolloffHookToday  = (reis.rolloffFees||0) + islandHook + santosHook;
+  const rolloffTonRevToday = (reis.tipRevenue||0) + islandTonRev + santosTonRev;
+  const rolloffRevToday    = rolloffHookToday + rolloffTonRevToday;
+  const walkinRevToday     = walkin.tipRevenue||0;
+  const totalRevToday      = rolloffRevToday + walkinRevToday;
 
   // Helpers
   const f2 = n => (Number(n)||0).toFixed(2);
@@ -5313,7 +5324,7 @@ function irrGenerateEmail(data, ytd) {
     const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
     return `
       <div>${prevYear}: ${f2(prev)} tons, ${curYear}: ${f2(cur)} tons</div>
-      <div>Delta: <span style="color:${color};font-weight:bold;">${pctStr}</span></div>
+      <div>% Change: <span style="color:${color};font-weight:bold;">${pctStr}</span></div>
     `;
   };
 
@@ -5326,9 +5337,15 @@ function irrGenerateEmail(data, ytd) {
   const yo= ytd.yoy   || {rolloff:0,walkin:0,vin:0};
   const my= ytd.mtdYoy|| {rolloff:0,walkin:0,vin:0};
 
+  // Indented sub-row for Hook Fee / Tonnage breakdown under Rolloff Revenue.
+  const subRow = (label, val) => `<tr>
+    <td style="${labelStyle}padding-left:18px;color:#666;font-size:13px;">${label}</td>
+    <td style="${valStyle}color:#666;font-size:13px;">${val}</td>
+  </tr>`;
+
   const sec1 = `
     ${firstSectionHdr('Rolloff Internal Volume')}
-    ${row('Today', f2(t.rolloff)+' tons', false, true)}
+    ${row('Today', rolloffLoadsToday + ' loads &nbsp;\u00B7&nbsp; ' + f2(t.rolloff) + ' tons', false, true)}
     ${row('WTD',   f2(w.rolloff)+' tons')}
     ${row('MTD',   f2(m.rolloff)+' tons')}
     ${row('MOM',   f2(mo.rolloff)+' tons'+delta(m.rolloff, mo.rolloff, 'MTD'))}
@@ -5348,17 +5365,12 @@ function irrGenerateEmail(data, ytd) {
   `;
 
   const sec3 = `
-    ${sectionHdr('Revenue (today)')}
+    ${sectionHdr('Revenue')}
     ${row('Total Revenue Today', fM(totalRevToday), true)}
     ${row('Rolloff Revenue',     fM(rolloffRevToday))}
-    ${row('Walk-In Revenue',     fM(walkinRevToday))}
-  `;
-
-  // Section 4: Pile Pickups (Reis ZZDELTA jobs) — today only.
-  const pileLine = (p) => (p.pileTickets||0) + ' loads &nbsp;\u00B7&nbsp; ' + f2(p.pileTons||0) + ' tons';
-  const sec4 = `
-    ${sectionHdr('Pile Pickups (Reis)')}
-    ${row('Today', pileLine(t))}
+    ${subRow('Hook Fee Revenue', fM(rolloffHookToday))}
+    ${subRow('Tonnage Revenue',  fM(rolloffTonRevToday))}
+    ${row('Walk-In Revenue',     fM(walkinRevToday) + ' &nbsp;\u00B7&nbsp; ' + walkinTicketsToday + ' tickets')}
   `;
 
   const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:560px;line-height:1.55;">
@@ -5368,7 +5380,6 @@ function irrGenerateEmail(data, ytd) {
     ${sec1}
     ${sec2}
     ${sec3}
-    ${sec4}
   </table></div>`;
 
   return {subject, body};
@@ -5512,14 +5523,24 @@ async function irrLoadHistory() {
 
 function irrRenderReportView(data, ytd) {
   const {date, buckets} = data;
-  const {reis,island,santos,walkin} = buckets;
+  const {reis,island,santos,walkin,pile} = buckets;
   const email = irrGenerateEmail(data, ytd);
 
-  // Today's revenue from the freshly-parsed buckets (always current)
-  const rolloffRevToday = (reis.tipRevenue||0) + (reis.rolloffFees||0)
-                        + (island.revenue||0) + (santos.revenue||0);
-  const walkinRevToday  = walkin.tipRevenue||0;
-  const totalRevToday   = rolloffRevToday + walkinRevToday;
+  // Today counts
+  const rolloffLoadsToday  = (reis.tickets||0) + (island.tickets||0) + (santos.tickets||0);
+  const walkinTicketsToday = (walkin.tickets||0) + (pile?pile.tickets||0:0);
+
+  // Today revenue split — hook fees vs tonnage so we can show subtotals
+  const {ir, er} = irrRatesFor(date);
+  const islandHook   = (ir ? ir.hook_fee : 250) * (island.tickets||0);
+  const islandTonRev = (island.revenue||0) - islandHook;
+  const santosHook   = (er ? er.hook_fee : 250) * (santos.tickets||0);
+  const santosTonRev = (santos.revenue||0) - santosHook;
+  const rolloffHookToday   = (reis.rolloffFees||0) + islandHook + santosHook;
+  const rolloffTonRevToday = (reis.tipRevenue||0) + islandTonRev + santosTonRev;
+  const rolloffRevToday    = rolloffHookToday + rolloffTonRevToday;
+  const walkinRevToday     = walkin.tipRevenue||0;
+  const totalRevToday      = rolloffRevToday + walkinRevToday;
 
   // Period buckets — mirrors what irrGenerateEmail uses
   const t = ytd.today || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
@@ -5565,10 +5586,9 @@ function irrRenderReportView(data, ytd) {
     const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
     return `
       <div>${prevYear}: ${f2(prev)} tons, ${curYear}: ${f2(cur)} tons</div>
-      <div>Delta: <span style="color:${color};font-weight:700;">${pctStr}</span></div>
+      <div>% Change: <span style="color:${color};font-weight:700;">${pctStr}</span></div>
     `;
   };
-  const pileLine = (p) => (p.pileTickets||0)+' loads &nbsp;&middot;&nbsp; '+f2(p.pileTons||0)+' tons';
   const rowH = (label, val, bold, highlight) => {
     const sty = (bold?'font-weight:700;':'') + (highlight?'background:#fff4cc;':'');
     const attr = sty ? ` style="${sty}"` : '';
@@ -5576,6 +5596,9 @@ function irrRenderReportView(data, ytd) {
       <td${attr}>${label}</td>
       <td${attr}>${val}</td></tr>`;
   };
+  const subRowH = (label, val) => `<tr>
+    <td style="padding-left:32px;color:var(--gray-500);font-size:12px;">${label}</td>
+    <td style="color:var(--gray-500);font-size:12px;">${val}</td></tr>`;
   const blankRow = '<tr><td colspan="2" style="padding:5px 0;border:none;"></td></tr>';
 
   return `
@@ -5586,7 +5609,7 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Rolloff Internal Volume</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today', f2(t.rolloff)+' tons', false, true)}
+        ${rowH('Today', rolloffLoadsToday + ' loads &middot; ' + f2(t.rolloff) + ' tons', false, true)}
         ${rowH('WTD',   f2(w.rolloff)+' tons')}
         ${rowH('MTD',   f2(m.rolloff)+' tons')}
         ${rowH('MOM',   f2(mo.rolloff)+' tons'+delta(m.rolloff, mo.rolloff, 'MTD'))}
@@ -5605,16 +5628,13 @@ function irrRenderReportView(data, ytd) {
         ${rowH('YTD YOY', yoyBlock(y.rolloff+y.walkin, yo.rolloff+yo.walkin))}
       </tbody></table>
 
-      <div class="irr-section-hdr">Revenue (today)</div>
+      <div class="irr-section-hdr">Revenue</div>
       <table class="irr-table"><tbody>
         ${rowH('Total Revenue Today', fM(totalRevToday), true)}
         ${rowH('Rolloff Revenue',     fM(rolloffRevToday))}
-        ${rowH('Walk-In Revenue',     fM(walkinRevToday))}
-      </tbody></table>
-
-      <div class="irr-section-hdr">Pile Pickups (Reis)</div>
-      <table class="irr-table"><tbody>
-        ${rowH('Today', pileLine(t))}
+        ${subRowH('Hook Fee Revenue', fM(rolloffHookToday))}
+        ${subRowH('Tonnage Revenue',  fM(rolloffTonRevToday))}
+        ${rowH('Walk-In Revenue',     fM(walkinRevToday) + ' &middot; ' + walkinTicketsToday + ' tickets')}
       </tbody></table>
 
       <hr style="border:none;border-top:1px solid var(--gray-200);margin:24px 0 16px;">
