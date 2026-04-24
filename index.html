@@ -5366,7 +5366,7 @@ function irrGenerateEmail(data, ytd) {
 
   const sec3 = `
     ${sectionHdr('Revenue')}
-    ${row('Total Revenue Today', fM(totalRevToday), true)}
+    ${row('Total Revenue Today', fM(totalRevToday), true, true)}
     ${row('Rolloff Revenue',     fM(rolloffRevToday))}
     ${subRow('Hook Fee Revenue', fM(rolloffHookToday))}
     ${subRow('Tonnage Revenue',  fM(rolloffTonRevToday))}
@@ -5630,7 +5630,7 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Revenue</div>
       <table class="irr-table"><tbody>
-        ${rowH('Total Revenue Today', fM(totalRevToday), true)}
+        ${rowH('Total Revenue Today', fM(totalRevToday), true, true)}
         ${rowH('Rolloff Revenue',     fM(rolloffRevToday))}
         ${subRowH('Hook Fee Revenue', fM(rolloffHookToday))}
         ${subRowH('Tonnage Revenue',  fM(rolloffTonRevToday))}
