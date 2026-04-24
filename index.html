@@ -5345,7 +5345,7 @@ function irrGenerateEmail(data, ytd) {
 
   const sec1 = `
     ${firstSectionHdr('Rolloff Internal Volume')}
-    ${row('Today', rolloffLoadsToday + ' loads &nbsp;\u00B7&nbsp; ' + f2(t.rolloff) + ' tons', false, true)}
+    ${row('Today', rolloffLoadsToday + ' trips &nbsp;\u00B7&nbsp; ' + f2(t.rolloff) + ' tons', false, true)}
     ${row('WTD',   f2(w.rolloff)+' tons')}
     ${row('MTD',   f2(m.rolloff)+' tons')}
     ${row('MOM',   f2(mo.rolloff)+' tons'+delta(m.rolloff, mo.rolloff, 'MTD'))}
@@ -5609,7 +5609,7 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Rolloff Internal Volume</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today', rolloffLoadsToday + ' loads &middot; ' + f2(t.rolloff) + ' tons', false, true)}
+        ${rowH('Today', rolloffLoadsToday + ' trips &middot; ' + f2(t.rolloff) + ' tons', false, true)}
         ${rowH('WTD',   f2(w.rolloff)+' tons')}
         ${rowH('MTD',   f2(m.rolloff)+' tons')}
         ${rowH('MOM',   f2(mo.rolloff)+' tons'+delta(m.rolloff, mo.rolloff, 'MTD'))}
