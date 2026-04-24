@@ -7999,6 +7999,7 @@ async function crcLoadReport() {
     <div style="font-size:11px;color:var(--gray-500);margin-top:10px;">
       Bottom 6 rows are manual. Enter # of Drivers, ST Hours, and OT Hours \u2014 Total Hours, Hrs/Drvr, and Hrs/Load auto-calculate. You can override any derived cell. Saved per week, shared across all users.
     </div>
+    <div id="crc2025"></div>
   `;
   container.innerHTML = html;
 
@@ -8008,6 +8009,70 @@ async function crcLoadReport() {
 
   // Initial derived render
   crcRefreshDerived();
+
+  // Load + render the 2025 historical breakdown (cached after first load)
+  crcLoad2025Historical();
+}
+
+async function crcLoad2025Historical(){
+  const container = document.getElementById('crc2025');
+  if(!container) return;
+  let rows = window._crc2025Data;
+  if(!rows){
+    container.innerHTML = '<div style="padding:14px 0;font-size:12px;color:var(--gray-500);">Loading 2025 historical data\u2026</div>';
+    const {data, error} = await db.from('irr_reports').select('*')
+      .gte('report_date', '2025-01-01').lte('report_date', '2025-12-31')
+      .order('report_date');
+    if(error){ container.innerHTML = '<div style="padding:14px 0;color:var(--err-text);font-size:12px;">Error: '+esc(error.message)+'</div>'; return; }
+    rows = data || [];
+    window._crc2025Data = rows;
+  }
+  // Group rows by calendar month (1-12)
+  const byMonth = Array.from({length:12}, () => ({rolloffLoads:0, rolloffRev:0, walkinTickets:0, walkinRev:0}));
+  for(const r of rows){
+    const m = parseInt(r.report_date.slice(5,7)) - 1;
+    if(m < 0 || m > 11) continue;
+    byMonth[m].rolloffLoads  += (r.reis_tickets||0) + (r.island_tickets||0) + (r.santos_tickets||0);
+    byMonth[m].rolloffRev    += (parseFloat(r.reis_tip_revenue)||0) + (parseFloat(r.reis_svc_revenue)||0)
+                              + (parseFloat(r.island_revenue)||0) + (parseFloat(r.santos_revenue)||0);
+    byMonth[m].walkinTickets += r.walkin_tickets||0;
+    byMonth[m].walkinRev     += parseFloat(r.walkin_tip_revenue)||0;
+  }
+  const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fM = n => n>0 ? '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '$0.00';
+  const fN = n => n>0 ? n.toLocaleString('en-US') : '\u2014';
+  const cdLoads = byMonth.map(m => m.rolloffLoads + m.walkinTickets);
+  const totRev  = byMonth.map(m => m.rolloffRev + m.walkinRev);
+
+  const loadsRow         = byMonth.map(m   => fN(m.rolloffLoads));
+  const revLoadRolloffRow= byMonth.map(m   => m.rolloffLoads>0 ? fM(m.rolloffRev/m.rolloffLoads) : '$0.00');
+  const cdLoadsRow       = cdLoads .map(v   => fN(v));
+  const revLoadCdRow     = cdLoads .map((v,i)=> v>0 ? fM(totRev[i]/v) : '$0.00');
+
+  const headerRow = `<tr><td colspan="13" style="background:#3a5b8c;color:white;font-weight:700;padding:7px 12px;font-size:12px;letter-spacing:0.05em;">ROLLOFF / C&amp;D <span style="font-weight:400;opacity:0.85;font-size:11px;margin-left:10px;">\u2014 Historical 2025</span></td></tr>`;
+  const monthHdr = `<tr style="background:#eef2f7;">
+    <td style="padding:6px 10px;font-size:11px;color:var(--gray-500);font-weight:600;">Month</td>
+    ${monthLabels.map(m=>`<td style="padding:6px 6px;text-align:right;font-size:11px;color:var(--gray-500);font-weight:600;">${m}</td>`).join('')}
+  </tr>`;
+  const dataRow = (label, vals, isMoney) => `<tr style="background:#fef7df;">
+    <td style="padding:5px 10px;font-size:11px;color:#1f3a5f;font-weight:600;border-bottom:1px solid #f0e8c2;">${esc(label)} <span style="color:#9aaecf;">*</span></td>
+    ${vals.map(v=>`<td style="padding:5px 6px;text-align:right;font-size:11px;color:#1f3a5f;border-bottom:1px solid #f0e8c2;${isMoney?'font-family:\'DM Mono\',monospace;':''}">${v}</td>`).join('')}
+  </tr>`;
+
+  container.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;margin-top:22px;border:1px solid #c5d2e0;">
+      <tbody>
+        ${headerRow}
+        ${monthHdr}
+        ${dataRow('Loads/Month', loadsRow, false)}
+        ${dataRow('Rev/Load (Rolloff)', revLoadRolloffRow, true)}
+        ${dataRow('C&D Loads/Month', cdLoadsRow, false)}
+        ${dataRow('Rev/Load (C&D)', revLoadCdRow, true)}
+      </tbody>
+    </table>
+    <div style="font-size:10px;color:var(--gray-500);margin-top:6px;font-style:italic;">
+      Rolloff = Reis + Island + East End rolloff loads. C&amp;D = Rolloff + Walk-in tickets. Sourced from <code>irr_reports</code> for calendar 2025.
+    </div>`;
 }
 
 function crcOnManualInput(input){
