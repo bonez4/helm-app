@@ -7591,6 +7591,7 @@ function icrRenderReport(allData, container) {
       <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrExportFile()">Export File</button>
       <button class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
       <button class="icr-nav-btn" style="background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
+      <button class="icr-nav-btn" style="background:var(--teal-dim);color:white;border-color:var(--teal-dim);" onclick="icrShowYearly()">Yearly Report</button>
       <button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
     </div>
     <table class="icr-table">
@@ -8554,6 +8555,177 @@ function icrDefaultAssumptions(m25, m26, total25) {
     rateChangePct:0,
     operatingDaysPerMonth:[0,22,20,22,22,22,26,27,26,26,22,21,18], // index 1-12, derived from 2025
   };
+}
+
+// ── YEARLY REPORT (custom date range, daily-granularity line charts) ──
+let icrYearlyCharts = [];
+let icrYearlyFrom = null; // 'YYYY-MM-DD'
+let icrYearlyTo   = null;
+function icrDestroyYearlyCharts(){ icrYearlyCharts.forEach(c=>{ try{c.destroy();}catch(e){} }); icrYearlyCharts=[]; }
+function icrYearlyIso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function icrYearlyPreset(days){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(today); start.setDate(today.getDate() - days + 1);
+  icrYearlyFrom = icrYearlyIso(start);
+  icrYearlyTo   = icrYearlyIso(today);
+}
+
+async function icrShowYearly(){
+  if(!icrYearlyFrom || !icrYearlyTo){
+    icrYearlyPreset(365); // default: trailing 12 months
+  }
+  const {data, error} = await db.from('irr_reports').select('*')
+    .gte('report_date', icrYearlyFrom).lte('report_date', icrYearlyTo)
+    .order('report_date');
+  if(error){ toast('Yearly report error: '+error.message); return; }
+  await irrLoadRates();
+  for(const d of (data||[])){
+    const {ir, er} = irrRatesFor(d.report_date);
+    if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0)
+      d.island_revenue = ir.hook_fee*d.island_tickets + (ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0);
+    if(er && !(parseFloat(d.santos_revenue)>0) && (d.santos_tickets||0)>0)
+      d.santos_revenue = er.hook_fee*d.santos_tickets + (er.per_ton*(1+(er.ton_markup||0)))*parseFloat(d.santos_tons||0);
+  }
+  window._icrYearlyData = data || [];
+  icrRenderYearly();
+}
+
+function icrRenderYearly(){
+  icrDestroyYearlyCharts();
+  const data = window._icrYearlyData || [];
+
+  // Index by date for fast lookup
+  const byDate = {};
+  for(const d of data){
+    byDate[d.report_date] = {
+      rolloffTickets: (d.reis_tickets||0) + (d.island_tickets||0) + (d.santos_tickets||0),
+      rolloffRev: (parseFloat(d.reis_tip_revenue)||0) + (parseFloat(d.reis_svc_revenue)||0)
+                + (parseFloat(d.island_revenue)||0)   + (parseFloat(d.santos_revenue)||0),
+      walkinTickets: d.walkin_tickets||0,
+      walkinRev: parseFloat(d.walkin_tip_revenue)||0,
+    };
+  }
+
+  // Generate continuous daily series across the range (zero-fill missing days)
+  const labels=[], rollT=[], rollR=[], walkT=[], walkR=[];
+  const start = new Date(icrYearlyFrom+'T00:00:00');
+  const end   = new Date(icrYearlyTo+'T00:00:00');
+  for(let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
+    const iso = icrYearlyIso(d);
+    labels.push(iso);
+    const r = byDate[iso] || {rolloffTickets:0, rolloffRev:0, walkinTickets:0, walkinRev:0};
+    rollT.push(r.rolloffTickets);
+    rollR.push(r.rolloffRev);
+    walkT.push(r.walkinTickets);
+    walkR.push(r.walkinRev);
+  }
+
+  // Pretty date for tooltip / header
+  const fmtPretty = iso => {
+    const dt = new Date(iso+'T00:00:00');
+    return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  };
+
+  const existing = document.getElementById('icrYearlyOverlay');
+  if(existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'irr-report-overlay';
+  overlay.id = 'icrYearlyOverlay';
+  overlay.onclick = e => { if(e.target===overlay){ icrDestroyYearlyCharts(); overlay.remove(); } };
+
+  overlay.innerHTML = `<div class="irr-report-modal" style="max-width:1200px;">
+    <div class="irr-report-toolbar" style="flex-wrap:wrap;gap:6px;">
+      <span style="font-size:11px;color:var(--gray-500);font-weight:600;">From</span>
+      <input type="date" value="${icrYearlyFrom}" onchange="icrYearlyFrom=this.value;icrShowYearly()" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">
+      <span style="font-size:11px;color:var(--gray-500);font-weight:600;">To</span>
+      <input type="date" value="${icrYearlyTo}" onchange="icrYearlyTo=this.value;icrShowYearly()" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">
+      <span style="display:flex;gap:4px;margin-left:8px;">
+        <button class="icr-year-btn" onclick="icrYearlyPreset(90);icrShowYearly()">90d</button>
+        <button class="icr-year-btn" onclick="icrYearlyPreset(180);icrShowYearly()">6mo</button>
+        <button class="icr-year-btn" onclick="icrYearlyPreset(365);icrShowYearly()">1yr</button>
+        <button class="icr-year-btn" onclick="icrYearlyPreset(730);icrShowYearly()">2yr</button>
+      </span>
+      <button class="rpt-print" onclick="window.print()">Print</button>
+      <button class="rpt-close" onclick="icrDestroyYearlyCharts();document.getElementById('icrYearlyOverlay').remove()" style="margin-left:auto;">Close</button>
+    </div>
+    <div class="irr-report-body">
+      <h1 style="font-size:18px;font-weight:700;margin-bottom:4px;color:var(--navy);">Yearly Report \u2014 ${fmtPretty(icrYearlyFrom)} \u2192 ${fmtPretty(icrYearlyTo)}</h1>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:16px;">${labels.length} day${labels.length===1?'':'s'} \u00B7 daily totals \u00B7 rolloff (Reis + Island + East End) vs walk-ins. Hover for exact values.</div>
+
+      <div style="font-size:13px;font-weight:600;color:var(--navy);margin:14px 0 6px;">Tickets per Day</div>
+      <div style="position:relative;height:340px;background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);padding:12px;">
+        <canvas id="yearlyTicketsChart"></canvas>
+      </div>
+
+      <div style="font-size:13px;font-weight:600;color:var(--navy);margin:24px 0 6px;">Revenue per Day</div>
+      <div style="position:relative;height:340px;background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);padding:12px;">
+        <canvas id="yearlyRevenueChart"></canvas>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  // Chart options shared between the two charts. beginAtZero:false lets the
+  // Y axis fit the actual data range so small daily ups & downs are visible
+  // instead of getting flattened against a forced zero baseline.
+  const commonOpts = (yLabel, yCb) => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { position: 'top', labels: { font: { size: 11 }, usePointStyle: true } },
+      tooltip: {
+        callbacks: {
+          title: items => fmtPretty(items[0].label),
+          label: ctx => ctx.dataset.label+': '+(yCb ? yCb(ctx.parsed.y) : ctx.parsed.y),
+        },
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: false,
+        title: { display: true, text: yLabel, font: { size: 10 } },
+        ticks: { font: { size: 10 }, callback: yCb || undefined },
+        grid: { color: 'rgba(0,0,0,0.04)' },
+      },
+      x: {
+        ticks: { font: { size: 9 }, maxTicksLimit: 14, autoSkip: true,
+          callback: function(val){ const lbl = this.getLabelForValue(val); const dt = new Date(lbl+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}); } },
+        grid: { display: false },
+      },
+    },
+    elements: {
+      point: { radius: 0, hoverRadius: 4 },
+      line:  { borderWidth: 1.6, tension: 0.25 },
+    },
+  });
+
+  setTimeout(() => {
+    const ticketsCtx = document.getElementById('yearlyTicketsChart').getContext('2d');
+    icrYearlyCharts.push(new Chart(ticketsCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Rolloff Tickets', data: rollT, borderColor: '#147a6d', backgroundColor: 'rgba(20,122,109,0.10)', fill: true },
+          { label: 'Walk-In Tickets', data: walkT, borderColor: '#d4a843', backgroundColor: 'rgba(212,168,67,0.10)', fill: true },
+        ],
+      },
+      options: commonOpts('Tickets', v => Math.round(v)),
+    }));
+    const revCtx = document.getElementById('yearlyRevenueChart').getContext('2d');
+    icrYearlyCharts.push(new Chart(revCtx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Rolloff Revenue', data: rollR, borderColor: '#147a6d', backgroundColor: 'rgba(20,122,109,0.10)', fill: true },
+          { label: 'Walk-In Revenue', data: walkR, borderColor: '#d4a843', backgroundColor: 'rgba(212,168,67,0.10)', fill: true },
+        ],
+      },
+      options: commonOpts('Revenue ($)', v => '$'+Math.round(v).toLocaleString('en-US')),
+    }));
+  }, 60);
 }
 
 async function icrShowProjections() {
