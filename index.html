@@ -8606,18 +8606,20 @@ function icrRenderYearly(){
     };
   }
 
-  // Generate continuous daily series across the range (zero-fill missing days)
+  // Generate continuous daily series across the range. Days with no scale
+  // report (Sundays, holidays) are set to null so the line shows a GAP
+  // instead of dropping to zero — much cleaner stock-chart look.
   const labels=[], rollT=[], rollR=[], walkT=[], walkR=[];
   const start = new Date(icrYearlyFrom+'T00:00:00');
   const end   = new Date(icrYearlyTo+'T00:00:00');
   for(let d = new Date(start); d <= end; d.setDate(d.getDate()+1)){
     const iso = icrYearlyIso(d);
     labels.push(iso);
-    const r = byDate[iso] || {rolloffTickets:0, rolloffRev:0, walkinTickets:0, walkinRev:0};
-    rollT.push(r.rolloffTickets);
-    rollR.push(r.rolloffRev);
-    walkT.push(r.walkinTickets);
-    walkR.push(r.walkinRev);
+    const r = byDate[iso];
+    rollT.push(r ? r.rolloffTickets : null);
+    rollR.push(r ? r.rolloffRev     : null);
+    walkT.push(r ? r.walkinTickets  : null);
+    walkR.push(r ? r.walkinRev      : null);
   }
 
   // Pretty date for tooltip / header
@@ -8707,8 +8709,8 @@ function icrRenderYearly(){
       data: {
         labels,
         datasets: [
-          { label: 'Rolloff Tickets', data: rollT, borderColor: '#147a6d', backgroundColor: 'rgba(20,122,109,0.10)', fill: true },
-          { label: 'Walk-In Tickets', data: walkT, borderColor: '#d4a843', backgroundColor: 'rgba(212,168,67,0.10)', fill: true },
+          { label: 'Rolloff Tickets', data: rollT, borderColor: '#147a6d', fill: false, spanGaps: false },
+          { label: 'Walk-In Tickets', data: walkT, borderColor: '#d4a843', fill: false, spanGaps: false },
         ],
       },
       options: commonOpts('Tickets', v => Math.round(v)),
@@ -8719,8 +8721,8 @@ function icrRenderYearly(){
       data: {
         labels,
         datasets: [
-          { label: 'Rolloff Revenue', data: rollR, borderColor: '#147a6d', backgroundColor: 'rgba(20,122,109,0.10)', fill: true },
-          { label: 'Walk-In Revenue', data: walkR, borderColor: '#d4a843', backgroundColor: 'rgba(212,168,67,0.10)', fill: true },
+          { label: 'Rolloff Revenue', data: rollR, borderColor: '#147a6d', fill: false, spanGaps: false },
+          { label: 'Walk-In Revenue', data: walkR, borderColor: '#d4a843', fill: false, spanGaps: false },
         ],
       },
       options: commonOpts('Revenue ($)', v => '$'+Math.round(v).toLocaleString('en-US')),
