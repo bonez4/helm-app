@@ -48,14 +48,16 @@ No build step. No npm. No framework. One file.
 
 ## Users & Access Control
 
-**Current users:** admin, david, chris, jackie, esme, hannah, kobie, maria, tom
+**Current users:** admin, david, chris, jackie, esme, hannah, kobie, maria, tom, jaime, jack
 
 **Access control:**
 - **All users** see: Client Lookup, Add Client, Reports, Roll-offs
 - **Admins only** (`role='admin'`): Import tab
 - **David & admins**: IRR Scale, Files
 - **David + Chris + admin (hardcoded usernames)**: Xfer Station
-- **David only** (hardcoded): Command tab (PIN-locked, PIN = `1144`)
+- **David only** (hardcoded): Command tab (PIN-locked, PIN = `1144`), **Workflow** tab (Action Items / project management)
+
+**Layout:** Every signed-in user gets the **vertical left-side nav** layout (`body.layout-side`) — the topbar is `position:fixed` at the top, nav rail is `position:fixed` on the left, content fills the rest of the viewport. Login screen unaffected. (Was originally David-only, rolled out to everyone after the topbar inline-style bug was traced and fixed.)
 
 Per-user themes live in `applyUserTheme()`:
 - **esme** — pink accents + full pink gradient topbar
@@ -177,6 +179,18 @@ Reis walk-in and rolloff tonnage revenue is parsed **from the scale file directl
 
 **`helm_command_state`** — Private strategic dashboard state (not documented here).
 
+### Workflow Tables (David only — Action Items / project management)
+
+Six tables backing the Workflow tab:
+- **`helm_action_projects`** — top-level project (id, identifier, name, description, emoji, color, status, start_date, due_date, archived, sort_order, created_at, updated_at)
+- **`helm_action_tasklists`** — sections within a project (project_id FK, name, sort_order, archived)
+- **`helm_action_milestones`** — date-anchored markers (project_id FK, name, description, due_date, completed_at, color, sort_order)
+- **`helm_action_tasks`** — the work items (project_id, tasklist_id, milestone_id, parent_task_id [self-FK for subtasks], task_number, title, description, status, priority 0-4, start_date, due_date, estimated_hours, percent_complete, sort_order, archived, completed_at, **`recurrence` jsonb** [`{type:'daily'|'weekly'|'monthly_day'|'monthly_last'|'every_n_days', days?:[0-6], day?:1-31, n?:N}`], created_at, updated_at)
+- **`helm_action_dependencies`** — task → task blocking relationships (task_id, depends_on_task_id, dep_type, unique pair)
+- **`helm_action_activity`** — append-only log (project_id, task_id, action, detail jsonb, created_at)
+
+All tables RLS-enabled with open policies (HELM standard).
+
 ---
 
 ## App Features
@@ -184,11 +198,11 @@ Reis walk-in and rolloff tonnage revenue is parsed **from the scale file directl
 ### Client Lookup (all users)
 - **Empty-state welcome screen** — when no search or client is open:
   - Italic "welcome back, *[Name]*" watermark in Playfair Display
-  - **Service Rate Sheet card** (Tip Fee $250, Special Tonnage $480/ton, Standard Tonnage $525/ton, Rolloff Delivery $100, Pile Pickup $160/hr per worker, Metal Tonnage Disposal $125/ton)
+  - **Service Rate Sheet card** (Tip Fee $250, Special Tonnage $480/ton, Standard Tonnage $525/ton, **Insulation $575/ton**, Rolloff Delivery $100, Pile Pickup $160/hr per worker, Metal Tonnage Disposal $125/ton)
   - **My Notes card** — per-user free-form textarea, auto-syncs to `user_notes` table (cross-device)
   - Rate Sheet and My Notes render side-by-side on desktop (collapse to stacked under 780px)
 - **Tokenized search** — "viola howard" matches "HOWARD, VIOLA" regardless of word order
-- Inline client card with name + company tag, Acct #, address, phone, pickup days, status, autopay, **route pill**, Edit button
+- Inline client card with name + company tag, Acct #, address, phone, **email** (clickable `mailto:` link in teal when set, "No email on file" placeholder when missing), pickup days, status, autopay, **route pill**, Edit button
 - Notes support 7 categories (Skip Day, 1XER, 1X WK, 2X WK, LPU, Special Pickup, Misc)
 - Inline Yes/No delete confirmation on notes
 
@@ -204,17 +218,39 @@ Reis walk-in and rolloff tonnage revenue is parsed **from the scale file directl
 - Routes chosen from "Select Route" dropdown; renders as a navy pill on the card
 
 ### Reports (all users)
-- Daily Action Report for any date, split by REIS / SANTOS / Other using first-digit classification
-- Columns: #, Acct, **Route**, Name, Address, Note (Phone removed)
-- Print popup: 14px body font, tall (~9px padded) rows, portrait, auto-prints
-- Grouped tables with per-company and per-action subtotals
+Four cards on the Reports tab:
+
+1. **Daily Action Report** — actionable notes for a specific date
+   - Split by REIS / SANTOS / Other (first-digit classification)
+   - **Grouped by Route** within each company (Route 1, Route 2, … Route 14, then "No Route Assigned"); rows sorted by account # within a route
+   - Columns: #, Acct, Action (colored chip), Name, Address, Note
+   - Print popup mirrors the on-page layout in an Arial print template
+
+2. **Notes Added Today** — every note input on a specific date (filters by `notes.created_at`, not `action_date`, so future-dated notes still show)
+   - Section per **For Date** (the date the note's action falls on); within each section, **sorted by Route** ascending (no-route last; ties broken by acct #)
+   - Date section headers include the day of week ("For Wednesday, Apr 29")
+   - Columns: # / Route / Acct / Co (single-letter chip) / Action / Client / Address / Note / Time
+   - Summary strip of action-type counts at the top
+   - Print version uses **enlarged date headers** (≈20px h2) so CSRs can scan from arm's length
+
+3. **Everything Report** — every note ever input, with author column
+   - **Custom date range filter** on `created_at` (when the note was input). `Input from` + `Input to` pickers + `Last 7d / 30d / 90d / All time` quick presets. Either side may be left blank for an open-ended range.
+   - Same layout as Notes Added Today (For Date sections, sorted by Route within), plus a **By** column showing which user logged each note
+   - Header strip shows the chosen range and the For-date span across the result
+   - Print version uses the same enlarged date-header treatment
+
+4. **Export Clients to Excel** — column-picker export
+   - Toggleable columns: Account # / Company / Name / Address / Phone / Email / Pickup Days / Route / Status / Autopay / Date Added
+   - Filters: Company (REIS / SANTOS), Status (Active / Paused), Email (with / without — useful for gap-hunting), Route (1-14 or "no route")
+   - Downloads as `HELM_Clients_YYYYMMDD.xls`
 
 ### Roll-offs (all users)
 - Editable spreadsheet with sortable columns, soft delete + undo, show/restore deleted
+- **Customer + Street auto-suggest** — both fields use a `<datalist>` populated from previously-used values; type a few letters then Tab/Enter to accept
 - **Monthly Tip** column — click the pill to toggle No (gray) ↔ Yes (green)
 - **Reset Monthly Tips** button — yellow-highlighted, clears all tipped flags with confirmation
 - **Banner** "⚠ RESET MONTHLY RENTAL FEES" appears on the **last day of each month** if any tipped rolloffs remain (configurable via `ROLLOFF_TIP_RESET_DAY`). Clicking Reset auto-hides the banner
-- **Export Untipped** button — `.xls` of all non-deleted, untipped rolloffs with calculated days on site and $4/day charge
+- **Export Untipped** button — `.xls` of all non-deleted, untipped rolloffs. Output sheet has two trailing empty columns (manual day-count + auto `=prev*4` charge formula); the legacy "days on site" pre-calculated column was removed in favor of this manual entry pattern
 - **Export Print Sheet** button — alpha-by-company `.xls` matching the legacy Times New Roman template, with 20 blank rows for handwriting
 
 ### IRR Scale (David + admins)
@@ -230,33 +266,36 @@ Four sub-views:
   - Exclude wins if multiple boxes are checked
 - Driver hours prompt — asks for Island Rubbish driver count + hours
 - Auto-save — raw .xls saved to Files → shared "Daily Scale Reports" folder
-- Generates formatted **daily email** in a unified four-section layout (no per-company breakdown). Identical structure renders both inside the Daily Scale Report tab and as the email body the Copy/Gmail buttons emit:
+- Generates formatted **daily email** in a unified three-section layout (no per-company breakdown). Identical structure renders both inside the Daily Scale Report tab (`irrRenderReportView`) and as the email body the Copy/Gmail buttons emit:
   - **Section 1: Rolloff Internal Volume** (combined Reis + Island + East End rolloff tonnage)
-    - Today / WTD / MTD / **MOM** / YTD / **YOY**
-    - **Today row is highlighted across the whole row** (soft yellow `#fff4cc`)
+    - **Today** row: `X trips · Y.YY tons` — **highlighted across the whole row** (soft yellow `#fff4cc`)
+    - WTD / MTD / **MOM** / YTD / **YOY** — each in tons
     - **MOM** = sum across the same days of the prior month (capped if prior month is shorter); shows the prior-period absolute total + a signed `(+X.XX tons, +Y.Y% vs MTD)` delta colored green when this month is up, red when down
     - **YOY** = sum from Jan 1 of prior year through the prior-year equivalent of today (handles Feb 29 → Feb 28 in non-leap years); shows the same `(±X tons, ±Y% vs YTD)` delta
   - **Section 2: Inbound vs Outbound — Xfer Station, Rolloffs + Walk-Ins**
-    - Today / WTD / MTD / YTD rows, each formatted `inbound, outbound : net`
+    - **Today** row formatted `inbound, outbound : net` — **highlighted across the whole row**
+    - WTD / MTD / YTD rows in the same format
     - Net = inbound − outbound. **Red** when net is positive (material accumulating); **green** when net is negative (material clearing out)
-    - **Today row is highlighted across the whole row** (matches Section 1)
-    - **MTD YOY** and **YTD YOY** rows render as a two-line block: `2025: X.XX tons, 2026: Y.YY tons` followed by `Delta: ±Z%` (green when current year is up, red when down). The single tonnage figure is total inbound (rolloff + walkin); year labels track the report's date so historical reports show the correct year pair
-  - **Section 3: Revenue (today only)**
-    - Total Revenue Today (bold)
-    - Rolloff Revenue (today)
-    - Walk-In Revenue (today)
-  - **Section 4: Pile Pickups (Reis)** — single line: `Today: X loads · Y.YY tons`
+    - **MTD YOY** and **YTD YOY** rows render as a two-line block: `2025: X.XX tons, 2026: Y.YY tons` followed by `% Change: ±Z%` (green when current year is up, red when down). Single tonnage figure = total inbound (rolloff + walkin); year labels track the report's date so historical reports show the correct year pair.
+  - **Section 3: Revenue**
+    - **Total Revenue Today** (bold) — **highlighted across the whole row**
+    - **Rolloff Revenue** with two indented sub-rows: `Hook Fee Revenue` and `Tonnage Revenue` (split using `irr_rates` to back out IC hook contribution)
+    - **Walk-In Revenue** displayed as `$X · N tickets` (ticket count includes walkin + pile pickups, since pile pickups don't have their own revenue line)
 - Copy to clipboard / Gmail draft creation
 - Historical report viewer (click any past date)
 - **Historical bulk import** — upload date-range .xls to upsert history
 
 **2. Intercompany Rolloff Report**
 - Weekly view: Mon-Sat + WTD, MTD, YTD
-- REIS · SANTOS · ISLAND · TOTALS blocks with Rev/Load, Total Revenue, Loads, Tons/Load, Total Tons, # Drivers, # Hours
-- Vinagro (Outbound) + Inbound vs Outbound summary
-- Prev/next week arrows, date picker, Print button, Quarterly Report overlay, Projections overlay
+- TOTALS at top, then Vinagro (Outbound), then Total Tonnage Inbound v Outbound, then REIS / ISLAND / SANTOS sub-blocks (Rev/Load, Total Revenue, Loads, Tons/Load, Total Tons, # Drivers, # Hours)
+- Prev/next week arrows, date picker
+- **Export File** — generates .xlsx + .pdf in the consolidated layout
+- **Print** — print preview
+- **Quarterly Report** — quarter-vs-prior-year overlay with KPI tables + per-month bar/line charts
+- **Yearly Report** — *(new)* custom-range modal with two daily line charts (Tickets per Day, Revenue per Day). Each chart overlays Rolloff (Reis+Island+East End combined, teal) vs Walk-In (gold). `From / To` date pickers + `90d / 6mo / 1yr / 2yr` quick presets (default = trailing 12 months). Stock-chart styling: Y axis auto-fits the data range (no forced zero baseline), no point markers, smooth lines. Days without a scale report (Sundays, holidays) show as **gaps** in the line rather than dropping to zero. Indexed hover tooltip shows both series' exact values for any day.
+- **Projections** overlay
 
-**3. Consolidated Rolloff** *(new)*
+**3. Consolidated Rolloff**
 - Weekly table combining Reis + Island + East End
 - Columns: Mon–Sat + Total
 - Rows (auto): Date, Revenue, Loads, Tons, Loads/Day, Rev/Load, Tons/Load
@@ -264,6 +303,7 @@ Four sub-views:
 - Rows (derived, auto-calc with manual override): Total Hours, Hrs/Drvr, Hrs/Load
 - Manual entries saved to `crc_weekly_manual` (shared across users via Supabase)
 - Prev/next week arrows, date picker, **Export to Excel** button
+- **2025 Historical Rolloff/C&D table** *(new)* below the weekly grid — 12 month columns (Jan→Dec) with 4 rows: `Loads/Month` (rolloff), `Rev/Load (Rolloff)`, `C&D Loads/Month` (rolloff + walk-ins), `Rev/Load (C&D)`. Sourced from `irr_reports` for calendar 2025; cached on `window._crc2025Data` so week-flipping doesn't re-fetch.
 
 **4. Dashboard**
 - Date range (WTD/MTD/30D/YTD/Custom) + company filter (All/Reis/Island/East End)
@@ -289,9 +329,27 @@ Four sub-views:
 - Private strategic dashboard (PIN `1144`)
 - Persists state per-user in `helm_command_state`
 
+### Workflow (David only) — Project Management
+Full project-management surface, Linear/Notion polish on top of a Zoho-style hierarchy. **David-only** (gated via username check, no separate PIN). Lands as the default tab on login.
+- **Sidebar** with Inbox / Today / My Tasks / Activity cross-project views, plus a Projects list (each project gets an emoji + auto-color)
+- **Per-project workspace** with sub-nav: Dashboard / List / Board (Kanban) / Gantt / Milestones
+- **Task model**: project → tasklist → task → subtask, plus milestones and dependencies. Per-project task identifiers (e.g. `HELM-42`)
+- **Recurring tasks**: tasks can have a recurrence rule (Daily / Weekly on chosen weekdays / Monthly day-of-month / Last day of month / Every N days). Marking a recurring task **Done** auto-rolls it forward to the next occurrence with status reset and `due_date` advanced. 🔁 icon next to recurring tasks in list views.
+- **Slide-in detail panel** (right side, 580px) for any task — inline-editable title, status / priority / tasklist / milestone / dates / % complete (slider) / estimate, description, subtasks, blocked-by + blocking deps, duplicate, archive
+- **Quick add** via FAB (bottom right) or `C` key — chip-picker for project / tasklist / status / priority / due
+- **Command palette** via `Cmd/Ctrl+K` — fuzzy search projects, tasks (by ID or title), and 6 jump commands; arrow keys + Enter to fire
+- **Esc** closes anything open (panel / modal / palette)
+- Status workflow: Backlog → Todo → InProgress → InReview → Done → Cancelled. Click status chip to cycle.
+- Activity log entries on create / status change / archive / recurring roll
+- Top-bar nav badge shows count of Active+InProgress when >0
+- Six dedicated Supabase tables — see "Workflow tables" under Database Schema
+
 ### Import (Admins only)
-- Client CSV import (batched 500 rows, upsert on `client_id`)
-- Roll-offs CSV import (handles MM/DD/YYYY or YYYY-MM-DD dates)
+Three cards on the Import tab:
+- **Staff Activity Report** — date picker, lists user heartbeats + activity log entries for the selected day
+- **Import Clients from CSV** — batched 500 rows, upsert on `client_id`. Headers: `client_id, address, phone, client_name`
+- **Bulk Update Emails** — CSV upload that auto-detects account-# and email columns from the header row (recognizes `account_id`, `client_id`, `acct`, etc. + `email` / `email_address`). Shows a preview table (acct / name / old email / new email) with counts: `X to update / Y unchanged / Z unknown acct` (unknowns listed in a collapsed details block). Confirm runs row-by-row UPDATEs and updates the in-memory client cache so cards refresh immediately.
+- **Import Roll-offs from CSV** (handles MM/DD/YYYY or YYYY-MM-DD dates)
 
 ### Contacts Panel (top-bar, all users)
 - Draggable, resizable panel pinned to the top bar
@@ -457,6 +515,70 @@ CREATE TABLE IF NOT EXISTS user_notes (
 );
 ALTER TABLE user_notes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "user_notes_all" ON user_notes FOR ALL USING (true) WITH CHECK (true);
+
+-- created_at on clients (for the "Clients added by date" lookup; harmless if not used)
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Workflow tab schema (David only) — six tables for project management
+CREATE TABLE IF NOT EXISTS helm_action_projects (
+  id BIGSERIAL PRIMARY KEY, identifier TEXT UNIQUE, name TEXT NOT NULL,
+  description TEXT, emoji TEXT DEFAULT '📁', color TEXT DEFAULT '#7c5cff',
+  status TEXT DEFAULT 'Active', start_date DATE, due_date DATE,
+  archived BOOLEAN DEFAULT FALSE, sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS helm_action_tasklists (
+  id BIGSERIAL PRIMARY KEY,
+  project_id BIGINT NOT NULL REFERENCES helm_action_projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, sort_order INT DEFAULT 0,
+  archived BOOLEAN DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS helm_action_milestones (
+  id BIGSERIAL PRIMARY KEY,
+  project_id BIGINT NOT NULL REFERENCES helm_action_projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, description TEXT, due_date DATE, completed_at TIMESTAMPTZ,
+  color TEXT DEFAULT '#a78bfa', sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS helm_action_tasks (
+  id BIGSERIAL PRIMARY KEY,
+  project_id BIGINT NOT NULL REFERENCES helm_action_projects(id) ON DELETE CASCADE,
+  tasklist_id BIGINT REFERENCES helm_action_tasklists(id) ON DELETE SET NULL,
+  milestone_id BIGINT REFERENCES helm_action_milestones(id) ON DELETE SET NULL,
+  parent_task_id BIGINT REFERENCES helm_action_tasks(id) ON DELETE CASCADE,
+  task_number INT, title TEXT NOT NULL, description TEXT,
+  status TEXT DEFAULT 'Backlog', priority SMALLINT DEFAULT 0,
+  start_date DATE, due_date DATE, estimated_hours NUMERIC,
+  percent_complete SMALLINT DEFAULT 0, sort_order INT DEFAULT 0,
+  archived BOOLEAN DEFAULT FALSE, completed_at TIMESTAMPTZ,
+  recurrence JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS helm_action_dependencies (
+  id BIGSERIAL PRIMARY KEY,
+  task_id BIGINT NOT NULL REFERENCES helm_action_tasks(id) ON DELETE CASCADE,
+  depends_on_task_id BIGINT NOT NULL REFERENCES helm_action_tasks(id) ON DELETE CASCADE,
+  dep_type TEXT DEFAULT 'FS', created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(task_id, depends_on_task_id)
+);
+CREATE TABLE IF NOT EXISTS helm_action_activity (
+  id BIGSERIAL PRIMARY KEY,
+  project_id BIGINT REFERENCES helm_action_projects(id) ON DELETE CASCADE,
+  task_id BIGINT REFERENCES helm_action_tasks(id) ON DELETE CASCADE,
+  action TEXT NOT NULL, detail JSONB, created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE helm_action_projects     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE helm_action_tasklists    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE helm_action_milestones   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE helm_action_tasks        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE helm_action_dependencies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE helm_action_activity     ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ap_projects_all"     ON helm_action_projects     FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "ap_tasklists_all"    ON helm_action_tasklists    FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "ap_milestones_all"   ON helm_action_milestones   FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "ap_tasks_all"        ON helm_action_tasks        FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "ap_dependencies_all" ON helm_action_dependencies FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "ap_activity_all"     ON helm_action_activity     FOR ALL USING(true) WITH CHECK(true);
 ```
 
 ### Storage buckets
@@ -493,8 +615,18 @@ helm-app/
 
 ## Recent Major Changes
 
+- **April 26, 2026** — **Yearly Report** added to Intercompany Rolloff (next to Quarterly): custom date range, daily-granularity line charts, stock-chart styling (Y auto-fits, no point markers, missing days gap out via null + `spanGaps:false`, no fill). Two stacked charts — Tickets and Revenue — each with Rolloff vs Walk-In lines.
+- **April 26, 2026** — **Consolidated Rolloff** sub-tab gets a new 2025 Historical Rolloff/C&D table beneath the weekly grid (12 month columns, 4 metric rows: Loads/Month, Rev/Load Rolloff, C&D Loads/Month, Rev/Load C&D).
+- **April 25, 2026** — Daily email/report final shape: Section 1 Today shows `X trips · Y.YY tons` (was just tons); Section 3 renamed to "Revenue" (dropped "(today)"), Rolloff Revenue gets indented Hook Fee + Tonnage sub-rows, Walk-In Revenue shows ticket count (incl. pile pickups), Total Revenue Today highlighted in soft yellow alongside the existing Today highlights in Sections 1 + 2. Pile Pickups section removed entirely. YOY block label "Delta:" → "% Change:".
+- **April 24-25, 2026** — Side-nav layout (vertical left rail) rolled out from David-only to all users. Topbar + nav rail now `position:fixed`. The original David rollout had been blocked by an inline `style="position:relative"` on the topbar markup; once that was removed, the layout was safe to apply universally.
+- **April 24, 2026** — **Workflow** tab (David-only project management): Projects → Tasklists → Tasks → Subtasks ladder + Milestones + Dependencies; Linear-style slide-in detail panel, Cmd+K command palette, C-key quick add; Recurring tasks auto-roll on completion (daily / weekly on chosen weekdays / monthly day / last day / every N days). Six new Supabase tables.
+- **April 24, 2026** — Reports tab: Daily Action Report restructured to group by Route (within Company) instead of by Action; new **Notes Added Today** report (filters by `created_at`, sorted by For Date → Route); new **Everything Report** with custom date range and `By` column; new **Export Clients to Excel** with column picker + filters (incl. with/without email).
+- **April 24, 2026** — Roll-offs tab: customer + street fields get native `<datalist>` autosuggest from previously-used values; export-untipped sheet swapped pre-calculated days-on-site for two trailing empty columns (manual day count + auto `=prev*4` formula).
+- **April 24, 2026** — Client lookup card now displays email below phone (clickable `mailto:` link in teal, "No email on file" placeholder otherwise). Email entry was already in Add Client / Edit Client; only the display was missing.
+- **April 24, 2026** — Insulation $575/ton added to the Service Rate Sheet.
+- **April 24, 2026** — Bulk Update Emails tool moved from Reports → Import (admin-only, gated alongside other bulk operations).
 - **April 23, 2026** — Documented the HELM-vs-scale-file revenue reconciliation in Parsing Notes. The gap between HELM's daily total and the file's "Report Totals" line is by design — comes from (1) hardcoded post-4/17 service fees overriding file values, (2) hardcoded per-unit disposal fees, and (3) IC hook fees that aren't on the scale ticket.
-- **April 23, 2026** — Daily email rebuild: four unified sections (Rolloff Internal Volume / Inbound vs Outbound / Revenue / Pile Pickups), no per-company breakdown. MOM + YOY rows on Section 1 show prior-period totals plus a signed (±tons, ±%) delta. MTD YOY / YTD YOY on Section 2 render as a two-line block (`2025: X tons, 2026: Y tons` + `Delta: ±Z%`). Net inbound vs outbound colored red (accumulating) / green (clearing). Today rows in Sections 1 and 2 highlighted edge-to-edge in soft yellow. Same layout drives both the email body and the in-app Daily Scale Report view (irrRenderReportView), all from one shared `irrLoadYTD` data fetch.
+- **April 23, 2026** — Daily email rebuild: unified sections (Rolloff Internal Volume / Inbound vs Outbound / Revenue), no per-company breakdown. MOM + YOY rows on Section 1 show prior-period totals plus a signed (±tons, ±%) delta. MTD YOY / YTD YOY on Section 2 render as a two-line block (`2025: X tons, 2026: Y tons` + `% Change: ±Z%`). Net inbound vs outbound colored red (accumulating) / green (clearing). Today rows in Sections 1, 2 and Total Revenue Today in 3 highlighted edge-to-edge in soft yellow. Same layout drives both the email body and the in-app Daily Scale Report view (`irrRenderReportView`), all from one shared `irrLoadYTD` data fetch.
 - **April 19, 2026** — Hook fee vs disposal fee split. Disposal fees (mattress, appliance, freon, monitor, tire) now route based on ticket: Reis rolloff ticket → tonnage revenue; walk-in → walk-in revenue. Move Rolloff stays in hook fees.
 - **April 19, 2026** — Review IC Tickets modal extended: includes Delta; three columns (Exclude / Pile Pickup / Walk In).
 - **April 18, 2026** — Consolidated Rolloff sub-tab added under IRR Scale. Excel export + shared manual hours/drivers entry.
