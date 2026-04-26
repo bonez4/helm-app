@@ -2232,7 +2232,6 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <button class="nav-solo" onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button id="filesTabBtn"  class="nav-solo" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="actionTabBtn" class="nav-solo" style="display:none" onclick="switchTab('action',this)">Workflow</button>
-    <button id="cmdTabBtn"    class="nav-solo" style="display:none" onclick="switchTab('cmd',this)">Command</button>
     <button id="importTabBtn" class="nav-solo" style="display:none" onclick="switchTab('import',this)">Import</button>
   </div>
 
@@ -2722,23 +2721,19 @@ async function login() {
   document.getElementById('appScreen').style.flexDirection='column';
   document.getElementById('topbarUser').textContent = data.display_name;
   applyUserTheme(data);
-  if(data.role==='admin') document.getElementById('importTabBtn').style.display='';
-  if(data.username==='david'||data.role==='admin') {
+  if(data.role==='admin' || data.username==='jack') document.getElementById('importTabBtn').style.display='';
+  if(data.username==='david'||data.username==='jack'||data.role==='admin') {
     document.getElementById('irrTabBtn').style.display='';
     document.getElementById('filesTabBtn').style.display='';
   }
-  if(['david','chris','admin'].includes(data.username) || data.role==='admin') {
+  if(['david','chris','jack','admin'].includes(data.username) || data.role==='admin') {
     document.getElementById('xferTabBtn').style.display='';
     document.getElementById('blaTabBtn').style.display='';
-  }
-  // Show the Analysis group header if any of its children are visible
-  if(data.username==='david' || data.role==='admin' || ['david','chris','admin'].includes(data.username)){
     document.getElementById('navGroup-analysis').style.display='';
   }
   // Restore persisted nav-group collapsed state
   applyNavGroupState();
   if(data.username==='david'){
-    document.getElementById('cmdTabBtn').style.display='';
     document.getElementById('actionTabBtn').style.display='';
   }
   startHeartbeat();
@@ -9762,18 +9757,17 @@ if(_saved && _saved !== '1'){
     document.getElementById('appScreen').style.flexDirection='column';
     document.getElementById('topbarUser').textContent = currentUser.display_name;
     applyUserTheme(currentUser);
-    if(currentUser.role==='admin') document.getElementById('importTabBtn').style.display='';
-    if(currentUser.username==='david'||currentUser.role==='admin') {
+    if(currentUser.role==='admin' || currentUser.username==='jack') document.getElementById('importTabBtn').style.display='';
+    if(currentUser.username==='david'||currentUser.username==='jack'||currentUser.role==='admin') {
       document.getElementById('irrTabBtn').style.display='';
       document.getElementById('filesTabBtn').style.display='';
     }
-    if(['david','chris','admin'].includes(currentUser.username) || currentUser.role==='admin') {
+    if(['david','chris','jack','admin'].includes(currentUser.username) || currentUser.role==='admin') {
       document.getElementById('xferTabBtn').style.display='';
       document.getElementById('blaTabBtn').style.display='';
       document.getElementById('navGroup-analysis').style.display='';
     }
     if(currentUser.username==='david'){
-      document.getElementById('cmdTabBtn').style.display='';
       document.getElementById('actionTabBtn').style.display='';
     }
     applyNavGroupState();
