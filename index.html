@@ -11613,7 +11613,19 @@ function blaEmptyCommDraft(){
     routes:[{name:'',stops:''}], notes:'' };
 }
 function blaEmptyRolloffDraft(){
-  return { entry_date:blaTodayIso(), driver_hours:[{driver_id:'',st_hours:'',ot_hours:''}], notes:'' };
+  return { entry_date:blaTodayIso(), driver_hours:[{driver_id:'',st_hours_str:'',ot_hours_str:''}], notes:'' };
+}
+// Decimal hours -> "H:MM" string. Returns '' for null/undefined.
+function blaHrsToHHMM(h){
+  if(h===null||h===undefined||h==='') return '';
+  const total = Math.round(parseFloat(h)*60);
+  if(isNaN(total)) return '';
+  return blaFmtHHMM(total);
+}
+// "H:MM" or numeric string -> decimal hours (number) or null.
+function blaHHMMToHrs(s){
+  const m = blaParseHHMM(s);
+  return m===null ? null : m/60;
 }
 function blaEmptyXferDraft(){
   return { entry_date:blaTodayIso(), trlrs_loaded:'', tons_loaded:'', loads_hauled:'', tons_hauled:'', notes:'' };
@@ -11929,8 +11941,8 @@ function blaRenderRolloffForm(){
   const rows = (d.driver_hours||[]).map((r,i)=>`
     <div class="bla-route-row" style="grid-template-columns:1fr 110px 110px 28px;">
       <select onchange="blaRollSetDH(${i},'driver_id',this.value)">${blaStaffOptions('driver', r.driver_id)}</select>
-      <input type="number" step="0.25" placeholder="ST hours" value="${r.st_hours||''}" oninput="blaRollSetDH(${i},'st_hours',this.value)" />
-      <input type="number" step="0.25" placeholder="OT hours" value="${r.ot_hours||''}" oninput="blaRollSetDH(${i},'ot_hours',this.value)" />
+      <input type="text" placeholder="HH:MM (ST)" value="${r.st_hours_str||''}" oninput="blaRollSetDH(${i},'st_hours_str',this.value)" />
+      <input type="text" placeholder="HH:MM (OT)" value="${r.ot_hours_str||''}" oninput="blaRollSetDH(${i},'ot_hours_str',this.value)" />
       <button class="bla-row-x" onclick="blaRollRmDH(${i})">&times;</button>
     </div>`).join('');
   return `<div class="bla-form">
@@ -11958,11 +11970,15 @@ function blaRollSetDate(iso){
   blaState.rolloffDraft.entry_date = iso;
   const m = blaState.rolloffManual[iso];
   if(m){
-    blaState.rolloffDraft.driver_hours = (m.driver_hours||[]).map(r=>({driver_id:r.driver_id||'',st_hours:r.st_hours==null?'':r.st_hours,ot_hours:r.ot_hours==null?'':r.ot_hours}));
-    if(!blaState.rolloffDraft.driver_hours.length) blaState.rolloffDraft.driver_hours=[{driver_id:'',st_hours:'',ot_hours:''}];
+    blaState.rolloffDraft.driver_hours = (m.driver_hours||[]).map(r=>({
+      driver_id: r.driver_id||'',
+      st_hours_str: blaHrsToHHMM(r.st_hours),
+      ot_hours_str: blaHrsToHHMM(r.ot_hours)
+    }));
+    if(!blaState.rolloffDraft.driver_hours.length) blaState.rolloffDraft.driver_hours=[{driver_id:'',st_hours_str:'',ot_hours_str:''}];
     blaState.rolloffDraft.notes = m.notes||'';
   } else {
-    blaState.rolloffDraft.driver_hours = [{driver_id:'',st_hours:'',ot_hours:''}];
+    blaState.rolloffDraft.driver_hours = [{driver_id:'',st_hours_str:'',ot_hours_str:''}];
     blaState.rolloffDraft.notes='';
   }
   blaRenderBody();
@@ -11971,16 +11987,16 @@ function blaRollSetDH(i,f,v){
   if(f==='driver_id' && v==='__add__'){ blaPromptAddStaff('driver','rolloff',i); return; }
   blaState.rolloffDraft.driver_hours[i][f]=v;
 }
-function blaRollAddDH(){ blaState.rolloffDraft.driver_hours.push({driver_id:'',st_hours:'',ot_hours:''}); blaRenderBody(); }
-function blaRollRmDH(i){ blaState.rolloffDraft.driver_hours.splice(i,1); if(!blaState.rolloffDraft.driver_hours.length) blaState.rolloffDraft.driver_hours=[{driver_id:'',st_hours:'',ot_hours:''}]; blaRenderBody(); }
+function blaRollAddDH(){ blaState.rolloffDraft.driver_hours.push({driver_id:'',st_hours_str:'',ot_hours_str:''}); blaRenderBody(); }
+function blaRollRmDH(i){ blaState.rolloffDraft.driver_hours.splice(i,1); if(!blaState.rolloffDraft.driver_hours.length) blaState.rolloffDraft.driver_hours=[{driver_id:'',st_hours_str:'',ot_hours_str:''}]; blaRenderBody(); }
 function blaResetRoll(){ blaState.rolloffDraft = blaEmptyRolloffDraft(); blaRenderBody(); }
 async function blaSaveRolloff(){
   const d = blaState.rolloffDraft;
   if(!d.entry_date){ toast('Date required'); return; }
   const dh = (d.driver_hours||[]).filter(r=>r.driver_id).map(r=>({
     driver_id: parseInt(r.driver_id,10),
-    st_hours: r.st_hours===''?null:parseFloat(r.st_hours),
-    ot_hours: r.ot_hours===''?null:parseFloat(r.ot_hours)
+    st_hours: blaHHMMToHrs(r.st_hours_str),
+    ot_hours: blaHHMMToHrs(r.ot_hours_str)
   }));
   const payload = { entry_date:d.entry_date, driver_hours:dh, notes:d.notes||null, updated_at:new Date().toISOString() };
   const {error} = await db.from('bla_rolloff_manual').upsert(payload, {onConflict:'entry_date'});
