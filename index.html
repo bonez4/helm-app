@@ -687,6 +687,114 @@ select.ro-input{cursor:pointer;}
 .activity-acts{font-size:11px;color:var(--teal);font-weight:500;}
 .activity-wrap{border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;margin-top:10px;}
 
+/* ── BUSINESS LINE ANALYSIS TAB ────────────────────────────────────── */
+.bla-wrap{max-width:1400px;margin:0 auto;padding:1.5rem 1rem;}
+.bla-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:1px solid var(--gray-200);padding-bottom:14px;}
+.bla-title{margin:0;font-family:'DM Serif Display',serif;font-size:24px;color:var(--navy);font-weight:400;}
+.bla-view-toggle{display:flex;gap:0;border:1px solid var(--gray-300);border-radius:var(--radius-sm);overflow:hidden;}
+.bla-view-toggle button{
+  background:var(--white);border:none;color:var(--gray-500);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:8px 22px;cursor:pointer;transition:all .15s;
+}
+.bla-view-toggle button.active{background:var(--navy);color:white;}
+.bla-view-toggle button:hover:not(.active){background:var(--gray-100);color:var(--gray-800);}
+
+.bla-subnav{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--gray-200);padding-bottom:10px;}
+.bla-subnav button{
+  background:none;border:1px solid var(--gray-200);color:var(--gray-500);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  padding:6px 16px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;
+}
+.bla-subnav button.active{background:var(--teal);color:white;border-color:var(--teal);}
+.bla-subnav button:hover:not(.active){border-color:var(--gray-400);color:var(--gray-800);}
+
+.bla-filter-banner{
+  background:#fff8e1;border:1px solid #ffe082;color:var(--gray-800);
+  padding:8px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:14px;
+  display:flex;align-items:center;gap:12px;
+}
+.bla-filter-banner button{
+  margin-left:auto;background:transparent;border:1px solid var(--gray-400);color:var(--gray-700);
+  padding:3px 10px;border-radius:3px;cursor:pointer;font-size:11px;
+}
+
+.bla-form{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;}
+.bla-form-title{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:6px;font-family:'DM Sans',sans-serif;}
+.bla-helptext{font-size:11px;color:var(--gray-500);margin-bottom:14px;line-height:1.5;}
+.bla-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px;}
+.bla-grid label{display:flex;flex-direction:column;font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;gap:4px;}
+.bla-grid label input, .bla-grid label select{
+  padding:7px 10px;border:1px solid var(--gray-300);border-radius:4px;
+  font-family:'DM Sans',sans-serif;font-size:13px;color:var(--gray-800);
+  text-transform:none;letter-spacing:0;font-weight:400;
+}
+.bla-grid label input:focus, .bla-grid label select:focus{outline:none;border-color:var(--teal);}
+.bla-routes-section{margin-top:8px;border-top:1px dashed var(--gray-200);padding-top:14px;}
+.bla-routes-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.bla-routes-hdr span{font-size:12px;font-weight:700;color:var(--gray-700);text-transform:uppercase;letter-spacing:.06em;}
+.bla-add-btn{background:var(--teal);color:white;border:none;padding:5px 12px;font-size:11px;border-radius:3px;cursor:pointer;font-weight:600;}
+.bla-add-btn:hover{background:var(--teal-dim);}
+.bla-route-row, .bla-route-row-hdr{display:grid;grid-template-columns:1fr 100px 160px 28px;gap:8px;align-items:center;margin-bottom:6px;}
+.bla-route-row-hdr{font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;font-weight:600;padding:0 2px;}
+.bla-route-row input, .bla-route-row select{
+  padding:6px 8px;border:1px solid var(--gray-300);border-radius:4px;
+  font-family:'DM Sans',sans-serif;font-size:12px;color:var(--gray-800);
+}
+.bla-row-x{
+  background:transparent;border:1px solid var(--gray-300);color:var(--gray-500);
+  border-radius:3px;cursor:pointer;font-size:14px;line-height:1;height:26px;
+}
+.bla-row-x:hover{background:#fee;border-color:#e57373;color:#c62828;}
+.bla-empty{font-size:12px;color:var(--gray-400);font-style:italic;padding:6px 2px;}
+.bla-notes-label{display:flex;flex-direction:column;font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;gap:4px;margin-top:14px;}
+.bla-notes-label textarea{padding:7px 10px;border:1px solid var(--gray-300);border-radius:4px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--gray-800);text-transform:none;letter-spacing:0;font-weight:400;resize:vertical;}
+.bla-form-actions{display:flex;gap:8px;margin-top:14px;}
+.bla-btn-primary{background:var(--navy);color:white;border:none;padding:8px 18px;font-size:12px;font-weight:600;border-radius:4px;cursor:pointer;}
+.bla-btn-primary:hover{background:#1a2f55;}
+.bla-btn-ghost{background:transparent;color:var(--gray-600);border:1px solid var(--gray-300);padding:8px 14px;font-size:12px;font-weight:600;border-radius:4px;cursor:pointer;}
+.bla-btn-ghost:hover{background:var(--gray-100);}
+
+.bla-saved-list{margin-top:12px;}
+.bla-saved-hdr{font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;padding:0 2px;}
+.bla-saved-empty{font-size:12px;color:var(--gray-400);font-style:italic;padding:14px;text-align:center;background:var(--white);border:1px dashed var(--gray-200);border-radius:var(--radius-sm);}
+.bla-saved-table{width:100%;border-collapse:collapse;background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-sm);overflow:hidden;font-size:12px;}
+.bla-saved-table th{background:var(--gray-100);text-align:left;padding:7px 10px;font-weight:600;color:var(--gray-700);font-size:10px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--gray-200);}
+.bla-saved-table td{padding:6px 10px;border-bottom:1px solid var(--gray-200);color:var(--gray-800);}
+.bla-saved-table tr:last-child td{border-bottom:none;}
+.bla-mini-btn{background:var(--white);border:1px solid var(--gray-300);color:var(--gray-700);padding:3px 9px;font-size:10px;border-radius:3px;cursor:pointer;font-weight:600;}
+.bla-mini-btn:hover{background:var(--gray-100);}
+.bla-mini-del:hover{background:#fee;border-color:#e57373;color:#c62828;}
+
+/* Analysis */
+.bla-analysis{display:flex;flex-direction:column;gap:10px;}
+.bla-week-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-bottom:6px;}
+.bla-wk-btn{background:var(--white);border:1px solid var(--gray-300);color:var(--gray-700);padding:5px 12px;font-size:14px;cursor:pointer;border-radius:3px;}
+.bla-wk-btn:hover{background:var(--gray-100);}
+.bla-week-bar input[type="date"]{padding:5px 8px;border:1px solid var(--gray-300);border-radius:4px;font-family:'DM Mono',monospace;font-size:12px;}
+.bla-week-label{font-size:13px;color:var(--gray-700);font-weight:600;}
+.bla-acc{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-sm);overflow:hidden;}
+.bla-acc-hdr{
+  width:100%;background:var(--gray-100);border:none;border-bottom:1px solid var(--gray-200);
+  padding:12px 16px;text-align:left;cursor:pointer;display:flex;align-items:center;gap:10px;
+  font-family:'DM Sans',sans-serif;
+}
+.bla-acc-hdr:hover{background:var(--gray-200);}
+.bla-acc-arrow{font-size:11px;color:var(--gray-500);width:12px;}
+.bla-acc-title{font-size:14px;font-weight:700;color:var(--navy);}
+.bla-acc-body{padding:0;overflow-x:auto;}
+.bla-metric-table{width:100%;border-collapse:collapse;font-size:12px;font-family:'DM Sans',sans-serif;}
+.bla-metric-table th{background:var(--gray-100);text-align:right;padding:8px 10px;font-weight:600;color:var(--gray-700);font-size:11px;border-bottom:1px solid var(--gray-200);white-space:nowrap;}
+.bla-metric-table th.bla-metric-col{text-align:left;background:var(--white);min-width:180px;}
+.bla-metric-table th.bla-sum{background:#f1f5f9;color:var(--navy);}
+.bla-metric-table .bla-hdr-date{font-size:10px;color:var(--gray-500);font-weight:500;font-family:'DM Mono',monospace;margin-top:1px;}
+.bla-metric-table td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--gray-100);font-family:'DM Mono',monospace;font-size:12px;color:var(--gray-800);white-space:nowrap;}
+.bla-metric-table td.bla-metric-col{text-align:left;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--gray-700);background:#fafafa;font-size:12px;}
+.bla-metric-table td.bla-cell-num{cursor:pointer;}
+.bla-metric-table td.bla-cell-num:hover{background:#e6f5f3;color:var(--teal-dim);}
+.bla-metric-table td.bla-cell-empty{color:var(--gray-400);}
+.bla-metric-table tr:last-child td{border-bottom:none;}
+
 /* ── IRR SCALE TAB ─────────────────────────────────────────────────── */
 .irr-wrap{max-width:780px;margin:0 auto;padding:1.5rem 0;}
 .irr-drop{
@@ -2089,6 +2197,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <button onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button id="irrTabBtn" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
     <button id="xferTabBtn" style="display:none" onclick="switchTab('xfer',this)">Xfer Station</button>
+    <button id="blaTabBtn"  style="display:none" onclick="switchTab('bla',this)">Business Line Analysis</button>
     <button id="filesTabBtn" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="cmdTabBtn" style="display:none" onclick="switchTab('cmd',this)">Command</button>
     <button id="actionTabBtn" style="display:none" onclick="switchTab('action',this)">Workflow</button>
@@ -2102,6 +2211,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <div id="tab-rolloffs" style="display:none"></div>
     <div id="tab-irr"    style="display:none"></div>
     <div id="tab-xfer"   style="display:none"></div>
+    <div id="tab-bla"    style="display:none"></div>
     <div id="tab-files"  style="display:none"></div>
     <div id="tab-cmd"    style="display:none"></div>
     <div id="tab-action" style="display:none"></div>
@@ -2585,8 +2695,9 @@ async function login() {
     document.getElementById('irrTabBtn').style.display='';
     document.getElementById('filesTabBtn').style.display='';
   }
-  if(['david','chris','admin'].includes(data.username)) {
+  if(['david','chris','admin'].includes(data.username) || data.role==='admin') {
     document.getElementById('xferTabBtn').style.display='';
+    document.getElementById('blaTabBtn').style.display='';
   }
   if(data.username==='david'){
     document.getElementById('cmdTabBtn').style.display='';
@@ -2713,7 +2824,7 @@ async function loadNotes(baseId){
 
 // ── TABS ──────────────────────────────────────────────────────────────
 function switchTab(name,btn){
-  ['lookup','add','report','rolloffs','irr','xfer','files','cmd','action','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','irr','xfer','bla','files','cmd','action','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -2728,6 +2839,7 @@ function switchTab(name,btn){
   if(name==='rolloffs') renderRolloffs();
   if(name==='irr')    renderIRR();
   if(name==='xfer')   renderXfer();
+  if(name==='bla')    renderBLA();
   if(name==='files')  renderFiles();
   if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
   if(name==='action') { apInit(); }
@@ -11357,6 +11469,932 @@ function apMountShortcuts(){
       else if(apView.selectedTaskId) apCloseTask();
     }
   });
+}
+
+// ── BUSINESS LINE ANALYSIS TAB ─────────────────────────────────────────
+// David + Chris + admin only. Tracks 4 business lines (Resi / Comm / Rolloff / Xfer)
+// with a manual Input view (4 sub-tabs of forms) and an Analysis view
+// (4 stacked accordions, metric × day-of-week × Wk/Mo/Yr).
+
+const BLA_BL_LABELS = { resi:'Residential', comm:'Commercial', rolloff:'Rolloff', xfer:'Xfer Station' };
+
+let blaState = {
+  view: 'input',                          // 'input' | 'analysis'
+  inputBL: 'resi',                        // 'resi' | 'comm' | 'rolloff' | 'xfer'
+  open: { resi:true, comm:false, rolloff:false, xfer:false },
+  weekStart: null,                        // Monday ISO for analysis
+  filterRange: null,                      // {start, end} when entries filtered by clicked cell
+  staff: [],
+  resiEntries: [],
+  commEntries: [],
+  rolloffManual: {},                      // keyed by entry_date
+  xferManual: {},                         // keyed by entry_date
+  irrRows: [],                            // for rolloff/xfer auto fields
+  resiDraft: null,
+  commDraft: null,
+  rolloffDraft: null,
+  xferDraft: null,
+  loaded: false
+};
+
+function blaIsoOf(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function blaTodayIso(){ return blaIsoOf(new Date()); }
+function blaMonday(d){
+  const dt = new Date(d);
+  const dow = dt.getDay();          // 0=Sun
+  const diff = (dow===0 ? -6 : 1-dow);
+  dt.setDate(dt.getDate()+diff);
+  dt.setHours(0,0,0,0);
+  return blaIsoOf(dt);
+}
+function blaParseHHMM(s){
+  if(s===null||s===undefined||s==='') return null;
+  s = String(s).trim();
+  if(!s) return null;
+  if(s.includes(':')){
+    const [h,m] = s.split(':').map(x=>parseInt(x,10)||0);
+    return h*60 + m;
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? null : Math.round(n);
+}
+function blaFmtHHMM(mins){
+  if(mins===null||mins===undefined||isNaN(mins)) return '';
+  const h = Math.floor(mins/60), m = mins%60;
+  return h+':'+String(m).padStart(2,'0');
+}
+function blaFmtNum(n, d=2){
+  if(n===null||n===undefined||isNaN(n)) return '';
+  return Number(n).toLocaleString(undefined,{minimumFractionDigits:d, maximumFractionDigits:d});
+}
+function blaFmtInt(n){
+  if(n===null||n===undefined||isNaN(n)) return '';
+  return Math.round(n).toLocaleString();
+}
+function blaFmtDateMD(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return parseInt(m,10)+'/'+parseInt(d,10);
+}
+
+function blaEmptyResiDraft(){
+  return { id:null, entry_date:blaTodayIso(), driver_id:'', driver_minutes_str:'',
+    helper_minutes_str:'', net_weight_lbs:'', landfill_minutes_str:'', total_miles:'',
+    routes:[{name:'',stops:'',helper_id:''}], notes:'' };
+}
+function blaEmptyCommDraft(){
+  return { id:null, entry_date:blaTodayIso(), driver_id:'', driver_minutes_str:'',
+    net_weight_lbs:'', landfill_minutes_str:'', total_miles:'',
+    routes:[{name:'',stops:''}], notes:'' };
+}
+function blaEmptyRolloffDraft(){
+  return { entry_date:blaTodayIso(), driver_hours:[{driver_id:'',st_hours:'',ot_hours:''}], notes:'' };
+}
+function blaEmptyXferDraft(){
+  return { entry_date:blaTodayIso(), trlrs_loaded:'', tons_loaded:'', loads_hauled:'', tons_hauled:'', notes:'' };
+}
+
+async function blaLoadAll(){
+  // Pull last 13 months for analysis aggregations + autosuggest history.
+  const yrAgo = new Date(); yrAgo.setMonth(yrAgo.getMonth()-13);
+  const since = blaIsoOf(yrAgo);
+  const yrStart = (new Date().getFullYear())+'-01-01';
+  const earliest = since < yrStart ? since : yrStart;
+
+  const [staff, resi, comm, rm, xm, irr] = await Promise.all([
+    db.from('bla_staff').select('*').order('name'),
+    db.from('bla_resi_entries').select('*').gte('entry_date', earliest).order('entry_date',{ascending:false}),
+    db.from('bla_comm_entries').select('*').gte('entry_date', earliest).order('entry_date',{ascending:false}),
+    db.from('bla_rolloff_manual').select('*').gte('entry_date', earliest),
+    db.from('bla_xfer_manual').select('*').gte('entry_date', earliest),
+    db.from('irr_reports').select('report_date,reis_tons,reis_tickets,reis_tip_revenue,reis_svc_revenue,island_tons,island_tickets,island_revenue,santos_tons,santos_tickets,santos_revenue,walkin_tons,walkin_tickets,walkin_tip_revenue,vinagro_tons,vinagro_loads,total_inbound_tons,total_inbound_tickets').gte('report_date', earliest)
+  ]);
+  blaState.staff = staff.data || [];
+  blaState.resiEntries = resi.data || [];
+  blaState.commEntries = comm.data || [];
+  blaState.rolloffManual = {}; (rm.data||[]).forEach(r=>blaState.rolloffManual[r.entry_date]=r);
+  blaState.xferManual = {};    (xm.data||[]).forEach(r=>blaState.xferManual[r.entry_date]=r);
+  blaState.irrRows = irr.data || [];
+  blaState.loaded = true;
+}
+
+async function renderBLA(){
+  const tab = document.getElementById('tab-bla');
+  if(!blaState.loaded){
+    tab.innerHTML = '<div style="padding:40px;text-align:center;color:var(--gray-400);font-size:13px;">Loading…</div>';
+    await blaLoadAll();
+  }
+  if(!blaState.weekStart) blaState.weekStart = blaMonday(new Date());
+  if(!blaState.resiDraft) blaState.resiDraft = blaEmptyResiDraft();
+  if(!blaState.commDraft) blaState.commDraft = blaEmptyCommDraft();
+  if(!blaState.rolloffDraft) blaState.rolloffDraft = blaEmptyRolloffDraft();
+  if(!blaState.xferDraft) blaState.xferDraft = blaEmptyXferDraft();
+
+  tab.innerHTML = `<div class="bla-wrap">
+    <div class="bla-header">
+      <h2 class="bla-title">Business Line Analysis</h2>
+      <div class="bla-view-toggle">
+        <button class="${blaState.view==='input'?'active':''}" onclick="blaSetView('input')">Input</button>
+        <button class="${blaState.view==='analysis'?'active':''}" onclick="blaSetView('analysis')">Analysis</button>
+      </div>
+    </div>
+    <div id="blaBody"></div>
+  </div>`;
+  blaRenderBody();
+}
+
+function blaSetView(v){
+  blaState.view = v;
+  blaState.filterRange = null;
+  document.querySelectorAll('.bla-view-toggle button').forEach(b=>b.classList.remove('active'));
+  const btns = document.querySelectorAll('.bla-view-toggle button');
+  btns.forEach(b=>{ if(b.textContent.trim().toLowerCase()===v) b.classList.add('active'); });
+  blaRenderBody();
+}
+
+function blaRenderBody(){
+  const body = document.getElementById('blaBody');
+  if(!body) return;
+  if(blaState.view==='input') body.innerHTML = blaRenderInputView();
+  else body.innerHTML = blaRenderAnalysisView();
+}
+
+// ── INPUT VIEW ─────────────────────────────────────────────────────────
+
+function blaRenderInputView(){
+  const bl = blaState.inputBL;
+  const sub = ['resi','comm','rolloff','xfer'].map(k=>
+    `<button class="${bl===k?'active':''}" onclick="blaSetInputBL('${k}')">${BLA_BL_LABELS[k]}</button>`
+  ).join('');
+  let formHtml='';
+  if(bl==='resi') formHtml = blaRenderResiForm();
+  else if(bl==='comm') formHtml = blaRenderCommForm();
+  else if(bl==='rolloff') formHtml = blaRenderRolloffForm();
+  else if(bl==='xfer') formHtml = blaRenderXferForm();
+
+  const filterBanner = blaState.filterRange ? `
+    <div class="bla-filter-banner">
+      Showing entries from ${blaFmtDateMD(blaState.filterRange.start)} to ${blaFmtDateMD(blaState.filterRange.end)}
+      <button onclick="blaClearFilter()">Clear filter</button>
+    </div>` : '';
+
+  return `<div class="bla-subnav">${sub}</div>${filterBanner}<div class="bla-form-wrap">${formHtml}</div><div class="bla-saved-list">${blaRenderSavedList(bl)}</div>`;
+}
+
+function blaSetInputBL(k){
+  blaState.inputBL = k;
+  blaState.filterRange = null;
+  blaRenderBody();
+}
+function blaClearFilter(){ blaState.filterRange = null; blaRenderBody(); }
+
+function blaStaffOptions(role, selectedId){
+  const list = blaState.staff.filter(s=> (!role || s.role===role) && s.active);
+  let html = '<option value="">— select —</option>';
+  list.forEach(s=>{
+    html += `<option value="${s.id}" ${String(s.id)===String(selectedId)?'selected':''}>${s.name}</option>`;
+  });
+  html += `<option value="__add__">+ Add new ${role||'staff'}…</option>`;
+  return html;
+}
+
+function blaRouteNamesDatalist(){
+  const set = new Set();
+  blaState.resiEntries.forEach(e=> (e.routes||[]).forEach(r=> r.name && set.add(r.name)));
+  blaState.commEntries.forEach(e=> (e.routes||[]).forEach(r=> r.name && set.add(r.name)));
+  return [...set].sort().map(n=>`<option value="${n.replace(/"/g,'&quot;')}"></option>`).join('');
+}
+
+// ── Resi form ──
+function blaRenderResiForm(){
+  const d = blaState.resiDraft;
+  const routesHtml = (d.routes||[]).map((r,i)=>`
+    <div class="bla-route-row">
+      <input type="text" list="blaResiRouteNames" placeholder="Route name" value="${r.name||''}" oninput="blaResiSetRoute(${i},'name',this.value)" />
+      <input type="number" min="0" placeholder="# Stops" value="${r.stops||''}" oninput="blaResiSetRoute(${i},'stops',this.value)" />
+      <select onchange="blaResiSetRoute(${i},'helper_id',this.value)">${blaStaffOptions('helper', r.helper_id)}</select>
+      <button class="bla-row-x" onclick="blaResiRmRoute(${i})" title="Remove route">&times;</button>
+    </div>`).join('');
+
+  return `
+    <datalist id="blaResiRouteNames">${blaRouteNamesDatalist()}</datalist>
+    <div class="bla-form">
+      <div class="bla-form-title">${d.id?'Edit':'New'} Residential Day Entry</div>
+      <div class="bla-grid">
+        <label>Date<input type="date" value="${d.entry_date}" oninput="blaState.resiDraft.entry_date=this.value"/></label>
+        <label>Driver<select onchange="blaResiSetDriver(this.value)">${blaStaffOptions('driver', d.driver_id)}</select></label>
+        <label>Driver Time (HH:MM)<input type="text" placeholder="5:15" value="${d.driver_minutes_str||''}" oninput="blaState.resiDraft.driver_minutes_str=this.value"/></label>
+        <label>Helper Time (HH:MM)<input type="text" placeholder="5:15 or blank" value="${d.helper_minutes_str||''}" oninput="blaState.resiDraft.helper_minutes_str=this.value"/></label>
+        <label>Net Weight (lbs)<input type="number" step="1" value="${d.net_weight_lbs||''}" oninput="blaState.resiDraft.net_weight_lbs=this.value"/></label>
+        <label>Landfill Time (HH:MM)<input type="text" placeholder="0:40" value="${d.landfill_minutes_str||''}" oninput="blaState.resiDraft.landfill_minutes_str=this.value"/></label>
+        <label>Total Miles<input type="number" step="0.1" value="${d.total_miles||''}" oninput="blaState.resiDraft.total_miles=this.value"/></label>
+      </div>
+      <div class="bla-routes-section">
+        <div class="bla-routes-hdr">
+          <span>Routes worked this day</span>
+          <button onclick="blaResiAddRoute()" class="bla-add-btn">+ Add route</button>
+        </div>
+        <div class="bla-route-row-hdr"><span>Route name</span><span># Stops</span><span>Helper (optional)</span><span></span></div>
+        ${routesHtml || '<div class="bla-empty">No routes added yet.</div>'}
+      </div>
+      <label class="bla-notes-label">Notes<textarea rows="2" oninput="blaState.resiDraft.notes=this.value">${d.notes||''}</textarea></label>
+      <div class="bla-form-actions">
+        <button class="bla-btn-primary" onclick="blaSaveResi()">${d.id?'Update Entry':'Save Entry'}</button>
+        ${d.id?`<button class="bla-btn-ghost" onclick="blaResetResi()">Cancel</button>`:''}
+      </div>
+    </div>`;
+}
+function blaResiSetDriver(v){
+  if(v==='__add__') return blaPromptAddStaff('driver','resi');
+  blaState.resiDraft.driver_id = v;
+}
+function blaResiSetRoute(i,field,v){
+  if(field==='helper_id' && v==='__add__'){ blaPromptAddStaff('helper','resi-route',i); return; }
+  blaState.resiDraft.routes[i][field] = v;
+}
+function blaResiAddRoute(){ blaState.resiDraft.routes.push({name:'',stops:'',helper_id:''}); blaRenderBody(); }
+function blaResiRmRoute(i){ blaState.resiDraft.routes.splice(i,1); if(!blaState.resiDraft.routes.length) blaState.resiDraft.routes=[{name:'',stops:'',helper_id:''}]; blaRenderBody(); }
+function blaResetResi(){ blaState.resiDraft = blaEmptyResiDraft(); blaRenderBody(); }
+
+async function blaSaveResi(){
+  const d = blaState.resiDraft;
+  if(!d.entry_date){ toast('Date required'); return; }
+  if(!d.driver_id){ toast('Driver required'); return; }
+  const validRoutes = (d.routes||[]).filter(r=>r.name && r.name.trim()).map(r=>({
+    name:r.name.trim(),
+    stops: r.stops===''?null:parseInt(r.stops,10),
+    helper_id: r.helper_id?parseInt(r.helper_id,10):null
+  }));
+  const payload = {
+    entry_date: d.entry_date,
+    driver_id: parseInt(d.driver_id,10),
+    driver_minutes: blaParseHHMM(d.driver_minutes_str),
+    helper_minutes: blaParseHHMM(d.helper_minutes_str),
+    net_weight_lbs: d.net_weight_lbs===''?null:parseFloat(d.net_weight_lbs),
+    landfill_minutes: blaParseHHMM(d.landfill_minutes_str),
+    total_miles: d.total_miles===''?null:parseFloat(d.total_miles),
+    routes: validRoutes,
+    notes: d.notes||null,
+    updated_at: new Date().toISOString()
+  };
+  let res;
+  if(d.id){ res = await db.from('bla_resi_entries').update(payload).eq('id', d.id).select().single(); }
+  else    { res = await db.from('bla_resi_entries').insert(payload).select().single(); }
+  if(res.error){ toast('Save failed: '+res.error.message); return; }
+  toast(d.id?'Entry updated':'Entry saved');
+  await blaLoadAll();
+  blaState.resiDraft = blaEmptyResiDraft();
+  blaRenderBody();
+}
+
+function blaEditResi(id){
+  const e = blaState.resiEntries.find(x=>x.id===id);
+  if(!e) return;
+  blaState.resiDraft = {
+    id: e.id, entry_date: e.entry_date, driver_id: e.driver_id||'',
+    driver_minutes_str: blaFmtHHMM(e.driver_minutes),
+    helper_minutes_str: blaFmtHHMM(e.helper_minutes),
+    net_weight_lbs: e.net_weight_lbs||'',
+    landfill_minutes_str: blaFmtHHMM(e.landfill_minutes),
+    total_miles: e.total_miles||'',
+    routes: (e.routes&&e.routes.length)?e.routes.map(r=>({name:r.name||'',stops:r.stops==null?'':r.stops,helper_id:r.helper_id||''})):[{name:'',stops:'',helper_id:''}],
+    notes: e.notes||''
+  };
+  blaState.inputBL = 'resi';
+  blaState.view = 'input';
+  renderBLA();
+}
+async function blaDeleteResi(id){
+  if(!confirm('Delete this entry?')) return;
+  const {error} = await db.from('bla_resi_entries').delete().eq('id', id);
+  if(error){ toast('Delete failed'); return; }
+  toast('Deleted');
+  await blaLoadAll();
+  blaRenderBody();
+}
+
+// ── Comm form ──
+function blaRenderCommForm(){
+  const d = blaState.commDraft;
+  const routesHtml = (d.routes||[]).map((r,i)=>`
+    <div class="bla-route-row" style="grid-template-columns:1fr 100px 28px;">
+      <input type="text" list="blaResiRouteNames" placeholder="Route name" value="${r.name||''}" oninput="blaCommSetRoute(${i},'name',this.value)" />
+      <input type="number" min="0" placeholder="# Stops" value="${r.stops||''}" oninput="blaCommSetRoute(${i},'stops',this.value)" />
+      <button class="bla-row-x" onclick="blaCommRmRoute(${i})" title="Remove route">&times;</button>
+    </div>`).join('');
+
+  return `
+    <datalist id="blaResiRouteNames">${blaRouteNamesDatalist()}</datalist>
+    <div class="bla-form">
+      <div class="bla-form-title">${d.id?'Edit':'New'} Commercial Day Entry</div>
+      <div class="bla-grid">
+        <label>Date<input type="date" value="${d.entry_date}" oninput="blaState.commDraft.entry_date=this.value"/></label>
+        <label>Driver<select onchange="blaCommSetDriver(this.value)">${blaStaffOptions('driver', d.driver_id)}</select></label>
+        <label>Driver Time (HH:MM)<input type="text" placeholder="6:00" value="${d.driver_minutes_str||''}" oninput="blaState.commDraft.driver_minutes_str=this.value"/></label>
+        <label>Net Weight (lbs)<input type="number" step="1" value="${d.net_weight_lbs||''}" oninput="blaState.commDraft.net_weight_lbs=this.value"/></label>
+        <label>Landfill Time (HH:MM)<input type="text" placeholder="0:40" value="${d.landfill_minutes_str||''}" oninput="blaState.commDraft.landfill_minutes_str=this.value"/></label>
+        <label>Total Miles<input type="number" step="0.1" value="${d.total_miles||''}" oninput="blaState.commDraft.total_miles=this.value"/></label>
+      </div>
+      <div class="bla-routes-section">
+        <div class="bla-routes-hdr">
+          <span>Routes worked this day</span>
+          <button onclick="blaCommAddRoute()" class="bla-add-btn">+ Add route</button>
+        </div>
+        <div class="bla-route-row-hdr" style="grid-template-columns:1fr 100px 28px;"><span>Route name</span><span># Stops</span><span></span></div>
+        ${routesHtml || '<div class="bla-empty">No routes added yet.</div>'}
+      </div>
+      <label class="bla-notes-label">Notes<textarea rows="2" oninput="blaState.commDraft.notes=this.value">${d.notes||''}</textarea></label>
+      <div class="bla-form-actions">
+        <button class="bla-btn-primary" onclick="blaSaveComm()">${d.id?'Update Entry':'Save Entry'}</button>
+        ${d.id?`<button class="bla-btn-ghost" onclick="blaResetComm()">Cancel</button>`:''}
+      </div>
+    </div>`;
+}
+function blaCommSetDriver(v){ if(v==='__add__') return blaPromptAddStaff('driver','comm'); blaState.commDraft.driver_id=v; }
+function blaCommSetRoute(i,f,v){ blaState.commDraft.routes[i][f]=v; }
+function blaCommAddRoute(){ blaState.commDraft.routes.push({name:'',stops:''}); blaRenderBody(); }
+function blaCommRmRoute(i){ blaState.commDraft.routes.splice(i,1); if(!blaState.commDraft.routes.length) blaState.commDraft.routes=[{name:'',stops:''}]; blaRenderBody(); }
+function blaResetComm(){ blaState.commDraft = blaEmptyCommDraft(); blaRenderBody(); }
+
+async function blaSaveComm(){
+  const d = blaState.commDraft;
+  if(!d.entry_date || !d.driver_id){ toast('Date + Driver required'); return; }
+  const validRoutes = (d.routes||[]).filter(r=>r.name && r.name.trim()).map(r=>({
+    name:r.name.trim(), stops: r.stops===''?null:parseInt(r.stops,10)
+  }));
+  const payload = {
+    entry_date:d.entry_date, driver_id:parseInt(d.driver_id,10),
+    driver_minutes: blaParseHHMM(d.driver_minutes_str),
+    net_weight_lbs:d.net_weight_lbs===''?null:parseFloat(d.net_weight_lbs),
+    landfill_minutes:blaParseHHMM(d.landfill_minutes_str),
+    total_miles:d.total_miles===''?null:parseFloat(d.total_miles),
+    routes:validRoutes, notes:d.notes||null, updated_at:new Date().toISOString()
+  };
+  let res;
+  if(d.id) res = await db.from('bla_comm_entries').update(payload).eq('id',d.id).select().single();
+  else     res = await db.from('bla_comm_entries').insert(payload).select().single();
+  if(res.error){ toast('Save failed: '+res.error.message); return; }
+  toast(d.id?'Entry updated':'Entry saved');
+  await blaLoadAll();
+  blaState.commDraft = blaEmptyCommDraft();
+  blaRenderBody();
+}
+function blaEditComm(id){
+  const e = blaState.commEntries.find(x=>x.id===id);
+  if(!e) return;
+  blaState.commDraft = { id:e.id, entry_date:e.entry_date, driver_id:e.driver_id||'',
+    driver_minutes_str:blaFmtHHMM(e.driver_minutes), net_weight_lbs:e.net_weight_lbs||'',
+    landfill_minutes_str:blaFmtHHMM(e.landfill_minutes), total_miles:e.total_miles||'',
+    routes:(e.routes&&e.routes.length)?e.routes.map(r=>({name:r.name||'',stops:r.stops==null?'':r.stops})):[{name:'',stops:''}],
+    notes:e.notes||'' };
+  blaState.inputBL='comm'; blaState.view='input'; renderBLA();
+}
+async function blaDeleteComm(id){
+  if(!confirm('Delete this entry?')) return;
+  const {error}=await db.from('bla_comm_entries').delete().eq('id',id);
+  if(error){ toast('Delete failed'); return; }
+  toast('Deleted'); await blaLoadAll(); blaRenderBody();
+}
+
+// ── Rolloff manual form ──
+function blaRenderRolloffForm(){
+  const d = blaState.rolloffDraft;
+  // If this date already has manual data and we haven't loaded it into draft, do so
+  const existing = blaState.rolloffManual[d.entry_date];
+  const rows = (d.driver_hours||[]).map((r,i)=>`
+    <div class="bla-route-row" style="grid-template-columns:1fr 110px 110px 28px;">
+      <select onchange="blaRollSetDH(${i},'driver_id',this.value)">${blaStaffOptions('driver', r.driver_id)}</select>
+      <input type="number" step="0.25" placeholder="ST hours" value="${r.st_hours||''}" oninput="blaRollSetDH(${i},'st_hours',this.value)" />
+      <input type="number" step="0.25" placeholder="OT hours" value="${r.ot_hours||''}" oninput="blaRollSetDH(${i},'ot_hours',this.value)" />
+      <button class="bla-row-x" onclick="blaRollRmDH(${i})">&times;</button>
+    </div>`).join('');
+  return `<div class="bla-form">
+      <div class="bla-form-title">Rolloff — Manual Entry (Driver Hours)</div>
+      <div class="bla-helptext">Tonnage, loads, and revenue are auto-pulled from the Daily Scale Report. Use this section to record per-driver ST / OT hours for the day.</div>
+      <div class="bla-grid" style="grid-template-columns:200px 1fr;">
+        <label>Date<input type="date" value="${d.entry_date}" oninput="blaRollSetDate(this.value)"/></label>
+      </div>
+      <div class="bla-routes-section">
+        <div class="bla-routes-hdr">
+          <span>Driver hours for this day</span>
+          <button onclick="blaRollAddDH()" class="bla-add-btn">+ Add driver</button>
+        </div>
+        <div class="bla-route-row-hdr" style="grid-template-columns:1fr 110px 110px 28px;"><span>Driver</span><span>ST Hours</span><span>OT Hours</span><span></span></div>
+        ${rows || '<div class="bla-empty">No drivers added yet.</div>'}
+      </div>
+      <label class="bla-notes-label">Notes<textarea rows="2" oninput="blaState.rolloffDraft.notes=this.value">${d.notes||''}</textarea></label>
+      <div class="bla-form-actions">
+        <button class="bla-btn-primary" onclick="blaSaveRolloff()">${existing?'Update Day':'Save Day'}</button>
+        <button class="bla-btn-ghost" onclick="blaResetRoll()">Reset</button>
+      </div>
+    </div>`;
+}
+function blaRollSetDate(iso){
+  blaState.rolloffDraft.entry_date = iso;
+  const m = blaState.rolloffManual[iso];
+  if(m){
+    blaState.rolloffDraft.driver_hours = (m.driver_hours||[]).map(r=>({driver_id:r.driver_id||'',st_hours:r.st_hours==null?'':r.st_hours,ot_hours:r.ot_hours==null?'':r.ot_hours}));
+    if(!blaState.rolloffDraft.driver_hours.length) blaState.rolloffDraft.driver_hours=[{driver_id:'',st_hours:'',ot_hours:''}];
+    blaState.rolloffDraft.notes = m.notes||'';
+  } else {
+    blaState.rolloffDraft.driver_hours = [{driver_id:'',st_hours:'',ot_hours:''}];
+    blaState.rolloffDraft.notes='';
+  }
+  blaRenderBody();
+}
+function blaRollSetDH(i,f,v){
+  if(f==='driver_id' && v==='__add__'){ blaPromptAddStaff('driver','rolloff',i); return; }
+  blaState.rolloffDraft.driver_hours[i][f]=v;
+}
+function blaRollAddDH(){ blaState.rolloffDraft.driver_hours.push({driver_id:'',st_hours:'',ot_hours:''}); blaRenderBody(); }
+function blaRollRmDH(i){ blaState.rolloffDraft.driver_hours.splice(i,1); if(!blaState.rolloffDraft.driver_hours.length) blaState.rolloffDraft.driver_hours=[{driver_id:'',st_hours:'',ot_hours:''}]; blaRenderBody(); }
+function blaResetRoll(){ blaState.rolloffDraft = blaEmptyRolloffDraft(); blaRenderBody(); }
+async function blaSaveRolloff(){
+  const d = blaState.rolloffDraft;
+  if(!d.entry_date){ toast('Date required'); return; }
+  const dh = (d.driver_hours||[]).filter(r=>r.driver_id).map(r=>({
+    driver_id: parseInt(r.driver_id,10),
+    st_hours: r.st_hours===''?null:parseFloat(r.st_hours),
+    ot_hours: r.ot_hours===''?null:parseFloat(r.ot_hours)
+  }));
+  const payload = { entry_date:d.entry_date, driver_hours:dh, notes:d.notes||null, updated_at:new Date().toISOString() };
+  const {error} = await db.from('bla_rolloff_manual').upsert(payload, {onConflict:'entry_date'});
+  if(error){ toast('Save failed: '+error.message); return; }
+  toast('Saved'); await blaLoadAll(); blaRenderBody();
+}
+
+// ── Xfer manual form ──
+function blaRenderXferForm(){
+  const d = blaState.xferDraft;
+  const existing = blaState.xferManual[d.entry_date];
+  return `<div class="bla-form">
+      <div class="bla-form-title">Xfer Station — Manual Entry</div>
+      <div class="bla-helptext">Revenue, loads received, tons received, and Vinagro outbound (Loads Hauled / Tons Hauled) all pull from the Daily Scale Report. Fill in only the values that aren't auto-tracked.</div>
+      <div class="bla-grid">
+        <label>Date<input type="date" value="${d.entry_date}" oninput="blaXferSetDate(this.value)"/></label>
+        <label>Trailers Loaded (#)<input type="number" min="0" value="${d.trlrs_loaded||''}" oninput="blaState.xferDraft.trlrs_loaded=this.value"/></label>
+        <label>Tons Loaded<input type="number" step="0.01" value="${d.tons_loaded||''}" oninput="blaState.xferDraft.tons_loaded=this.value"/></label>
+        <label>Loads Hauled (override)<input type="number" min="0" value="${d.loads_hauled||''}" placeholder="auto from scale" oninput="blaState.xferDraft.loads_hauled=this.value"/></label>
+        <label>Tons Hauled (override)<input type="number" step="0.01" value="${d.tons_hauled||''}" placeholder="auto from scale" oninput="blaState.xferDraft.tons_hauled=this.value"/></label>
+      </div>
+      <label class="bla-notes-label">Notes<textarea rows="2" oninput="blaState.xferDraft.notes=this.value">${d.notes||''}</textarea></label>
+      <div class="bla-form-actions">
+        <button class="bla-btn-primary" onclick="blaSaveXfer()">${existing?'Update Day':'Save Day'}</button>
+        <button class="bla-btn-ghost" onclick="blaResetXfer()">Reset</button>
+      </div>
+    </div>`;
+}
+function blaXferSetDate(iso){
+  blaState.xferDraft.entry_date = iso;
+  const m = blaState.xferManual[iso];
+  if(m){
+    blaState.xferDraft.trlrs_loaded = m.trlrs_loaded==null?'':m.trlrs_loaded;
+    blaState.xferDraft.tons_loaded  = m.tons_loaded==null?'':m.tons_loaded;
+    blaState.xferDraft.loads_hauled = m.loads_hauled==null?'':m.loads_hauled;
+    blaState.xferDraft.tons_hauled  = m.tons_hauled==null?'':m.tons_hauled;
+    blaState.xferDraft.notes        = m.notes||'';
+  } else {
+    blaState.xferDraft = { ...blaEmptyXferDraft(), entry_date:iso };
+  }
+  blaRenderBody();
+}
+function blaResetXfer(){ blaState.xferDraft = blaEmptyXferDraft(); blaRenderBody(); }
+async function blaSaveXfer(){
+  const d = blaState.xferDraft;
+  if(!d.entry_date){ toast('Date required'); return; }
+  const payload = {
+    entry_date:d.entry_date,
+    trlrs_loaded:d.trlrs_loaded===''?null:parseInt(d.trlrs_loaded,10),
+    tons_loaded: d.tons_loaded===''?null:parseFloat(d.tons_loaded),
+    loads_hauled:d.loads_hauled===''?null:parseInt(d.loads_hauled,10),
+    tons_hauled: d.tons_hauled===''?null:parseFloat(d.tons_hauled),
+    notes:d.notes||null, updated_at:new Date().toISOString()
+  };
+  const {error} = await db.from('bla_xfer_manual').upsert(payload, {onConflict:'entry_date'});
+  if(error){ toast('Save failed: '+error.message); return; }
+  toast('Saved'); await blaLoadAll(); blaRenderBody();
+}
+
+// ── Saved entry list (under each input form) ──
+function blaRenderSavedList(bl){
+  const range = blaState.filterRange;
+  const inRange = iso => !range || (iso>=range.start && iso<=range.end);
+  if(bl==='resi'){
+    const rows = blaState.resiEntries.filter(e=>inRange(e.entry_date));
+    if(!rows.length) return `<div class="bla-saved-empty">No saved entries${range?' in this range':''}.</div>`;
+    return `<div class="bla-saved-hdr">Saved Residential Entries${range?' (filtered)':' (recent)'}</div>
+      <table class="bla-saved-table">
+        <thead><tr><th>Date</th><th>Driver</th><th>Routes</th><th>Stops</th><th>Net (lbs)</th><th>Drv Hrs</th><th>Hlp Hrs</th><th>LF Time</th><th>Miles</th><th></th></tr></thead>
+        <tbody>${rows.slice(0,80).map(e=>{
+          const drv = (blaState.staff.find(s=>s.id===e.driver_id)||{}).name || '—';
+          const routeNames = (e.routes||[]).map(r=>r.name).filter(Boolean).join(', ') || '—';
+          const stops = (e.routes||[]).reduce((a,r)=>a+(parseInt(r.stops,10)||0),0);
+          return `<tr>
+            <td>${blaFmtDateMD(e.entry_date)}</td>
+            <td>${drv}</td>
+            <td>${routeNames}</td>
+            <td>${stops||''}</td>
+            <td>${blaFmtInt(e.net_weight_lbs)}</td>
+            <td>${blaFmtHHMM(e.driver_minutes)}</td>
+            <td>${blaFmtHHMM(e.helper_minutes)}</td>
+            <td>${blaFmtHHMM(e.landfill_minutes)}</td>
+            <td>${e.total_miles||''}</td>
+            <td><button class="bla-mini-btn" onclick="blaEditResi(${e.id})">Edit</button> <button class="bla-mini-btn bla-mini-del" onclick="blaDeleteResi(${e.id})">Del</button></td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
+  }
+  if(bl==='comm'){
+    const rows = blaState.commEntries.filter(e=>inRange(e.entry_date));
+    if(!rows.length) return `<div class="bla-saved-empty">No saved entries${range?' in this range':''}.</div>`;
+    return `<div class="bla-saved-hdr">Saved Commercial Entries${range?' (filtered)':' (recent)'}</div>
+      <table class="bla-saved-table">
+        <thead><tr><th>Date</th><th>Driver</th><th>Routes</th><th>Stops</th><th>Net (lbs)</th><th>Drv Hrs</th><th>LF Time</th><th>Miles</th><th></th></tr></thead>
+        <tbody>${rows.slice(0,80).map(e=>{
+          const drv = (blaState.staff.find(s=>s.id===e.driver_id)||{}).name || '—';
+          const routeNames = (e.routes||[]).map(r=>r.name).filter(Boolean).join(', ') || '—';
+          const stops = (e.routes||[]).reduce((a,r)=>a+(parseInt(r.stops,10)||0),0);
+          return `<tr>
+            <td>${blaFmtDateMD(e.entry_date)}</td>
+            <td>${drv}</td>
+            <td>${routeNames}</td>
+            <td>${stops||''}</td>
+            <td>${blaFmtInt(e.net_weight_lbs)}</td>
+            <td>${blaFmtHHMM(e.driver_minutes)}</td>
+            <td>${blaFmtHHMM(e.landfill_minutes)}</td>
+            <td>${e.total_miles||''}</td>
+            <td><button class="bla-mini-btn" onclick="blaEditComm(${e.id})">Edit</button> <button class="bla-mini-btn bla-mini-del" onclick="blaDeleteComm(${e.id})">Del</button></td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
+  }
+  if(bl==='rolloff'){
+    const dates = Object.keys(blaState.rolloffManual).filter(inRange).sort().reverse();
+    if(!dates.length) return `<div class="bla-saved-empty">No saved manual rolloff entries${range?' in this range':''}.</div>`;
+    return `<div class="bla-saved-hdr">Saved Rolloff Manual Entries${range?' (filtered)':' (recent)'}</div>
+      <table class="bla-saved-table">
+        <thead><tr><th>Date</th><th>Drivers</th><th>Total ST</th><th>Total OT</th><th></th></tr></thead>
+        <tbody>${dates.slice(0,40).map(date=>{
+          const m = blaState.rolloffManual[date];
+          const dh = m.driver_hours||[];
+          const st = dh.reduce((a,r)=>a+(parseFloat(r.st_hours)||0),0);
+          const ot = dh.reduce((a,r)=>a+(parseFloat(r.ot_hours)||0),0);
+          const names = dh.map(r=>(blaState.staff.find(s=>s.id===r.driver_id)||{}).name).filter(Boolean).join(', ')||'—';
+          return `<tr><td>${blaFmtDateMD(date)}</td><td>${names}</td><td>${blaFmtNum(st,1)}</td><td>${blaFmtNum(ot,1)}</td><td><button class="bla-mini-btn" onclick="blaRollSetDate('${date}')">Edit</button></td></tr>`;
+        }).join('')}</tbody></table>`;
+  }
+  if(bl==='xfer'){
+    const dates = Object.keys(blaState.xferManual).filter(inRange).sort().reverse();
+    if(!dates.length) return `<div class="bla-saved-empty">No saved manual xfer entries${range?' in this range':''}.</div>`;
+    return `<div class="bla-saved-hdr">Saved Xfer Manual Entries${range?' (filtered)':' (recent)'}</div>
+      <table class="bla-saved-table">
+        <thead><tr><th>Date</th><th>Trlrs Loaded</th><th>Tons Loaded</th><th>Loads Hauled</th><th>Tons Hauled</th><th></th></tr></thead>
+        <tbody>${dates.slice(0,40).map(date=>{
+          const m = blaState.xferManual[date];
+          return `<tr><td>${blaFmtDateMD(date)}</td><td>${m.trlrs_loaded??''}</td><td>${m.tons_loaded??''}</td><td>${m.loads_hauled??''}</td><td>${m.tons_hauled??''}</td><td><button class="bla-mini-btn" onclick="blaXferSetDate('${date}')">Edit</button></td></tr>`;
+        }).join('')}</tbody></table>`;
+  }
+  return '';
+}
+
+// ── Add staff prompt ──
+async function blaPromptAddStaff(role, ctx, idx){
+  const name = prompt(`Add a new ${role}. Enter their name:`);
+  if(!name || !name.trim()){
+    // restore the dropdown selection state
+    blaRenderBody(); return;
+  }
+  const {data, error} = await db.from('bla_staff').insert({name:name.trim(), role}).select().single();
+  if(error){ toast('Failed: '+error.message); blaRenderBody(); return; }
+  blaState.staff.push(data);
+  // assign back to whichever draft prompted this
+  if(ctx==='resi') blaState.resiDraft.driver_id = String(data.id);
+  else if(ctx==='comm') blaState.commDraft.driver_id = String(data.id);
+  else if(ctx==='resi-route') blaState.resiDraft.routes[idx].helper_id = String(data.id);
+  else if(ctx==='rolloff') blaState.rolloffDraft.driver_hours[idx].driver_id = String(data.id);
+  toast(`Added ${name.trim()}`);
+  blaRenderBody();
+}
+
+// ── ANALYSIS VIEW ──────────────────────────────────────────────────────
+
+function blaRenderAnalysisView(){
+  const ws = blaState.weekStart;
+  const wsDt = new Date(ws+'T00:00:00');
+  const wkLabel = wsDt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const accordions = ['resi','comm','rolloff','xfer'].map(bl=>{
+    const open = blaState.open[bl];
+    return `<div class="bla-acc">
+      <button class="bla-acc-hdr" onclick="blaToggleAcc('${bl}')">
+        <span class="bla-acc-arrow">${open?'▼':'▶'}</span>
+        <span class="bla-acc-title">${BLA_BL_LABELS[bl]}</span>
+      </button>
+      ${open?`<div class="bla-acc-body">${blaRenderMetricTable(bl)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return `<div class="bla-analysis">
+    <div class="bla-week-bar">
+      <button onclick="blaShiftWeek(-1)" class="bla-wk-btn">←</button>
+      <input type="date" value="${ws}" onchange="blaSetWeek(this.value)" />
+      <span class="bla-week-label">Week of ${wkLabel}</span>
+      <button onclick="blaShiftWeek(1)" class="bla-wk-btn">→</button>
+      <span class="bla-helptext" style="margin-left:auto;">Click any number to open the saved entries that produced it.</span>
+    </div>
+    ${accordions}
+  </div>`;
+}
+
+function blaToggleAcc(bl){ blaState.open[bl] = !blaState.open[bl]; blaRenderBody(); }
+function blaShiftWeek(delta){
+  const dt = new Date(blaState.weekStart+'T00:00:00');
+  dt.setDate(dt.getDate()+(7*delta));
+  blaState.weekStart = blaIsoOf(dt);
+  blaRenderBody();
+}
+function blaSetWeek(iso){
+  blaState.weekStart = blaMonday(new Date(iso+'T00:00:00'));
+  blaRenderBody();
+}
+
+function blaWeekDates(){
+  const ws = new Date(blaState.weekStart+'T00:00:00');
+  const dates=[];
+  for(let i=0;i<6;i++){ const d=new Date(ws); d.setDate(ws.getDate()+i); dates.push(blaIsoOf(d)); }
+  return dates;
+}
+function blaMonthRange(weekStartIso){
+  const d = new Date(weekStartIso+'T00:00:00');
+  const start = new Date(d.getFullYear(),d.getMonth(),1);
+  const end   = new Date(d.getFullYear(),d.getMonth()+1,0);
+  return { start: blaIsoOf(start), end: blaIsoOf(end) };
+}
+function blaYearRange(weekStartIso){
+  const d = new Date(weekStartIso+'T00:00:00');
+  return { start: d.getFullYear()+'-01-01', end: d.getFullYear()+'-12-31' };
+}
+
+// Aggregate residential metrics for a list of entries.
+function blaAggResi(entries){
+  const drivers = new Set(), helpers = new Set(), routeNames = new Set();
+  let stops=0, tons=0, loads=entries.length, miles=0, drvMin=0, hlpMin=0, lfMin=0;
+  entries.forEach(e=>{
+    if(e.driver_id) drivers.add(e.driver_id);
+    drvMin += e.driver_minutes||0;
+    hlpMin += e.helper_minutes||0;
+    lfMin  += e.landfill_minutes||0;
+    miles  += parseFloat(e.total_miles)||0;
+    tons   += (parseFloat(e.net_weight_lbs)||0)/2000;
+    (e.routes||[]).forEach(r=>{
+      if(r.name) routeNames.add(r.name+'|'+e.entry_date);   // unique per day
+      if(r.helper_id) helpers.add(r.helper_id);
+      stops += parseInt(r.stops,10)||0;
+    });
+  });
+  const drvHrs = drvMin/60, hlpHrs = hlpMin/60, lfHrs = lfMin/60;
+  return {
+    drivers: drivers.size,
+    helpers: helpers.size,
+    routes:  routeNames.size,
+    services: stops,
+    tons,
+    loads,
+    miles,
+    drvMin, hlpMin, lfMin,
+    drvHrs, hlpHrs, lfHrs,
+    svcsPerDrvHr: drvHrs>0 ? stops/drvHrs : null,
+    tonsPerLoad:  loads>0  ? tons/loads   : null,
+    milesPerSvc:  stops>0  ? miles/stops  : null,
+    svcsPerRoute: routeNames.size>0 ? stops/routeNames.size : null,
+    lfPerLoad:    loads>0  ? lfMin/loads  : null
+  };
+}
+function blaAggComm(entries){
+  const drivers = new Set(), routeNames = new Set();
+  let stops=0, tons=0, loads=entries.length, miles=0, drvMin=0, lfMin=0;
+  entries.forEach(e=>{
+    if(e.driver_id) drivers.add(e.driver_id);
+    drvMin += e.driver_minutes||0;
+    lfMin  += e.landfill_minutes||0;
+    miles  += parseFloat(e.total_miles)||0;
+    tons   += (parseFloat(e.net_weight_lbs)||0)/2000;
+    (e.routes||[]).forEach(r=>{
+      if(r.name) routeNames.add(r.name+'|'+e.entry_date);
+      stops += parseInt(r.stops,10)||0;
+    });
+  });
+  const drvHrs = drvMin/60, lfHrs = lfMin/60;
+  return {
+    drivers: drivers.size,
+    routes:  routeNames.size,
+    services: stops,
+    tons, loads, miles,
+    drvMin, lfMin, drvHrs, lfHrs,
+    svcsPerDrvHr: drvHrs>0 ? stops/drvHrs : null,
+    tonsPerLoad:  loads>0  ? tons/loads   : null,
+    milesPerSvc:  stops>0  ? miles/stops  : null,
+    svcsPerRoute: routeNames.size>0 ? stops/routeNames.size : null,
+    lfPerLoad:    loads>0  ? lfMin/loads  : null
+  };
+}
+function blaAggRolloff(start, end){
+  const irrInRange = blaState.irrRows.filter(r=>r.report_date>=start && r.report_date<=end);
+  let tons=0, tickets=0, revenue=0;
+  irrInRange.forEach(r=>{
+    tons    += (parseFloat(r.reis_tons)||0) + (parseFloat(r.island_tons)||0) + (parseFloat(r.santos_tons)||0);
+    tickets += (parseInt(r.reis_tickets,10)||0) + (parseInt(r.island_tickets,10)||0) + (parseInt(r.santos_tickets,10)||0);
+    revenue += (parseFloat(r.reis_tip_revenue)||0) + (parseFloat(r.reis_svc_revenue)||0) + (parseFloat(r.island_revenue)||0) + (parseFloat(r.santos_revenue)||0);
+  });
+  let st=0, ot=0; const drivers=new Set();
+  Object.keys(blaState.rolloffManual).forEach(d=>{
+    if(d<start||d>end) return;
+    const dh = blaState.rolloffManual[d].driver_hours||[];
+    dh.forEach(r=>{
+      if(r.driver_id) drivers.add(r.driver_id);
+      st += parseFloat(r.st_hours)||0;
+      ot += parseFloat(r.ot_hours)||0;
+    });
+  });
+  const totalHrs = st+ot;
+  const days = irrInRange.length || 1;
+  return {
+    revenue, loads:tickets, tons,
+    loadsPerDay: tickets/days,
+    revPerLoad: tickets>0?revenue/tickets:null,
+    tonsPerLoad: tickets>0?tons/tickets:null,
+    drivers: drivers.size,
+    stHours: st, otHours: ot, totalHours: totalHrs,
+    hrsPerDriver: drivers.size>0?totalHrs/drivers.size:null,
+    hrsPerLoad:   tickets>0?totalHrs/tickets:null
+  };
+}
+function blaAggXfer(start, end){
+  const irrInRange = blaState.irrRows.filter(r=>r.report_date>=start && r.report_date<=end);
+  let revenue=0, ldsRecv=0, tonsRecv=0, loadsHauledAuto=0, tonsHauledAuto=0;
+  irrInRange.forEach(r=>{
+    revenue += (parseFloat(r.reis_tip_revenue)||0) + (parseFloat(r.reis_svc_revenue)||0)
+            +  (parseFloat(r.island_revenue)||0) + (parseFloat(r.santos_revenue)||0)
+            +  (parseFloat(r.walkin_tip_revenue)||0);
+    ldsRecv  += (parseInt(r.total_inbound_tickets,10)||0);
+    tonsRecv += (parseFloat(r.total_inbound_tons)||0);
+    loadsHauledAuto += (parseInt(r.vinagro_loads,10)||0);
+    tonsHauledAuto  += (parseFloat(r.vinagro_tons)||0);
+  });
+  let trlrsLoaded=0, tonsLoaded=0, loadsHauledManual=null, tonsHauledManual=null;
+  Object.keys(blaState.xferManual).forEach(d=>{
+    if(d<start||d>end) return;
+    const m = blaState.xferManual[d];
+    trlrsLoaded += parseInt(m.trlrs_loaded,10)||0;
+    tonsLoaded  += parseFloat(m.tons_loaded)||0;
+    if(m.loads_hauled!=null) loadsHauledManual = (loadsHauledManual||0)+parseInt(m.loads_hauled,10);
+    if(m.tons_hauled !=null) tonsHauledManual  = (tonsHauledManual ||0)+parseFloat(m.tons_hauled);
+  });
+  const loadsHauled = loadsHauledManual!=null?loadsHauledManual:loadsHauledAuto;
+  const tonsHauled  = tonsHauledManual !=null?tonsHauledManual :tonsHauledAuto;
+  return {
+    revenue, ldsRecv, tonsRecv,
+    trlrsLoaded, tonsLoaded,
+    tonsPerTrlr: trlrsLoaded>0?tonsLoaded/trlrsLoaded:null,
+    loadsHauled, tonsHauled,
+    revPerLoad: ldsRecv>0?revenue/ldsRecv:null,
+    tonsPerLoad: ldsRecv>0?tonsRecv/ldsRecv:null,
+    trlrToHauled: loadsHauled>0?trlrsLoaded/loadsHauled:null,
+    tonsHauledPerLoad: loadsHauled>0?tonsHauled/loadsHauled:null
+  };
+}
+
+// Metric row builders for the table.
+function blaResiMetricRows(){
+  return [
+    {key:'drivers', label:'# of Drivers',           fmt:v=>blaFmtInt(v)},
+    {key:'helpers', label:'# of Helpers',           fmt:v=>blaFmtInt(v)},
+    {key:'routes',  label:'# Routes',               fmt:v=>blaFmtInt(v)},
+    {key:'services',label:'# Services',             fmt:v=>blaFmtInt(v)},
+    {key:'tons',    label:'# Tons',                 fmt:v=>blaFmtNum(v,2)},
+    {key:'loads',   label:'# Loads',                fmt:v=>blaFmtInt(v)},
+    {key:'miles',   label:'Miles',                  fmt:v=>blaFmtNum(v,1)},
+    {key:'drvHrs',  label:'Total Driver Hours',     fmt:v=>blaFmtNum(v,2)},
+    {key:'hlpHrs',  label:'Total Helper Hours',     fmt:v=>blaFmtNum(v,2)},
+    {key:'lfMin',   label:'Landfill Time (HH:MM)',  fmt:v=>blaFmtHHMM(v)},
+    {key:'svcsPerDrvHr', label:'Svcs/Driver Hr',    fmt:v=>blaFmtNum(v,2)},
+    {key:'tonsPerLoad',  label:'Tons/Load',         fmt:v=>blaFmtNum(v,2)},
+    {key:'milesPerSvc',  label:'Miles/Svc',         fmt:v=>blaFmtNum(v,2)},
+    {key:'svcsPerRoute', label:'Svcs/Route',        fmt:v=>blaFmtNum(v,2)},
+    {key:'lfPerLoad',    label:'L/F Time/Load (min)',fmt:v=>blaFmtNum(v,1)}
+  ];
+}
+function blaCommMetricRows(){
+  return [
+    {key:'drivers', label:'# of Drivers',           fmt:v=>blaFmtInt(v)},
+    {key:'routes',  label:'# Routes',               fmt:v=>blaFmtInt(v)},
+    {key:'services',label:'# Services',             fmt:v=>blaFmtInt(v)},
+    {key:'tons',    label:'# Tons',                 fmt:v=>blaFmtNum(v,2)},
+    {key:'loads',   label:'# Loads',                fmt:v=>blaFmtInt(v)},
+    {key:'miles',   label:'Miles',                  fmt:v=>blaFmtNum(v,1)},
+    {key:'drvHrs',  label:'Total Driver Hours',     fmt:v=>blaFmtNum(v,2)},
+    {key:'lfMin',   label:'Landfill Time (HH:MM)',  fmt:v=>blaFmtHHMM(v)},
+    {key:'svcsPerDrvHr', label:'Svcs/Driver Hr',    fmt:v=>blaFmtNum(v,2)},
+    {key:'tonsPerLoad',  label:'Tons/Load',         fmt:v=>blaFmtNum(v,2)},
+    {key:'milesPerSvc',  label:'Miles/Svc',         fmt:v=>blaFmtNum(v,2)},
+    {key:'svcsPerRoute', label:'Svcs/Route',        fmt:v=>blaFmtNum(v,2)},
+    {key:'lfPerLoad',    label:'L/F Time/Load (min)',fmt:v=>blaFmtNum(v,1)}
+  ];
+}
+function blaRolloffMetricRows(){
+  return [
+    {key:'revenue',     label:'Revenue',         fmt:v=>v?'$'+blaFmtNum(v,0):''},
+    {key:'loads',       label:'Loads',           fmt:v=>blaFmtInt(v)},
+    {key:'tons',        label:'Tons',            fmt:v=>blaFmtNum(v,2)},
+    {key:'loadsPerDay', label:'Loads/Day',       fmt:v=>blaFmtNum(v,2)},
+    {key:'revPerLoad',  label:'Rev/Load',        fmt:v=>v?'$'+blaFmtNum(v,0):''},
+    {key:'tonsPerLoad', label:'Tons/Load',       fmt:v=>blaFmtNum(v,2)},
+    {key:'drivers',     label:'# of Drivers',    fmt:v=>blaFmtInt(v)},
+    {key:'stHours',     label:'ST Hours',        fmt:v=>blaFmtNum(v,1)},
+    {key:'otHours',     label:'OT Hours',        fmt:v=>blaFmtNum(v,1)},
+    {key:'totalHours',  label:'Total Hours',     fmt:v=>blaFmtNum(v,1)},
+    {key:'hrsPerDriver',label:'Hrs/Driver',      fmt:v=>blaFmtNum(v,2)},
+    {key:'hrsPerLoad',  label:'Hrs/Load',        fmt:v=>blaFmtNum(v,2)}
+  ];
+}
+function blaXferMetricRows(){
+  return [
+    {key:'revenue',         label:'Revenue (rolloffs+walkins)', fmt:v=>v?'$'+blaFmtNum(v,0):''},
+    {key:'ldsRecv',         label:'Lds Received (#)',  fmt:v=>blaFmtInt(v)},
+    {key:'tonsRecv',        label:'Tons Received',     fmt:v=>blaFmtNum(v,2)},
+    {key:'trlrsLoaded',     label:'Trlrs Loaded',      fmt:v=>blaFmtInt(v)},
+    {key:'tonsLoaded',      label:'Tons Loaded',       fmt:v=>blaFmtNum(v,2)},
+    {key:'tonsPerTrlr',     label:'Tons/Trlr',         fmt:v=>blaFmtNum(v,2)},
+    {key:'loadsHauled',     label:'Loads Hauled',      fmt:v=>blaFmtInt(v)},
+    {key:'tonsHauled',      label:'Tons Hauled',       fmt:v=>blaFmtNum(v,2)},
+    {key:'revPerLoad',      label:'Rev/Load',          fmt:v=>v?'$'+blaFmtNum(v,0):''},
+    {key:'tonsPerLoad',     label:'Tons/Load',         fmt:v=>blaFmtNum(v,2)},
+    {key:'trlrToHauled',    label:'Trlrs Loaded / Hauled', fmt:v=>blaFmtNum(v,2)},
+    {key:'tonsHauledPerLoad',label:'Hauled tons / Hauled Loads', fmt:v=>blaFmtNum(v,2)}
+  ];
+}
+
+function blaRenderMetricTable(bl){
+  const dates = blaWeekDates();
+  const wkRange = { start: dates[0], end: dates[5] };
+  const moRange = blaMonthRange(blaState.weekStart);
+  const yrRange = blaYearRange(blaState.weekStart);
+
+  const aggForRange = (start,end)=>{
+    if(bl==='resi'){ return blaAggResi(blaState.resiEntries.filter(e=>e.entry_date>=start && e.entry_date<=end)); }
+    if(bl==='comm'){ return blaAggComm(blaState.commEntries.filter(e=>e.entry_date>=start && e.entry_date<=end)); }
+    if(bl==='rolloff'){ return blaAggRolloff(start,end); }
+    return blaAggXfer(start,end);
+  };
+
+  const dayAggs = dates.map(d=>aggForRange(d,d));
+  const wkAgg = aggForRange(wkRange.start, wkRange.end);
+  const moAgg = aggForRange(moRange.start, moRange.end);
+  const yrAgg = aggForRange(yrRange.start, yrRange.end);
+
+  const rows = bl==='resi'?blaResiMetricRows() : bl==='comm'?blaCommMetricRows() : bl==='rolloff'?blaRolloffMetricRows() : blaXferMetricRows();
+
+  const dayHdrs = dates.map((d,i)=>{
+    const dn = ['Mon','Tue','Wed','Thu','Fri','Sat'][i];
+    return `<th><div>${dn}</div><div class="bla-hdr-date">${blaFmtDateMD(d)}</div></th>`;
+  }).join('');
+
+  const cellHtml = (val, row, range)=>{
+    const v = val[row.key];
+    if(v===null || v===undefined || (typeof v==='number' && isNaN(v))) return '<td class="bla-cell-empty">—</td>';
+    const display = row.fmt(v);
+    if(!display) return '<td class="bla-cell-empty">—</td>';
+    return `<td class="bla-cell-num" onclick="blaCellClick('${bl}','${range.start}','${range.end}')">${display}</td>`;
+  };
+
+  return `<table class="bla-metric-table">
+    <thead><tr><th class="bla-metric-col">Category / Metric</th>${dayHdrs}<th class="bla-sum">Wk</th><th class="bla-sum">Mo</th><th class="bla-sum">Yr</th></tr></thead>
+    <tbody>
+      ${rows.map(row=>`<tr>
+        <td class="bla-metric-col">${row.label}</td>
+        ${dates.map((d,i)=>cellHtml(dayAggs[i], row, {start:d,end:d})).join('')}
+        ${cellHtml(wkAgg, row, wkRange)}
+        ${cellHtml(moAgg, row, moRange)}
+        ${cellHtml(yrAgg, row, yrRange)}
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function blaCellClick(bl, start, end){
+  blaState.inputBL = bl;
+  blaState.filterRange = { start, end };
+  blaState.view = 'input';
+  blaRenderBody();
+  // Re-render top-level header so view toggle reflects active state
+  const toggleBtns = document.querySelectorAll('.bla-view-toggle button');
+  toggleBtns.forEach(b=>{
+    b.classList.toggle('active', b.textContent.trim().toLowerCase()===blaState.view);
+  });
+  // Scroll the saved-list into view
+  setTimeout(()=>{
+    const el = document.querySelector('.bla-saved-list');
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  }, 50);
 }
 
 </script>
