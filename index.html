@@ -2786,11 +2786,6 @@ async function init() {
   renderLookup();
   await Promise.all([loadClients(), loadSkips()]);
   loadUserNotesFromDB(); // background sync; updates textarea in place if already rendered
-  // David's default landing tab = Workflow
-  if(currentUser && currentUser.username === 'david'){
-    const btn = document.getElementById('actionTabBtn');
-    if(btn) switchTab('action', btn);
-  }
 }
 
 function getTodayISO() {
