@@ -9767,13 +9767,16 @@ if(_saved && _saved !== '1'){
       document.getElementById('irrTabBtn').style.display='';
       document.getElementById('filesTabBtn').style.display='';
     }
-    if(['david','chris','admin'].includes(currentUser.username)) {
+    if(['david','chris','admin'].includes(currentUser.username) || currentUser.role==='admin') {
       document.getElementById('xferTabBtn').style.display='';
+      document.getElementById('blaTabBtn').style.display='';
+      document.getElementById('navGroup-analysis').style.display='';
     }
     if(currentUser.username==='david'){
       document.getElementById('cmdTabBtn').style.display='';
       document.getElementById('actionTabBtn').style.display='';
     }
+    applyNavGroupState();
     startHeartbeat();
     init().catch(err=>{
       toast('Connection error — please refresh');
