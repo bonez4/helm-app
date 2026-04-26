@@ -1554,6 +1554,24 @@ body.layout-side .tab-nav button.active{
   font-weight:600; border-left-color:var(--teal);
   border-bottom-color:transparent;
 }
+/* Grouped nav: section header + indented children */
+body.layout-side .nav-group{display:flex;flex-direction:column;gap:1px;margin-top:6px;}
+body.layout-side .nav-group:first-child{margin-top:0;}
+body.layout-side .nav-group-hdr{
+  text-align:left;background:transparent;border:none;border-radius:5px;
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;cursor:pointer;
+  font-family:'Inter','DM Sans',sans-serif;
+  font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+  color:rgba(255,255,255,0.42);
+  transition:color 0.08s;
+}
+body.layout-side .nav-group-hdr:hover{color:rgba(255,255,255,0.72);background:rgba(255,255,255,0.03);}
+body.layout-side .nav-group-arrow{display:inline-block;font-size:9px;width:10px;color:rgba(255,255,255,0.35);transition:transform 0.12s;}
+body.layout-side .nav-group.collapsed .nav-group-arrow{transform:rotate(-90deg);}
+body.layout-side .nav-group.collapsed .nav-group-children{display:none;}
+body.layout-side .nav-group-children{display:flex;flex-direction:column;gap:1px;padding-left:10px;border-left:1px solid rgba(255,255,255,0.06);margin-left:8px;}
+body.layout-side .nav-group-children button.nav-child{padding-left:14px;}
 body.layout-side .tab-nav{margin-top:0;}  /* fixed-positioned, no flow margin */
 body.layout-side .main{
   margin-left:220px; margin-top:44px; max-width:none; width:calc(100% - 220px);
@@ -2191,17 +2209,31 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
   </div>
 
   <div class="tab-nav" id="tabNav">
-    <button class="active" onclick="switchTab('lookup',this)">Client Lookup</button>
-    <button onclick="switchTab('add',this)">Add Client</button>
-    <button onclick="switchTab('report',this)">Reports</button>
-    <button onclick="switchTab('rolloffs',this)">Roll-offs</button>
-    <button id="irrTabBtn" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
-    <button id="xferTabBtn" style="display:none" onclick="switchTab('xfer',this)">Xfer Station</button>
-    <button id="blaTabBtn"  style="display:none" onclick="switchTab('bla',this)">Business Line Analysis</button>
-    <button id="filesTabBtn" style="display:none" onclick="switchTab('files',this)">Files</button>
-    <button id="cmdTabBtn" style="display:none" onclick="switchTab('cmd',this)">Command</button>
-    <button id="actionTabBtn" style="display:none" onclick="switchTab('action',this)">Workflow</button>
-    <button id="importTabBtn" style="display:none" onclick="switchTab('import',this)">Import</button>
+    <div class="nav-group" id="navGroup-clients">
+      <button class="nav-group-hdr" onclick="toggleNavGroup('clients')">
+        <span class="nav-group-arrow">▼</span><span class="nav-group-label">Client Management</span>
+      </button>
+      <div class="nav-group-children">
+        <button class="nav-child active" onclick="switchTab('lookup',this)">Client Lookup</button>
+        <button class="nav-child" onclick="switchTab('add',this)">Add Client</button>
+        <button class="nav-child" onclick="switchTab('report',this)">Reports</button>
+      </div>
+    </div>
+    <button class="nav-solo" onclick="switchTab('rolloffs',this)">Roll-offs</button>
+    <div class="nav-group" id="navGroup-analysis" style="display:none">
+      <button class="nav-group-hdr" onclick="toggleNavGroup('analysis')">
+        <span class="nav-group-arrow">▼</span><span class="nav-group-label">Analysis</span>
+      </button>
+      <div class="nav-group-children">
+        <button id="irrTabBtn"  class="nav-child" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
+        <button id="xferTabBtn" class="nav-child" style="display:none" onclick="switchTab('xfer',this)">Xfer Station</button>
+        <button id="blaTabBtn"  class="nav-child" style="display:none" onclick="switchTab('bla',this)">Business Line Analysis</button>
+      </div>
+    </div>
+    <button id="filesTabBtn"  class="nav-solo" style="display:none" onclick="switchTab('files',this)">Files</button>
+    <button id="cmdTabBtn"    class="nav-solo" style="display:none" onclick="switchTab('cmd',this)">Command</button>
+    <button id="actionTabBtn" class="nav-solo" style="display:none" onclick="switchTab('action',this)">Workflow</button>
+    <button id="importTabBtn" class="nav-solo" style="display:none" onclick="switchTab('import',this)">Import</button>
   </div>
 
   <div class="main">
@@ -2699,6 +2731,12 @@ async function login() {
     document.getElementById('xferTabBtn').style.display='';
     document.getElementById('blaTabBtn').style.display='';
   }
+  // Show the Analysis group header if any of its children are visible
+  if(data.username==='david' || data.role==='admin' || ['david','chris','admin'].includes(data.username)){
+    document.getElementById('navGroup-analysis').style.display='';
+  }
+  // Restore persisted nav-group collapsed state
+  applyNavGroupState();
   if(data.username==='david'){
     document.getElementById('cmdTabBtn').style.display='';
     document.getElementById('actionTabBtn').style.display='';
@@ -2823,7 +2861,40 @@ async function loadNotes(baseId){
 }
 
 // ── TABS ──────────────────────────────────────────────────────────────
+// Which group does each tab belong to? (Used for auto-expand on switch.)
+const NAV_GROUP_OF_TAB = {
+  lookup:'clients', add:'clients', report:'clients',
+  irr:'analysis', xfer:'analysis', bla:'analysis'
+};
+function toggleNavGroup(id){
+  const el = document.getElementById('navGroup-'+id);
+  if(!el) return;
+  el.classList.toggle('collapsed');
+  // Persist
+  const state = JSON.parse(localStorage.getItem('helm_nav_groups')||'{}');
+  state[id] = el.classList.contains('collapsed');
+  localStorage.setItem('helm_nav_groups', JSON.stringify(state));
+}
+function applyNavGroupState(){
+  const state = JSON.parse(localStorage.getItem('helm_nav_groups')||'{}');
+  Object.keys(state).forEach(id=>{
+    const el = document.getElementById('navGroup-'+id);
+    if(el && state[id]) el.classList.add('collapsed');
+  });
+}
+function expandNavGroupFor(tabName){
+  const g = NAV_GROUP_OF_TAB[tabName];
+  if(!g) return;
+  const el = document.getElementById('navGroup-'+g);
+  if(el && el.classList.contains('collapsed')){
+    el.classList.remove('collapsed');
+    const state = JSON.parse(localStorage.getItem('helm_nav_groups')||'{}');
+    state[g] = false;
+    localStorage.setItem('helm_nav_groups', JSON.stringify(state));
+  }
+}
 function switchTab(name,btn){
+  expandNavGroupFor(name);
   ['lookup','add','report','rolloffs','irr','xfer','bla','files','cmd','action','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
