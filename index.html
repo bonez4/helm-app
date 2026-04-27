@@ -11606,8 +11606,8 @@ function blaEmptyResiDraft(){
 }
 function blaEmptyCommDraft(){
   return { id:null, entry_date:blaTodayIso(), driver_id:'', driver_minutes_str:'',
-    net_weight_lbs:'', landfill_minutes_str:'', landfill_trips:1, total_miles:'',
-    routes:[{name:'',stops:''}], notes:'' };
+    helper_minutes_str:'', net_weight_lbs:'', landfill_minutes_str:'', landfill_trips:1, total_miles:'',
+    routes:[{name:'',stops:'',helper_id:''}], notes:'' };
 }
 function blaEmptyRolloffDraft(){
   return { entry_date:blaTodayIso(), driver_hours:[{driver_id:'',st_hours_str:'',ot_hours_str:''}], notes:'' };
@@ -11856,21 +11856,17 @@ async function blaDeleteResi(id){
 async function blaMoveResiToComm(id){
   const e = blaState.resiEntries.find(x=>x.id===id);
   if(!e) return;
-  const hadHelper = (e.helper_minutes && e.helper_minutes>0)
-                 || (e.routes||[]).some(r=>r.helper_id);
-  const msg = hadHelper
-    ? 'Move this entry to Commercial?\n\nNote: helper time and any per-route helper assignment will be removed since Commercial does not track helpers.'
-    : 'Move this entry to Commercial?';
-  if(!confirm(msg)) return;
+  if(!confirm('Move this entry to Commercial?')) return;
   const payload = {
     entry_date: e.entry_date,
     driver_id: e.driver_id,
     driver_minutes: e.driver_minutes,
+    helper_minutes: e.helper_minutes,
     net_weight_lbs: e.net_weight_lbs,
     landfill_minutes: e.landfill_minutes,
     landfill_trips: e.landfill_trips==null?1:e.landfill_trips,
     total_miles: e.total_miles,
-    routes: (e.routes||[]).map(r=>({name:r.name||'', stops:r.stops==null?null:r.stops})),
+    routes: (e.routes||[]).map(r=>({name:r.name||'', stops:r.stops==null?null:r.stops, helper_id:r.helper_id||null})),
     notes: e.notes||null,
     updated_at: new Date().toISOString()
   };
@@ -11887,9 +11883,10 @@ async function blaMoveResiToComm(id){
 function blaRenderCommForm(){
   const d = blaState.commDraft;
   const routesHtml = (d.routes||[]).map((r,i)=>`
-    <div class="bla-route-row" style="grid-template-columns:1fr 100px 28px;">
+    <div class="bla-route-row">
       <input type="text" list="blaResiRouteNames" placeholder="Route name" value="${r.name||''}" oninput="blaCommSetRoute(${i},'name',this.value)" />
       <input type="number" min="0" placeholder="# Stops" value="${r.stops||''}" oninput="blaCommSetRoute(${i},'stops',this.value)" />
+      <select onchange="blaCommSetRoute(${i},'helper_id',this.value)">${blaStaffOptions('helper', r.helper_id)}</select>
       <button class="bla-row-x" onclick="blaCommRmRoute(${i})" title="Remove route">&times;</button>
     </div>`).join('');
 
@@ -11901,6 +11898,7 @@ function blaRenderCommForm(){
         <label>Date<input type="date" value="${d.entry_date}" oninput="blaState.commDraft.entry_date=this.value"/></label>
         <label>Driver<select onchange="blaCommSetDriver(this.value)">${blaStaffOptions('driver', d.driver_id)}</select></label>
         <label>Driver Time (HH:MM)<input type="text" placeholder="6:00" value="${d.driver_minutes_str||''}" oninput="blaState.commDraft.driver_minutes_str=this.value"/></label>
+        <label>Helper Time (HH:MM)<input type="text" placeholder="6:00 or blank" value="${d.helper_minutes_str||''}" oninput="blaState.commDraft.helper_minutes_str=this.value"/></label>
         <label>Net Weight (lbs)<input type="number" step="1" value="${d.net_weight_lbs||''}" oninput="blaState.commDraft.net_weight_lbs=this.value"/></label>
         <label>Landfill Time (HH:MM)<input type="text" placeholder="HH:MM" value="${d.landfill_minutes_str||''}" oninput="blaState.commDraft.landfill_minutes_str=this.value"/></label>
         <label># of Landfill Trips<input type="number" min="1" step="1" value="${d.landfill_trips||1}" oninput="blaState.commDraft.landfill_trips=this.value"/></label>
@@ -11911,7 +11909,7 @@ function blaRenderCommForm(){
           <span>Routes worked this day</span>
           <button onclick="blaCommAddRoute()" class="bla-add-btn">+ Add route</button>
         </div>
-        <div class="bla-route-row-hdr" style="grid-template-columns:1fr 100px 28px;"><span>Route name</span><span># Stops</span><span></span></div>
+        <div class="bla-route-row-hdr"><span>Route name</span><span># Stops</span><span>Helper (optional)</span><span></span></div>
         ${routesHtml || '<div class="bla-empty">No routes added yet.</div>'}
       </div>
       <label class="bla-notes-label">Notes<textarea rows="2" oninput="blaState.commDraft.notes=this.value">${d.notes||''}</textarea></label>
@@ -11922,20 +11920,26 @@ function blaRenderCommForm(){
     </div>`;
 }
 function blaCommSetDriver(v){ if(v==='__add__') return blaPromptAddStaff('driver','comm'); blaState.commDraft.driver_id=v; }
-function blaCommSetRoute(i,f,v){ blaState.commDraft.routes[i][f]=v; }
-function blaCommAddRoute(){ blaState.commDraft.routes.push({name:'',stops:''}); blaRenderBody(); }
-function blaCommRmRoute(i){ blaState.commDraft.routes.splice(i,1); if(!blaState.commDraft.routes.length) blaState.commDraft.routes=[{name:'',stops:''}]; blaRenderBody(); }
+function blaCommSetRoute(i,f,v){
+  if(f==='helper_id' && v==='__add__'){ blaPromptAddStaff('helper','comm-route',i); return; }
+  blaState.commDraft.routes[i][f]=v;
+}
+function blaCommAddRoute(){ blaState.commDraft.routes.push({name:'',stops:'',helper_id:''}); blaRenderBody(); }
+function blaCommRmRoute(i){ blaState.commDraft.routes.splice(i,1); if(!blaState.commDraft.routes.length) blaState.commDraft.routes=[{name:'',stops:'',helper_id:''}]; blaRenderBody(); }
 function blaResetComm(){ blaState.commDraft = blaEmptyCommDraft(); blaRenderBody(); }
 
 async function blaSaveComm(){
   const d = blaState.commDraft;
   if(!d.entry_date || !d.driver_id){ toast('Date + Driver required'); return; }
   const validRoutes = (d.routes||[]).filter(r=>r.name && r.name.trim()).map(r=>({
-    name:r.name.trim(), stops: r.stops===''?null:parseInt(r.stops,10)
+    name:r.name.trim(),
+    stops: r.stops===''?null:parseInt(r.stops,10),
+    helper_id: r.helper_id?parseInt(r.helper_id,10):null
   }));
   const payload = {
     entry_date:d.entry_date, driver_id:parseInt(d.driver_id,10),
     driver_minutes: blaParseHHMM(d.driver_minutes_str),
+    helper_minutes: blaParseHHMM(d.helper_minutes_str),
     net_weight_lbs:d.net_weight_lbs===''?null:parseFloat(d.net_weight_lbs),
     landfill_minutes:blaParseHHMM(d.landfill_minutes_str),
     landfill_trips: d.landfill_trips===''||d.landfill_trips==null?1:parseInt(d.landfill_trips,10),
@@ -11955,11 +11959,13 @@ function blaEditComm(id){
   const e = blaState.commEntries.find(x=>x.id===id);
   if(!e) return;
   blaState.commDraft = { id:e.id, entry_date:e.entry_date, driver_id:e.driver_id||'',
-    driver_minutes_str:blaFmtHHMM(e.driver_minutes), net_weight_lbs:e.net_weight_lbs||'',
+    driver_minutes_str:blaFmtHHMM(e.driver_minutes),
+    helper_minutes_str:blaFmtHHMM(e.helper_minutes),
+    net_weight_lbs:e.net_weight_lbs||'',
     landfill_minutes_str:blaFmtHHMM(e.landfill_minutes),
     landfill_trips: e.landfill_trips==null?1:e.landfill_trips,
     total_miles:e.total_miles||'',
-    routes:(e.routes&&e.routes.length)?e.routes.map(r=>({name:r.name||'',stops:r.stops==null?'':r.stops})):[{name:'',stops:''}],
+    routes:(e.routes&&e.routes.length)?e.routes.map(r=>({name:r.name||'',stops:r.stops==null?'':r.stops,helper_id:r.helper_id||''})):[{name:'',stops:'',helper_id:''}],
     notes:e.notes||'' };
   blaState.inputBL='comm'; blaState.view='input'; renderBLA();
 }
@@ -11980,12 +11986,12 @@ async function blaMoveCommToResi(id){
     entry_date: e.entry_date,
     driver_id: e.driver_id,
     driver_minutes: e.driver_minutes,
-    helper_minutes: null,
+    helper_minutes: e.helper_minutes,
     net_weight_lbs: e.net_weight_lbs,
     landfill_minutes: e.landfill_minutes,
     landfill_trips: e.landfill_trips==null?1:e.landfill_trips,
     total_miles: e.total_miles,
-    routes: (e.routes||[]).map(r=>({name:r.name||'', stops:r.stops==null?null:r.stops, helper_id:null})),
+    routes: (e.routes||[]).map(r=>({name:r.name||'', stops:r.stops==null?null:r.stops, helper_id:r.helper_id||null})),
     notes: e.notes||null,
     updated_at: new Date().toISOString()
   };
@@ -12154,7 +12160,7 @@ function blaRenderSavedList(bl){
     if(!rows.length) return `<div class="bla-saved-empty">No saved entries${range?' in this range':''}.</div>`;
     return `<div class="bla-saved-hdr">Saved Commercial Entries${range?' (filtered)':' (recent)'}</div>
       <table class="bla-saved-table">
-        <thead><tr><th>Date</th><th>Driver</th><th>Routes</th><th>Stops</th><th>Net (lbs)</th><th>Drv Hrs</th><th>LF Time</th><th>Miles</th><th></th></tr></thead>
+        <thead><tr><th>Date</th><th>Driver</th><th>Routes</th><th>Stops</th><th>Net (lbs)</th><th>Drv Hrs</th><th>Hlp Hrs</th><th>LF Time</th><th>Miles</th><th></th></tr></thead>
         <tbody>${rows.slice(0,80).map(e=>{
           const drv = (blaState.staff.find(s=>s.id===e.driver_id)||{}).name || '—';
           const routeNames = (e.routes||[]).map(r=>r.name).filter(Boolean).join(', ') || '—';
@@ -12166,6 +12172,7 @@ function blaRenderSavedList(bl){
             <td>${stops||''}</td>
             <td>${blaFmtInt(e.net_weight_lbs)}</td>
             <td>${blaFmtHHMM(e.driver_minutes)}</td>
+            <td>${blaFmtHHMM(e.helper_minutes)}</td>
             <td>${blaFmtHHMM(e.landfill_minutes)}</td>
             <td>${e.total_miles||''}</td>
             <td><button class="bla-mini-btn" onclick="blaEditComm(${e.id})">Edit</button> <button class="bla-mini-btn" title="Move this entry to the Residential section" onclick="blaMoveCommToResi(${e.id})">→ Resi</button> <button class="bla-mini-btn bla-mini-del" onclick="blaDeleteComm(${e.id})">Del</button></td>
@@ -12215,6 +12222,7 @@ async function blaPromptAddStaff(role, ctx, idx){
   if(ctx==='resi') blaState.resiDraft.driver_id = String(data.id);
   else if(ctx==='comm') blaState.commDraft.driver_id = String(data.id);
   else if(ctx==='resi-route') blaState.resiDraft.routes[idx].helper_id = String(data.id);
+  else if(ctx==='comm-route') blaState.commDraft.routes[idx].helper_id = String(data.id);
   else if(ctx==='rolloff') blaState.rolloffDraft.driver_hours[idx].driver_id = String(data.id);
   toast(`Added ${name.trim()}`);
   blaRenderBody();
@@ -12316,27 +12324,30 @@ function blaAggResi(entries){
   };
 }
 function blaAggComm(entries){
-  const drivers = new Set(), routeNames = new Set();
-  let stops=0, tons=0, loads=0, miles=0, drvMin=0, lfMin=0;
+  const drivers = new Set(), helpers = new Set(), routeNames = new Set();
+  let stops=0, tons=0, loads=0, miles=0, drvMin=0, hlpMin=0, lfMin=0;
   entries.forEach(e=>{
     if(e.driver_id) drivers.add(e.driver_id);
     drvMin += e.driver_minutes||0;
+    hlpMin += e.helper_minutes||0;
     lfMin  += e.landfill_minutes||0;
     miles  += parseFloat(e.total_miles)||0;
     tons   += (parseFloat(e.net_weight_lbs)||0)/2000;
     loads  += (e.landfill_trips==null ? 1 : (parseInt(e.landfill_trips,10)||1));
     (e.routes||[]).forEach(r=>{
       if(r.name) routeNames.add(r.name+'|'+e.entry_date);
+      if(r.helper_id) helpers.add(r.helper_id);
       stops += parseInt(r.stops,10)||0;
     });
   });
-  const drvHrs = drvMin/60, lfHrs = lfMin/60;
+  const drvHrs = drvMin/60, hlpHrs = hlpMin/60, lfHrs = lfMin/60;
   return {
     drivers: drivers.size,
+    helpers: helpers.size,
     routes:  routeNames.size,
     services: stops,
     tons, loads, miles,
-    drvMin, lfMin, drvHrs, lfHrs,
+    drvMin, hlpMin, lfMin, drvHrs, hlpHrs, lfHrs,
     svcsPerDrvHr: drvHrs>0 ? stops/drvHrs : null,
     tonsPerLoad:  loads>0  ? tons/loads   : null,
     milesPerSvc:  stops>0  ? miles/stops  : null,
@@ -12419,8 +12430,8 @@ function blaResiMetricRows(){
     {key:'tons',    label:'# Tons',                 fmt:v=>blaFmtNum(v,2)},
     {key:'loads',   label:'# Loads',                fmt:v=>blaFmtInt(v)},
     {key:'miles',   label:'Miles',                  fmt:v=>blaFmtNum(v,1)},
-    {key:'drvHrs',  label:'Total Driver Hours',     fmt:v=>blaFmtNum(v,2)},
-    {key:'hlpHrs',  label:'Total Helper Hours',     fmt:v=>blaFmtNum(v,2)},
+    {key:'drvMin',  label:'Total Driver Hours (HH:MM)', fmt:v=>blaFmtHHMM(v)},
+    {key:'hlpMin',  label:'Total Helper Hours (HH:MM)', fmt:v=>blaFmtHHMM(v)},
     {key:'lfMin',   label:'Landfill Time (HH:MM)',  fmt:v=>blaFmtHHMM(v)},
     {key:'svcsPerDrvHr', label:'Svcs/Driver Hr',    fmt:v=>blaFmtNum(v,2)},
     {key:'tonsPerLoad',  label:'Tons/Load',         fmt:v=>blaFmtNum(v,2)},
@@ -12432,12 +12443,14 @@ function blaResiMetricRows(){
 function blaCommMetricRows(){
   return [
     {key:'drivers', label:'# of Drivers',           fmt:v=>blaFmtInt(v)},
+    {key:'helpers', label:'# of Helpers',           fmt:v=>blaFmtInt(v)},
     {key:'routes',  label:'# Routes',               fmt:v=>blaFmtInt(v)},
     {key:'services',label:'# Services',             fmt:v=>blaFmtInt(v)},
     {key:'tons',    label:'# Tons',                 fmt:v=>blaFmtNum(v,2)},
     {key:'loads',   label:'# Loads',                fmt:v=>blaFmtInt(v)},
     {key:'miles',   label:'Miles',                  fmt:v=>blaFmtNum(v,1)},
-    {key:'drvHrs',  label:'Total Driver Hours',     fmt:v=>blaFmtNum(v,2)},
+    {key:'drvMin',  label:'Total Driver Hours (HH:MM)', fmt:v=>blaFmtHHMM(v)},
+    {key:'hlpMin',  label:'Total Helper Hours (HH:MM)', fmt:v=>blaFmtHHMM(v)},
     {key:'lfMin',   label:'Landfill Time (HH:MM)',  fmt:v=>blaFmtHHMM(v)},
     {key:'svcsPerDrvHr', label:'Svcs/Driver Hr',    fmt:v=>blaFmtNum(v,2)},
     {key:'tonsPerLoad',  label:'Tons/Load',         fmt:v=>blaFmtNum(v,2)},
