@@ -3304,10 +3304,14 @@ function editClient(cid){
         </div>
         <div class="form-group">
           <label>Route</label>
-          <select id="editRoute" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;background:white;">
+          <select id="editRoute" onchange="toggleRouteNoteField()" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;background:white;">
             <option value="">Select Route</option>
             ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(c.route)===String(n)?'selected':''}>Route ${n}</option>`).join('')}
           </select>
+          <div id="editRouteNoteWrap" style="margin-top:8px;${c.route?'':'display:none;'}">
+            <label style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block;">Route Note <span style="color:var(--gray-400);font-weight:400;text-transform:none;letter-spacing:0;">(optional — e.g. "leave bins on left side", "gate code 4321")</span></label>
+            <textarea id="editRouteNote" rows="2" placeholder="Notes for the driver running this route…" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;resize:vertical;">${esc(c.route_note||'')}</textarea>
+          </div>
         </div>
         <div class="form-group">
           <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
@@ -3323,6 +3327,17 @@ function editClient(cid){
   document.getElementById('editName').focus();
 }
 
+function toggleRouteNoteField(){
+  const sel = document.getElementById('editRoute');
+  const wrap = document.getElementById('editRouteNoteWrap');
+  if(!sel || !wrap) return;
+  wrap.style.display = sel.value ? '' : 'none';
+  if(!sel.value){
+    const ta = document.getElementById('editRouteNote');
+    if(ta) ta.value = '';
+  }
+}
+
 async function saveClientEdit(cid){
   const name=document.getElementById('editName').value.trim();
   const addr=document.getElementById('editAddr').value.trim();
@@ -3332,6 +3347,7 @@ async function saveClientEdit(cid){
   const autopay=document.getElementById('editAutopay')?.checked||false;
   const routeVal=document.getElementById('editRoute')?.value||'';
   const route=routeVal?parseInt(routeVal):null;
+  const routeNote=route?(document.getElementById('editRouteNote')?.value||'').trim():'';
   if(!addr){toast('Address is required');return;}
   if(!days.length){toast('Select at least one pickup day');return;}
   const {error}=await db.from('clients').update({
@@ -3341,7 +3357,8 @@ async function saveClientEdit(cid){
     email:email||null,
     service_day:days.join(','),
     autopay:autopay,
-    route:route
+    route:route,
+    route_note: routeNote||null
   }).eq('client_id',cid);
   if(error){toast('Error: '+error.message);return;}
   await loadClients();
