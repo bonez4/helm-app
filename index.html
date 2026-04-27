@@ -3623,12 +3623,13 @@ async function generateReport(){
         </tr></thead><tbody>`;
       notes.forEach((n,i)=>{
         const c=findClient(n.client_id);
+        const rn = c.route_note ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(c.route_note)}</div>` : '';
         html+=`<tr>
           <td class="rt-num">${i+1}</td>
           <td class="rt-id">${esc(n.client_id)}</td>
           <td><span class="action-tag ${actionTagClass(n.action)}">${esc(n.action||'')}</span></td>
           <td class="rt-name">${esc(c.client_name||'—')}</td>
-          <td class="rt-addr">${esc(c.address||'—')}</td>
+          <td class="rt-addr">${esc(c.address||'—')}${rn}</td>
           ${hasNotes?`<td class="rt-note">${esc(n.note||'')}</td>`:''}
         </tr>`;
       });
@@ -3671,12 +3672,13 @@ function printReport(date){
         <table><thead><tr><th style="width:30px">#</th><th style="width:58px">Acct</th><th style="width:90px">Action</th><th style="width:180px">Name</th><th>Address</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
         notes.forEach((n,i)=>{
           const c=findClient(n.client_id);
+          const rn = c.route_note ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(c.route_note)}</div>` : '';
           sections+=`<tr>
             <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
             <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
             <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
             <td style="font-weight:600">${esc(c.client_name||'—')}</td>
-            <td>${esc(c.address||'—')}</td>
+            <td>${esc(c.address||'—')}${rn}</td>
             ${hasNotes?`<td style="font-style:italic;color:#555">${esc(n.note||'')}</td>`:''}
           </tr>`;
         });
@@ -3820,6 +3822,7 @@ async function generateNotesAddedReport(){
       const co = getCompany(n.client_id);
       const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
       const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
+      const rn = c.route_note ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(c.route_note)}</div>` : '';
       html+=`<tr>
         <td class="rt-num">${i+1}</td>
         <td class="rt-id" style="font-weight:700;color:var(--navy)">${route}</td>
@@ -3827,7 +3830,7 @@ async function generateNotesAddedReport(){
         <td>${co.name?`<span class="company-tag ${co.cls}">${co.name.slice(0,1)}</span>`:'—'}</td>
         <td><span class="action-tag ${actionTagClass(n.action)}">${esc(n.action||'')}</span></td>
         <td class="rt-name">${esc(c.client_name||'—')}</td>
-        <td class="rt-addr">${esc(c.address||'—')}</td>
+        <td class="rt-addr">${esc(c.address||'—')}${rn}</td>
         <td class="rt-note">${esc(n.note||'')}</td>
         <td class="rt-id">${t}</td>
       </tr>`;
@@ -3891,6 +3894,7 @@ function printNotesAddedReport(date){
           const co = getCompany(n.client_id).name;
           const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
           const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
+          const rn = c.route_note ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(c.route_note)}</div>` : '';
           sections += `<tr>
             <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
             <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${route}</td>
@@ -3898,7 +3902,7 @@ function printNotesAddedReport(date){
             <td style="font-size:12px;color:#555">${esc(co||'—')}</td>
             <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
             <td style="font-weight:600">${esc(c.client_name||'—')}</td>
-            <td style="font-size:13px;color:#444">${esc(c.address||'—')}</td>
+            <td style="font-size:13px;color:#444">${esc(c.address||'—')}${rn}</td>
             <td style="font-style:italic;color:#444">${esc(n.note||'')}</td>
             <td style="font-size:12px;color:#555">${t}</td>
           </tr>`;
@@ -4083,6 +4087,7 @@ async function generateEverythingReport(){
       const co = getCompany(n.client_id);
       const inputAt = n.created_at ? new Date(n.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'}) : '—';
       const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
+      const rn = c.route_note ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(c.route_note)}</div>` : '';
       html+=`<tr>
         <td class="rt-num">${i+1}</td>
         <td class="rt-id" style="font-weight:700;color:var(--navy)">${route}</td>
@@ -4090,7 +4095,7 @@ async function generateEverythingReport(){
         <td>${co.name?`<span class="company-tag ${co.cls}">${co.name.slice(0,1)}</span>`:'—'}</td>
         <td><span class="action-tag ${actionTagClass(n.action)}">${esc(n.action||'')}</span></td>
         <td class="rt-name">${esc(c.client_name||'—')}</td>
-        <td class="rt-addr">${esc(c.address||'—')}</td>
+        <td class="rt-addr">${esc(c.address||'—')}${rn}</td>
         <td class="rt-note">${esc(n.note||'')}</td>
         <td class="rt-id">${esc(n.user_id||'—')}</td>
         <td class="rt-id">${inputAt}</td>
@@ -4133,6 +4138,7 @@ async function printEverythingReport(){
       const co = getCompany(n.client_id).name;
       const inputAt = n.created_at ? new Date(n.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'}) : '—';
       const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
+      const rn = c.route_note ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(c.route_note)}</div>` : '';
       sections += `<tr>
         <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
         <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${route}</td>
@@ -4140,7 +4146,7 @@ async function printEverythingReport(){
         <td style="font-size:12px;color:#555">${esc(co||'—')}</td>
         <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
         <td style="font-weight:600">${esc(c.client_name||'—')}</td>
-        <td style="font-size:13px;color:#444">${esc(c.address||'—')}</td>
+        <td style="font-size:13px;color:#444">${esc(c.address||'—')}${rn}</td>
         <td style="font-style:italic;color:#444">${esc(n.note||'')}</td>
         <td style="font-size:12px;color:#555">${esc(n.user_id||'—')}</td>
         <td style="font-size:12px;color:#555">${inputAt}</td>
