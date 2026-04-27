@@ -814,9 +814,11 @@ select.ro-input{cursor:pointer;}
 }
 .irr-report{margin-top:24px;}
 .irr-section-hdr{
-  font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--gray-400);margin:20px 0 8px;
+  font-size:14px;font-weight:700;letter-spacing:.02em;
+  color:var(--navy);margin:20px 0 8px;
+  border-top:1px solid var(--gray-200);padding-top:14px;
 }
+.irr-report .irr-section-hdr:first-of-type{border-top:none;padding-top:0;}
 .irr-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px;}
 .irr-table th{
   text-align:left;font-size:10px;font-weight:600;letter-spacing:.08em;
@@ -5514,7 +5516,7 @@ function irrGenerateEmail(data, ytd) {
 
   const sec1 = `
     ${firstSectionHdr('Internal Volume')}
-    ${row('Today',     fmtTons(t.rolloff), false, true)}
+    ${row('Today',     fmtTons(t.rolloff), false, false)}
     ${row('MTD',       fmtTons(m.rolloff))}
     ${row('MTD YoY',   yoyTons(m.rolloff, my.rolloff))}
     ${row('YTD',       fmtTons(y.rolloff))}
@@ -5522,7 +5524,7 @@ function irrGenerateEmail(data, ytd) {
   `;
   const sec2 = `
     ${sectionHdr('External Volume')}
-    ${row('Today',     fmtTons(t.walkin), false, true)}
+    ${row('Today',     fmtTons(t.walkin), false, false)}
     ${row('MTD',       fmtTons(m.walkin))}
     ${row('MTD YoY',   yoyTons(m.walkin, my.walkin))}
     ${row('YTD',       fmtTons(y.walkin))}
@@ -5530,7 +5532,7 @@ function irrGenerateEmail(data, ytd) {
   `;
   const sec3 = `
     ${sectionHdr('Outbound')}
-    ${row('Today',     fmtTons(t.vin), false, true)}
+    ${row('Today',     fmtTons(t.vin), false, false)}
     ${row('MTD',       fmtTons(m.vin))}
     ${row('MTD YoY',   yoyTons(m.vin, my.vin))}
     ${row('YTD',       fmtTons(y.vin))}
@@ -5538,7 +5540,7 @@ function irrGenerateEmail(data, ytd) {
   `;
   const sec4 = `
     ${sectionHdr('Revenue')}
-    ${row('Today',     fmtMoney(totalRevToday) + revPerTon(totalRevToday, todayTons), true, true)}
+    ${row('Today',     fmtMoney(totalRevToday) + revPerTon(totalRevToday, todayTons), true, false)}
     ${row('MTD',       fmtMoney(mtdRev) + revPerTon(mtdRev, mtdTons))}
     ${row('MTD YoY',   yoyMoney(mtdRev, mtdYoyRev))}
     ${row('YTD',       fmtMoney(ytdRev) + revPerTon(ytdRev, ytdTons))}
@@ -5758,7 +5760,7 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Internal Volume</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today',     fmtTons(t.rolloff), false, true)}
+        ${rowH('Today',     fmtTons(t.rolloff), false, false)}
         ${rowH('MTD',       fmtTons(m.rolloff))}
         ${rowH('MTD YoY',   yoyTons(m.rolloff, my.rolloff))}
         ${rowH('YTD',       fmtTons(y.rolloff))}
@@ -5767,7 +5769,7 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">External Volume</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today',     fmtTons(t.walkin), false, true)}
+        ${rowH('Today',     fmtTons(t.walkin), false, false)}
         ${rowH('MTD',       fmtTons(m.walkin))}
         ${rowH('MTD YoY',   yoyTons(m.walkin, my.walkin))}
         ${rowH('YTD',       fmtTons(y.walkin))}
@@ -5776,7 +5778,7 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Outbound</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today',     fmtTons(t.vin), false, true)}
+        ${rowH('Today',     fmtTons(t.vin), false, false)}
         ${rowH('MTD',       fmtTons(m.vin))}
         ${rowH('MTD YoY',   yoyTons(m.vin, my.vin))}
         ${rowH('YTD',       fmtTons(y.vin))}
@@ -5785,7 +5787,7 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Revenue</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today',     fmtMoney(totalRevToday) + revPerTon(totalRevToday, todayTons), true, true)}
+        ${rowH('Today',     fmtMoney(totalRevToday) + revPerTon(totalRevToday, todayTons), true, false)}
         ${rowH('MTD',       fmtMoney(mtdRev) + revPerTon(mtdRev, mtdTons))}
         ${rowH('MTD YoY',   yoyMoney(mtdRev, mtdYoyRev))}
         ${rowH('YTD',       fmtMoney(ytdRev) + revPerTon(ytdRev, ytdTons))}
