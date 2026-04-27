@@ -12311,11 +12311,10 @@ function blaAggXfer(start, end){
   const irrInRange = blaState.irrRows.filter(r=>r.report_date>=start && r.report_date<=end);
   let revenue=0, ldsRecv=0, tonsRecv=0, loadsHauledAuto=0, tonsHauledAuto=0;
   irrInRange.forEach(r=>{
-    revenue += (parseFloat(r.reis_tip_revenue)||0) + (parseFloat(r.reis_svc_revenue)||0)
-            +  (parseFloat(r.island_revenue)||0) + (parseFloat(r.santos_revenue)||0)
-            +  (parseFloat(r.walkin_tip_revenue)||0);
-    ldsRecv  += (parseInt(r.total_inbound_tickets,10)||0);
-    tonsRecv += (parseFloat(r.total_inbound_tons)||0);
+    // Xfer Station tracks walk-ins only — rolloff revenue/tickets/tons live in the Rolloff section.
+    revenue  += (parseFloat(r.walkin_tip_revenue)||0);
+    ldsRecv  += (parseInt(r.walkin_tickets,10)||0);
+    tonsRecv += (parseFloat(r.walkin_tons)||0);
     loadsHauledAuto += (parseInt(r.vinagro_loads,10)||0);
     tonsHauledAuto  += (parseFloat(r.vinagro_tons)||0);
   });
@@ -12397,7 +12396,7 @@ function blaRolloffMetricRows(){
 }
 function blaXferMetricRows(){
   return [
-    {key:'revenue',         label:'Revenue (rolloffs+walkins)', fmt:v=>v?'$'+blaFmtNum(v,0):''},
+    {key:'revenue',         label:'Revenue (walk-ins)', fmt:v=>v?'$'+blaFmtNum(v,0):''},
     {key:'ldsRecv',         label:'Lds Received (#)',  fmt:v=>blaFmtInt(v)},
     {key:'tonsRecv',        label:'Tons Received',     fmt:v=>blaFmtNum(v,2)},
     {key:'trlrsLoaded',     label:'Trlrs Loaded',      fmt:v=>blaFmtInt(v)},
