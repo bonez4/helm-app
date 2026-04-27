@@ -11889,6 +11889,39 @@ async function blaDeleteResi(id){
   blaRenderBody();
 }
 
+// Move a Residential entry over to the Commercial table. Helper data
+// (helper_minutes + per-route helper_id) is dropped because Commercial
+// doesn't track helpers.
+async function blaMoveResiToComm(id){
+  const e = blaState.resiEntries.find(x=>x.id===id);
+  if(!e) return;
+  const hadHelper = (e.helper_minutes && e.helper_minutes>0)
+                 || (e.routes||[]).some(r=>r.helper_id);
+  const msg = hadHelper
+    ? 'Move this entry to Commercial?\n\nNote: helper time and any per-route helper assignment will be removed since Commercial does not track helpers.'
+    : 'Move this entry to Commercial?';
+  if(!confirm(msg)) return;
+  const payload = {
+    entry_date: e.entry_date,
+    driver_id: e.driver_id,
+    driver_minutes: e.driver_minutes,
+    net_weight_lbs: e.net_weight_lbs,
+    landfill_minutes: e.landfill_minutes,
+    landfill_trips: e.landfill_trips==null?1:e.landfill_trips,
+    total_miles: e.total_miles,
+    routes: (e.routes||[]).map(r=>({name:r.name||'', stops:r.stops==null?null:r.stops})),
+    notes: e.notes||null,
+    updated_at: new Date().toISOString()
+  };
+  const ins = await db.from('bla_comm_entries').insert(payload).select().single();
+  if(ins.error){ toast('Move failed: '+ins.error.message); return; }
+  const del = await db.from('bla_resi_entries').delete().eq('id', id);
+  if(del.error){ toast('Inserted to Commercial, but failed to remove original. Delete it manually.'); }
+  else { toast('Moved to Commercial'); }
+  await blaLoadAll();
+  blaRenderBody();
+}
+
 // ── Comm form ──
 function blaRenderCommForm(){
   const d = blaState.commDraft;
@@ -11974,6 +12007,34 @@ async function blaDeleteComm(id){
   const {error}=await db.from('bla_comm_entries').delete().eq('id',id);
   if(error){ toast('Delete failed'); return; }
   toast('Deleted'); await blaLoadAll(); blaRenderBody();
+}
+
+// Move a Commercial entry over to the Residential table. Helper fields
+// land empty (no helper data is captured on the Commercial side).
+async function blaMoveCommToResi(id){
+  const e = blaState.commEntries.find(x=>x.id===id);
+  if(!e) return;
+  if(!confirm('Move this entry to Residential?')) return;
+  const payload = {
+    entry_date: e.entry_date,
+    driver_id: e.driver_id,
+    driver_minutes: e.driver_minutes,
+    helper_minutes: null,
+    net_weight_lbs: e.net_weight_lbs,
+    landfill_minutes: e.landfill_minutes,
+    landfill_trips: e.landfill_trips==null?1:e.landfill_trips,
+    total_miles: e.total_miles,
+    routes: (e.routes||[]).map(r=>({name:r.name||'', stops:r.stops==null?null:r.stops, helper_id:null})),
+    notes: e.notes||null,
+    updated_at: new Date().toISOString()
+  };
+  const ins = await db.from('bla_resi_entries').insert(payload).select().single();
+  if(ins.error){ toast('Move failed: '+ins.error.message); return; }
+  const del = await db.from('bla_comm_entries').delete().eq('id', id);
+  if(del.error){ toast('Inserted to Residential, but failed to remove original. Delete it manually.'); }
+  else { toast('Moved to Residential'); }
+  await blaLoadAll();
+  blaRenderBody();
 }
 
 // ── Rolloff manual form ──
@@ -12123,7 +12184,7 @@ function blaRenderSavedList(bl){
             <td>${blaFmtHHMM(e.helper_minutes)}</td>
             <td>${blaFmtHHMM(e.landfill_minutes)}</td>
             <td>${e.total_miles||''}</td>
-            <td><button class="bla-mini-btn" onclick="blaEditResi(${e.id})">Edit</button> <button class="bla-mini-btn bla-mini-del" onclick="blaDeleteResi(${e.id})">Del</button></td>
+            <td><button class="bla-mini-btn" onclick="blaEditResi(${e.id})">Edit</button> <button class="bla-mini-btn" title="Move this entry to the Commercial section" onclick="blaMoveResiToComm(${e.id})">→ Comm</button> <button class="bla-mini-btn bla-mini-del" onclick="blaDeleteResi(${e.id})">Del</button></td>
           </tr>`;
         }).join('')}</tbody></table>`;
   }
@@ -12146,7 +12207,7 @@ function blaRenderSavedList(bl){
             <td>${blaFmtHHMM(e.driver_minutes)}</td>
             <td>${blaFmtHHMM(e.landfill_minutes)}</td>
             <td>${e.total_miles||''}</td>
-            <td><button class="bla-mini-btn" onclick="blaEditComm(${e.id})">Edit</button> <button class="bla-mini-btn bla-mini-del" onclick="blaDeleteComm(${e.id})">Del</button></td>
+            <td><button class="bla-mini-btn" onclick="blaEditComm(${e.id})">Edit</button> <button class="bla-mini-btn" title="Move this entry to the Residential section" onclick="blaMoveCommToResi(${e.id})">→ Resi</button> <button class="bla-mini-btn bla-mini-del" onclick="blaDeleteComm(${e.id})">Del</button></td>
           </tr>`;
         }).join('')}</tbody></table>`;
   }
