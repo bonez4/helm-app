@@ -11640,12 +11640,12 @@ function blaFmtDateMD(iso){
 
 function blaEmptyResiDraft(){
   return { id:null, entry_date:blaTodayIso(), driver_id:'', driver_minutes_str:'',
-    helper_minutes_str:'', net_weight_lbs:'', landfill_minutes_str:'', total_miles:'',
+    helper_minutes_str:'', net_weight_lbs:'', landfill_minutes_str:'', landfill_trips:1, total_miles:'',
     routes:[{name:'',stops:'',helper_id:''}], notes:'' };
 }
 function blaEmptyCommDraft(){
   return { id:null, entry_date:blaTodayIso(), driver_id:'', driver_minutes_str:'',
-    net_weight_lbs:'', landfill_minutes_str:'', total_miles:'',
+    net_weight_lbs:'', landfill_minutes_str:'', landfill_trips:1, total_miles:'',
     routes:[{name:'',stops:''}], notes:'' };
 }
 function blaEmptyRolloffDraft(){
@@ -11799,7 +11799,8 @@ function blaRenderResiForm(){
         <label>Driver Time (HH:MM)<input type="text" placeholder="5:15" value="${d.driver_minutes_str||''}" oninput="blaState.resiDraft.driver_minutes_str=this.value"/></label>
         <label>Helper Time (HH:MM)<input type="text" placeholder="5:15 or blank" value="${d.helper_minutes_str||''}" oninput="blaState.resiDraft.helper_minutes_str=this.value"/></label>
         <label>Net Weight (lbs)<input type="number" step="1" value="${d.net_weight_lbs||''}" oninput="blaState.resiDraft.net_weight_lbs=this.value"/></label>
-        <label>Landfill Time (HH:MM)<input type="text" placeholder="0:40" value="${d.landfill_minutes_str||''}" oninput="blaState.resiDraft.landfill_minutes_str=this.value"/></label>
+        <label>Landfill Time (HH:MM)<input type="text" placeholder="HH:MM" value="${d.landfill_minutes_str||''}" oninput="blaState.resiDraft.landfill_minutes_str=this.value"/></label>
+        <label># of Landfill Trips<input type="number" min="1" step="1" value="${d.landfill_trips||1}" oninput="blaState.resiDraft.landfill_trips=this.value"/></label>
         <label>Total Miles<input type="number" step="0.1" value="${d.total_miles||''}" oninput="blaState.resiDraft.total_miles=this.value"/></label>
       </div>
       <div class="bla-routes-section">
@@ -11845,6 +11846,7 @@ async function blaSaveResi(){
     helper_minutes: blaParseHHMM(d.helper_minutes_str),
     net_weight_lbs: d.net_weight_lbs===''?null:parseFloat(d.net_weight_lbs),
     landfill_minutes: blaParseHHMM(d.landfill_minutes_str),
+    landfill_trips: d.landfill_trips===''||d.landfill_trips==null?1:parseInt(d.landfill_trips,10),
     total_miles: d.total_miles===''?null:parseFloat(d.total_miles),
     routes: validRoutes,
     notes: d.notes||null,
@@ -11869,6 +11871,7 @@ function blaEditResi(id){
     helper_minutes_str: blaFmtHHMM(e.helper_minutes),
     net_weight_lbs: e.net_weight_lbs||'',
     landfill_minutes_str: blaFmtHHMM(e.landfill_minutes),
+    landfill_trips: e.landfill_trips==null?1:e.landfill_trips,
     total_miles: e.total_miles||'',
     routes: (e.routes&&e.routes.length)?e.routes.map(r=>({name:r.name||'',stops:r.stops==null?'':r.stops,helper_id:r.helper_id||''})):[{name:'',stops:'',helper_id:''}],
     notes: e.notes||''
@@ -11905,7 +11908,8 @@ function blaRenderCommForm(){
         <label>Driver<select onchange="blaCommSetDriver(this.value)">${blaStaffOptions('driver', d.driver_id)}</select></label>
         <label>Driver Time (HH:MM)<input type="text" placeholder="6:00" value="${d.driver_minutes_str||''}" oninput="blaState.commDraft.driver_minutes_str=this.value"/></label>
         <label>Net Weight (lbs)<input type="number" step="1" value="${d.net_weight_lbs||''}" oninput="blaState.commDraft.net_weight_lbs=this.value"/></label>
-        <label>Landfill Time (HH:MM)<input type="text" placeholder="0:40" value="${d.landfill_minutes_str||''}" oninput="blaState.commDraft.landfill_minutes_str=this.value"/></label>
+        <label>Landfill Time (HH:MM)<input type="text" placeholder="HH:MM" value="${d.landfill_minutes_str||''}" oninput="blaState.commDraft.landfill_minutes_str=this.value"/></label>
+        <label># of Landfill Trips<input type="number" min="1" step="1" value="${d.landfill_trips||1}" oninput="blaState.commDraft.landfill_trips=this.value"/></label>
         <label>Total Miles<input type="number" step="0.1" value="${d.total_miles||''}" oninput="blaState.commDraft.total_miles=this.value"/></label>
       </div>
       <div class="bla-routes-section">
@@ -11940,6 +11944,7 @@ async function blaSaveComm(){
     driver_minutes: blaParseHHMM(d.driver_minutes_str),
     net_weight_lbs:d.net_weight_lbs===''?null:parseFloat(d.net_weight_lbs),
     landfill_minutes:blaParseHHMM(d.landfill_minutes_str),
+    landfill_trips: d.landfill_trips===''||d.landfill_trips==null?1:parseInt(d.landfill_trips,10),
     total_miles:d.total_miles===''?null:parseFloat(d.total_miles),
     routes:validRoutes, notes:d.notes||null, updated_at:new Date().toISOString()
   };
@@ -11957,7 +11962,9 @@ function blaEditComm(id){
   if(!e) return;
   blaState.commDraft = { id:e.id, entry_date:e.entry_date, driver_id:e.driver_id||'',
     driver_minutes_str:blaFmtHHMM(e.driver_minutes), net_weight_lbs:e.net_weight_lbs||'',
-    landfill_minutes_str:blaFmtHHMM(e.landfill_minutes), total_miles:e.total_miles||'',
+    landfill_minutes_str:blaFmtHHMM(e.landfill_minutes),
+    landfill_trips: e.landfill_trips==null?1:e.landfill_trips,
+    total_miles:e.total_miles||'',
     routes:(e.routes&&e.routes.length)?e.routes.map(r=>({name:r.name||'',stops:r.stops==null?'':r.stops})):[{name:'',stops:''}],
     notes:e.notes||'' };
   blaState.inputBL='comm'; blaState.view='input'; renderBLA();
@@ -12252,7 +12259,7 @@ function blaYearRange(weekStartIso){
 // Aggregate residential metrics for a list of entries.
 function blaAggResi(entries){
   const drivers = new Set(), helpers = new Set(), routeNames = new Set();
-  let stops=0, tons=0, loads=entries.length, miles=0, drvMin=0, hlpMin=0, lfMin=0;
+  let stops=0, tons=0, loads=0, miles=0, drvMin=0, hlpMin=0, lfMin=0;
   entries.forEach(e=>{
     if(e.driver_id) drivers.add(e.driver_id);
     drvMin += e.driver_minutes||0;
@@ -12260,6 +12267,8 @@ function blaAggResi(entries){
     lfMin  += e.landfill_minutes||0;
     miles  += parseFloat(e.total_miles)||0;
     tons   += (parseFloat(e.net_weight_lbs)||0)/2000;
+    // Each entry is at least 1 landfill trip; use explicit count when set.
+    loads  += (e.landfill_trips==null ? 1 : (parseInt(e.landfill_trips,10)||1));
     (e.routes||[]).forEach(r=>{
       if(r.name) routeNames.add(r.name+'|'+e.entry_date);   // unique per day
       if(r.helper_id) helpers.add(r.helper_id);
@@ -12286,13 +12295,14 @@ function blaAggResi(entries){
 }
 function blaAggComm(entries){
   const drivers = new Set(), routeNames = new Set();
-  let stops=0, tons=0, loads=entries.length, miles=0, drvMin=0, lfMin=0;
+  let stops=0, tons=0, loads=0, miles=0, drvMin=0, lfMin=0;
   entries.forEach(e=>{
     if(e.driver_id) drivers.add(e.driver_id);
     drvMin += e.driver_minutes||0;
     lfMin  += e.landfill_minutes||0;
     miles  += parseFloat(e.total_miles)||0;
     tons   += (parseFloat(e.net_weight_lbs)||0)/2000;
+    loads  += (e.landfill_trips==null ? 1 : (parseInt(e.landfill_trips,10)||1));
     (e.routes||[]).forEach(r=>{
       if(r.name) routeNames.add(r.name+'|'+e.entry_date);
       stops += parseInt(r.stops,10)||0;
