@@ -5430,37 +5430,63 @@ function irrFmtDate(dateStr) {
 function irrFmt(n,dec=2){return (isNaN(n)||n===null||n===undefined)?'--':n.toFixed(dec);}
 function irrFmtMoney(n){return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
-// Generates the daily scale summary email in the unified three-section format:
-//   1. Rolloff Internal Volume — combined rolloff tonnage with MOM/YOY
-//   2. Inbound vs Outbound — rolloff+walkin in, vinagro out, net colored red/green
-//   3. Revenue (today only) — total split into rolloff vs walk-in
+// Generates the daily scale summary email in the four-section format:
+//   1. Internal Volume — rolloff tonnage (Reis + Island + East End)
+//   2. External Volume — walk-in tonnage
+//   3. Outbound        — Vinagro tonnage hauled to mainland
+//   4. Revenue         — total $ + $/ton derived metric
+// Each section uses a uniform 5-row layout: Today / MTD / MTD YoY / YTD / YTD YoY.
+// YoY rows show the prior-period value plus a percent delta in accounting
+// convention (positive: "5.2%", negative: "(5.2%)").
 function irrGenerateEmail(data, ytd) {
   const {date, buckets} = data;
   const displayDate = irrFmtDate(date);
-  const subject = 'IRR Scale Report \u2014 '+(date||'Today');
+  const subject = 'IRR Scale Report — '+(date||'Today');
 
-  // Today figures come from the freshly-parsed buckets (always current,
-  // even if the row hasn't fully round-tripped through the DB yet).
-  const {reis,island,santos,walkin,pile} = buckets;
-  // Today's load + ticket counts
-  const rolloffLoadsToday = (reis.tickets||0) + (island.tickets||0) + (santos.tickets||0);
-  const walkinTicketsToday = (walkin.tickets||0) + (pile?pile.tickets||0:0); // pile pickups roll into walk-in display
-
-  // Revenue split — separate hook fees from tonnage so we can show subtotals
+  // Today's revenue is computed fresh from buckets (post-4/17 hook fee logic);
+  // prior-period revenue comes from DB-stored values which had the same
+  // logic applied at upload time.
+  const {reis,island,santos,walkin} = buckets;
   const {ir, er} = irrRatesFor(date);
   const islandHook   = (ir ? ir.hook_fee : 250) * (island.tickets||0);
-  const islandTonRev = (island.revenue||0) - islandHook;
   const santosHook   = (er ? er.hook_fee : 250) * (santos.tickets||0);
+  const islandTonRev = (island.revenue||0) - islandHook;
   const santosTonRev = (santos.revenue||0) - santosHook;
-  const rolloffHookToday  = (reis.rolloffFees||0) + islandHook + santosHook;
-  const rolloffTonRevToday = (reis.tipRevenue||0) + islandTonRev + santosTonRev;
-  const rolloffRevToday    = rolloffHookToday + rolloffTonRevToday;
-  const walkinRevToday     = walkin.tipRevenue||0;
-  const totalRevToday      = rolloffRevToday + walkinRevToday;
+  const rolloffRevToday = (reis.rolloffFees||0) + islandHook + santosHook
+                        + (reis.tipRevenue||0)  + islandTonRev + santosTonRev;
+  const totalRevToday   = rolloffRevToday + (walkin.tipRevenue||0);
 
-  // Helpers
+  // Period buckets — sums by period from irrLoadYTD.
+  const t = ytd.today || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const m = ytd.mtd   || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const y = ytd.ytd   || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const my= ytd.mtdYoy|| {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const yo= ytd.yoy   || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+
+  // Formatters
   const f2 = n => (Number(n)||0).toFixed(2);
-  const fM = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtTons = n => f2(n) + ' tons';
+  const fmtMoney = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Accounting-convention percent delta. Positive: "5.2%", negative: "(5.2%)".
+  const pctAcct = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    if(Math.abs(p) < 0.005) return 'new';
+    const pct = ((c - p) / Math.abs(p)) * 100;
+    if(pct >= 0) return pct.toFixed(1) + '%';
+    return '(' + Math.abs(pct).toFixed(1) + '%)';
+  };
+  // YoY row value: "245.00 tons · 5.2%"  /  "245.00 tons · (5.2%)"
+  const yoyTons  = (cur, prev) => fmtTons(prev) + ' · ' + pctAcct(cur, prev);
+  const yoyMoney = (cur, prev) => fmtMoney(prev) + ' · ' + pctAcct(cur, prev);
+  // Rev/ton appended inline. Drops if zero tonnage in period.
+  const revPerTon = (rev, tons) => {
+    const r = Number(rev)||0, ts = Number(tons)||0;
+    if(ts < 0.005) return '';
+    return ' · $'+(r/ts).toFixed(0)+'/ton';
+  };
+
+  // Email row + section header builders (inline-styled for email clients).
   const labelStyle = 'padding:3px 0;color:#222;font-size:14px;';
   const valStyle   = 'padding:3px 0;color:#222;font-size:14px;text-align:right;';
   const row = (label, val, bold, highlight) => {
@@ -5476,97 +5502,47 @@ function irrGenerateEmail(data, ytd) {
   const firstSectionHdr = (text) => `<tr><td colspan="2" style="padding:6px 0 6px 0;">
     <span style="font-weight:bold;font-size:15px;color:#000;">${text}</span>
   </td></tr>`;
-  const blank = () => `<tr><td colspan="2" style="padding:5px 0;"></td></tr>`;
 
-  // Inbound, Outbound : Net (colored). Positive net = red (accumulating).
-  // Negative net = green (clearing). Zero = neutral.
-  const inOut = (inb, out) => {
-    const net = (Number(inb)||0) - (Number(out)||0);
-    const color = net > 0.005 ? '#c62828' : net < -0.005 ? '#2e7d32' : '#444';
-    const netStr = `<span style="color:${color};font-weight:bold;">${f2(Math.abs(net))}</span>`;
-    return `${f2(inb)}, ${f2(out)} : ${netStr}`;
-  };
-
-  // Delta vs prior period for MOM / YOY rows. Green when current > prior
-  // (business is up), red when current < prior. Renders as
-  //   "(+42.30 tons, +17.3% vs MTD)"
-  const delta = (curVal, prevVal, vsLabel) => {
-    const cur = Number(curVal)||0, prev = Number(prevVal)||0;
-    const d = cur - prev;
-    if(Math.abs(d) < 0.005 && Math.abs(cur) < 0.005 && Math.abs(prev) < 0.005) return '';
-    const sign  = d >= 0 ? '+' : '\u2212';
-    const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
-    const magnitude = Math.abs(d).toFixed(2);
-    const pct = prev > 0.005 ? `, ${sign}${(Math.abs(d)/prev*100).toFixed(1)}%` : (cur > 0.005 ? ', new' : '');
-    return ` <span style="color:${color};font-weight:bold;">(${sign}${magnitude} tons${pct} vs ${vsLabel})</span>`;
-  };
-
-  // Two-line YOY block comparing inbound tonnage prior-year vs current-year.
-  //   Line 1: "2025: 245.00 tons, 2026: 287.40 tons"
-  //   Line 2: "Delta: +17.3% higher"   (green = higher, red = lower)
-  const curYear  = parseInt((data.date||'').split('/')[2]) || new Date().getFullYear();
-  const prevYear = curYear - 1;
-  const yoyBlock = (curIn, prevIn) => {
-    const cur = Number(curIn)||0, prev = Number(prevIn)||0;
-    const d = cur - prev;
-    let pctStr;
-    if(Math.abs(prev) < 0.005){
-      pctStr = Math.abs(cur) < 0.005 ? '0.0%' : 'new';
-    } else {
-      const pctVal = (d/Math.abs(prev))*100;
-      const sign = pctVal >= 0 ? '+' : '\u2212';
-      pctStr = `${sign}${Math.abs(pctVal).toFixed(1)}%`;
-    }
-    const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
-    return `
-      <div>${prevYear}: ${f2(prev)} tons, ${curYear}: ${f2(cur)} tons</div>
-      <div>% Change: <span style="color:${color};font-weight:bold;">${pctStr}</span></div>
-    `;
-  };
-
-  // ytd shape: {today,wtd,mtd,mom,ytd,yoy,mtdYoy} — each with {rolloff,walkin,vin,...}
-  const t = ytd.today || {rolloff:0,walkin:0,vin:0};
-  const w = ytd.wtd   || {rolloff:0,walkin:0,vin:0};
-  const m = ytd.mtd   || {rolloff:0,walkin:0,vin:0};
-  const mo= ytd.mom   || {rolloff:0,walkin:0,vin:0};
-  const y = ytd.ytd   || {rolloff:0,walkin:0,vin:0};
-  const yo= ytd.yoy   || {rolloff:0,walkin:0,vin:0};
-  const my= ytd.mtdYoy|| {rolloff:0,walkin:0,vin:0};
-
-  // Indented sub-row for Hook Fee / Tonnage breakdown under Rolloff Revenue.
-  const subRow = (label, val) => `<tr>
-    <td style="${labelStyle}padding-left:18px;color:#666;font-size:13px;">${label}</td>
-    <td style="${valStyle}color:#666;font-size:13px;">${val}</td>
-  </tr>`;
+  // Period totals for revenue rows + their tonnage denominators (rev/ton).
+  const mtdRev    = (m.rollRev||0)  + (m.walkRev||0);
+  const mtdTons   = m.rolloff + m.walkin;
+  const ytdRev    = (y.rollRev||0)  + (y.walkRev||0);
+  const ytdTons   = y.rolloff + y.walkin;
+  const mtdYoyRev = (my.rollRev||0) + (my.walkRev||0);
+  const ytdYoyRev = (yo.rollRev||0) + (yo.walkRev||0);
+  const todayTons = t.rolloff + t.walkin;
 
   const sec1 = `
-    ${firstSectionHdr('Rolloff Internal Volume')}
-    ${row('Today', rolloffLoadsToday + ' trips &nbsp;\u00B7&nbsp; ' + f2(t.rolloff) + ' tons', false, true)}
-    ${row('WTD',   f2(w.rolloff)+' tons')}
-    ${row('MTD',   f2(m.rolloff)+' tons')}
-    ${row('MOM',   f2(mo.rolloff)+' tons'+delta(m.rolloff, mo.rolloff, 'MTD'))}
-    ${row('YTD',   f2(y.rolloff)+' tons')}
-    ${row('YOY',   f2(yo.rolloff)+' tons'+delta(y.rolloff, yo.rolloff, 'YTD'))}
+    ${firstSectionHdr('Internal Volume')}
+    ${row('Today',     fmtTons(t.rolloff), false, true)}
+    ${row('MTD',       fmtTons(m.rolloff))}
+    ${row('MTD YoY',   yoyTons(m.rolloff, my.rolloff))}
+    ${row('YTD',       fmtTons(y.rolloff))}
+    ${row('YTD YoY',   yoyTons(y.rolloff, yo.rolloff))}
   `;
-
   const sec2 = `
-    ${sectionHdr('Inbound V. Outbound \u2014 Xfer Station, Rolloffs + Walk-Ins')}
-    ${row('Today',   inOut(t.rolloff+t.walkin,  t.vin), false, true)}
-    ${row('WTD',     inOut(w.rolloff+w.walkin,  w.vin))}
-    ${row('MTD',     inOut(m.rolloff+m.walkin,  m.vin))}
-    ${row('YTD',     inOut(y.rolloff+y.walkin,  y.vin))}
-    ${blank()}
-    ${row('MTD YOY', yoyBlock(m.rolloff+m.walkin, my.rolloff+my.walkin))}
-    ${row('YTD YOY', yoyBlock(y.rolloff+y.walkin, yo.rolloff+yo.walkin))}
+    ${sectionHdr('External Volume')}
+    ${row('Today',     fmtTons(t.walkin), false, true)}
+    ${row('MTD',       fmtTons(m.walkin))}
+    ${row('MTD YoY',   yoyTons(m.walkin, my.walkin))}
+    ${row('YTD',       fmtTons(y.walkin))}
+    ${row('YTD YoY',   yoyTons(y.walkin, yo.walkin))}
   `;
-
   const sec3 = `
+    ${sectionHdr('Outbound')}
+    ${row('Today',     fmtTons(t.vin), false, true)}
+    ${row('MTD',       fmtTons(m.vin))}
+    ${row('MTD YoY',   yoyTons(m.vin, my.vin))}
+    ${row('YTD',       fmtTons(y.vin))}
+    ${row('YTD YoY',   yoyTons(y.vin, yo.vin))}
+  `;
+  const sec4 = `
     ${sectionHdr('Revenue')}
-    ${row('Total Revenue Today', fM(totalRevToday), true, true)}
-    ${row('Rolloff Revenue',     fM(rolloffRevToday))}
-    ${subRow('Hook Fee Revenue', fM(rolloffHookToday))}
-    ${subRow('Tonnage Revenue',  fM(rolloffTonRevToday))}
-    ${row('Walk-In Revenue',     fM(walkinRevToday) + ' &nbsp;\u00B7&nbsp; ' + walkinTicketsToday + ' tickets')}
+    ${row('Today',     fmtMoney(totalRevToday) + revPerTon(totalRevToday, todayTons), true, true)}
+    ${row('MTD',       fmtMoney(mtdRev) + revPerTon(mtdRev, mtdTons))}
+    ${row('MTD YoY',   yoyMoney(mtdRev, mtdYoyRev))}
+    ${row('YTD',       fmtMoney(ytdRev) + revPerTon(ytdRev, ytdTons))}
+    ${row('YTD YoY',   yoyMoney(ytdRev, ytdYoyRev))}
   `;
 
   const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:560px;line-height:1.55;">
@@ -5576,6 +5552,7 @@ function irrGenerateEmail(data, ytd) {
     ${sec1}
     ${sec2}
     ${sec3}
+    ${sec4}
   </table></div>`;
 
   return {subject, body};
@@ -5718,84 +5695,60 @@ async function irrLoadHistory() {
 }
 
 function irrRenderReportView(data, ytd) {
-  const {date, buckets} = data;
-  const {reis,island,santos,walkin,pile} = buckets;
   const email = irrGenerateEmail(data, ytd);
+  const {date, buckets} = data;
 
-  // Today counts
-  const rolloffLoadsToday  = (reis.tickets||0) + (island.tickets||0) + (santos.tickets||0);
-  const walkinTicketsToday = (walkin.tickets||0) + (pile?pile.tickets||0:0);
-
-  // Today revenue split — hook fees vs tonnage so we can show subtotals
+  // Today's revenue (computed fresh — same logic as irrGenerateEmail).
+  const {reis,island,santos,walkin} = buckets;
   const {ir, er} = irrRatesFor(date);
   const islandHook   = (ir ? ir.hook_fee : 250) * (island.tickets||0);
-  const islandTonRev = (island.revenue||0) - islandHook;
   const santosHook   = (er ? er.hook_fee : 250) * (santos.tickets||0);
+  const islandTonRev = (island.revenue||0) - islandHook;
   const santosTonRev = (santos.revenue||0) - santosHook;
-  const rolloffHookToday   = (reis.rolloffFees||0) + islandHook + santosHook;
-  const rolloffTonRevToday = (reis.tipRevenue||0) + islandTonRev + santosTonRev;
-  const rolloffRevToday    = rolloffHookToday + rolloffTonRevToday;
-  const walkinRevToday     = walkin.tipRevenue||0;
-  const totalRevToday      = rolloffRevToday + walkinRevToday;
+  const rolloffRevToday = (reis.rolloffFees||0) + islandHook + santosHook
+                        + (reis.tipRevenue||0)  + islandTonRev + santosTonRev;
+  const totalRevToday   = rolloffRevToday + (walkin.tipRevenue||0);
 
-  // Period buckets — mirrors what irrGenerateEmail uses
-  const t = ytd.today || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
-  const w = ytd.wtd   || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
-  const m = ytd.mtd   || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
-  const mo= ytd.mom   || {rolloff:0,walkin:0,vin:0};
-  const y = ytd.ytd   || {rolloff:0,walkin:0,vin:0,pileTons:0,pileTickets:0};
-  const yo= ytd.yoy   || {rolloff:0,walkin:0,vin:0};
-  const my= ytd.mtdYoy|| {rolloff:0,walkin:0,vin:0};
+  // Period buckets — must mirror irrGenerateEmail.
+  const t = ytd.today || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const m = ytd.mtd   || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const y = ytd.ytd   || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const my= ytd.mtdYoy|| {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const yo= ytd.yoy   || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
 
-  // Helpers (parallel the email's formatting)
   const f2 = n => (Number(n)||0).toFixed(2);
-  const fM = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const inOut = (inb, out) => {
-    const net = (Number(inb)||0) - (Number(out)||0);
-    const color = net > 0.005 ? '#c62828' : net < -0.005 ? '#2e7d32' : '#444';
-    return `${f2(inb)}, ${f2(out)} : <span style="color:${color};font-weight:700">${f2(Math.abs(net))}</span>`;
+  const fmtTons = n => f2(n) + ' tons';
+  const fmtMoney = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pctAcct = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    if(Math.abs(p) < 0.005) return 'new';
+    const pct = ((c - p) / Math.abs(p)) * 100;
+    if(pct >= 0) return pct.toFixed(1) + '%';
+    return '(' + Math.abs(pct).toFixed(1) + '%)';
   };
-  const delta = (curVal, prevVal, vsLabel) => {
-    const cur = Number(curVal)||0, prev = Number(prevVal)||0;
-    const d = cur - prev;
-    if(Math.abs(d) < 0.005 && Math.abs(cur) < 0.005 && Math.abs(prev) < 0.005) return '';
-    const sign  = d >= 0 ? '+' : '\u2212';
-    const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
-    const magnitude = Math.abs(d).toFixed(2);
-    const pct = prev > 0.005 ? `, ${sign}${(Math.abs(d)/prev*100).toFixed(1)}%` : (cur > 0.005 ? ', new' : '');
-    return ` <span style="color:${color};font-weight:700;font-size:11px;">(${sign}${magnitude} tons${pct} vs ${vsLabel})</span>`;
+  const yoyTons  = (cur, prev) => fmtTons(prev) + ' · ' + pctAcct(cur, prev);
+  const yoyMoney = (cur, prev) => fmtMoney(prev) + ' · ' + pctAcct(cur, prev);
+  const revPerTon = (rev, tons) => {
+    const r = Number(rev)||0, ts = Number(tons)||0;
+    if(ts < 0.005) return '';
+    return ' · $'+(r/ts).toFixed(0)+'/ton';
   };
-  // Two-line YOY block — inbound tonnage prior-year vs current-year + % delta
-  const curYear  = parseInt((data.date||'').split('/')[2]) || new Date().getFullYear();
-  const prevYear = curYear - 1;
-  const yoyBlock = (curIn, prevIn) => {
-    const cur = Number(curIn)||0, prev = Number(prevIn)||0;
-    const d = cur - prev;
-    let pctStr;
-    if(Math.abs(prev) < 0.005){
-      pctStr = Math.abs(cur) < 0.005 ? '0.0%' : 'new';
-    } else {
-      const pctVal = (d/Math.abs(prev))*100;
-      const sign = pctVal >= 0 ? '+' : '\u2212';
-      pctStr = `${sign}${Math.abs(pctVal).toFixed(1)}%`;
-    }
-    const color = d > 0.005 ? '#2e7d32' : d < -0.005 ? '#c62828' : '#666';
-    return `
-      <div>${prevYear}: ${f2(prev)} tons, ${curYear}: ${f2(cur)} tons</div>
-      <div>% Change: <span style="color:${color};font-weight:700;">${pctStr}</span></div>
-    `;
-  };
+
   const rowH = (label, val, bold, highlight) => {
     const sty = (bold?'font-weight:700;':'') + (highlight?'background:#fff4cc;':'');
     const attr = sty ? ` style="${sty}"` : '';
-    return `<tr>
-      <td${attr}>${label}</td>
-      <td${attr}>${val}</td></tr>`;
+    return `<tr><td${attr}>${label}</td><td${attr}>${val}</td></tr>`;
   };
-  const subRowH = (label, val) => `<tr>
-    <td style="padding-left:32px;color:var(--gray-500);font-size:12px;">${label}</td>
-    <td style="color:var(--gray-500);font-size:12px;">${val}</td></tr>`;
-  const blankRow = '<tr><td colspan="2" style="padding:5px 0;border:none;"></td></tr>';
+
+  // Period totals for revenue rows
+  const mtdRev    = (m.rollRev||0)  + (m.walkRev||0);
+  const mtdTons   = m.rolloff + m.walkin;
+  const ytdRev    = (y.rollRev||0)  + (y.walkRev||0);
+  const ytdTons   = y.rolloff + y.walkin;
+  const mtdYoyRev = (my.rollRev||0) + (my.walkRev||0);
+  const ytdYoyRev = (yo.rollRev||0) + (yo.walkRev||0);
+  const todayTons = t.rolloff + t.walkin;
 
   return `
     <div class="irr-report">
@@ -5803,34 +5756,40 @@ function irrRenderReportView(data, ytd) {
         Daily Scale Report &mdash; <strong style="color:var(--teal)">${irrFmtDate(date)}</strong>
       </h3>
 
-      <div class="irr-section-hdr">Rolloff Internal Volume</div>
+      <div class="irr-section-hdr">Internal Volume</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today', rolloffLoadsToday + ' trips &middot; ' + f2(t.rolloff) + ' tons', false, true)}
-        ${rowH('WTD',   f2(w.rolloff)+' tons')}
-        ${rowH('MTD',   f2(m.rolloff)+' tons')}
-        ${rowH('MOM',   f2(mo.rolloff)+' tons'+delta(m.rolloff, mo.rolloff, 'MTD'))}
-        ${rowH('YTD',   f2(y.rolloff)+' tons')}
-        ${rowH('YOY',   f2(yo.rolloff)+' tons'+delta(y.rolloff, yo.rolloff, 'YTD'))}
+        ${rowH('Today',     fmtTons(t.rolloff), false, true)}
+        ${rowH('MTD',       fmtTons(m.rolloff))}
+        ${rowH('MTD YoY',   yoyTons(m.rolloff, my.rolloff))}
+        ${rowH('YTD',       fmtTons(y.rolloff))}
+        ${rowH('YTD YoY',   yoyTons(y.rolloff, yo.rolloff))}
       </tbody></table>
 
-      <div class="irr-section-hdr">Inbound V. Outbound &mdash; Xfer Station, Rolloffs + Walk-Ins</div>
+      <div class="irr-section-hdr">External Volume</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today',   inOut(t.rolloff+t.walkin,  t.vin), false, true)}
-        ${rowH('WTD',     inOut(w.rolloff+w.walkin,  w.vin))}
-        ${rowH('MTD',     inOut(m.rolloff+m.walkin,  m.vin))}
-        ${rowH('YTD',     inOut(y.rolloff+y.walkin,  y.vin))}
-        ${blankRow}
-        ${rowH('MTD YOY', yoyBlock(m.rolloff+m.walkin, my.rolloff+my.walkin))}
-        ${rowH('YTD YOY', yoyBlock(y.rolloff+y.walkin, yo.rolloff+yo.walkin))}
+        ${rowH('Today',     fmtTons(t.walkin), false, true)}
+        ${rowH('MTD',       fmtTons(m.walkin))}
+        ${rowH('MTD YoY',   yoyTons(m.walkin, my.walkin))}
+        ${rowH('YTD',       fmtTons(y.walkin))}
+        ${rowH('YTD YoY',   yoyTons(y.walkin, yo.walkin))}
+      </tbody></table>
+
+      <div class="irr-section-hdr">Outbound</div>
+      <table class="irr-table"><tbody>
+        ${rowH('Today',     fmtTons(t.vin), false, true)}
+        ${rowH('MTD',       fmtTons(m.vin))}
+        ${rowH('MTD YoY',   yoyTons(m.vin, my.vin))}
+        ${rowH('YTD',       fmtTons(y.vin))}
+        ${rowH('YTD YoY',   yoyTons(y.vin, yo.vin))}
       </tbody></table>
 
       <div class="irr-section-hdr">Revenue</div>
       <table class="irr-table"><tbody>
-        ${rowH('Total Revenue Today', fM(totalRevToday), true, true)}
-        ${rowH('Rolloff Revenue',     fM(rolloffRevToday))}
-        ${subRowH('Hook Fee Revenue', fM(rolloffHookToday))}
-        ${subRowH('Tonnage Revenue',  fM(rolloffTonRevToday))}
-        ${rowH('Walk-In Revenue',     fM(walkinRevToday) + ' &middot; ' + walkinTicketsToday + ' tickets')}
+        ${rowH('Today',     fmtMoney(totalRevToday) + revPerTon(totalRevToday, todayTons), true, true)}
+        ${rowH('MTD',       fmtMoney(mtdRev) + revPerTon(mtdRev, mtdTons))}
+        ${rowH('MTD YoY',   yoyMoney(mtdRev, mtdYoyRev))}
+        ${rowH('YTD',       fmtMoney(ytdRev) + revPerTon(ytdRev, ytdTons))}
+        ${rowH('YTD YoY',   yoyMoney(ytdRev, ytdYoyRev))}
       </tbody></table>
 
       <hr style="border:none;border-top:1px solid var(--gray-200);margin:24px 0 16px;">
