@@ -5469,23 +5469,47 @@ function irrGenerateEmail(data, ytd) {
   const f2 = n => (Number(n)||0).toFixed(2);
   const fmtTons = n => f2(n) + ' tons';
   const fmtMoney = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  // Accounting-convention percent delta. Positive: "5.2%", negative: "(5.2%)".
+  // Accounting-convention percent. Positive: "+5.2%". Negative: "(5.2%)".
   const pctAcct = (cur, prev) => {
     const c = Number(cur)||0, p = Number(prev)||0;
     if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
     if(Math.abs(p) < 0.005) return 'new';
     const pct = ((c - p) / Math.abs(p)) * 100;
-    if(pct >= 0) return pct.toFixed(1) + '%';
+    if(pct >= 0) return '+' + pct.toFixed(1) + '%';
     return '(' + Math.abs(pct).toFixed(1) + '%)';
   };
-  // YoY row value: "245.00 tons · 5.2%"  /  "245.00 tons · (5.2%)"
-  const yoyTons  = (cur, prev) => fmtTons(prev) + ' · ' + pctAcct(cur, prev);
-  const yoyMoney = (cur, prev) => fmtMoney(prev) + ' · ' + pctAcct(cur, prev);
-  // Rev/ton appended inline. Drops if zero tonnage in period.
-  const revPerTon = (rev, tons) => {
+  // Format an absolute money delta with sign convention.
+  // Positive: "+$192,482.54". Negative: "($45,200.10)".
+  const moneyDelta = (delta) => {
+    const d = Number(delta)||0;
+    const abs = '$' + Math.abs(d).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return d >= 0 ? '+' + abs : '(' + abs + ')';
+  };
+  // Format an absolute tonnage delta with sign convention.
+  // Positive: "+432.50 tons". Negative: "(49.90 tons)".
+  const tonsDelta = (delta) => {
+    const d = Number(delta)||0;
+    const abs = Math.abs(d).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' tons';
+    return d >= 0 ? '+' + abs : '(' + abs + ')';
+  };
+  // YoY row value: "+432.50 tons  |  +10.5%"  /  "(49.90 tons)  |  (2.3%)"
+  const yoyTons = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    return tonsDelta(c - p) + '  |  ' + pctAcct(c, p);
+  };
+  // YoY row value for money: "+$192,482.54  |  +35.6%"  /  "($45,200.10)  |  (8.4%)"
+  const yoyMoney = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    return moneyDelta(c - p) + '  |  ' + pctAcct(c, p);
+  };
+  // Rev/ton (2 decimals so the value shows real variance instead of
+  // looking suspiciously round, e.g. "$525.27/ton").
+  const revPerTonStr = (rev, tons) => {
     const r = Number(rev)||0, ts = Number(tons)||0;
     if(ts < 0.005) return '';
-    return ' · $'+(r/ts).toFixed(0)+'/ton';
+    return '$' + (r/ts).toFixed(2) + '/ton';
   };
 
   // Email row + section header builders (inline-styled for email clients).
@@ -5538,12 +5562,19 @@ function irrGenerateEmail(data, ytd) {
     ${row('YTD',       fmtTons(y.vin))}
     ${row('YTD YoY',   yoyTons(y.vin, yo.vin))}
   `;
+  // Revenue rows: $/ton first (boss's priority), then total. YoY shows
+  // absolute $ delta + percent. Suppress "$/ton ·" when the period has
+  // zero tonnage so we don't render a stray separator.
+  const revRow = (rev, tons) => {
+    const rpt = revPerTonStr(rev, tons);
+    return rpt ? rpt + '  ·  ' + fmtMoney(rev) : fmtMoney(rev);
+  };
   const sec4 = `
     ${sectionHdr('Revenue')}
-    ${row('Today',     fmtMoney(totalRevToday) + revPerTon(totalRevToday, todayTons), true, false)}
-    ${row('MTD',       fmtMoney(mtdRev) + revPerTon(mtdRev, mtdTons))}
+    ${row('Today',     revRow(totalRevToday, todayTons), true, false)}
+    ${row('MTD',       revRow(mtdRev, mtdTons))}
     ${row('MTD YoY',   yoyMoney(mtdRev, mtdYoyRev))}
-    ${row('YTD',       fmtMoney(ytdRev) + revPerTon(ytdRev, ytdTons))}
+    ${row('YTD',       revRow(ytdRev, ytdTons))}
     ${row('YTD YoY',   yoyMoney(ytdRev, ytdYoyRev))}
   `;
 
@@ -5721,20 +5752,47 @@ function irrRenderReportView(data, ytd) {
   const f2 = n => (Number(n)||0).toFixed(2);
   const fmtTons = n => f2(n) + ' tons';
   const fmtMoney = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Accounting-convention percent. Positive: "+5.2%". Negative: "(5.2%)".
   const pctAcct = (cur, prev) => {
     const c = Number(cur)||0, p = Number(prev)||0;
     if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
     if(Math.abs(p) < 0.005) return 'new';
     const pct = ((c - p) / Math.abs(p)) * 100;
-    if(pct >= 0) return pct.toFixed(1) + '%';
+    if(pct >= 0) return '+' + pct.toFixed(1) + '%';
     return '(' + Math.abs(pct).toFixed(1) + '%)';
   };
-  const yoyTons  = (cur, prev) => fmtTons(prev) + ' · ' + pctAcct(cur, prev);
-  const yoyMoney = (cur, prev) => fmtMoney(prev) + ' · ' + pctAcct(cur, prev);
-  const revPerTon = (rev, tons) => {
+  // Format an absolute money delta with sign convention.
+  // Positive: "+$192,482.54". Negative: "($45,200.10)".
+  const moneyDelta = (delta) => {
+    const d = Number(delta)||0;
+    const abs = '$' + Math.abs(d).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return d >= 0 ? '+' + abs : '(' + abs + ')';
+  };
+  // Format an absolute tonnage delta with sign convention.
+  // Positive: "+432.50 tons". Negative: "(49.90 tons)".
+  const tonsDelta = (delta) => {
+    const d = Number(delta)||0;
+    const abs = Math.abs(d).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' tons';
+    return d >= 0 ? '+' + abs : '(' + abs + ')';
+  };
+  // YoY row value: "+432.50 tons  |  +10.5%"  /  "(49.90 tons)  |  (2.3%)"
+  const yoyTons = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    return tonsDelta(c - p) + '  |  ' + pctAcct(c, p);
+  };
+  // YoY row value for money: "+$192,482.54  |  +35.6%"  /  "($45,200.10)  |  (8.4%)"
+  const yoyMoney = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    return moneyDelta(c - p) + '  |  ' + pctAcct(c, p);
+  };
+  // Rev/ton (2 decimals so the value shows real variance instead of
+  // looking suspiciously round, e.g. "$525.27/ton").
+  const revPerTonStr = (rev, tons) => {
     const r = Number(rev)||0, ts = Number(tons)||0;
     if(ts < 0.005) return '';
-    return ' · $'+(r/ts).toFixed(0)+'/ton';
+    return '$' + (r/ts).toFixed(2) + '/ton';
   };
 
   const rowH = (label, val, bold, highlight) => {
@@ -5787,10 +5845,10 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Revenue</div>
       <table class="irr-table"><tbody>
-        ${rowH('Today',     fmtMoney(totalRevToday) + revPerTon(totalRevToday, todayTons), true, false)}
-        ${rowH('MTD',       fmtMoney(mtdRev) + revPerTon(mtdRev, mtdTons))}
+        ${(() => { const rev = totalRevToday, ts = todayTons, rpt = revPerTonStr(rev, ts); return rowH('Today', (rpt?rpt+'  ·  ':'') + fmtMoney(rev), true, false); })()}
+        ${(() => { const rpt = revPerTonStr(mtdRev, mtdTons); return rowH('MTD', (rpt?rpt+'  ·  ':'') + fmtMoney(mtdRev)); })()}
         ${rowH('MTD YoY',   yoyMoney(mtdRev, mtdYoyRev))}
-        ${rowH('YTD',       fmtMoney(ytdRev) + revPerTon(ytdRev, ytdTons))}
+        ${(() => { const rpt = revPerTonStr(ytdRev, ytdTons); return rowH('YTD', (rpt?rpt+'  ·  ':'') + fmtMoney(ytdRev)); })()}
         ${rowH('YTD YoY',   yoyMoney(ytdRev, ytdYoyRev))}
       </tbody></table>
 
