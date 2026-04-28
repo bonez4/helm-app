@@ -815,8 +815,8 @@ select.ro-input{cursor:pointer;}
 .irr-report{margin-top:24px;}
 .irr-section-hdr{
   font-size:14px;font-weight:700;letter-spacing:.02em;
-  color:var(--navy);margin:20px 0 8px;
-  border-top:1px solid var(--gray-200);padding-top:14px;
+  color:var(--navy);margin:14px 0 4px;
+  border-top:1px solid var(--gray-200);padding-top:8px;
 }
 .irr-report .irr-section-hdr:first-of-type{border-top:none;padding-top:0;}
 .irr-table{width:100%;max-width:460px;border-collapse:collapse;font-size:13px;margin-bottom:4px;}
@@ -826,7 +826,7 @@ select.ro-input{cursor:pointer;}
   border-bottom:1px solid var(--gray-200);
 }
 .irr-table th:not(:first-child){text-align:right;}
-.irr-table td{padding:8px 12px;border-bottom:1px solid var(--gray-100);}
+.irr-table td{padding:3px 12px;border-bottom:1px solid var(--gray-100);}
 .irr-table td:not(:first-child){text-align:right;font-family:'DM Mono',monospace;font-size:12px;}
 .irr-table tr.irr-total td{font-weight:700;border-top:2px solid var(--navy);border-bottom:none;}
 .irr-table tr.irr-total td:first-child{color:var(--teal);}
@@ -5513,8 +5513,8 @@ function irrGenerateEmail(data, ytd) {
   };
 
   // Email row + section header builders (inline-styled for email clients).
-  const labelStyle = 'padding:3px 0;color:#222;font-size:14px;';
-  const valStyle   = 'padding:3px 0;color:#222;font-size:14px;text-align:right;';
+  const labelStyle = 'padding:1px 0;color:#222;font-size:14px;';
+  const valStyle   = 'padding:1px 0;color:#222;font-size:14px;text-align:right;';
   const row = (label, val, bold, highlight) => {
     const hl = highlight ? 'background:#fff4cc;' : '';
     return `<tr>
@@ -5522,10 +5522,10 @@ function irrGenerateEmail(data, ytd) {
       <td style="${valStyle}${bold?'font-weight:bold;':''}${hl}">${val}</td>
     </tr>`;
   };
-  const sectionHdr = (text) => `<tr><td colspan="2" style="padding:18px 0 6px 0;border-top:1px solid #d0d0d0;">
+  const sectionHdr = (text) => `<tr><td colspan="2" style="padding:12px 0 4px 0;border-top:1px solid #d0d0d0;">
     <span style="font-weight:bold;font-size:15px;color:#000;">${text}</span>
   </td></tr>`;
-  const firstSectionHdr = (text) => `<tr><td colspan="2" style="padding:6px 0 6px 0;">
+  const firstSectionHdr = (text) => `<tr><td colspan="2" style="padding:4px 0 4px 0;">
     <span style="font-weight:bold;font-size:15px;color:#000;">${text}</span>
   </td></tr>`;
   // Indented sub-row for Internal / External rev/ton breakdown.
@@ -5614,9 +5614,9 @@ function irrGenerateEmail(data, ytd) {
     ${subRow('External', yoyRevPerTon(y.walkRev||0, y.walkin,  yo.walkRev||0, yo.walkin))}
   `;
 
-  const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:440px;line-height:1.55;">
-  <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
-  <p style="margin:0 0 14px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
+  const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:440px;line-height:1.35;">
+  <p style="margin:0 0 4px 0;color:#222;">Good afternoon,</p>
+  <p style="margin:0 0 8px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
   <table style="width:100%;border-collapse:collapse;">
     ${sec1}
     ${sec2}
