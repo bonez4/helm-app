@@ -5475,7 +5475,7 @@ function irrGenerateEmail(data, ytd) {
     if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
     if(Math.abs(p) < 0.005) return 'new';
     const pct = ((c - p) / Math.abs(p)) * 100;
-    if(pct >= 0) return '+' + pct.toFixed(1) + '%';
+    if(pct >= 0) return '<span style="color:#2e7d32;">+' + pct.toFixed(1) + '%</span>';
     return '(' + Math.abs(pct).toFixed(1) + '%)';
   };
   // Format an absolute money delta with sign convention.
@@ -5549,7 +5549,7 @@ function irrGenerateEmail(data, ytd) {
     const absPart = d >= 0 ? '+' + absStr : '(' + absStr + ')';
     if(Math.abs(prev) < 0.005) return absPart;
     const pct = (d / Math.abs(prev)) * 100;
-    const pctPart = pct >= 0 ? '+' + pct.toFixed(1) + '%' : '(' + Math.abs(pct).toFixed(1) + '%)';
+    const pctPart = pct >= 0 ? '<span style="color:#2e7d32;">+' + pct.toFixed(1) + '%</span>' : '(' + Math.abs(pct).toFixed(1) + '%)';
     return absPart + '  |  ' + pctPart;
   };
 
