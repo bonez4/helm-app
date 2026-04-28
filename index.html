@@ -819,7 +819,7 @@ select.ro-input{cursor:pointer;}
   border-top:1px solid var(--gray-200);padding-top:14px;
 }
 .irr-report .irr-section-hdr:first-of-type{border-top:none;padding-top:0;}
-.irr-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px;}
+.irr-table{width:100%;max-width:460px;border-collapse:collapse;font-size:13px;margin-bottom:4px;}
 .irr-table th{
   text-align:left;font-size:10px;font-weight:600;letter-spacing:.08em;
   text-transform:uppercase;color:var(--gray-400);padding:8px 12px;
@@ -5614,7 +5614,7 @@ function irrGenerateEmail(data, ytd) {
     ${subRow('External', yoyRevPerTon(y.walkRev||0, y.walkin,  yo.walkRev||0, yo.walkin))}
   `;
 
-  const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:560px;line-height:1.55;">
+  const body = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:440px;line-height:1.55;">
   <p style="margin:0 0 6px 0;color:#222;">Good afternoon,</p>
   <p style="margin:0 0 14px 0;color:#222;">Below is the scale summary for ${displayDate}.</p>
   <table style="width:100%;border-collapse:collapse;">
