@@ -5516,17 +5516,17 @@ function irrGenerateEmail(data, ytd) {
   const labelStyle = 'padding:1px 0;color:#222;font-size:14px;';
   const valStyle   = 'padding:1px 0;color:#222;font-size:14px;text-align:right;';
   const row = (label, val, bold, highlight) => {
-    const hl = highlight ? 'background:#fff4cc;' : '';
+    const hl = highlight ? 'background:#f0f0f0;' : '';
     return `<tr>
       <td style="${labelStyle}${bold?'font-weight:bold;':''}${hl}">${label}</td>
       <td style="${valStyle}${bold?'font-weight:bold;':''}${hl}">${val}</td>
     </tr>`;
   };
   const sectionHdr = (text) => `<tr><td colspan="2" style="padding:12px 0 4px 0;border-top:1px solid #d0d0d0;">
-    <span style="font-weight:bold;font-size:15px;color:#000;">${text}</span>
+    <span style="font-weight:bold;font-size:15px;color:#000;text-decoration:underline;">${text}</span>
   </td></tr>`;
   const firstSectionHdr = (text) => `<tr><td colspan="2" style="padding:4px 0 4px 0;">
-    <span style="font-weight:bold;font-size:15px;color:#000;">${text}</span>
+    <span style="font-weight:bold;font-size:15px;color:#000;text-decoration:underline;">${text}</span>
   </td></tr>`;
   // Indented sub-row for Internal / External rev/ton breakdown.
   const subRow = (label, val) => `<tr>
@@ -5564,7 +5564,7 @@ function irrGenerateEmail(data, ytd) {
 
   const sec1 = `
     ${firstSectionHdr('Internal Volume')}
-    ${row('Today',     fmtTons(t.rolloff), true, false)}
+    ${row('Today',     fmtTons(t.rolloff), true, true)}
     ${row('MTD',       fmtTons(m.rolloff))}
     ${row('MTD YoY',   yoyTons(m.rolloff, my.rolloff))}
     ${row('YTD',       fmtTons(y.rolloff))}
@@ -5572,7 +5572,7 @@ function irrGenerateEmail(data, ytd) {
   `;
   const sec2 = `
     ${sectionHdr('External Volume')}
-    ${row('Today',     fmtTons(t.walkin), true, false)}
+    ${row('Today',     fmtTons(t.walkin), true, true)}
     ${row('MTD',       fmtTons(m.walkin))}
     ${row('MTD YoY',   yoyTons(m.walkin, my.walkin))}
     ${row('YTD',       fmtTons(y.walkin))}
@@ -5580,7 +5580,7 @@ function irrGenerateEmail(data, ytd) {
   `;
   const sec3 = `
     ${sectionHdr('Outbound')}
-    ${row('Today',     fmtTons(t.vin), true, false)}
+    ${row('Today',     fmtTons(t.vin), true, true)}
     ${row('MTD',       fmtTons(m.vin))}
     ${row('MTD YoY',   yoyTons(m.vin, my.vin))}
     ${row('YTD',       fmtTons(y.vin))}
@@ -5597,7 +5597,7 @@ function irrGenerateEmail(data, ytd) {
   const todayWalkRev = walkin.tipRevenue || 0;
   const sec4 = `
     ${sectionHdr('Revenue')}
-    ${row('Today',      revRow(totalRevToday, todayTons), true, false)}
+    ${row('Today',      revRow(totalRevToday, todayTons), true, true)}
     ${subRow('Internal', subRevPerTon(rolloffRevToday, t.rolloff))}
     ${subRow('External', subRevPerTon(todayWalkRev,    t.walkin))}
     ${row('MTD',        revRow(mtdRev, mtdTons))}
