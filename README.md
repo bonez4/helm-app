@@ -390,7 +390,7 @@ Nantucket follows Northeast peak construction pattern: peak May-October (tourist
 | ROLLOFF DELIVERY | $100 |
 | EMPTY ROLLOFF / EMPTY ROLL-OFF & RETURN | $250 |
 | ROLLOFF DOUBLE DROP | $250 |
-| MOVE ROLLOFF ON JOB SITE | $60 |
+| MOVE ROLLOFF ON JOB SITE | $100 |
 
 **Per-unit disposal fees** (hardcoded, always applied regardless of file rate):
 | Line item | Price | Routes to |
@@ -444,7 +444,7 @@ A common question: "the scale .xls says $51,863 in revenue, but HELM's daily ema
 
 Nothing's wrong. HELM's revenue is **not** a copy of the file's grand total. It's a recomputation that intentionally diverges in three predictable places. When you reconcile by hand, the gap will always come from one or more of these:
 
-1. **Hardcoded rolloff service fees (post-4/17/2026).** Scale tickets often list rolloff service line items (DELIVERY, EMPTY, DOUBLE DROP, MOVE) at $0/EA or at older rates. HELM ignores the file value and applies the current schedule (`$100 / $250 / $250 / $60`). Effect: HELM total > file total whenever the file under-prices these.
+1. **Hardcoded rolloff service fees (post-4/17/2026).** Scale tickets often list rolloff service line items (DELIVERY, EMPTY, DOUBLE DROP, MOVE) at $0/EA or at older rates. HELM ignores the file value and applies the current schedule (`$100 / $250 / $250 / $100`). Effect: HELM total > file total whenever the file under-prices these.
 
 2. **Per-unit disposal fees applied at fixed prices.** Mattress / appliance / freon / monitor / tire line items are billed by HELM at hardcoded rates regardless of file value (`$50 / $11 / $45 / $16.50 / $16.50`). If the file shows them at $0 but the count is N, HELM still bills N × rate.
 
