@@ -5567,7 +5567,7 @@ function irrGenerateEmail(data, ytd) {
   // zero tonnage so we don't render a stray separator.
   const revRow = (rev, tons) => {
     const rpt = revPerTonStr(rev, tons);
-    return rpt ? rpt + '  ·  ' + fmtMoney(rev) : fmtMoney(rev);
+    return rpt ? rpt + '  |  ' + fmtMoney(rev) : fmtMoney(rev);
   };
   const sec4 = `
     ${sectionHdr('Revenue')}
@@ -5845,10 +5845,10 @@ function irrRenderReportView(data, ytd) {
 
       <div class="irr-section-hdr">Revenue</div>
       <table class="irr-table"><tbody>
-        ${(() => { const rev = totalRevToday, ts = todayTons, rpt = revPerTonStr(rev, ts); return rowH('Today', (rpt?rpt+'  ·  ':'') + fmtMoney(rev), true, false); })()}
-        ${(() => { const rpt = revPerTonStr(mtdRev, mtdTons); return rowH('MTD', (rpt?rpt+'  ·  ':'') + fmtMoney(mtdRev)); })()}
+        ${(() => { const rev = totalRevToday, ts = todayTons, rpt = revPerTonStr(rev, ts); return rowH('Today', (rpt?rpt+'  |  ':'') + fmtMoney(rev), true, false); })()}
+        ${(() => { const rpt = revPerTonStr(mtdRev, mtdTons); return rowH('MTD', (rpt?rpt+'  |  ':'') + fmtMoney(mtdRev)); })()}
         ${rowH('MTD YoY',   yoyMoney(mtdRev, mtdYoyRev))}
-        ${(() => { const rpt = revPerTonStr(ytdRev, ytdTons); return rowH('YTD', (rpt?rpt+'  ·  ':'') + fmtMoney(ytdRev)); })()}
+        ${(() => { const rpt = revPerTonStr(ytdRev, ytdTons); return rowH('YTD', (rpt?rpt+'  |  ':'') + fmtMoney(ytdRev)); })()}
         ${rowH('YTD YoY',   yoyMoney(ytdRev, ytdYoyRev))}
       </tbody></table>
 
