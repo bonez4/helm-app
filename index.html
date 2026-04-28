@@ -5600,16 +5600,16 @@ function irrGenerateEmail(data, ytd) {
     ${row('Today',      revRow(totalRevToday, todayTons), true, true)}
     ${subRow('Internal', subRevPerTon(rolloffRevToday, t.rolloff))}
     ${subRow('External', subRevPerTon(todayWalkRev,    t.walkin))}
-    ${row('MTD',        revRow(mtdRev, mtdTons))}
+    ${row('MTD',        revRow(mtdRev, mtdTons), false, true)}
     ${subRow('Internal', subRevPerTon(m.rollRev||0, m.rolloff))}
     ${subRow('External', subRevPerTon(m.walkRev||0, m.walkin))}
-    ${row('MTD YoY',    yoyMoney(mtdRev, mtdYoyRev))}
+    ${row('MTD YoY',    yoyMoney(mtdRev, mtdYoyRev), false, true)}
     ${subRow('Internal', yoyRevPerTon(m.rollRev||0, m.rolloff, my.rollRev||0, my.rolloff))}
     ${subRow('External', yoyRevPerTon(m.walkRev||0, m.walkin,  my.walkRev||0, my.walkin))}
-    ${row('YTD',        revRow(ytdRev, ytdTons))}
+    ${row('YTD',        revRow(ytdRev, ytdTons), false, true)}
     ${subRow('Internal', subRevPerTon(y.rollRev||0, y.rolloff))}
     ${subRow('External', subRevPerTon(y.walkRev||0, y.walkin))}
-    ${row('YTD YoY',    yoyMoney(ytdRev, ytdYoyRev))}
+    ${row('YTD YoY',    yoyMoney(ytdRev, ytdYoyRev), false, true)}
     ${subRow('Internal', yoyRevPerTon(y.rollRev||0, y.rolloff, yo.rollRev||0, yo.rolloff))}
     ${subRow('External', yoyRevPerTon(y.walkRev||0, y.walkin,  yo.walkRev||0, yo.walkin))}
   `;
