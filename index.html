@@ -1575,6 +1575,22 @@ body.layout-side .nav-group.collapsed .nav-group-children{display:none;}
 body.layout-side .nav-group-children{display:flex;flex-direction:column;gap:1px;padding-left:10px;border-left:1px solid rgba(255,255,255,0.06);margin-left:8px;}
 body.layout-side .nav-group-children button.nav-child{padding-left:14px;}
 body.layout-side .tab-nav{margin-top:0;}  /* fixed-positioned, no flow margin */
+
+/* Collapse toggle button (lives in topbar-left, always visible) */
+.nav-toggle-btn{
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.85); border-radius:5px; cursor:pointer;
+  width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center;
+  font-size:18px; line-height:1; transition:all 0.12s; font-family:inherit;
+}
+.nav-toggle-btn:hover{ background:rgba(255,255,255,0.12); color:white; border-color:rgba(255,255,255,0.22); }
+.nav-toggle-btn #navToggleIcon{ display:block; transition:transform 0.18s; transform-origin:center; }
+
+/* Collapsed state: hide the side rail, reclaim its 220px for content. */
+body.layout-side.nav-collapsed .tab-nav{ display:none; }
+body.layout-side.nav-collapsed .main{ margin-left:0; width:100%; }
+/* Flip the chevron when collapsed so it points right (i.e. "open me"). */
+body.nav-collapsed .nav-toggle-btn #navToggleIcon{ transform:rotate(180deg); }
 body.layout-side .main{
   margin-left:220px; margin-top:44px; max-width:none; width:calc(100% - 220px);
   padding:0.75rem 1.25rem;
@@ -2190,6 +2206,9 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
 <div id="appScreen">
   <div class="topbar">
     <div class="topbar-left">
+      <button id="navToggleBtn" class="nav-toggle-btn" onclick="toggleNavRail()" title="Collapse menu" aria-label="Collapse menu">
+        <span id="navToggleIcon">&#x2039;</span>
+      </button>
       <div class="topbar-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
           <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -2733,8 +2752,9 @@ async function login() {
     document.getElementById('blaTabBtn').style.display='';
     document.getElementById('navGroup-analysis').style.display='';
   }
-  // Restore persisted nav-group collapsed state
+  // Restore persisted nav-group collapsed state + rail collapsed state
   applyNavGroupState();
+  applyNavRailState();
   if(data.username==='david'){
     document.getElementById('actionTabBtn').style.display='';
   }
@@ -2866,6 +2886,21 @@ function toggleNavGroup(id){
   const state = JSON.parse(localStorage.getItem('helm_nav_groups')||'{}');
   state[id] = el.classList.contains('collapsed');
   localStorage.setItem('helm_nav_groups', JSON.stringify(state));
+}
+// Collapse / expand the entire left nav rail. State persists per-browser.
+function toggleNavRail(){
+  document.body.classList.toggle('nav-collapsed');
+  const isCollapsed = document.body.classList.contains('nav-collapsed');
+  localStorage.setItem('helm_nav_collapsed', isCollapsed ? '1' : '0');
+  const btn = document.getElementById('navToggleBtn');
+  if(btn) btn.title = isCollapsed ? 'Expand menu' : 'Collapse menu';
+}
+function applyNavRailState(){
+  if(localStorage.getItem('helm_nav_collapsed') === '1'){
+    document.body.classList.add('nav-collapsed');
+    const btn = document.getElementById('navToggleBtn');
+    if(btn) btn.title = 'Expand menu';
+  }
 }
 function applyNavGroupState(){
   const state = JSON.parse(localStorage.getItem('helm_nav_groups')||'{}');
@@ -9738,6 +9773,7 @@ if(_saved && _saved !== '1'){
       document.getElementById('actionTabBtn').style.display='';
     }
     applyNavGroupState();
+    applyNavRailState();
     startHeartbeat();
     init().catch(err=>{
       toast('Connection error — please refresh');
