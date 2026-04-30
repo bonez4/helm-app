@@ -5964,6 +5964,17 @@ function irrGenerateEmail(data, ytd) {
     ${row('YTD',       fmtTons(y.vin))}
     ${row('YTD YoY',   yoyTons(y.vin, yo.vin))}
   `;
+  // Total Volume = Internal + External (combined inbound). Sits between
+  // Outbound and Revenue so the eye reads inbound -> outbound -> total -> $.
+  const totalTicketsToday = internalTicketsToday + externalTicketsToday;
+  const sec3b = `
+    ${sectionHdr('Total Volume')}
+    ${row('Today (count: ' + totalTicketsToday + ')', fmtTons(t.rolloff + t.walkin), true, true)}
+    ${row('MTD',       fmtTons(m.rolloff + m.walkin))}
+    ${row('MTD YoY',   yoyTons(m.rolloff + m.walkin, my.rolloff + my.walkin))}
+    ${row('YTD',       fmtTons(y.rolloff + y.walkin))}
+    ${row('YTD YoY',   yoyTons(y.rolloff + y.walkin, yo.rolloff + yo.walkin))}
+  `;
   // Revenue rows: $/ton first (boss's priority), then total. YoY shows
   // absolute $ delta + percent. Suppress "$/ton ·" when the period has
   // zero tonnage so we don't render a stray separator.
@@ -5999,6 +6010,7 @@ function irrGenerateEmail(data, ytd) {
     ${sec1}
     ${sec2}
     ${sec3}
+    ${sec3b}
     ${sec4}
   </table></div>`;
 
