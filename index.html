@@ -9,6 +9,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2"></script>
 <style>
 :root {
   --navy:       #0f1f3d;
@@ -2173,6 +2175,57 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
 
 .ap-empty{text-align:center;padding:80px 20px;color:var(--ap-text-mute);font-size:13px;}
 .ap-empty-icon{font-size:48px;opacity:0.18;margin-bottom:14px;}
+
+/* ── Stock-style chart enhancements (zoom/pan + fullscreen + toolbar) ─ */
+.helm-chart-wrap{position:relative;}
+.helm-chart-toolbar{
+  position:absolute; top:8px; right:8px; z-index:5;
+  display:flex; gap:2px;
+  background:rgba(255,255,255,0.95); border:1px solid var(--gray-200);
+  border-radius:6px; padding:2px;
+  box-shadow:0 1px 4px rgba(15,31,61,0.08);
+}
+.helm-chart-toolbar button{
+  width:26px; height:24px; padding:0; border:none; background:transparent;
+  color:var(--gray-600); cursor:pointer; font-size:14px;
+  border-radius:4px; display:flex; align-items:center; justify-content:center;
+  font-family:inherit; line-height:1;
+}
+.helm-chart-toolbar button:hover{ background:var(--gray-100); color:var(--navy); }
+.helm-chart-toolbar button:active{ background:var(--gray-200); }
+.helm-chart-toolbar .sep{width:1px;background:var(--gray-200);margin:2px 1px;}
+
+/* Fullscreen chart modal */
+.helm-fs-modal{
+  position:fixed; inset:0; background:rgba(8,12,24,0.62); z-index:9000;
+  display:flex; align-items:center; justify-content:center;
+  animation:helmFsFade 0.18s ease-out;
+}
+@keyframes helmFsFade{from{opacity:0}to{opacity:1}}
+.helm-fs-inner{
+  background:white; width:94vw; height:90vh; border-radius:10px;
+  padding:16px 20px 22px 20px;
+  display:flex; flex-direction:column; gap:10px;
+  box-shadow:0 24px 60px rgba(0,0,0,0.4);
+}
+.helm-fs-hdr{
+  display:flex; justify-content:space-between; align-items:center;
+  padding-bottom:10px; border-bottom:1px solid var(--gray-200);
+}
+.helm-fs-title{font-size:14px; font-weight:700; color:var(--navy); letter-spacing:0.01em;}
+.helm-fs-actions{display:flex; gap:6px; align-items:center;}
+.helm-fs-actions button{
+  background:white; border:1px solid var(--gray-300); color:var(--gray-700);
+  padding:6px 12px; border-radius:5px; cursor:pointer; font-size:12px;
+  font-family:inherit; font-weight:600;
+}
+.helm-fs-actions button:hover{background:var(--gray-100); border-color:var(--gray-400);}
+.helm-fs-actions .helm-fs-close{
+  width:34px; padding:0; height:30px; font-size:18px; color:var(--gray-600);
+}
+.helm-fs-body{flex:1; min-height:0; position:relative;}
+.helm-fs-body canvas{width:100%!important; height:100%!important;}
+.helm-fs-help{font-size:11px; color:var(--gray-400); padding-top:6px;}
 
 </style>
 </head>
@@ -5468,6 +5521,106 @@ function irrFmtDate(dateStr) {
 function irrFmt(n,dec=2){return (isNaN(n)||n===null||n===undefined)?'--':n.toFixed(dec);}
 function irrFmtMoney(n){return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 
+// ── Stock-style chart helpers ───────────────────────────────────────────
+// Returns the standard zoom/pan plugin config for stock-chart-style behavior.
+// Wheel + pinch zoom on X (date), drag pan on X. Y stays auto-fit.
+function helmChartZoomConfig(){
+  return {
+    pan: {
+      enabled: true,
+      mode: 'x',
+      threshold: 5,
+    },
+    zoom: {
+      wheel: {enabled: true, speed: 0.08},
+      pinch: {enabled: true},
+      mode: 'x',
+      drag: {enabled: false},
+    },
+    limits: { x: {minRange: 86400000} },  // don't zoom in further than 1 day
+  };
+}
+
+// Adds a floating toolbar (reset zoom + fullscreen) over a chart wrapper.
+function helmAddChartToolbar(wrap, chart, title){
+  if(!wrap || !chart) return;
+  const existing = wrap.querySelector('.helm-chart-toolbar');
+  if(existing) existing.remove();
+  wrap.classList.add('helm-chart-wrap');
+  const tb = document.createElement('div');
+  tb.className = 'helm-chart-toolbar';
+  const reset = document.createElement('button');
+  reset.title = 'Reset zoom';
+  reset.textContent = '↺';   // ↺
+  reset.onclick = () => { try { chart.resetZoom(); } catch(_){} };
+  const sep = document.createElement('div');
+  sep.className = 'sep';
+  const fs = document.createElement('button');
+  fs.title = 'Fullscreen';
+  fs.textContent = '⛶';      // ⛶ fullscreen square
+  fs.onclick = () => helmFullscreenChart(chart, title);
+  tb.appendChild(reset);
+  tb.appendChild(sep);
+  tb.appendChild(fs);
+  wrap.appendChild(tb);
+}
+
+// Pop a chart into a fullscreen modal. Re-creates the chart inside the
+// modal canvas using a deep-cloned config so the inline chart keeps
+// working. Closes on Esc / × button / click-outside.
+function helmFullscreenChart(originalChart, title){
+  // Deep-clone what's safely serializable
+  let dataClone, optsClone;
+  try {
+    dataClone = JSON.parse(JSON.stringify(originalChart.config.data));
+    optsClone = JSON.parse(JSON.stringify(originalChart.config.options));
+  } catch(e) {
+    dataClone = originalChart.config.data;
+    optsClone = originalChart.config.options;
+  }
+  // Tooltip callbacks etc. don't survive JSON; ensure a basic plugins block
+  optsClone.plugins = optsClone.plugins || {};
+  optsClone.plugins.zoom = helmChartZoomConfig();
+  // Make sure interaction stays stock-chart friendly
+  optsClone.interaction = optsClone.interaction || {mode:'index', intersect:false};
+  optsClone.responsive = true;
+  optsClone.maintainAspectRatio = false;
+
+  const modal = document.createElement('div');
+  modal.className = 'helm-fs-modal';
+  modal.innerHTML =
+    '<div class="helm-fs-inner">'
+    + '<div class="helm-fs-hdr">'
+    +   '<div class="helm-fs-title">'+ (title || 'Chart') +'</div>'
+    +   '<div class="helm-fs-actions">'
+    +     '<button data-act="reset">↺ Reset zoom</button>'
+    +     '<button class="helm-fs-close" title="Close">×</button>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="helm-fs-body"><canvas></canvas></div>'
+    + '<div class="helm-fs-help">Scroll-wheel to zoom · click-drag to pan · ↺ to reset · Esc to close</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+
+  const canvas = modal.querySelector('canvas');
+  const fsChart = new Chart(canvas, {
+    type: originalChart.config.type,
+    data: dataClone,
+    options: optsClone,
+  });
+
+  const cleanup = () => {
+    try { fsChart.destroy(); } catch(_){}
+    modal.remove();
+    document.removeEventListener('keydown', onEsc);
+  };
+  modal.querySelector('[data-act="reset"]').onclick = () => fsChart.resetZoom();
+  modal.querySelector('.helm-fs-close').onclick = cleanup;
+  modal.addEventListener('click', (e) => { if(e.target === modal) cleanup(); });
+  const onEsc = (e) => { if(e.key === 'Escape') cleanup(); };
+  document.addEventListener('keydown', onEsc);
+}
+
 // Generates the daily scale summary email in the four-section format:
 //   1. Internal Volume — rolloff tonnage (Reis + Island + East End)
 //   2. External Volume — walk-in tonnage
@@ -6219,10 +6372,12 @@ function irrDrawChart(filtered) {
           backgroundColor:'#0f1f3d', titleFont:{family:"'DM Sans',sans-serif",size:11},
           bodyFont:{family:"'DM Mono',monospace",size:11}, cornerRadius:6, padding:10,
         },
+        zoom: helmChartZoomConfig(),
       },
       scales,
     }
   });
+  helmAddChartToolbar(document.getElementById('irrChartWrap'), irrChart, 'IRR Scale Dashboard');
 }
 
 async function irrSaveHours() {
@@ -8597,17 +8752,28 @@ function icrRenderQuarterly(dPrev, dCur) {
   const labels=activeMonths.map(m=>mNames[m-1]);
   const rC='#2e7d32',iC='#1565C0',sC='#f57c00';
 
+  // Tag a quarterly mini-chart with zoom/fullscreen toolbar. Title is read
+  // from the small uppercase label sitting just above the canvas.
+  function _qAttach(id, chart){
+    icrQCharts.push(chart);
+    const canvas = document.getElementById(id);
+    if(!canvas) return;
+    const wrap = canvas.parentElement;
+    const titleEl = wrap && wrap.querySelector('div');
+    const title = titleEl ? titleEl.textContent.trim() : 'Quarterly chart';
+    helmAddChartToolbar(wrap, chart, 'Quarterly — '+title);
+  }
   function mkLine(id,datasets,yLabel,yCb){
-    const c=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{y:{title:{display:true,text:yLabel,font:{size:10}},ticks:{font:{size:10},callback:yCb||undefined},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
-    icrQCharts.push(c);
+    const c=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}},zoom:helmChartZoomConfig()},scales:{y:{title:{display:true,text:yLabel,font:{size:10}},ticks:{font:{size:10},callback:yCb||undefined},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
+    _qAttach(id, c);
   }
   function mkBar(id,datasets,yLabel,yCb){
-    const c=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}},y:{stacked:true,title:{display:true,text:yLabel,font:{size:10}},ticks:{font:{size:10},callback:yCb||undefined},grid:{color:'rgba(0,0,0,0.04)'}}}}});
-    icrQCharts.push(c);
+    const c=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}},zoom:helmChartZoomConfig()},scales:{x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}},y:{stacked:true,title:{display:true,text:yLabel,font:{size:10}},ticks:{font:{size:10},callback:yCb||undefined},grid:{color:'rgba(0,0,0,0.04)'}}}}});
+    _qAttach(id, c);
   }
   function mkArea(id,ds){
-    const c=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{y:{stacked:true,ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
-    icrQCharts.push(c);
+    const c=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}},zoom:helmChartZoomConfig()},scales:{y:{stacked:true,ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
+    _qAttach(id, c);
   }
 
   const lineDs=(label,color,valFn)=>({label,data:activeMonths.map(m=>fy[m]?valFn(fy[m]):null),borderColor:color,backgroundColor:color+'20',tension:0.3,pointRadius:3,borderWidth:2});
@@ -8643,8 +8809,8 @@ function icrRenderQuarterly(dPrev, dCur) {
       lineDs('Reis',rC,m=>m.reis.loads>0?m.reis.tons/m.reis.loads:null),
       lineDs('Island',iC,m=>m.island.loads>0?m.island.tons/m.island.loads:null),
       lineDs('East End',sC,m=>m.santos.loads>0?m.santos.tons/m.santos.loads:null),
-    ]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}}},scales:{y:{min:0.6,max:2.6,title:{display:true,text:'Tons/Load',font:{size:10}},ticks:{font:{size:10},stepSize:0.5},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
-    icrQCharts.push(c);
+    ]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top',labels:{font:{size:10},usePointStyle:true}},zoom:helmChartZoomConfig()},scales:{y:{min:0.6,max:2.6,title:{display:true,text:'Tons/Load',font:{size:10}},ticks:{font:{size:10},stepSize:0.5},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
+    _qAttach('qcTonsLoad', c);
   })();
 
   // Tons/Mo stacked bar
@@ -8867,6 +9033,7 @@ function icrRenderYearly(){
           label: ctx => ctx.dataset.label+': '+(yCb ? yCb(ctx.parsed.y) : ctx.parsed.y),
         },
       },
+      zoom: helmChartZoomConfig(),
     },
     scales: {
       y: {
@@ -8888,8 +9055,8 @@ function icrRenderYearly(){
   });
 
   setTimeout(() => {
-    const ticketsCtx = document.getElementById('yearlyTicketsChart').getContext('2d');
-    icrYearlyCharts.push(new Chart(ticketsCtx, {
+    const ticketsCanvas = document.getElementById('yearlyTicketsChart');
+    const ticketsChart = new Chart(ticketsCanvas.getContext('2d'), {
       type: 'line',
       data: {
         labels,
@@ -8899,9 +9066,12 @@ function icrRenderYearly(){
         ],
       },
       options: commonOpts('Tickets', v => Math.round(v)),
-    }));
-    const revCtx = document.getElementById('yearlyRevenueChart').getContext('2d');
-    icrYearlyCharts.push(new Chart(revCtx, {
+    });
+    icrYearlyCharts.push(ticketsChart);
+    helmAddChartToolbar(ticketsCanvas.parentElement, ticketsChart, 'Yearly Report — Tickets per Day');
+
+    const revCanvas = document.getElementById('yearlyRevenueChart');
+    const revChart = new Chart(revCanvas.getContext('2d'), {
       type: 'line',
       data: {
         labels,
@@ -8911,7 +9081,9 @@ function icrRenderYearly(){
         ],
       },
       options: commonOpts('Revenue ($)', v => '$'+Math.round(v).toLocaleString('en-US')),
-    }));
+    });
+    icrYearlyCharts.push(revChart);
+    helmAddChartToolbar(revCanvas.parentElement, revChart, 'Yearly Report — Revenue per Day');
   }, 60);
 }
 
