@@ -2227,6 +2227,84 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
 .helm-fs-body canvas{width:100%!important; height:100%!important;}
 .helm-fs-help{font-size:11px; color:var(--gray-400); padding-top:6px;}
 
+
+/* ── ROLLOFF VISUAL TAB ────────────────────────────────────────────── */
+.rv-wrap{max-width:1400px;margin:0 auto;padding:1.25rem 1rem 2.5rem;}
+.rv-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px;border-bottom:1px solid var(--gray-200);padding-bottom:12px;flex-wrap:wrap;gap:10px;}
+.rv-title{margin:0;font-family:'DM Serif Display',serif;font-size:24px;color:var(--navy);font-weight:400;}
+.rv-subtitle{font-size:12px;color:var(--gray-500);margin-top:2px;}
+
+/* Top control row: metric + series + compare LY */
+.rv-topcontrols{display:flex;gap:14px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+.rv-control{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-600);font-weight:600;}
+.rv-control select{
+  padding:6px 28px 6px 10px;border:1px solid var(--gray-300);border-radius:5px;
+  font-family:'DM Sans',sans-serif;font-size:13px;color:var(--navy);font-weight:600;
+  background:var(--white);cursor:pointer;-webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236b7280' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;
+}
+.rv-control select:focus{outline:none;border-color:var(--teal);}
+.rv-checkbox{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-600);font-weight:600;cursor:pointer;user-select:none;padding:6px 10px;border:1px solid var(--gray-300);border-radius:5px;}
+.rv-checkbox:hover{border-color:var(--gray-400);}
+.rv-checkbox input{margin:0;cursor:pointer;}
+.rv-checkbox.on{background:var(--teal-pale);border-color:var(--teal);color:var(--teal-dim);}
+
+/* Time-frame strip */
+.rv-tfwrap{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.rv-tfstrip{display:flex;gap:0;border:1px solid var(--gray-300);border-radius:6px;overflow:hidden;background:var(--white);}
+.rv-tfstrip button{
+  background:transparent;border:none;border-right:1px solid var(--gray-200);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;
+  color:var(--gray-600);padding:7px 14px;cursor:pointer;transition:all 0.1s;
+}
+.rv-tfstrip button:last-child{border-right:none;}
+.rv-tfstrip button:hover:not(.active){background:var(--gray-100);color:var(--navy);}
+.rv-tfstrip button.active{background:var(--navy);color:white;}
+.rv-customwrap{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-500);}
+.rv-customwrap input[type="date"]{padding:5px 8px;border:1px solid var(--gray-300);border-radius:4px;font-family:'DM Mono',monospace;font-size:12px;}
+.rv-customwrap input[type="date"]:focus{outline:none;border-color:var(--teal);}
+
+/* Chart panel */
+.rv-chart-panel{
+  background:var(--white);border:1px solid var(--gray-200);border-radius:8px;
+  padding:18px 20px 22px;position:relative;
+  box-shadow:0 1px 2px rgba(15,31,61,0.04);
+}
+.rv-chart-wrap{position:relative;height:520px;}
+.rv-chart-wrap canvas{width:100%!important;height:100%!important;}
+.rv-empty{
+  display:flex;align-items:center;justify-content:center;height:100%;
+  color:var(--gray-400);font-size:13px;font-style:italic;
+}
+
+/* Period summary bar */
+.rv-summary{
+  display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;padding:12px 16px;
+  background:var(--gray-50);border-radius:6px;border:1px solid var(--gray-200);
+}
+.rv-stat{display:flex;flex-direction:column;gap:2px;min-width:90px;}
+.rv-stat-label{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--gray-500);}
+.rv-stat-value{font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--navy);}
+.rv-stat-value.up{color:#2e7d32;}
+.rv-stat-value.down{color:#c62828;}
+
+/* Studies section */
+.rv-studies{
+  margin-top:18px;background:var(--white);border:1px solid var(--gray-200);
+  border-radius:8px;overflow:hidden;
+}
+.rv-studies-hdr{
+  background:var(--gray-50);padding:9px 14px;font-size:11px;font-weight:700;
+  letter-spacing:0.06em;text-transform:uppercase;color:var(--gray-600);
+  cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;
+}
+.rv-studies-hdr:hover{background:var(--gray-100);color:var(--navy);}
+.rv-studies-arrow{font-size:10px;width:10px;color:var(--gray-500);transition:transform 0.12s;}
+.rv-studies.collapsed .rv-studies-arrow{transform:rotate(-90deg);}
+.rv-studies.collapsed .rv-studies-body{display:none;}
+.rv-studies-body{padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+
 </style>
 </head>
 <body>
@@ -2299,6 +2377,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       </button>
       <div class="nav-group-children">
         <button id="irrTabBtn"  class="nav-child" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
+        <button id="rvTabBtn"   class="nav-child" style="display:none" onclick="switchTab('rvisual',this)">Rolloff Visual</button>
         <button id="xferTabBtn" class="nav-child" style="display:none" onclick="switchTab('xfer',this)">Xfer Station</button>
         <button id="blaTabBtn"  class="nav-child" style="display:none" onclick="switchTab('bla',this)">Business Line Analysis</button>
       </div>
@@ -2315,6 +2394,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <div id="tab-report" style="display:none"></div>
     <div id="tab-rolloffs" style="display:none"></div>
     <div id="tab-irr"    style="display:none"></div>
+    <div id="tab-rvisual" style="display:none"></div>
     <div id="tab-xfer"   style="display:none"></div>
     <div id="tab-bla"    style="display:none"></div>
     <div id="tab-files"  style="display:none"></div>
@@ -2803,6 +2883,7 @@ async function login() {
   if(['david','chris','jack','admin'].includes(data.username) || data.role==='admin') {
     document.getElementById('xferTabBtn').style.display='';
     document.getElementById('blaTabBtn').style.display='';
+    document.getElementById('rvTabBtn').style.display='';
     document.getElementById('navGroup-analysis').style.display='';
   }
   // Restore persisted nav-group collapsed state + rail collapsed state
@@ -2929,7 +3010,7 @@ async function loadNotes(baseId){
 // Which group does each tab belong to? (Used for auto-expand on switch.)
 const NAV_GROUP_OF_TAB = {
   lookup:'clients', add:'clients', report:'clients',
-  irr:'analysis', xfer:'analysis', bla:'analysis'
+  irr:'analysis', rvisual:'analysis', xfer:'analysis', bla:'analysis'
 };
 function toggleNavGroup(id){
   const el = document.getElementById('navGroup-'+id);
@@ -2975,7 +3056,7 @@ function expandNavGroupFor(tabName){
 }
 function switchTab(name,btn){
   expandNavGroupFor(name);
-  ['lookup','add','report','rolloffs','irr','xfer','bla','files','cmd','action','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','irr','rvisual','xfer','bla','files','cmd','action','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -2989,6 +3070,7 @@ function switchTab(name,btn){
   if(name==='report') renderReport();
   if(name==='rolloffs') renderRolloffs();
   if(name==='irr')    renderIRR();
+  if(name==='rvisual') renderRolloffVisual();
   if(name==='xfer')   renderXfer();
   if(name==='bla')    renderBLA();
   if(name==='files')  renderFiles();
@@ -6202,9 +6284,7 @@ function irrRenderDashboard() {
       <button class="irr-toggle ${irrToggles.tonsPerLoad?'on':''}" style="${irrToggles.tonsPerLoad?'background:'+IRR_COLORS.tonsPerLoad+';border-color:'+IRR_COLORS.tonsPerLoad:''}" onclick="irrToggleSeries('tonsPerLoad')">Tons / Load</button>
       <button class="irr-toggle ${irrToggles.hoursPerLoad?'on':''}" style="${irrToggles.hoursPerLoad?'background:'+IRR_COLORS.hoursPerLoad+';border-color:'+IRR_COLORS.hoursPerLoad:''}" onclick="irrToggleSeries('hoursPerLoad')">Hours / Load</button>
       <button class="irr-toggle ${irrToggles.loadsPerDay?'on':''}" style="${irrToggles.loadsPerDay?'background:'+IRR_COLORS.loadsPerDay+';border-color:'+IRR_COLORS.loadsPerDay:''}" onclick="irrToggleSeries('loadsPerDay')">Loads / Day</button>
-      ${irrCompanyFilter==='all'?`<button class="irr-toggle ${irrToggles.reisLoads?'on':''}" style="${irrToggles.reisLoads?'background:'+IRR_COLORS.reisLoads+';border-color:'+IRR_COLORS.reisLoads:''}" onclick="irrToggleSeries('reisLoads')">Reis Loads</button>
-      <button class="irr-toggle ${irrToggles.islandLoads?'on':''}" style="${irrToggles.islandLoads?'background:'+IRR_COLORS.islandLoads+';border-color:'+IRR_COLORS.islandLoads:''}" onclick="irrToggleSeries('islandLoads')">Island Loads</button>`:''}
-      ${irrCompanyFilter==='all'?`<button class="irr-toggle ${irrToggles.eastendLoads?'on':''}" style="${irrToggles.eastendLoads?'background:'+IRR_COLORS.eastendLoads+';border-color:'+IRR_COLORS.eastendLoads:''}" onclick="irrToggleSeries('eastendLoads')">East End Loads</button>`:''}
+      <a class="irr-toggle" style="text-decoration:none;font-weight:600;border-style:dashed;cursor:pointer;color:var(--teal);border-color:var(--teal);" onclick="switchTab('rvisual', document.getElementById('rvTabBtn'))">Per-company breakdown → Rolloff Visual</a>
     </div>
 
     <div class="irr-chart-wrap" id="irrChartWrap" style="height:${irrChartHeight}px;">
@@ -9944,6 +10024,7 @@ if(_saved && _saved !== '1'){
     if(['david','chris','jack','admin'].includes(currentUser.username) || currentUser.role==='admin') {
       document.getElementById('xferTabBtn').style.display='';
       document.getElementById('blaTabBtn').style.display='';
+      document.getElementById('rvTabBtn').style.display='';
       document.getElementById('navGroup-analysis').style.display='';
     }
     if(currentUser.username==='david'){
@@ -12742,6 +12823,541 @@ function blaCellClick(bl, start, end){
     const el = document.querySelector('.bla-saved-list');
     if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
   }, 50);
+}
+
+// ── ROLLOFF VISUAL TAB ─────────────────────────────────────────────────
+// Stock-chart-style trend studio for the rolloff business. Single chart
+// with a metric selector, series mode (combined/by company/both), classic
+// stock-chart timeframe strip, year-over-year overlay, and moving-average
+// studies. Data sourced from irrDashData (the same irr_reports rows the
+// IRR Dashboard uses) so no extra fetch overhead.
+
+const RV_METRICS = {
+  loads:    {label:'Loads',       unit:'',        agg:'sum', fmt:v=>Math.round(v).toLocaleString()},
+  tons:     {label:'Tons',        unit:'',        agg:'sum', fmt:v=>v.toFixed(2)},
+  revenue:  {label:'Revenue',     unit:'$',       agg:'sum', fmt:v=>'$'+Math.round(v).toLocaleString()},
+  tonsLoad: {label:'Tons / Load', unit:'',        agg:'avg', fmt:v=>v.toFixed(2)},
+  revLoad:  {label:'Rev / Load',  unit:'$',       agg:'avg', fmt:v=>'$'+v.toFixed(2)},
+  hoursLoad:{label:'Hours / Load',unit:'',        agg:'avg', fmt:v=>v.toFixed(2)},
+};
+const RV_SERIES_MODES = {
+  combined: 'Combined',
+  company:  'By Company',
+  both:     'Both (Combined + Companies)',
+};
+const RV_TIMEFRAMES = ['1W','1M','3M','6M','YTD','1Y','2Y','ALL'];
+const RV_COLORS = {
+  combined: '#0f1f3d',
+  reis:     '#1565C0',
+  island:   '#7c4dff',
+  santos:   '#f57c00',
+  ma7:      '#1a9b8a',
+  ma30:     '#d4a843',
+  ly:       '#9aa3b5',
+};
+
+// Persisted state (localStorage) merged with defaults.
+function rvDefaultState(){
+  return {
+    metric: 'loads',
+    series: 'combined',
+    timeframe: '3M',
+    customStart: '',
+    customEnd: '',
+    compareLY: false,
+    studies: { ma7:false, ma30:false, breakdown:false },
+    studiesOpen: true,
+  };
+}
+function rvLoadState(){
+  try {
+    const saved = JSON.parse(localStorage.getItem('helm_rvisual_state')||'{}');
+    return Object.assign({}, rvDefaultState(), saved, {
+      studies: Object.assign({}, rvDefaultState().studies, saved.studies||{})
+    });
+  } catch(e) { return rvDefaultState(); }
+}
+function rvSaveState(){
+  localStorage.setItem('helm_rvisual_state', JSON.stringify(rvState));
+}
+
+let rvState = rvDefaultState();
+let rvChart = null;
+let rvAllRows = [];   // cached daily rows from irr_reports
+
+async function renderRolloffVisual(){
+  const tab = document.getElementById('tab-rvisual');
+  if(!tab) return;
+  rvState = rvLoadState();
+
+  // Pull data once per tab open. If the IRR Scale tab already loaded
+  // it (irrDashData), reuse; otherwise fetch a fresh copy.
+  if(typeof irrDashData !== 'undefined' && irrDashData && irrDashData.length){
+    rvAllRows = irrDashData.slice().sort((a,b)=>a.report_date.localeCompare(b.report_date));
+  } else {
+    tab.innerHTML = '<div style="padding:40px;text-align:center;color:var(--gray-400);font-size:13px;">Loading…</div>';
+    const {data} = await db.from('irr_reports').select('*').order('report_date',{ascending:true});
+    rvAllRows = data || [];
+  }
+
+  // Build initial layout
+  tab.innerHTML = rvBuildLayoutHtml();
+  rvAttachHandlers();
+  rvDrawChart();
+}
+
+function rvBuildLayoutHtml(){
+  const m = rvState;
+  const metricOpts = Object.keys(RV_METRICS).map(k =>
+    `<option value="${k}" ${m.metric===k?'selected':''}>${RV_METRICS[k].label}</option>`).join('');
+  const seriesOpts = Object.keys(RV_SERIES_MODES).map(k =>
+    `<option value="${k}" ${m.series===k?'selected':''}>${RV_SERIES_MODES[k]}</option>`).join('');
+  const tfBtns = RV_TIMEFRAMES.map(tf =>
+    `<button class="${m.timeframe===tf?'active':''}" onclick="rvSetTimeframe('${tf}')">${tf}</button>`).join('');
+  const customActive = m.timeframe==='Custom' ? 'active' : '';
+
+  return `<div class="rv-wrap">
+    <div class="rv-header">
+      <div>
+        <h2 class="rv-title">Rolloff Visual</h2>
+        <div class="rv-subtitle">Trend studio for rolloff metrics — pan, zoom, and study at will.</div>
+      </div>
+    </div>
+
+    <div class="rv-topcontrols">
+      <label class="rv-control">Metric
+        <select onchange="rvSetMetric(this.value)">${metricOpts}</select>
+      </label>
+      <label class="rv-control">Series
+        <select onchange="rvSetSeries(this.value)">${seriesOpts}</select>
+      </label>
+      <label class="rv-checkbox ${m.compareLY?'on':''}">
+        <input type="checkbox" ${m.compareLY?'checked':''} onchange="rvToggleLY(this.checked)"/>
+        Compare to last year
+      </label>
+    </div>
+
+    <div class="rv-tfwrap">
+      <div class="rv-tfstrip">
+        ${tfBtns}
+        <button class="${customActive}" onclick="rvSetTimeframe('Custom')">Custom</button>
+      </div>
+      <div class="rv-customwrap" id="rvCustomWrap" style="display:${m.timeframe==='Custom'?'flex':'none'};">
+        <span>From</span>
+        <input type="date" id="rvCustomStart" value="${m.customStart||''}" onchange="rvSetCustom()"/>
+        <span>To</span>
+        <input type="date" id="rvCustomEnd" value="${m.customEnd||''}" onchange="rvSetCustom()"/>
+      </div>
+    </div>
+
+    <div class="rv-chart-panel">
+      <div class="rv-chart-wrap" id="rvChartWrap">
+        <canvas id="rvChartCanvas"></canvas>
+      </div>
+      <div class="rv-summary" id="rvSummary"></div>
+    </div>
+
+    <div class="rv-studies ${m.studiesOpen?'':'collapsed'}" id="rvStudies">
+      <div class="rv-studies-hdr" onclick="rvToggleStudiesOpen()">
+        <span class="rv-studies-arrow">▼</span><span>Studies</span>
+      </div>
+      <div class="rv-studies-body">
+        <label class="rv-checkbox ${m.studies.ma7?'on':''}">
+          <input type="checkbox" ${m.studies.ma7?'checked':''} onchange="rvToggleStudy('ma7',this.checked)"/>
+          7-day moving average
+        </label>
+        <label class="rv-checkbox ${m.studies.ma30?'on':''}">
+          <input type="checkbox" ${m.studies.ma30?'checked':''} onchange="rvToggleStudy('ma30',this.checked)"/>
+          30-day moving average
+        </label>
+        <label class="rv-checkbox ${m.studies.breakdown?'on':''}">
+          <input type="checkbox" ${m.studies.breakdown?'checked':''} onchange="rvToggleStudy('breakdown',this.checked)"/>
+          Per-company breakdown overlay
+        </label>
+      </div>
+    </div>
+  </div>`;
+}
+
+function rvAttachHandlers(){
+  // (Inline handlers used; nothing extra needed here yet.)
+}
+
+// ── State setters ─────────────────────────────────────────────────────
+function rvSetMetric(v){ rvState.metric = v; rvSaveState(); rvDrawChart(); }
+function rvSetSeries(v){ rvState.series = v; rvSaveState(); rvDrawChart(); }
+function rvSetTimeframe(tf){
+  rvState.timeframe = tf;
+  rvSaveState();
+  // Toggle custom inputs visibility
+  const wrap = document.getElementById('rvCustomWrap');
+  if(wrap) wrap.style.display = (tf==='Custom') ? 'flex' : 'none';
+  // Update button active state
+  document.querySelectorAll('.rv-tfstrip button').forEach(b=>{
+    b.classList.toggle('active', b.textContent.trim()===tf);
+  });
+  rvDrawChart();
+}
+function rvSetCustom(){
+  const s = document.getElementById('rvCustomStart')?.value || '';
+  const e = document.getElementById('rvCustomEnd')?.value || '';
+  rvState.customStart = s;
+  rvState.customEnd = e;
+  rvState.timeframe = 'Custom';
+  rvSaveState();
+  rvDrawChart();
+}
+function rvToggleLY(on){ rvState.compareLY = !!on; rvSaveState(); rvDrawChart();
+  // Update wrapping label highlight
+  const lbl = document.querySelector('.rv-topcontrols .rv-checkbox');
+  if(lbl) lbl.classList.toggle('on', !!on);
+}
+function rvToggleStudy(key, on){
+  rvState.studies[key] = !!on;
+  rvSaveState();
+  rvDrawChart();
+  // Update label highlight
+  const labels = document.querySelectorAll('.rv-studies-body .rv-checkbox');
+  labels.forEach(lbl => {
+    const cb = lbl.querySelector('input');
+    if(cb) lbl.classList.toggle('on', cb.checked);
+  });
+}
+function rvToggleStudiesOpen(){
+  rvState.studiesOpen = !rvState.studiesOpen;
+  rvSaveState();
+  document.getElementById('rvStudies')?.classList.toggle('collapsed', !rvState.studiesOpen);
+}
+
+// ── Date math ─────────────────────────────────────────────────────────
+function rvIsoDaysAgo(n){
+  const d = new Date(); d.setDate(d.getDate()-n); d.setHours(0,0,0,0);
+  return d.toISOString().split('T')[0];
+}
+function rvIsoToday(){
+  const d = new Date(); d.setHours(0,0,0,0);
+  return d.toISOString().split('T')[0];
+}
+function rvComputeWindow(tf){
+  const today = rvIsoToday();
+  switch(tf){
+    case '1W':  return {start: rvIsoDaysAgo(6),   end: today};
+    case '1M':  return {start: rvIsoDaysAgo(29),  end: today};
+    case '3M':  return {start: rvIsoDaysAgo(89),  end: today};
+    case '6M':  return {start: rvIsoDaysAgo(179), end: today};
+    case 'YTD': return {start: today.slice(0,4)+'-01-01', end: today};
+    case '1Y':  return {start: rvIsoDaysAgo(364), end: today};
+    case '2Y':  return {start: rvIsoDaysAgo(729), end: today};
+    case 'ALL': {
+      const first = rvAllRows.length ? rvAllRows[0].report_date : today;
+      return {start: first, end: today};
+    }
+    case 'Custom': {
+      const s = rvState.customStart || rvAllRows[0]?.report_date || today;
+      const e = rvState.customEnd   || today;
+      return {start: s, end: e};
+    }
+  }
+  return {start: rvIsoDaysAgo(89), end: today};
+}
+
+// Shift an ISO date back by ~365 days for LY alignment.
+function rvShiftYearBack(iso){
+  const d = new Date(iso+'T00:00:00');
+  d.setFullYear(d.getFullYear()-1);
+  // Handle Feb 29 — collapse to Feb 28 in non-leap LY
+  return d.toISOString().split('T')[0];
+}
+
+// ── Metric extraction helpers ──────────────────────────────────────────
+function rvCompanyValue(row, company, metric){
+  // Returns the raw per-company value used to compose the metric.
+  // For ratio metrics we return both numerator and denominator.
+  if(!row) return null;
+  const tons = parseFloat(row[company+'_tons'])||0;
+  const tickets = parseInt(row[company+'_tickets'])||0;
+  let revenue = 0;
+  if(company==='reis')   revenue = (parseFloat(row.reis_tip_revenue)||0) + (parseFloat(row.reis_svc_revenue)||0);
+  if(company==='island') revenue = parseFloat(row.island_revenue)||0;
+  if(company==='santos') revenue = parseFloat(row.santos_revenue)||0;
+  return {tons, tickets, revenue};
+}
+function rvDayMetric(row, metric, scope){
+  // scope: 'combined' | 'reis' | 'island' | 'santos'
+  if(!row) return null;
+  let tons=0, tickets=0, revenue=0, hours=0, hasHours=false;
+  if(scope==='combined'){
+    for(const c of ['reis','island','santos']){
+      const v = rvCompanyValue(row, c);
+      tons += v.tons; tickets += v.tickets; revenue += v.revenue;
+    }
+    if(row.driver_hours!=null){ hours = parseFloat(row.driver_hours)||0; hasHours = true; }
+    if(row.island_hours!=null){ hours += parseFloat(row.island_hours)||0; hasHours = true; }
+  } else {
+    const v = rvCompanyValue(row, scope);
+    tons = v.tons; tickets = v.tickets; revenue = v.revenue;
+    if(scope==='island' && row.island_hours!=null){ hours = parseFloat(row.island_hours)||0; hasHours = true; }
+    if(scope==='reis'   && row.driver_hours!=null){ hours = parseFloat(row.driver_hours)||0; hasHours = true; }
+  }
+  switch(metric){
+    case 'loads':    return tickets;
+    case 'tons':     return tons;
+    case 'revenue':  return revenue;
+    case 'tonsLoad': return tickets>0 ? tons/tickets       : null;
+    case 'revLoad':  return tickets>0 ? revenue/tickets    : null;
+    case 'hoursLoad':return (tickets>0 && hasHours)?hours/tickets : null;
+  }
+  return null;
+}
+
+// Compute a moving average over an array of {x, y}; nulls are skipped.
+function rvMovingAvg(points, window){
+  const out = [];
+  for(let i=0;i<points.length;i++){
+    let sum=0, n=0;
+    for(let j=Math.max(0,i-window+1); j<=i; j++){
+      const v = points[j].y;
+      if(v!=null && !isNaN(v)){ sum+=v; n++; }
+    }
+    out.push({x: points[i].x, y: n>0 ? sum/n : null});
+  }
+  return out;
+}
+
+// ── Chart build ────────────────────────────────────────────────────────
+function rvDrawChart(){
+  const canvas = document.getElementById('rvChartCanvas');
+  if(!canvas) return;
+  if(rvChart){ try{ rvChart.destroy(); }catch(_){} rvChart = null; }
+
+  const {start, end} = rvComputeWindow(rvState.timeframe);
+  const rowsInRange = rvAllRows.filter(r => r.report_date >= start && r.report_date <= end);
+
+  if(!rowsInRange.length){
+    document.getElementById('rvChartWrap').innerHTML = '<div class="rv-empty">No data in this date range.</div>';
+    rvUpdateSummary([], 0, null);
+    return;
+  }
+  // Re-mount canvas if previous render replaced it with empty state
+  if(!document.getElementById('rvChartCanvas')){
+    document.getElementById('rvChartWrap').innerHTML = '<canvas id="rvChartCanvas"></canvas>';
+  }
+  const ctx = document.getElementById('rvChartCanvas').getContext('2d');
+
+  const metric = rvState.metric;
+  const mDef = RV_METRICS[metric];
+  const labels = rowsInRange.map(r => r.report_date);
+
+  // Build datasets based on series mode
+  const datasets = [];
+  const showCombined = (rvState.series==='combined' || rvState.series==='both');
+  const showCompanies = (rvState.series==='company'  || rvState.series==='both' || rvState.studies.breakdown);
+
+  let combinedPoints = [];
+  if(showCombined){
+    combinedPoints = rowsInRange.map(r => ({x:r.report_date, y: rvDayMetric(r, metric, 'combined')}));
+    datasets.push({
+      label: 'Combined',
+      data: combinedPoints.map(p=>p.y),
+      borderColor: RV_COLORS.combined,
+      backgroundColor: RV_COLORS.combined+'18',
+      borderWidth: 2.2,
+      tension: 0.25, pointRadius: 1.5, pointHoverRadius: 5,
+      fill: rvState.series==='combined',
+      spanGaps: true,
+    });
+  }
+  if(showCompanies){
+    const companies = [
+      {key:'reis',   label:'Reis',     color:RV_COLORS.reis},
+      {key:'island', label:'Island',   color:RV_COLORS.island},
+      {key:'santos', label:'East End', color:RV_COLORS.santos},
+    ];
+    const isBreakdownOverlay = (rvState.series==='combined' && rvState.studies.breakdown);
+    for(const c of companies){
+      const pts = rowsInRange.map(r => rvDayMetric(r, metric, c.key));
+      datasets.push({
+        label: c.label,
+        data: pts,
+        borderColor: c.color,
+        backgroundColor: c.color+'15',
+        borderWidth: isBreakdownOverlay ? 1.2 : 1.8,
+        borderDash: isBreakdownOverlay ? [4,3] : [],
+        tension: 0.2, pointRadius: 0, pointHoverRadius: 4,
+        fill: false,
+        spanGaps: true,
+      });
+    }
+  }
+  // Moving averages — applied to whichever line is "the" main series
+  const mainPoints = showCombined
+    ? combinedPoints
+    : rowsInRange.map(r => ({x:r.report_date, y: rvDayMetric(r, metric, 'combined')}));
+  if(rvState.studies.ma7 && mainPoints.length){
+    const ma = rvMovingAvg(mainPoints, 7);
+    datasets.push({
+      label: '7-day MA',
+      data: ma.map(p=>p.y),
+      borderColor: RV_COLORS.ma7,
+      borderDash: [6,4], borderWidth: 1.8,
+      pointRadius: 0, pointHoverRadius: 0,
+      fill: false, tension: 0.2, spanGaps: true,
+    });
+  }
+  if(rvState.studies.ma30 && mainPoints.length){
+    const ma = rvMovingAvg(mainPoints, 30);
+    datasets.push({
+      label: '30-day MA',
+      data: ma.map(p=>p.y),
+      borderColor: RV_COLORS.ma30,
+      borderDash: [3,3], borderWidth: 1.8,
+      pointRadius: 0, pointHoverRadius: 0,
+      fill: false, tension: 0.2, spanGaps: true,
+    });
+  }
+
+  // Year-over-year overlay
+  let lyValues = null;
+  if(rvState.compareLY){
+    // For each label in current window, find the prior-year row.
+    const lyMap = {};
+    for(const r of rvAllRows){ lyMap[r.report_date] = r; }
+    lyValues = labels.map(iso => {
+      const prevIso = rvShiftYearBack(iso);
+      const r = lyMap[prevIso];
+      return r ? rvDayMetric(r, metric, 'combined') : null;
+    });
+    datasets.push({
+      label: 'Last Year (Combined)',
+      data: lyValues,
+      borderColor: RV_COLORS.ly,
+      borderDash: [5,3], borderWidth: 1.4,
+      pointRadius: 0, pointHoverRadius: 4,
+      fill: false, tension: 0.2, spanGaps: true,
+    });
+  }
+
+  // Y-axis tick formatter
+  const yTickFmt = (v) => {
+    if(v==null||isNaN(v)) return '';
+    if(metric==='revenue' || metric==='revLoad') return '$'+Math.round(v).toLocaleString();
+    if(metric==='tons')    return v.toFixed(1);
+    if(metric==='tonsLoad' || metric==='hoursLoad') return v.toFixed(2);
+    return Math.round(v);
+  };
+
+  rvChart = new Chart(ctx, {
+    type:'line',
+    data:{labels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{
+          position:'top', align:'end',
+          labels:{usePointStyle:true, font:{size:11, family:"'DM Sans',sans-serif"}, color:'#5a6175', boxWidth:8, padding:14}
+        },
+        tooltip:{
+          backgroundColor:'#0f1f3d',
+          titleFont:{family:"'DM Sans',sans-serif", size:11, weight:'600'},
+          bodyFont:{family:"'DM Mono',monospace", size:11},
+          cornerRadius:6, padding:10,
+          callbacks:{
+            title: items => {
+              if(!items.length) return '';
+              const iso = items[0].label;
+              const d = new Date(iso+'T00:00:00');
+              return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+            },
+            label: ctx => {
+              const v = ctx.parsed.y;
+              if(v==null) return ctx.dataset.label+': —';
+              return ctx.dataset.label+': '+mDef.fmt(v);
+            }
+          }
+        },
+        zoom: helmChartZoomConfig(),
+      },
+      scales:{
+        x:{
+          ticks:{
+            font:{size:10, family:"'DM Sans',sans-serif"}, color:'#9aa3b5',
+            maxRotation:0, autoSkip:true, maxTicksLimit:12,
+            callback: function(val){
+              const lbl = this.getLabelForValue(val);
+              const d = new Date(lbl+'T00:00:00');
+              return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+            }
+          },
+          grid:{display:false}, border:{color:'#dde1ea'},
+        },
+        y:{
+          beginAtZero: ['loads','tons','revenue'].includes(metric),
+          title:{display:true, text:mDef.label, font:{size:11, family:"'DM Sans',sans-serif", weight:'600'}, color:'#5a6175'},
+          ticks:{font:{size:10, family:"'DM Mono',monospace"}, color:'#5a6175', callback: yTickFmt},
+          grid:{color:'rgba(15,31,61,0.05)'},
+          border:{display:false},
+        },
+      },
+    },
+  });
+
+  // Toolbar (zoom-reset + fullscreen)
+  helmAddChartToolbar(document.getElementById('rvChartWrap'), rvChart, 'Rolloff Visual — '+mDef.label);
+
+  // Update summary stats
+  rvUpdateSummary(rowsInRange, metric, lyValues);
+}
+
+function rvUpdateSummary(rows, metric, lyValues){
+  const el = document.getElementById('rvSummary');
+  if(!el) return;
+  if(!rows.length){
+    el.innerHTML = '<div class="rv-stat"><div class="rv-stat-label">Window</div><div class="rv-stat-value">No data</div></div>';
+    return;
+  }
+  const mDef = RV_METRICS[metric];
+  const dailyVals = rows.map(r => rvDayMetric(r, metric, 'combined')).filter(v => v!=null && !isNaN(v));
+  if(!dailyVals.length){
+    el.innerHTML = '<div class="rv-stat"><div class="rv-stat-label">Window</div><div class="rv-stat-value">No data</div></div>';
+    return;
+  }
+  const sum = dailyVals.reduce((a,b)=>a+b,0);
+  const avg = sum / dailyVals.length;
+  const min = Math.min(...dailyVals);
+  const max = Math.max(...dailyVals);
+  const isRatio = (mDef.agg === 'avg');
+
+  // YoY % vs same-window prior year (use combined sums for level metrics, avg for ratios)
+  let yoy = null;
+  if(lyValues && lyValues.length){
+    const lyClean = lyValues.filter(v => v!=null && !isNaN(v));
+    if(lyClean.length){
+      const lyAgg = isRatio
+        ? lyClean.reduce((a,b)=>a+b,0) / lyClean.length
+        : lyClean.reduce((a,b)=>a+b,0);
+      const curAgg = isRatio ? avg : sum;
+      if(Math.abs(lyAgg) > 0.005){
+        yoy = ((curAgg - lyAgg) / Math.abs(lyAgg)) * 100;
+      }
+    }
+  }
+
+  const stats = [];
+  stats.push({label:'Avg / day', value: mDef.fmt(avg)});
+  stats.push({label:'Min',       value: mDef.fmt(min)});
+  stats.push({label:'Max',       value: mDef.fmt(max)});
+  if(!isRatio) stats.push({label:'Total',     value: mDef.fmt(sum)});
+  stats.push({label:'Days',      value: dailyVals.length.toString()});
+  if(yoy !== null){
+    const cls = yoy >= 0 ? 'up' : 'down';
+    const sign = yoy >= 0 ? '+' : '';
+    stats.push({label:'YoY '+(isRatio?'(avg)':'(total)'), value: sign+yoy.toFixed(1)+'%', cls});
+  }
+
+  el.innerHTML = stats.map(s =>
+    `<div class="rv-stat"><div class="rv-stat-label">${s.label}</div><div class="rv-stat-value ${s.cls||''}">${s.value}</div></div>`
+  ).join('');
 }
 
 </script>
