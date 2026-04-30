@@ -6191,7 +6191,7 @@ function renderIRR() {
       <button id="irrSubUpload" class="${irrActiveView==='upload'?'active':''}" onclick="irrSwitchView('upload')">Daily Scale Report</button>
       <button id="irrSubICR" class="${irrActiveView==='icr'?'active':''}" onclick="irrSwitchView('icr')">Intercompany Rolloff Report</button>
       <button id="irrSubCRC" class="${irrActiveView==='crc'?'active':''}" onclick="irrSwitchView('crc')">Consolidated Rolloff</button>
-      <button id="irrSubDash" class="${irrActiveView==='dashboard'?'active':''}" onclick="irrSwitchView('dashboard')">Dashboard</button>
+      <button id="irrSubDash" class="${irrActiveView==='dashboard'?'active':''}" onclick="irrSwitchView('dashboard')">KPIs & Tools</button>
     </div>
     <div id="irrViewUpload" style="display:${irrActiveView==='upload'?'':'none'}">
       <div id="irrUploadSection">
@@ -6387,20 +6387,11 @@ function irrRenderDashboard() {
       </div>
     </div>
 
-    <div class="irr-toggle-row">
-      <button class="irr-toggle ${irrToggles.revPerLoad?'on':''}" style="${irrToggles.revPerLoad?'background:'+IRR_COLORS.revPerLoad+';border-color:'+IRR_COLORS.revPerLoad:''}" onclick="irrToggleSeries('revPerLoad')">Rev / Load</button>
-      <button class="irr-toggle ${irrToggles.tonsPerLoad?'on':''}" style="${irrToggles.tonsPerLoad?'background:'+IRR_COLORS.tonsPerLoad+';border-color:'+IRR_COLORS.tonsPerLoad:''}" onclick="irrToggleSeries('tonsPerLoad')">Tons / Load</button>
-      <button class="irr-toggle ${irrToggles.hoursPerLoad?'on':''}" style="${irrToggles.hoursPerLoad?'background:'+IRR_COLORS.hoursPerLoad+';border-color:'+IRR_COLORS.hoursPerLoad:''}" onclick="irrToggleSeries('hoursPerLoad')">Hours / Load</button>
-      <button class="irr-toggle ${irrToggles.loadsPerDay?'on':''}" style="${irrToggles.loadsPerDay?'background:'+IRR_COLORS.loadsPerDay+';border-color:'+IRR_COLORS.loadsPerDay:''}" onclick="irrToggleSeries('loadsPerDay')">Loads / Day</button>
-      <a class="irr-toggle" style="text-decoration:none;font-weight:600;border-style:dashed;cursor:pointer;color:var(--teal);border-color:var(--teal);" onclick="switchTab('rvisual', document.getElementById('rvTabBtn'))">Per-company breakdown → Rolloff Visual</a>
-    </div>
-
-    <div class="irr-chart-wrap" id="irrChartWrap" style="height:${irrChartHeight}px;">
-      <div class="irr-chart-resize">
-        <button onclick="irrResizeChart(-100)">-</button>
-        <button onclick="irrResizeChart(100)">+</button>
-      </div>
-      <canvas id="irrChartCanvas"></canvas>
+    <div style="margin:18px 0 8px;padding:12px 16px;background:var(--gray-50);border:1px dashed var(--gray-300);border-radius:6px;font-size:12px;color:var(--gray-600);">
+      <span style="font-weight:600;color:var(--navy);">Looking for the chart?</span>
+      Trend visualisation moved to
+      <a style="color:var(--teal);text-decoration:underline;cursor:pointer;font-weight:600;" onclick="switchTab('rvisual', document.getElementById('rvTabBtn'))">Rolloff Visual</a>
+      — full stock-chart studio with timeframes, moving averages, year-over-year overlay and pop-out fullscreen.
     </div>
 
     <div class="irr-hours-form">
@@ -6411,8 +6402,6 @@ function irrRenderDashboard() {
         <button onclick="irrSaveHours()">Save</button>
       </div>
     </div>`;
-
-  irrDrawChart(filtered);
 }
 
 function irrSetRange(range) {
