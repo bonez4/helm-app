@@ -5652,24 +5652,33 @@ function helmAddChartToolbar(wrap, chart, title){
 // Drag Y axis labels: vertical drag compresses/expands the Y range.
 // Drag X axis labels: horizontal drag compresses/expands the X range.
 // The center of the visible range is preserved; only the spread changes.
+//
+// Implementation note: a per-canvas WeakMap registry holds the *current*
+// chart instance, so when a chart is destroyed and recreated on the same
+// canvas (every timeframe change in Rolloff Visual, etc.) the existing
+// listeners keep working — they always look up the live chart instead
+// of holding a stale closure reference.
+const _helmCanvasChart = new WeakMap();
 function helmAttachAxisDragRescale(chart){
   if(!chart || !chart.canvas) return;
   const canvas = chart.canvas;
-  if(canvas.dataset.helmAxisDrag === '1') return;   // idempotent
+  // Always refresh the registry so subsequent events resolve to the new chart
+  _helmCanvasChart.set(canvas, chart);
+  if(canvas.dataset.helmAxisDrag === '1') return;   // listeners already wired
   canvas.dataset.helmAxisDrag = '1';
 
+  const getChart = () => _helmCanvasChart.get(canvas);
   let drag = null;   // {axis, startMouse, startMin, startMax, isCategory}
 
   function hitTest(evt){
+    const c = getChart();
+    if(!c || !c.scales) return null;
+    const xs = c.scales.x, ys = c.scales.y;
+    if(!xs || !ys) return null;
     const rect = canvas.getBoundingClientRect();
     const x = evt.clientX - rect.left;
     const y = evt.clientY - rect.top;
-    const xs = chart.scales && chart.scales.x;
-    const ys = chart.scales && chart.scales.y;
-    if(!xs || !ys) return null;
-    // Y axis label area: left of the chart drawing area
     if(x >= ys.left && x <= ys.right && y >= ys.top && y <= ys.bottom) return 'y';
-    // X axis label area: below the chart drawing area
     if(y >= xs.top && y <= xs.bottom && x >= xs.left && x <= xs.right) return 'x';
     return null;
   }
@@ -5685,9 +5694,11 @@ function helmAttachAxisDragRescale(chart){
   canvas.addEventListener('mousedown', (e) => {
     const hit = hitTest(e);
     if(!hit) return;
+    const c = getChart();
+    if(!c) return;
     e.preventDefault();
     e.stopPropagation();
-    const sc = hit === 'y' ? chart.scales.y : chart.scales.x;
+    const sc = hit === 'y' ? c.scales.y : c.scales.x;
     drag = {
       axis: hit,
       startMouse: hit === 'y' ? e.clientY : e.clientX,
@@ -5700,50 +5711,34 @@ function helmAttachAxisDragRescale(chart){
 
   function onMove(e){
     if(!drag) return;
+    const c = getChart();
+    if(!c){ drag = null; canvas.style.cursor = ''; return; }
     e.preventDefault();
     const cur = drag.axis === 'y' ? e.clientY : e.clientX;
     const delta = cur - drag.startMouse;
-    // Sensitivity: 200px drag ~ 2x zoom.
-    // For Y axis, dragging UP (negative delta) should compress the range
-    //   (zoom in vertically). DOWN expands.
-    // For X axis, dragging LEFT (negative delta) should compress
-    //   (zoom in temporally). RIGHT expands.
+    // 200px drag ~ 2x zoom. Drag toward chart = compress range (zoom in).
     const sensitivity = 0.005;
-    const factor = drag.axis === 'y'
-      ? Math.exp(delta * sensitivity)        // up = - delta = factor < 1 = compress
-      : Math.exp(-delta * sensitivity);      // left = - delta = factor < 1 = compress (note sign flip)
-    // Wait: let's think again. Drag X right (positive delta) -> show more (expand range).
-    // factor for x = exp(+delta * sens). So delete the negative.
-    // Recompute correctly:
-    const xfactor = drag.axis === 'x' ? Math.exp(delta * sensitivity) : 1;
-    const yfactor = drag.axis === 'y' ? Math.exp(delta * sensitivity) : 1;
-    const useFactor = drag.axis === 'y' ? yfactor : xfactor;
-
+    const factor = Math.exp(delta * sensitivity);
     const center = (Number(drag.startMin) + Number(drag.startMax)) / 2;
-    const halfRange = (Number(drag.startMax) - Number(drag.startMin)) / 2 * useFactor;
+    const halfRange = (Number(drag.startMax) - Number(drag.startMin)) / 2 * factor;
     let newMin = center - halfRange;
     let newMax = center + halfRange;
 
     if(drag.isCategory){
-      // Category scale: min/max are integer indices.
-      const totalLabels = (chart.data.labels && chart.data.labels.length) || 0;
+      const totalLabels = (c.data.labels && c.data.labels.length) || 0;
       newMin = Math.max(0, Math.round(newMin));
       newMax = Math.min(totalLabels - 1, Math.round(newMax));
-      if(newMax - newMin < 1) newMax = newMin + 1;   // keep at least 2 visible
-    } else {
-      // Linear scale: leave fractional values alone, but guard against collapse.
-      if(!isFinite(newMin) || !isFinite(newMax) || newMax - newMin < 1e-9){
-        return;
-      }
+      if(newMax - newMin < 1) newMax = newMin + 1;
+    } else if(!isFinite(newMin) || !isFinite(newMax) || newMax - newMin < 1e-9){
+      return;
     }
 
     try {
-      chart.zoomScale(drag.axis, {min: newMin, max: newMax}, 'none');
+      c.zoomScale(drag.axis, {min: newMin, max: newMax}, 'none');
     } catch(_){
-      // Fallback if zoom plugin not available
-      const opt = chart.options.scales[drag.axis];
+      const opt = c.options.scales[drag.axis];
       opt.min = newMin; opt.max = newMax;
-      chart.update('none');
+      c.update('none');
     }
   }
   function onUp(){
