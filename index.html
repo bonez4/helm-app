@@ -2268,8 +2268,19 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
 /* Chart panel — dark stock-terminal style */
 .rv-chart-panel{
   background:#0e1019;border:1px solid #1f2231;border-radius:8px;
-  padding:18px 20px 22px;position:relative;
+  padding:14px 20px 22px;position:relative;
   box-shadow:0 4px 14px rgba(0,0,0,0.25);
+}
+/* Header strip above the chart wrap holds the title + toolbar so the
+   pop-out / reset buttons never sit on top of the chart data. */
+.rv-chart-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0 2px 10px 2px;margin-bottom:6px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.rv-chart-title{
+  font-size:11px;font-weight:700;letter-spacing:0.08em;
+  text-transform:uppercase;color:rgba(255,255,255,0.5);
 }
 .rv-chart-wrap{position:relative;height:560px;}
 .rv-chart-wrap canvas{width:100%!important;height:100%!important;}
@@ -2277,15 +2288,17 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
   display:flex;align-items:center;justify-content:center;height:100%;
   color:rgba(255,255,255,0.4);font-size:13px;font-style:italic;
 }
-/* Toolbar overlay tweaks for dark backdrop */
-.rv-chart-panel .helm-chart-toolbar{
-  background:rgba(20,24,40,0.85); border:1px solid rgba(255,255,255,0.12);
+/* Toolbar lives inside the header now, not floated over the canvas. */
+.rv-chart-header .helm-chart-toolbar{
+  position:static;top:auto;right:auto;
+  background:rgba(20,24,40,0.65); border:1px solid rgba(255,255,255,0.10);
+  box-shadow:none;
 }
-.rv-chart-panel .helm-chart-toolbar button{ color:rgba(255,255,255,0.7); }
-.rv-chart-panel .helm-chart-toolbar button:hover{
-  background:rgba(255,255,255,0.07); color:white;
+.rv-chart-header .helm-chart-toolbar button{ color:rgba(255,255,255,0.7); }
+.rv-chart-header .helm-chart-toolbar button:hover{
+  background:rgba(255,255,255,0.08); color:white;
 }
-.rv-chart-panel .helm-chart-toolbar .sep{ background:rgba(255,255,255,0.12); }
+.rv-chart-header .helm-chart-toolbar .sep{ background:rgba(255,255,255,0.12); }
 
 /* Period summary bar — dark */
 .rv-summary{
@@ -13096,6 +13109,10 @@ function rvBuildLayoutHtml(){
     </div>
 
     <div class="rv-chart-panel">
+      <div class="rv-chart-header">
+        <div class="rv-chart-title" id="rvChartTitle">Loading…</div>
+        <div id="rvToolbarHost"></div>
+      </div>
       <div class="rv-chart-wrap" id="rvChartWrap">
         <canvas id="rvChartCanvas"></canvas>
       </div>
@@ -13305,10 +13322,10 @@ function rvDrawChart(){
       label: 'Combined',
       data: combinedPoints.map(p=>p.y),
       borderColor: RV_COLORS.combined,
-      backgroundColor: RV_COLORS.combined+'18',
-      borderWidth: 2.2,
-      tension: 0.25, pointRadius: 1.5, pointHoverRadius: 5,
-      fill: rvState.series==='combined',
+      backgroundColor: 'transparent',
+      borderWidth: 1.4,
+      tension: 0.18, pointRadius: 0, pointHoverRadius: 4,
+      fill: false,
       spanGaps: true,
     });
   }
@@ -13325,10 +13342,10 @@ function rvDrawChart(){
         label: c.label,
         data: pts,
         borderColor: c.color,
-        backgroundColor: c.color+'15',
-        borderWidth: isBreakdownOverlay ? 1.2 : 1.8,
+        backgroundColor: 'transparent',
+        borderWidth: isBreakdownOverlay ? 1.0 : 1.3,
         borderDash: isBreakdownOverlay ? [4,3] : [],
-        tension: 0.2, pointRadius: 0, pointHoverRadius: 4,
+        tension: 0.18, pointRadius: 0, pointHoverRadius: 4,
         fill: false,
         spanGaps: true,
       });
@@ -13344,9 +13361,9 @@ function rvDrawChart(){
       label: '7-day MA',
       data: ma.map(p=>p.y),
       borderColor: RV_COLORS.ma7,
-      borderDash: [6,4], borderWidth: 1.8,
+      borderDash: [6,4], borderWidth: 1.2,
       pointRadius: 0, pointHoverRadius: 0,
-      fill: false, tension: 0.2, spanGaps: true,
+      fill: false, tension: 0.18, spanGaps: true,
     });
   }
   if(rvState.studies.ma30 && mainPoints.length){
@@ -13355,9 +13372,9 @@ function rvDrawChart(){
       label: '30-day MA',
       data: ma.map(p=>p.y),
       borderColor: RV_COLORS.ma30,
-      borderDash: [3,3], borderWidth: 1.8,
+      borderDash: [3,3], borderWidth: 1.2,
       pointRadius: 0, pointHoverRadius: 0,
-      fill: false, tension: 0.2, spanGaps: true,
+      fill: false, tension: 0.18, spanGaps: true,
     });
   }
 
@@ -13376,9 +13393,9 @@ function rvDrawChart(){
       label: 'Last Year (Combined)',
       data: lyValues,
       borderColor: RV_COLORS.ly,
-      borderDash: [5,3], borderWidth: 1.4,
-      pointRadius: 0, pointHoverRadius: 4,
-      fill: false, tension: 0.2, spanGaps: true,
+      borderDash: [5,3], borderWidth: 1.0,
+      pointRadius: 0, pointHoverRadius: 3,
+      fill: false, tension: 0.18, spanGaps: true,
     });
   }
 
@@ -13488,8 +13505,20 @@ function rvDrawChart(){
     },
   });
 
-  // Toolbar (zoom-reset + fullscreen)
+  // Toolbar (zoom-reset + fullscreen). Attach to the chart wrap so the
+  // axis-drag rescale picks up the canvas, then move the visible toolbar
+  // element into the header strip so it's not floating over chart data.
   helmAddChartToolbar(document.getElementById('rvChartWrap'), rvChart, 'Rolloff Visual — '+mDef.label);
+  const tbHost = document.getElementById('rvToolbarHost');
+  const tbEl   = document.querySelector('#rvChartWrap .helm-chart-toolbar');
+  if(tbHost && tbEl){ tbHost.innerHTML = ''; tbHost.appendChild(tbEl); }
+
+  // Update header title
+  const titleEl = document.getElementById('rvChartTitle');
+  if(titleEl){
+    const seriesLabel = RV_SERIES_MODES[rvState.series] || rvState.series;
+    titleEl.textContent = mDef.label + ' · ' + seriesLabel + ' · ' + rvState.timeframe;
+  }
 
   // Update summary stats
   rvUpdateSummary(rowsInRange, metric, lyValues);
