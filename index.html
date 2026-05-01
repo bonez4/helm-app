@@ -2265,45 +2265,68 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
 .rv-customwrap input[type="date"]{padding:5px 8px;border:1px solid var(--gray-300);border-radius:4px;font-family:'DM Mono',monospace;font-size:12px;}
 .rv-customwrap input[type="date"]:focus{outline:none;border-color:var(--teal);}
 
-/* Chart panel */
+/* Chart panel — dark stock-terminal style */
 .rv-chart-panel{
-  background:var(--white);border:1px solid var(--gray-200);border-radius:8px;
+  background:#0e1019;border:1px solid #1f2231;border-radius:8px;
   padding:18px 20px 22px;position:relative;
-  box-shadow:0 1px 2px rgba(15,31,61,0.04);
+  box-shadow:0 4px 14px rgba(0,0,0,0.25);
 }
-.rv-chart-wrap{position:relative;height:520px;}
+.rv-chart-wrap{position:relative;height:560px;}
 .rv-chart-wrap canvas{width:100%!important;height:100%!important;}
 .rv-empty{
   display:flex;align-items:center;justify-content:center;height:100%;
-  color:var(--gray-400);font-size:13px;font-style:italic;
+  color:rgba(255,255,255,0.4);font-size:13px;font-style:italic;
 }
+/* Toolbar overlay tweaks for dark backdrop */
+.rv-chart-panel .helm-chart-toolbar{
+  background:rgba(20,24,40,0.85); border:1px solid rgba(255,255,255,0.12);
+}
+.rv-chart-panel .helm-chart-toolbar button{ color:rgba(255,255,255,0.7); }
+.rv-chart-panel .helm-chart-toolbar button:hover{
+  background:rgba(255,255,255,0.07); color:white;
+}
+.rv-chart-panel .helm-chart-toolbar .sep{ background:rgba(255,255,255,0.12); }
 
-/* Period summary bar */
+/* Period summary bar — dark */
 .rv-summary{
-  display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;padding:12px 16px;
-  background:var(--gray-50);border-radius:6px;border:1px solid var(--gray-200);
+  display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;padding:12px 18px;
+  background:#0e1019;border-radius:6px;border:1px solid #1f2231;
 }
-.rv-stat{display:flex;flex-direction:column;gap:2px;min-width:90px;}
-.rv-stat-label{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--gray-500);}
-.rv-stat-value{font-family:'DM Mono',monospace;font-size:15px;font-weight:600;color:var(--navy);}
-.rv-stat-value.up{color:#2e7d32;}
-.rv-stat-value.down{color:#c62828;}
+.rv-stat{display:flex;flex-direction:column;gap:3px;min-width:90px;}
+.rv-stat-label{
+  font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+  color:rgba(255,255,255,0.42);
+}
+.rv-stat-value{
+  font-family:'DM Mono',monospace;font-size:15px;font-weight:600;
+  color:rgba(255,255,255,0.92);
+}
+.rv-stat-value.up{color:#4ade80;}
+.rv-stat-value.down{color:#f87171;}
 
-/* Studies section */
+/* Studies section — dark */
 .rv-studies{
-  margin-top:18px;background:var(--white);border:1px solid var(--gray-200);
+  margin-top:14px;background:#0e1019;border:1px solid #1f2231;
   border-radius:8px;overflow:hidden;
 }
 .rv-studies-hdr{
-  background:var(--gray-50);padding:9px 14px;font-size:11px;font-weight:700;
-  letter-spacing:0.06em;text-transform:uppercase;color:var(--gray-600);
+  background:rgba(255,255,255,0.02);padding:9px 14px;font-size:11px;font-weight:700;
+  letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.55);
   cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;
 }
-.rv-studies-hdr:hover{background:var(--gray-100);color:var(--navy);}
-.rv-studies-arrow{font-size:10px;width:10px;color:var(--gray-500);transition:transform 0.12s;}
+.rv-studies-hdr:hover{background:rgba(255,255,255,0.05);color:white;}
+.rv-studies-arrow{font-size:10px;width:10px;color:rgba(255,255,255,0.45);transition:transform 0.12s;}
 .rv-studies.collapsed .rv-studies-arrow{transform:rotate(-90deg);}
 .rv-studies.collapsed .rv-studies-body{display:none;}
 .rv-studies-body{padding:12px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.rv-studies-body .rv-checkbox{
+  background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.7);
+}
+.rv-studies-body .rv-checkbox:hover{ border-color:rgba(255,255,255,0.25); color:white; }
+.rv-studies-body .rv-checkbox.on{
+  background:rgba(26,155,138,0.18); border-color:#1a9b8a; color:#5eead4;
+}
 
 </style>
 </head>
@@ -12950,14 +12973,23 @@ const RV_SERIES_MODES = {
   both:     'Both (Combined + Companies)',
 };
 const RV_TIMEFRAMES = ['1W','1M','3M','6M','YTD','1Y','2Y','ALL'];
+// Brightened for the dark chart panel — colors that read on #0e1019
 const RV_COLORS = {
-  combined: '#0f1f3d',
-  reis:     '#1565C0',
-  island:   '#7c4dff',
-  santos:   '#f57c00',
-  ma7:      '#1a9b8a',
-  ma30:     '#d4a843',
-  ly:       '#9aa3b5',
+  combined: '#5eb3ff',
+  reis:     '#5eb3ff',
+  island:   '#b388ff',
+  santos:   '#ffb74d',
+  ma7:      '#26d4b8',
+  ma30:     '#ffd54f',
+  ly:       'rgba(255,255,255,0.32)',
+  volume:   'rgba(94,179,255,0.32)',   // subtle blue bars at the bottom
+};
+// Y-axis grid + tick colors for dark mode
+const RV_DARK = {
+  grid:     'rgba(255,255,255,0.06)',
+  axisText: 'rgba(255,255,255,0.55)',
+  axisTitle:'rgba(255,255,255,0.7)',
+  border:   'rgba(255,255,255,0.12)',
 };
 
 // Persisted state (localStorage) merged with defaults.
@@ -13341,6 +13373,23 @@ function rvDrawChart(){
     });
   }
 
+  // Volume sub-chart bars: always show daily Loads (combined activity) at
+  // the bottom 25% of the chart — same role as volume on a stock chart.
+  // Pinned to its own stacked Y axis so the main metric keeps its scale.
+  const volumeData = rowsInRange.map(r => rvDayMetric(r, 'loads', 'combined'));
+  datasets.push({
+    type: 'bar',
+    label: 'Loads / day (volume)',
+    data: volumeData,
+    backgroundColor: RV_COLORS.volume,
+    borderColor: 'transparent',
+    borderWidth: 0,
+    barPercentage: 1.0,
+    categoryPercentage: 0.85,
+    yAxisID: 'yVol',
+    order: 99,            // draw behind the lines
+  });
+
   // Y-axis tick formatter
   const yTickFmt = (v) => {
     if(v==null||isNaN(v)) return '';
@@ -13359,10 +13408,17 @@ function rvDrawChart(){
       plugins:{
         legend:{
           position:'top', align:'end',
-          labels:{usePointStyle:true, font:{size:11, family:"'DM Sans',sans-serif"}, color:'#5a6175', boxWidth:8, padding:14}
+          labels:{
+            usePointStyle:true, font:{size:11, family:"'DM Sans',sans-serif"},
+            color:'rgba(255,255,255,0.72)', boxWidth:8, padding:14,
+            // Hide the volume series from the legend — it's implicit
+            filter: (item) => item.text !== 'Loads / day (volume)'
+          }
         },
         tooltip:{
-          backgroundColor:'#0f1f3d',
+          backgroundColor:'rgba(8,12,24,0.95)',
+          borderColor:'rgba(255,255,255,0.12)', borderWidth:1,
+          titleColor:'rgba(255,255,255,0.92)', bodyColor:'rgba(255,255,255,0.85)',
           titleFont:{family:"'DM Sans',sans-serif", size:11, weight:'600'},
           bodyFont:{family:"'DM Mono',monospace", size:11},
           cornerRadius:6, padding:10,
@@ -13376,6 +13432,9 @@ function rvDrawChart(){
             label: ctx => {
               const v = ctx.parsed.y;
               if(v==null) return ctx.dataset.label+': —';
+              if(ctx.dataset.label === 'Loads / day (volume)') {
+                return 'Volume: '+Math.round(v)+' loads';
+              }
               return ctx.dataset.label+': '+mDef.fmt(v);
             }
           }
@@ -13385,7 +13444,7 @@ function rvDrawChart(){
       scales:{
         x:{
           ticks:{
-            font:{size:10, family:"'DM Sans',sans-serif"}, color:'#9aa3b5',
+            font:{size:10, family:"'DM Sans',sans-serif"}, color:RV_DARK.axisText,
             maxRotation:0, autoSkip:true, maxTicksLimit:12,
             callback: function(val){
               const lbl = this.getLabelForValue(val);
@@ -13393,13 +13452,22 @@ function rvDrawChart(){
               return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
             }
           },
-          grid:{display:false}, border:{color:'#dde1ea'},
+          grid:{display:false}, border:{color:RV_DARK.border},
         },
         y:{
+          stack:'rvStack', stackWeight: 3,
           beginAtZero: ['loads','tons','revenue'].includes(metric),
-          title:{display:true, text:mDef.label, font:{size:11, family:"'DM Sans',sans-serif", weight:'600'}, color:'#5a6175'},
-          ticks:{font:{size:10, family:"'DM Mono',monospace"}, color:'#5a6175', callback: yTickFmt},
-          grid:{color:'rgba(15,31,61,0.05)'},
+          title:{display:true, text:mDef.label, font:{size:11, family:"'DM Sans',sans-serif", weight:'600'}, color:RV_DARK.axisTitle},
+          ticks:{font:{size:10, family:"'DM Mono',monospace"}, color:RV_DARK.axisText, callback: yTickFmt},
+          grid:{color:RV_DARK.grid, drawTicks:false},
+          border:{display:false},
+        },
+        yVol:{
+          stack:'rvStack', stackWeight: 1,
+          position:'left', beginAtZero:true,
+          title:{display:true, text:'Volume', font:{size:10, family:"'DM Sans',sans-serif", weight:'600'}, color:RV_DARK.axisText},
+          ticks:{font:{size:9, family:"'DM Mono',monospace"}, color:RV_DARK.axisText, maxTicksLimit:3, callback: v => Math.round(v)},
+          grid:{color:RV_DARK.grid, drawTicks:false},
           border:{display:false},
         },
       },
