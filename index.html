@@ -8159,7 +8159,7 @@ function icrRenderReport(allData, container) {
       <input type="date" value="${icrWeekStart}" onchange="icrJumpToWeek(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
       <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrExportFile()">Export File</button>
       <button class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
-      <button class="icr-nav-btn" style="background:var(--gold);color:white;border-color:var(--gold);" onclick="icrShowMonthly()">Monthly Report</button>
+      <button class="icr-nav-btn" style="background:var(--gold);color:white;border-color:var(--gold);" onclick="icrShowMonthly()">Scale Monthly Review</button>
       <button class="icr-nav-btn" style="background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
       <button class="icr-nav-btn" style="background:var(--teal-dim);color:white;border-color:var(--teal-dim);" onclick="icrShowYearly()">Yearly Report</button>
       <button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
@@ -9317,15 +9317,17 @@ function icrRenderYearly(){
   }, 60);
 }
 
-// ── ICR MONTHLY ROLLOFF REPORT ──────────────────────────────────────
-// Month-end summary report with three sections:
-//   - Consolidated Totals (Rev/Load, Total Revenue, Loads, Tons/Load)
-//   - Vinagro outbound (Loads, Total Tons, Avg Tons/Load)
-//   - Rolloff Breakdown (loads, empty/return + double-drop counts vs
-//     deliveries, consolidated rev/load on empty/return trips, plus
-//     per-company rolloff counts)
-// Exports: PDF + XLSX. Auto-saves both to Files under "Monthly Rolloff
-// Report". Email button opens a Gmail draft with the HTML body.
+// ── SCALE MONTHLY REVIEW ────────────────────────────────────────────
+// Month-end summary report with four sections:
+//   - Rolloff Totals      (Rev/Load, Total Revenue, Loads, Tons/Load)
+//   - Walk-Ins            (Tickets, Total Tons, Total Revenue, Rev/Ton,
+//                          Avg Tons/Ticket)
+//   - Vinagro outbound    (Loads, Total Tons, Avg Tons/Load)
+//   - Rolloff Breakdown   (loads, Reis empty/return + double-drop vs
+//                          delivery counts, consolidated rev/load on
+//                          empty/return trips, per-company counts)
+// Exports: PDF + XLSX. Auto-saves both to Files under "Scale Monthly
+// Review". Email button copies a rich HTML version to clipboard.
 
 let icrMonthlyMonth = null;   // 'YYYY-MM'
 
@@ -9378,6 +9380,7 @@ function icrMonthlyAggregate(rows){
   let reisTipRev=0, reisSvcRev=0, islandRev=0, santosRev=0;
   let reisDeliveries=0, reisEmpties=0, reisDoubleDrops=0;
   let vinLoads=0, vinTons=0;
+  let walkinTickets=0, walkinTons=0, walkinRev=0;
   for(const d of rows){
     reisTickets   += d.reis_tickets||0;
     islandTickets += d.island_tickets||0;
@@ -9394,6 +9397,9 @@ function icrMonthlyAggregate(rows){
     reisDoubleDrops += d.reis_double_drops||0;
     vinLoads += d.vinagro_loads||0;
     vinTons  += parseFloat(d.vinagro_tons)||0;
+    walkinTickets += d.walkin_tickets||0;
+    walkinTons    += parseFloat(d.walkin_tons)||0;
+    walkinRev     += parseFloat(d.walkin_tip_revenue)||0;
   }
   // Consolidated rolloff totals (Reis + Island + East End)
   const rolloffLoads = reisTickets + islandTickets + santosTickets;
@@ -9419,6 +9425,9 @@ function icrMonthlyAggregate(rows){
     rolloffLoads, rolloffTons, rolloffRev,
     revPerLoad: rolloffLoads>0 ? rolloffRev/rolloffLoads : null,
     tonsPerLoad: rolloffLoads>0 ? rolloffTons/rolloffLoads : null,
+    walkinTickets, walkinTons, walkinRev,
+    walkinRevPerTon:    walkinTons>0    ? walkinRev/walkinTons    : null,
+    walkinTonsPerTicket:walkinTickets>0 ? walkinTons/walkinTickets: null,
     vinLoads, vinTons,
     vinTonsPerLoad: vinLoads>0 ? vinTons/vinLoads : null,
     reisDeliveries, reisEmpties, reisDoubleDrops, reisEmptyReturn,
@@ -9440,11 +9449,17 @@ function icrMonthlyHtml(agg, label){
     + '<p style="margin:0 0 4px 0;color:#222;">Monthly rolloff summary for <strong>'+label+'</strong>.</p>'
     + '<p style="margin:0 0 8px 0;color:#888;font-size:11px;">'+agg.days+' day'+(agg.days===1?'':'s')+' of scale data.</p>'
     + '<table style="width:100%;border-collapse:collapse;">'
-    +   firstHdr('Consolidated Totals')
+    +   firstHdr('Rolloff Totals')
     +   row('Rev / Load',     fM(agg.revPerLoad))
     +   row('Total Revenue',  fM(agg.rolloffRev))
     +   row('Loads',          fInt(agg.rolloffLoads))
     +   row('Tons / Load',    f2(agg.tonsPerLoad))
+    +   sectHdr('Walk-Ins')
+    +   row('Tickets',         fInt(agg.walkinTickets))
+    +   row('Total Tons',      f2(agg.walkinTons))
+    +   row('Total Revenue',   fM(agg.walkinRev))
+    +   row('Rev / Ton',       fM(agg.walkinRevPerTon))
+    +   row('Avg Tons / Ticket', f2(agg.walkinTonsPerTicket))
     +   sectHdr('Vinagro (Outbound)')
     +   row('Loads',          fInt(agg.vinLoads))
     +   row('Total Tons',     f2(agg.vinTons))
@@ -9498,7 +9513,7 @@ function icrRenderMonthly(){
     +   '<button class="rpt-close" onclick="document.getElementById(\'icrMonthlyOverlay\').remove()">Close</button>'
     + '</div>'
     + '<div class="irr-report-body" id="icrMonthlyBody">'
-    +   '<h1 style="font-size:18px;font-weight:700;margin-bottom:4px;color:var(--navy);">Monthly Rolloff Report — '+label+'</h1>'
+    +   '<h1 style="font-size:18px;font-weight:700;margin-bottom:4px;color:var(--navy);">Scale Monthly Review — '+label+'</h1>'
     +   '<div style="background:white;padding:18px;border-radius:6px;border:1px solid var(--gray-200);">'+bodyHtml+'</div>'
     + '</div>'
     + '</div>';
@@ -9515,14 +9530,20 @@ function icrMonthlyXlsxBlob(agg, label){
   const hdr = (txt)=>'<tr>'+'<td colspan="2" style="background:#0f1f3d;color:#fff;padding:8px 10px;font-size:12px;font-weight:bold;border:1px solid #999;">'+txt+'</td></tr>';
   const r = (lbl,val)=>'<tr>'+cell(lbl)+numCell(val)+'</tr>';
   const html = '<html><body>'
-    + '<h2 style="font-family:Arial;color:#0f1f3d;">Monthly Rolloff Report &mdash; '+label+'</h2>'
+    + '<h2 style="font-family:Arial;color:#0f1f3d;">Scale Monthly Review &mdash; '+label+'</h2>'
     + '<div style="font-size:11px;color:#666;font-family:Arial;">'+agg.days+' day'+(agg.days===1?'':'s')+' of scale data</div>'
     + '<table style="border-collapse:collapse;font-family:Arial,sans-serif;margin-top:8px;">'
-    +   hdr('Consolidated Totals')
+    +   hdr('Rolloff Totals')
     +   r('Rev / Load', fM(agg.revPerLoad))
     +   r('Total Revenue', fM(agg.rolloffRev))
     +   r('Loads', fInt(agg.rolloffLoads))
     +   r('Tons / Load', f2(agg.tonsPerLoad))
+    +   hdr('Walk-Ins')
+    +   r('Tickets', fInt(agg.walkinTickets))
+    +   r('Total Tons', f2(agg.walkinTons))
+    +   r('Total Revenue', fM(agg.walkinRev))
+    +   r('Rev / Ton', fM(agg.walkinRevPerTon))
+    +   r('Avg Tons / Ticket', f2(agg.walkinTonsPerTicket))
     +   hdr('Vinagro (Outbound)')
     +   r('Loads', fInt(agg.vinLoads))
     +   r('Total Tons', f2(agg.vinTons))
@@ -9541,14 +9562,14 @@ function icrMonthlyXlsxBlob(agg, label){
 }
 
 function icrMonthlyFilename(label, ext){
-  return 'Monthly_Rolloff_Report_' + label.replace(/\s+/g,'_') + '.' + ext;
+  return 'Scale_Monthly_Review_' + label.replace(/\s+/g,'_') + '.' + ext;
 }
 
 // Build a clean printable element for PDF export.
 function icrMonthlyBuildPrintEl(agg, label){
   const wrap = document.createElement('div');
   wrap.style.cssText = 'padding:24px;font-family:Arial,Helvetica,sans-serif;color:#222;max-width:600px;margin:0 auto;background:white;';
-  wrap.innerHTML = '<h1 style="font-size:20px;font-weight:700;margin:0 0 4px 0;color:#0f1f3d;">Monthly Rolloff Report</h1>'
+  wrap.innerHTML = '<h1 style="font-size:20px;font-weight:700;margin:0 0 4px 0;color:#0f1f3d;">Scale Monthly Review</h1>'
     + '<div style="font-size:13px;color:#666;margin-bottom:14px;">'+label+' — '+agg.days+' day'+(agg.days===1?'':'s')+' of scale data</div>'
     + icrMonthlyHtml(agg, label);
   return wrap;
@@ -9588,7 +9609,7 @@ async function icrMonthlySaveToFiles(){
   toast('Generating PDF + XLSX…');
 
   // Find or create the "Monthly Rolloff Report" shared folder
-  const folderName = 'Monthly Rolloff Report';
+  const folderName = 'Scale Monthly Review';
   let {data:folders} = await db.from('helm_folders').select('id').eq('name',folderName).eq('scope','shared').limit(1);
   let folderId;
   if(folders && folders.length > 0){
@@ -9633,7 +9654,7 @@ async function icrMonthlySaveToFiles(){
   const okPdf = await uploadOne(pdfBlob,'pdf','application/pdf');
   const okXls = await uploadOne(xlsBlob,'xls','application/vnd.ms-excel');
   if(okPdf && okXls){
-    toast('Saved to Files → Monthly Rolloff Report', true);
+    toast('Saved to Files → Scale Monthly Review', true);
   } else if(okPdf || okXls){
     toast('Partial save — check Files', true);
   }
@@ -9644,7 +9665,7 @@ function icrMonthlyEmail(){
   const label = window._icrMonthlyLabel || icrMonthlyMonthLabel(icrMonthlyMonth);
   const agg = icrMonthlyAggregate(data);
   const bodyHtml = icrMonthlyHtml(agg, label);
-  const subject = 'Monthly Rolloff Report — '+label;
+  const subject = 'Scale Monthly Review — '+label;
   // Open Gmail compose; fallback to mailto if gmail can't be reached.
   const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(subject)
     + '&body='+encodeURIComponent(bodyHtml.replace(/<[^>]+>/g,'')); // gmail compose doesn't take HTML; falls back to plain
