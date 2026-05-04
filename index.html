@@ -2405,6 +2405,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <button class="nav-child active" onclick="switchTab('lookup',this)">Client Lookup</button>
         <button class="nav-child" onclick="switchTab('add',this)">Add Client</button>
         <button class="nav-child" onclick="switchTab('report',this)">Reports</button>
+        <button id="rolloffsClientChild" class="nav-child" style="display:none" onclick="switchTab('rolloffs',this)">Roll-offs</button>
       </div>
     </div>
     <div class="nav-group" id="navGroup-analysis" style="display:none">
@@ -2412,13 +2413,16 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <span class="nav-group-arrow">▼</span><span class="nav-group-label">Analysis</span>
       </button>
       <div class="nav-group-children">
-        <button id="irrTabBtn"  class="nav-child" style="display:none" onclick="switchTab('irr',this)">IRR Scale</button>
-        <button id="rvTabBtn"   class="nav-child" style="display:none" onclick="switchTab('rvisual',this)">Rolloff Visual</button>
-        <button id="xferTabBtn" class="nav-child" style="display:none" onclick="switchTab('xfer',this)">Xfer Station</button>
-        <button id="blaTabBtn"  class="nav-child" style="display:none" onclick="switchTab('bla',this)">Business Line Analysis</button>
+        <button id="dailyScaleTabBtn"  class="nav-child" style="display:none" onclick="switchTab('dailyscale',this)">Daily Scale Report</button>
+        <button id="icrTabBtn"         class="nav-child" style="display:none" onclick="switchTab('icr',this)">Intercompany Rolloff</button>
+        <button id="crcTabBtn"         class="nav-child" style="display:none" onclick="switchTab('crc',this)">Consolidated Rolloff</button>
+        <button id="kpisTabBtn"        class="nav-child" style="display:none" onclick="switchTab('kpis',this)">Scale KPIs</button>
+        <button id="rvTabBtn"          class="nav-child" style="display:none" onclick="switchTab('rvisual',this)">Rolloff Visual</button>
+        <button id="xferTabBtn"        class="nav-child" style="display:none" onclick="switchTab('xfer',this)">Xfer Station</button>
+        <button id="blaTabBtn"         class="nav-child" style="display:none" onclick="switchTab('bla',this)">Business Line Analysis</button>
       </div>
     </div>
-    <button class="nav-solo" onclick="switchTab('rolloffs',this)">Roll-offs</button>
+    <button id="rolloffsSolo" class="nav-solo" onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button id="filesTabBtn"  class="nav-solo" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="actionTabBtn" class="nav-solo" style="display:none" onclick="switchTab('action',this)">Workflow</button>
     <button id="importTabBtn" class="nav-solo" style="display:none" onclick="switchTab('import',this)">Import</button>
@@ -2429,7 +2433,10 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <div id="tab-add"    style="display:none"></div>
     <div id="tab-report" style="display:none"></div>
     <div id="tab-rolloffs" style="display:none"></div>
-    <div id="tab-irr"    style="display:none"></div>
+    <div id="tab-dailyscale" style="display:none"></div>
+    <div id="tab-icr"    style="display:none"></div>
+    <div id="tab-crc"    style="display:none"></div>
+    <div id="tab-kpis"   style="display:none"></div>
     <div id="tab-rvisual" style="display:none"></div>
     <div id="tab-xfer"   style="display:none"></div>
     <div id="tab-bla"    style="display:none"></div>
@@ -2913,14 +2920,22 @@ async function login() {
   applyUserTheme(data);
   if(data.role==='admin' || data.username==='jack') document.getElementById('importTabBtn').style.display='';
   if(data.username==='david'||data.username==='jack'||data.role==='admin') {
-    document.getElementById('irrTabBtn').style.display='';
     document.getElementById('filesTabBtn').style.display='';
   }
   if(['david','chris','jack','admin'].includes(data.username) || data.role==='admin') {
+    document.getElementById('dailyScaleTabBtn').style.display='';
+    document.getElementById('icrTabBtn').style.display='';
+    document.getElementById('crcTabBtn').style.display='';
+    document.getElementById('kpisTabBtn').style.display='';
     document.getElementById('xferTabBtn').style.display='';
     document.getElementById('blaTabBtn').style.display='';
     document.getElementById('rvTabBtn').style.display='';
     document.getElementById('navGroup-analysis').style.display='';
+  }
+  // For David + Chris (+ admin): move Roll-offs into Client Management
+  if(['david','chris','admin'].includes(data.username) || data.role==='admin') {
+    document.getElementById('rolloffsClientChild').style.display='';
+    document.getElementById('rolloffsSolo').style.display='none';
   }
   // Restore persisted nav-group collapsed state + rail collapsed state
   applyNavGroupState();
@@ -3046,7 +3061,7 @@ async function loadNotes(baseId){
 // Which group does each tab belong to? (Used for auto-expand on switch.)
 const NAV_GROUP_OF_TAB = {
   lookup:'clients', add:'clients', report:'clients',
-  irr:'analysis', rvisual:'analysis', xfer:'analysis', bla:'analysis'
+  dailyscale:'analysis', icr:'analysis', crc:'analysis', kpis:'analysis', rvisual:'analysis', xfer:'analysis', bla:'analysis'
 };
 function toggleNavGroup(id){
   const el = document.getElementById('navGroup-'+id);
@@ -3092,7 +3107,7 @@ function expandNavGroupFor(tabName){
 }
 function switchTab(name,btn){
   expandNavGroupFor(name);
-  ['lookup','add','report','rolloffs','irr','rvisual','xfer','bla','files','cmd','action','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','dailyscale','icr','crc','kpis','rvisual','xfer','bla','files','cmd','action','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -3105,7 +3120,10 @@ function switchTab(name,btn){
   if(name==='add')    renderAdd();
   if(name==='report') renderReport();
   if(name==='rolloffs') renderRolloffs();
-  if(name==='irr')    renderIRR();
+  if(name==='dailyscale') renderDailyScale();
+  if(name==='icr')    renderIntercompanyTab();
+  if(name==='crc')    renderConsolidatedTab();
+  if(name==='kpis')   renderScaleKpis();
   if(name==='rvisual') renderRolloffVisual();
   if(name==='xfer')   renderXfer();
   if(name==='bla')    renderBLA();
@@ -6236,61 +6254,67 @@ function irrResizeChart(delta) {
   if(irrChart) irrChart.resize();
 }
 
-function renderIRR() {
-  const tab = document.getElementById('tab-irr');
+// Daily Scale Report (top-level Analysis tab) — same upload + history
+// flow that lived inside the old IRR Scale parent.
+function renderDailyScale() {
+  const tab = document.getElementById('tab-dailyscale');
   tab.innerHTML = `<div class="irr-wrap">
-    <div class="irr-subnav">
-      <button id="irrSubUpload" class="${irrActiveView==='upload'?'active':''}" onclick="irrSwitchView('upload')">Daily Scale Report</button>
-      <button id="irrSubICR" class="${irrActiveView==='icr'?'active':''}" onclick="irrSwitchView('icr')">Intercompany Rolloff Report</button>
-      <button id="irrSubCRC" class="${irrActiveView==='crc'?'active':''}" onclick="irrSwitchView('crc')">Consolidated Rolloff</button>
-      <button id="irrSubDash" class="${irrActiveView==='dashboard'?'active':''}" onclick="irrSwitchView('dashboard')">KPIs & Tools</button>
-    </div>
-    <div id="irrViewUpload" style="display:${irrActiveView==='upload'?'':'none'}">
-      <div id="irrUploadSection">
-        <div class="irr-drop" id="irrDropZone">
-          <input type="file" id="irrFileInput" accept=".xls,.xlsx" onchange="irrHandleFile(this.files[0])">
-          <div class="irr-drop-icon" style="font-size:14px;color:var(--gray-400);margin-bottom:8px;">XLS</div>
-          <div class="irr-drop-label">Drop your <strong>daily .xls export</strong> here or click to browse</div>
-        </div>
-        <div class="irr-status" id="irrStatus"></div>
+    <div id="irrUploadSection">
+      <div class="irr-drop" id="irrDropZone">
+        <input type="file" id="irrFileInput" accept=".xls,.xlsx" onchange="irrHandleFile(this.files[0])">
+        <div class="irr-drop-icon" style="font-size:14px;color:var(--gray-400);margin-bottom:8px;">XLS</div>
+        <div class="irr-drop-label">Drop your <strong>daily .xls export</strong> here or click to browse</div>
       </div>
-      <div id="irrReportView"></div>
-      <div id="irrBulkSection" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--gray-200);">
-        <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px;">Historical Import</div>
-        <div style="display:flex;gap:10px;align-items:center;">
-          <label class="irr-btn irr-btn-secondary" style="cursor:pointer;position:relative;">
-            Import YTD File
-            <input type="file" accept=".xls,.xlsx" onchange="irrHandleBulk(this.files[0])" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
-          </label>
-          <span style="font-size:11px;color:var(--gray-400);">Upload a date-range export to populate daily history</span>
-        </div>
-        <div class="irr-status" id="irrBulkStatus" style="margin-top:8px;"></div>
+      <div class="irr-status" id="irrStatus"></div>
+    </div>
+    <div id="irrReportView"></div>
+    <div id="irrBulkSection" style="margin-top:24px;padding-top:20px;border-top:1px solid var(--gray-200);">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px;">Historical Import</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <label class="irr-btn irr-btn-secondary" style="cursor:pointer;position:relative;">
+          Import YTD File
+          <input type="file" accept=".xls,.xlsx" onchange="irrHandleBulk(this.files[0])" style="position:absolute;inset:0;opacity:0;cursor:pointer;">
+        </label>
+        <span style="font-size:11px;color:var(--gray-400);">Upload a date-range export to populate daily history</span>
       </div>
-      <div class="irr-history" id="irrHistory"></div>
+      <div class="irr-status" id="irrBulkStatus" style="margin-top:8px;"></div>
     </div>
-    <div id="irrViewDash" style="display:${irrActiveView==='dashboard'?'':'none'}">
-      <div id="irrDashContent"></div>
-    </div>
-    <div id="irrViewICR" style="display:${irrActiveView==='icr'?'':'none'}">
-      <div id="irrICRContent"></div>
-    </div>
-    <div id="irrViewCRC" style="display:${irrActiveView==='crc'?'':'none'}">
-      <div id="irrCRCContent"></div>
-    </div>
+    <div class="irr-history" id="irrHistory"></div>
   </div>`;
-
   const dz = document.getElementById('irrDropZone');
   dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
   dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
   dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');irrHandleFile(e.dataTransfer.files[0]);});
-
   if(irrCurrentData) {
     document.getElementById('irrUploadSection').style.display='none';
     irrHandleFile._restore && irrHandleFile._restore();
   }
-
   irrLoadHistoryView();
-  if(irrActiveView==='dashboard') irrLoadDashboard();
+}
+
+// Intercompany Rolloff (top-level Analysis tab)
+function renderIntercompanyTab(){
+  const tab = document.getElementById('tab-icr');
+  tab.innerHTML = '<div class="irr-wrap"><div id="irrICRContent"></div></div>';
+  icrLoadReport();
+}
+
+// Consolidated Rolloff (top-level Analysis tab)
+function renderConsolidatedTab(){
+  const tab = document.getElementById('tab-crc');
+  tab.innerHTML = '<div class="irr-wrap"><div id="irrCRCContent"></div></div>';
+  crcLoadReport();
+}
+
+// Scale KPIs — placeholder until Phase 2 rebuild lands.
+function renderScaleKpis(){
+  const tab = document.getElementById('tab-kpis');
+  tab.innerHTML = `<div class="irr-wrap" style="text-align:center;padding:60px 24px;color:var(--gray-500);">
+    <h2 style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--navy);font-weight:400;margin-bottom:8px;">Scale KPIs</h2>
+    <p style="font-size:13px;line-height:1.6;max-width:520px;margin:0 auto;">
+      Rebuild in progress. This tab will host the KPI grid (rolloffs + walk-ins + outbound + breakdown) with Week / Month / Custom date-range modes, in the same visual format as the Intercompany Rolloff weekly grid. Numbers will tie out to the Daily Scale Report email and Scale Monthly Review.
+    </p>
+  </div>`;
 }
 
 function irrSwitchView(view) {
@@ -8160,9 +8184,6 @@ function icrRenderReport(allData, container) {
       <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrExportFile()">Export File</button>
       <button class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
       <button class="icr-nav-btn" style="background:var(--gold);color:white;border-color:var(--gold);" onclick="icrShowMonthly()">Scale Monthly Review</button>
-      <button class="icr-nav-btn" style="background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
-      <button class="icr-nav-btn" style="background:var(--teal-dim);color:white;border-color:var(--teal-dim);" onclick="icrShowYearly()">Yearly Report</button>
-      <button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
     </div>
     <table class="icr-table">
       <thead><tr>
@@ -10532,14 +10553,21 @@ if(_saved && _saved !== '1'){
     applyUserTheme(currentUser);
     if(currentUser.role==='admin' || currentUser.username==='jack') document.getElementById('importTabBtn').style.display='';
     if(currentUser.username==='david'||currentUser.username==='jack'||currentUser.role==='admin') {
-      document.getElementById('irrTabBtn').style.display='';
       document.getElementById('filesTabBtn').style.display='';
     }
     if(['david','chris','jack','admin'].includes(currentUser.username) || currentUser.role==='admin') {
+      document.getElementById('dailyScaleTabBtn').style.display='';
+      document.getElementById('icrTabBtn').style.display='';
+      document.getElementById('crcTabBtn').style.display='';
+      document.getElementById('kpisTabBtn').style.display='';
       document.getElementById('xferTabBtn').style.display='';
       document.getElementById('blaTabBtn').style.display='';
       document.getElementById('rvTabBtn').style.display='';
       document.getElementById('navGroup-analysis').style.display='';
+    }
+    if(['david','chris','admin'].includes(currentUser.username) || currentUser.role==='admin') {
+      document.getElementById('rolloffsClientChild').style.display='';
+      document.getElementById('rolloffsSolo').style.display='none';
     }
     if(currentUser.username==='david'){
       document.getElementById('actionTabBtn').style.display='';
