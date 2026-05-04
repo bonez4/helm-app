@@ -7707,8 +7707,40 @@ async function irrAutoSaveFile(file, reportDate) {
   const dateParts = reportDate ? reportDate.split('/') : [];
   const dateLabel = dateParts.length===3 ? dateParts[2]+'-'+dateParts[0].padStart(2,'0')+'-'+dateParts[1].padStart(2,'0') : new Date().toISOString().split('T')[0];
   const fileName = 'Scale_Report_'+dateLabel+'.xls';
-  const storagePath = folderId+'/'+Date.now()+'-'+fileName;
 
+  // ── Dedupe pass ──
+  // Walk the entire folder once. For every filename we see more than once,
+  // mark every copy except the most-recently uploaded for removal. Also
+  // mark every existing copy of THIS upload's filename for removal so
+  // we can replace it cleanly. Cleans up legacy duplicates organically
+  // every time someone uploads, without needing a separate UI button.
+  try {
+    const {data: existing} = await db.from('helm_files')
+      .select('id, filename, storage_path, uploaded_at')
+      .eq('folder_id', folderId)
+      .order('uploaded_at', {ascending: false});
+    if(existing && existing.length){
+      const seen = new Set();
+      const toDelete = [];
+      for(const f of existing){
+        // Always replace the file we're about to upload
+        if(f.filename === fileName){ toDelete.push(f); continue; }
+        // For other names: keep the newest, drop older duplicates
+        if(seen.has(f.filename)) toDelete.push(f);
+        else seen.add(f.filename);
+      }
+      if(toDelete.length){
+        const paths = toDelete.map(f=>f.storage_path);
+        const ids = toDelete.map(f=>f.id);
+        try { await db.storage.from('helm-files').remove(paths); } catch(_){}
+        await db.from('helm_files').delete().in('id', ids);
+      }
+    }
+  } catch(e){ console.warn('Dedupe pass failed:', e.message); }
+
+  // Upload the new copy. Storage path keeps the timestamp prefix so a
+  // future re-upload doesn't collide with an in-flight download.
+  const storagePath = folderId+'/'+Date.now()+'-'+fileName;
   const {error:sErr} = await db.storage.from('helm-files').upload(storagePath, file, {
     contentType: file.type || 'application/octet-stream',
     upsert: false,
