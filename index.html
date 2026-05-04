@@ -8159,6 +8159,7 @@ function icrRenderReport(allData, container) {
       <input type="date" value="${icrWeekStart}" onchange="icrJumpToWeek(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
       <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrExportFile()">Export File</button>
       <button class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
+      <button class="icr-nav-btn" style="background:var(--gold);color:white;border-color:var(--gold);" onclick="icrShowMonthly()">Monthly Report</button>
       <button class="icr-nav-btn" style="background:var(--teal);color:white;border-color:var(--teal);" onclick="icrShowQuarterly()">Quarterly Report</button>
       <button class="icr-nav-btn" style="background:var(--teal-dim);color:white;border-color:var(--teal-dim);" onclick="icrShowYearly()">Yearly Report</button>
       <button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);" onclick="icrShowProjections()">Projections</button>
@@ -9314,6 +9315,349 @@ function icrRenderYearly(){
     icrYearlyCharts.push(revChart);
     helmAddChartToolbar(revCanvas.parentElement, revChart, 'Yearly Report — Revenue per Day');
   }, 60);
+}
+
+// ── ICR MONTHLY ROLLOFF REPORT ──────────────────────────────────────
+// Month-end summary report with three sections:
+//   - Consolidated Totals (Rev/Load, Total Revenue, Loads, Tons/Load)
+//   - Vinagro outbound (Loads, Total Tons, Avg Tons/Load)
+//   - Rolloff Breakdown (loads, empty/return + double-drop counts vs
+//     deliveries, consolidated rev/load on empty/return trips, plus
+//     per-company rolloff counts)
+// Exports: PDF + XLSX. Auto-saves both to Files under "Monthly Rolloff
+// Report". Email button opens a Gmail draft with the HTML body.
+
+let icrMonthlyMonth = null;   // 'YYYY-MM'
+
+// Default to previous calendar month (typical month-end report timing).
+function icrMonthlyDefaultMonth(){
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function icrMonthlyMonthLabel(ym){
+  const [y,m] = ym.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+}
+function icrMonthlyRange(ym){
+  const [y,m] = ym.split('-').map(Number);
+  const start = y+'-'+String(m).padStart(2,'0')+'-01';
+  // End = last day of month
+  const last = new Date(y, m, 0).getDate();
+  const end = y+'-'+String(m).padStart(2,'0')+'-'+String(last).padStart(2,'0');
+  return {start, end, label: icrMonthlyMonthLabel(ym)};
+}
+
+async function icrShowMonthly(){
+  if(!icrMonthlyMonth) icrMonthlyMonth = icrMonthlyDefaultMonth();
+  const {start, end, label} = icrMonthlyRange(icrMonthlyMonth);
+
+  const {data, error} = await db.from('irr_reports').select('*')
+    .gte('report_date', start).lte('report_date', end).order('report_date');
+  if(error){ toast('Monthly report error: '+error.message); return; }
+  await irrLoadRates();
+
+  // Backfill IC revenue from rates if a row was saved before revenue parsing
+  // was wired up — same approach as the Yearly report.
+  for(const d of (data||[])){
+    const {ir, er} = irrRatesFor(d.report_date);
+    if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0)
+      d.island_revenue = ir.hook_fee*d.island_tickets + (ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0);
+    if(er && !(parseFloat(d.santos_revenue)>0) && (d.santos_tickets||0)>0)
+      d.santos_revenue = er.hook_fee*d.santos_tickets + (er.per_ton*(1+(er.ton_markup||0)))*parseFloat(d.santos_tons||0);
+  }
+  window._icrMonthlyData = data || [];
+  window._icrMonthlyLabel = label;
+  icrRenderMonthly();
+}
+
+function icrMonthlyAggregate(rows){
+  let reisTickets=0, islandTickets=0, santosTickets=0;
+  let reisTons=0, islandTons=0, santosTons=0;
+  let reisTipRev=0, reisSvcRev=0, islandRev=0, santosRev=0;
+  let reisDeliveries=0, reisEmpties=0, reisDoubleDrops=0;
+  let vinLoads=0, vinTons=0;
+  for(const d of rows){
+    reisTickets   += d.reis_tickets||0;
+    islandTickets += d.island_tickets||0;
+    santosTickets += d.santos_tickets||0;
+    reisTons      += parseFloat(d.reis_tons)||0;
+    islandTons    += parseFloat(d.island_tons)||0;
+    santosTons    += parseFloat(d.santos_tons)||0;
+    reisTipRev    += parseFloat(d.reis_tip_revenue)||0;
+    reisSvcRev    += parseFloat(d.reis_svc_revenue)||0;
+    islandRev     += parseFloat(d.island_revenue)||0;
+    santosRev     += parseFloat(d.santos_revenue)||0;
+    reisDeliveries  += d.reis_deliveries||0;
+    reisEmpties     += d.reis_empties||0;
+    reisDoubleDrops += d.reis_double_drops||0;
+    vinLoads += d.vinagro_loads||0;
+    vinTons  += parseFloat(d.vinagro_tons)||0;
+  }
+  // Consolidated rolloff totals (Reis + Island + East End)
+  const rolloffLoads = reisTickets + islandTickets + santosTickets;
+  const rolloffTons  = reisTons + islandTons + santosTons;
+  const rolloffRev   = reisTipRev + reisSvcRev + islandRev + santosRev;
+
+  // Empty/Return + Double-Drop ticket counts:
+  //   Reis side: empties + double_drops (the tipping events)
+  //   Island/East End: every ticket is an empty/return at our scale
+  const reisEmptyReturn = reisEmpties + reisDoubleDrops;
+  const consolidatedEmptyReturn = reisEmptyReturn + islandTickets + santosTickets;
+
+  // Rev/Load for Empty/Return trips (consolidated). Numerator =
+  // total rolloff revenue minus Reis delivery service fees ($100 each
+  // post-4/17). Denominator = consolidated empty/return loads.
+  const deliveryFees = reisDeliveries * 100;
+  const emptyReturnRev = rolloffRev - deliveryFees;
+  const revPerEmptyLoad = consolidatedEmptyReturn > 0
+    ? emptyReturnRev / consolidatedEmptyReturn : null;
+
+  return {
+    days: rows.length,
+    rolloffLoads, rolloffTons, rolloffRev,
+    revPerLoad: rolloffLoads>0 ? rolloffRev/rolloffLoads : null,
+    tonsPerLoad: rolloffLoads>0 ? rolloffTons/rolloffLoads : null,
+    vinLoads, vinTons,
+    vinTonsPerLoad: vinLoads>0 ? vinTons/vinLoads : null,
+    reisDeliveries, reisEmpties, reisDoubleDrops, reisEmptyReturn,
+    consolidatedEmptyReturn, revPerEmptyLoad,
+    reisTickets, islandTickets, santosTickets,
+  };
+}
+
+function icrMonthlyHtml(agg, label){
+  const fM = n => n==null||isNaN(n) ? '—' : '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fInt = n => n==null||isNaN(n) ? '—' : Math.round(Number(n)).toLocaleString();
+  const f2 = n => n==null||isNaN(n) ? '—' : Number(n).toFixed(2);
+  const sectHdr = (title) => '<tr><td colspan="2" style="padding:14px 0 4px 0;border-top:1px solid #d0d0d0;"><span style="font-weight:bold;font-size:14px;color:#000;text-decoration:underline;">'+title+'</span></td></tr>';
+  const firstHdr = (title) => '<tr><td colspan="2" style="padding:4px 0 4px 0;"><span style="font-weight:bold;font-size:14px;color:#000;text-decoration:underline;">'+title+'</span></td></tr>';
+  const row = (lbl, val) => '<tr><td style="padding:2px 0;font-size:13px;color:#222;">'+lbl+'</td><td style="padding:2px 0;font-size:13px;color:#222;text-align:right;font-family:monospace;">'+val+'</td></tr>';
+  const subRow = (lbl, val) => '<tr><td style="padding:2px 0 2px 18px;font-size:12px;color:#555;">'+lbl+'</td><td style="padding:2px 0;font-size:12px;color:#555;text-align:right;font-family:monospace;">'+val+'</td></tr>';
+  return ''
+    + '<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#222;max-width:480px;line-height:1.4;">'
+    + '<p style="margin:0 0 4px 0;color:#222;">Monthly rolloff summary for <strong>'+label+'</strong>.</p>'
+    + '<p style="margin:0 0 8px 0;color:#888;font-size:11px;">'+agg.days+' day'+(agg.days===1?'':'s')+' of scale data.</p>'
+    + '<table style="width:100%;border-collapse:collapse;">'
+    +   firstHdr('Consolidated Totals')
+    +   row('Rev / Load',     fM(agg.revPerLoad))
+    +   row('Total Revenue',  fM(agg.rolloffRev))
+    +   row('Loads',          fInt(agg.rolloffLoads))
+    +   row('Tons / Load',    f2(agg.tonsPerLoad))
+    +   sectHdr('Vinagro (Outbound)')
+    +   row('Loads',          fInt(agg.vinLoads))
+    +   row('Total Tons',     f2(agg.vinTons))
+    +   row('Avg Tons / Load',f2(agg.vinTonsPerLoad))
+    +   sectHdr('Rolloff Breakdown')
+    +   row('Loads',          fInt(agg.rolloffLoads))
+    +   row('Empty / Return + Double Drop Loads (Reis)',  fInt(agg.reisEmptyReturn))
+    +   row('Delivery Loads (Reis)',                      fInt(agg.reisDeliveries))
+    +   row('Rev / Load — Empty/Return (consolidated)',   fM(agg.revPerEmptyLoad))
+    +   '<tr><td colspan="2" style="padding:6px 0 0 0;"></td></tr>'
+    +   subRow('Reis Rolloff Count',           fInt(agg.reisTickets))
+    +   subRow('Island Rubbish Rolloff Count', fInt(agg.islandTickets))
+    +   subRow('Santos (East End) Rolloff Count', fInt(agg.santosTickets))
+    + '</table>'
+    + '</div>';
+}
+
+function icrRenderMonthly(){
+  const data = window._icrMonthlyData || [];
+  const label = window._icrMonthlyLabel || icrMonthlyMonthLabel(icrMonthlyMonth);
+  const agg = icrMonthlyAggregate(data);
+  const bodyHtml = icrMonthlyHtml(agg, label);
+
+  const existing = document.getElementById('icrMonthlyOverlay');
+  if(existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'irr-report-overlay';
+  overlay.id = 'icrMonthlyOverlay';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+
+  // Build month options: every month for which we MIGHT have data
+  // (current year + last 2 years, capped at this month).
+  const monthOpts = [];
+  const today = new Date();
+  for(let y=today.getFullYear(); y>=today.getFullYear()-2; y--){
+    for(let m=12; m>=1; m--){
+      if(y===today.getFullYear() && m>today.getMonth()+1) continue;
+      const ym = y+'-'+String(m).padStart(2,'0');
+      monthOpts.push('<option value="'+ym+'" '+(ym===icrMonthlyMonth?'selected':'')+'>'+icrMonthlyMonthLabel(ym)+'</option>');
+    }
+  }
+
+  overlay.innerHTML = '<div class="irr-report-modal" style="max-width:780px;">'
+    + '<div class="irr-report-toolbar" style="flex-wrap:wrap;gap:6px;">'
+    +   '<span style="font-size:11px;color:var(--gray-500);font-weight:600;">Month</span>'
+    +   '<select onchange="icrMonthlyMonth=this.value;icrShowMonthly()" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">'+monthOpts.join('')+'</select>'
+    +   '<button class="rpt-print" style="margin-left:auto;" onclick="icrMonthlyEmail()">Email</button>'
+    +   '<button class="rpt-print" onclick="icrMonthlySaveToFiles()">Save to Files (PDF + XLSX)</button>'
+    +   '<button class="rpt-print" onclick="icrMonthlyDownload(\'pdf\')">Download PDF</button>'
+    +   '<button class="rpt-print" onclick="icrMonthlyDownload(\'xlsx\')">Download XLSX</button>'
+    +   '<button class="rpt-close" onclick="document.getElementById(\'icrMonthlyOverlay\').remove()">Close</button>'
+    + '</div>'
+    + '<div class="irr-report-body" id="icrMonthlyBody">'
+    +   '<h1 style="font-size:18px;font-weight:700;margin-bottom:4px;color:var(--navy);">Monthly Rolloff Report — '+label+'</h1>'
+    +   '<div style="background:white;padding:18px;border-radius:6px;border:1px solid var(--gray-200);">'+bodyHtml+'</div>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+}
+
+// ── Build the XLSX (.xls HTML format, same pattern as other exports) ──
+function icrMonthlyXlsxBlob(agg, label){
+  const fM = n => n==null||isNaN(n) ? '' : '$'+Number(n).toFixed(2);
+  const fInt = n => n==null||isNaN(n) ? '' : Math.round(Number(n));
+  const f2 = n => n==null||isNaN(n) ? '' : Number(n).toFixed(2);
+  const cell = (v,bold,bg)=>'<td style="border:1px solid #999;padding:6px 10px;font-size:12px;'+(bold?'font-weight:bold;':'')+(bg?'background:'+bg+';':'')+'">'+(v==null?'':v)+'</td>';
+  const numCell = (v)=>'<td style="border:1px solid #999;padding:6px 10px;font-size:12px;text-align:right;font-family:Consolas,monospace;">'+(v==null?'':v)+'</td>';
+  const hdr = (txt)=>'<tr>'+'<td colspan="2" style="background:#0f1f3d;color:#fff;padding:8px 10px;font-size:12px;font-weight:bold;border:1px solid #999;">'+txt+'</td></tr>';
+  const r = (lbl,val)=>'<tr>'+cell(lbl)+numCell(val)+'</tr>';
+  const html = '<html><body>'
+    + '<h2 style="font-family:Arial;color:#0f1f3d;">Monthly Rolloff Report &mdash; '+label+'</h2>'
+    + '<div style="font-size:11px;color:#666;font-family:Arial;">'+agg.days+' day'+(agg.days===1?'':'s')+' of scale data</div>'
+    + '<table style="border-collapse:collapse;font-family:Arial,sans-serif;margin-top:8px;">'
+    +   hdr('Consolidated Totals')
+    +   r('Rev / Load', fM(agg.revPerLoad))
+    +   r('Total Revenue', fM(agg.rolloffRev))
+    +   r('Loads', fInt(agg.rolloffLoads))
+    +   r('Tons / Load', f2(agg.tonsPerLoad))
+    +   hdr('Vinagro (Outbound)')
+    +   r('Loads', fInt(agg.vinLoads))
+    +   r('Total Tons', f2(agg.vinTons))
+    +   r('Avg Tons / Load', f2(agg.vinTonsPerLoad))
+    +   hdr('Rolloff Breakdown')
+    +   r('Loads', fInt(agg.rolloffLoads))
+    +   r('Empty / Return + Double Drop Loads (Reis)', fInt(agg.reisEmptyReturn))
+    +   r('Delivery Loads (Reis)', fInt(agg.reisDeliveries))
+    +   r('Rev / Load — Empty/Return (consolidated)', fM(agg.revPerEmptyLoad))
+    +   r('Reis Rolloff Count', fInt(agg.reisTickets))
+    +   r('Island Rubbish Rolloff Count', fInt(agg.islandTickets))
+    +   r('Santos (East End) Rolloff Count', fInt(agg.santosTickets))
+    + '</table>'
+    + '</body></html>';
+  return new Blob(['\ufeff', html], {type:'application/vnd.ms-excel'});
+}
+
+function icrMonthlyFilename(label, ext){
+  return 'Monthly_Rolloff_Report_' + label.replace(/\s+/g,'_') + '.' + ext;
+}
+
+// Build a clean printable element for PDF export.
+function icrMonthlyBuildPrintEl(agg, label){
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'padding:24px;font-family:Arial,Helvetica,sans-serif;color:#222;max-width:600px;margin:0 auto;background:white;';
+  wrap.innerHTML = '<h1 style="font-size:20px;font-weight:700;margin:0 0 4px 0;color:#0f1f3d;">Monthly Rolloff Report</h1>'
+    + '<div style="font-size:13px;color:#666;margin-bottom:14px;">'+label+' — '+agg.days+' day'+(agg.days===1?'':'s')+' of scale data</div>'
+    + icrMonthlyHtml(agg, label);
+  return wrap;
+}
+
+async function icrMonthlyDownload(fmt){
+  const data = window._icrMonthlyData || [];
+  const label = window._icrMonthlyLabel || icrMonthlyMonthLabel(icrMonthlyMonth);
+  const agg = icrMonthlyAggregate(data);
+  if(fmt === 'xlsx'){
+    const blob = icrMonthlyXlsxBlob(agg, label);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = icrMonthlyFilename(label,'xls');
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    return;
+  }
+  // PDF
+  const el = icrMonthlyBuildPrintEl(agg, label);
+  document.body.appendChild(el);
+  try {
+    await html2pdf().set({
+      margin: 0.4, filename: icrMonthlyFilename(label,'pdf'),
+      image:{type:'jpeg',quality:0.96},
+      html2canvas:{scale:2, useCORS:true},
+      jsPDF:{unit:'in',format:'letter',orientation:'portrait'},
+    }).from(el).save();
+  } finally {
+    el.remove();
+  }
+}
+
+async function icrMonthlySaveToFiles(){
+  if(!currentUser){ toast('Sign in first'); return; }
+  const data = window._icrMonthlyData || [];
+  const label = window._icrMonthlyLabel || icrMonthlyMonthLabel(icrMonthlyMonth);
+  const agg = icrMonthlyAggregate(data);
+  toast('Generating PDF + XLSX…');
+
+  // Find or create the "Monthly Rolloff Report" shared folder
+  const folderName = 'Monthly Rolloff Report';
+  let {data:folders} = await db.from('helm_folders').select('id').eq('name',folderName).eq('scope','shared').limit(1);
+  let folderId;
+  if(folders && folders.length > 0){
+    folderId = folders[0].id;
+  } else {
+    const {data:newFolder, error} = await db.from('helm_folders').insert({name:folderName,scope:'shared',owner:null,created_by:currentUser.username}).select().single();
+    if(error || !newFolder){ toast('Could not create folder: '+(error?error.message:'unknown')); return; }
+    folderId = newFolder.id;
+  }
+
+  // 1) Generate PDF as a Blob
+  const printEl = icrMonthlyBuildPrintEl(agg, label);
+  document.body.appendChild(printEl);
+  let pdfBlob;
+  try {
+    pdfBlob = await html2pdf().set({
+      margin: 0.4,
+      image:{type:'jpeg',quality:0.96},
+      html2canvas:{scale:2, useCORS:true},
+      jsPDF:{unit:'in',format:'letter',orientation:'portrait'},
+    }).from(printEl).output('blob');
+  } finally {
+    printEl.remove();
+  }
+  // 2) Generate XLSX blob
+  const xlsBlob = icrMonthlyXlsxBlob(agg, label);
+
+  const baseName = icrMonthlyFilename(label,'').replace(/\.$/,'');
+  const ts = Date.now();
+
+  async function uploadOne(blob, ext, mime){
+    const fileName = baseName + '.' + ext;
+    const storagePath = folderId + '/' + ts + '-' + fileName;
+    const {error:sErr} = await db.storage.from('helm-files').upload(storagePath, blob, {contentType: mime, upsert:false});
+    if(sErr){ toast('Upload failed ('+ext+'): '+sErr.message); return false; }
+    await db.from('helm_files').insert({
+      folder_id: folderId, filename: fileName, storage_path: storagePath,
+      size_bytes: blob.size, mime_type: mime, uploaded_by: currentUser.username,
+    });
+    return true;
+  }
+  const okPdf = await uploadOne(pdfBlob,'pdf','application/pdf');
+  const okXls = await uploadOne(xlsBlob,'xls','application/vnd.ms-excel');
+  if(okPdf && okXls){
+    toast('Saved to Files → Monthly Rolloff Report', true);
+  } else if(okPdf || okXls){
+    toast('Partial save — check Files', true);
+  }
+}
+
+function icrMonthlyEmail(){
+  const data = window._icrMonthlyData || [];
+  const label = window._icrMonthlyLabel || icrMonthlyMonthLabel(icrMonthlyMonth);
+  const agg = icrMonthlyAggregate(data);
+  const bodyHtml = icrMonthlyHtml(agg, label);
+  const subject = 'Monthly Rolloff Report — '+label;
+  // Open Gmail compose; fallback to mailto if gmail can't be reached.
+  const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(subject)
+    + '&body='+encodeURIComponent(bodyHtml.replace(/<[^>]+>/g,'')); // gmail compose doesn't take HTML; falls back to plain
+  // Better UX: copy HTML to clipboard so user can paste rich content.
+  if(navigator.clipboard && window.ClipboardItem){
+    const blob = new Blob([bodyHtml], {type:'text/html'});
+    const txt  = new Blob([bodyHtml.replace(/<[^>]+>/g,'')], {type:'text/plain'});
+    navigator.clipboard.write([new ClipboardItem({'text/html':blob,'text/plain':txt})])
+      .then(()=>{ toast('Report copied — paste into your email', true); })
+      .catch(()=>{ window.open(gmailUrl,'_blank'); });
+  } else {
+    window.open(gmailUrl,'_blank');
+  }
 }
 
 async function icrShowProjections() {
