@@ -2341,6 +2341,85 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
   background:rgba(26,155,138,0.18); border-color:#1a9b8a; color:#5eead4;
 }
 
+/* ── SCALE KPIs — SEC-style polished table ──────────────────────────── */
+.kpi-wrap{max-width:1400px;margin:0 auto;padding:0.5rem 0 2rem;}
+.kpi-toolbar{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:10px 0 12px;border-bottom:1px solid var(--gray-200);margin-bottom:14px;
+}
+.kpi-period{
+  font-family:'DM Sans',sans-serif;font-size:13px;color:var(--navy);font-weight:600;
+  margin:0 8px;white-space:nowrap;
+}
+.kpi-period .kpi-period-sub{
+  display:block;font-weight:400;font-size:10px;color:var(--gray-500);margin-top:1px;
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.kpi-mode-strip{display:flex;gap:0;border:1px solid var(--gray-300);border-radius:5px;overflow:hidden;}
+.kpi-mode-strip button{
+  background:var(--white);border:none;border-right:1px solid var(--gray-200);
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;color:var(--gray-600);
+  padding:6px 14px;cursor:pointer;transition:all .1s;
+}
+.kpi-mode-strip button:last-child{border-right:none;}
+.kpi-mode-strip button:hover:not(.active){background:var(--gray-100);color:var(--navy);}
+.kpi-mode-strip button.active{background:var(--navy);color:white;}
+
+.kpi-table{
+  width:100%;border-collapse:collapse;
+  font-family:'DM Sans',sans-serif;font-size:12px;
+  border-top:2px solid var(--navy);border-bottom:2px solid var(--navy);
+  background:var(--white);
+}
+.kpi-table thead th{
+  font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;
+  color:var(--gray-700);padding:9px 8px 8px;background:var(--gray-50);
+  border-bottom:1px solid var(--gray-300);text-align:right;white-space:nowrap;
+}
+.kpi-table thead th:first-child{text-align:left;width:300px;}
+.kpi-table thead th .sub{
+  display:block;font-weight:400;font-size:9px;color:var(--gray-400);
+  margin-top:1px;letter-spacing:0;text-transform:none;
+}
+.kpi-table tbody td{
+  padding:5px 10px;font-size:12px;text-align:right;
+  font-family:'DM Mono',monospace;color:var(--gray-800);
+  border-bottom:1px solid var(--gray-100);white-space:nowrap;
+}
+.kpi-table tbody td:first-child{
+  text-align:left;font-family:'DM Sans',sans-serif;
+  color:var(--gray-700);font-weight:500;letter-spacing:.005em;
+}
+/* Section header rows — dark navy bar, white uppercase title */
+.kpi-table tbody tr.kpi-section td{
+  background:var(--navy);color:white;
+  font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;
+  letter-spacing:0.10em;text-transform:uppercase;
+  padding:7px 12px;text-align:left;border-bottom:none;
+}
+.kpi-table tbody tr.kpi-section + tr td{border-top:1px solid var(--gray-300);}
+/* Subtle zebra stripe on alternating data rows */
+.kpi-table tbody tr.kpi-stripe td{background:#fafbfd;}
+/* Sub-rows (per-company counts) — indented + lighter */
+.kpi-table tbody tr.kpi-subrow td:first-child{
+  padding-left:26px;color:var(--gray-500);font-weight:400;font-size:11px;
+}
+.kpi-table tbody tr.kpi-subrow td{font-size:11px;color:var(--gray-600);}
+/* Total / emphasis row — bold + faint top border */
+.kpi-table tbody tr.kpi-total td{
+  font-weight:700;color:var(--navy);background:#f5f7fa;
+  border-top:1px solid var(--gray-300);
+}
+/* Aggregate columns (WTD / MTD / Range / Month / YTD) — soft tint */
+.kpi-table tbody td.kpi-agg{background:#f3f6fa;font-weight:600;color:var(--navy);}
+.kpi-table tbody tr.kpi-stripe td.kpi-agg{background:#edf1f7;}
+.kpi-table tbody tr.kpi-total td.kpi-agg{background:#e7edf5;}
+.kpi-table tbody td.kpi-empty{color:var(--gray-300);}
+/* YTD column gets a left border so it visually separates as "context" */
+.kpi-table thead th.kpi-ytd, .kpi-table tbody td.kpi-ytd{
+  border-left:1px solid var(--gray-300);
+}
+
 </style>
 </head>
 <body>
@@ -6427,24 +6506,35 @@ function kpiRenderUI(tab){
   const cols = kpiBuildColumns();
   const colAggs = cols.map(c => kpiAggregate(kpiRowsBetween(c.start, c.end)));
 
-  // ── Top toolbar: mode selector + date controls + Generate Report ──
+  // ── Period descriptor (the sub-line under the toolbar) ──
+  const today = new Date();
+  let periodLabel = '', periodSub = '';
+  if(kpiState.mode === 'week'){
+    const wd = new Date(kpiState.weekStart+'T00:00:00');
+    periodLabel = 'Week of '+wd.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    const ws = kpiState.weekStart, we = kpiAddDays(ws, 5);
+    periodSub  = kpiPrettyDate(ws)+' — '+kpiPrettyDate(we);
+  } else if(kpiState.mode === 'month'){
+    periodLabel = kpiMonthLabel(kpiState.monthSel);
+    const [y,m] = kpiState.monthSel.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    periodSub = '1 — '+lastDay+', '+y;
+  } else {
+    periodLabel = 'Custom Range';
+    periodSub  = kpiPrettyDate(kpiState.customStart)+' — '+kpiPrettyDate(kpiState.customEnd);
+  }
+
+  // ── Mode strip + date controls ──
   const modeBtn = (id, label) =>
-    '<button class="icr-nav-btn'+(kpiState.mode===id?' active':'')+'" '
-    +'style="'+(kpiState.mode===id?'background:var(--navy);color:white;border-color:var(--navy);':'')+'" '
-    +'onclick="kpiSetMode(\''+id+'\')">'+label+'</button>';
+    '<button class="'+(kpiState.mode===id?'active':'')+'" onclick="kpiSetMode(\''+id+'\')">'+label+'</button>';
 
   let dateControls = '';
   if(kpiState.mode === 'week'){
-    const wd = new Date(kpiState.weekStart+'T00:00:00');
-    const wkLabel = 'Week of '+wd.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
     dateControls =
       '<button class="icr-nav-btn" onclick="kpiPrevWeek()">&larr;</button>'
-      +'<h3 style="margin:0 6px;font-size:13px;color:var(--navy);">'+wkLabel+'</h3>'
       +'<button class="icr-nav-btn" onclick="kpiNextWeek()">&rarr;</button>'
-      +'<input type="date" value="'+kpiState.weekStart+'" onchange="kpiJumpWeek(this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">';
+      +'<input type="date" value="'+kpiState.weekStart+'" onchange="kpiJumpWeek(this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">';
   } else if(kpiState.mode === 'month'){
-    // Month dropdown — current year + last 2 years, capped at this month
-    const today = new Date();
     const opts = [];
     for(let y=today.getFullYear(); y>=today.getFullYear()-2; y--){
       for(let m=12; m>=1; m--){
@@ -6454,96 +6544,117 @@ function kpiRenderUI(tab){
       }
     }
     dateControls =
-      '<span style="font-size:11px;color:var(--gray-500);font-weight:600;">Month</span>'
-      +'<select onchange="kpiSetMonth(this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">'+opts.join('')+'</select>';
+      '<select onchange="kpiSetMonth(this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">'+opts.join('')+'</select>';
   } else {
     dateControls =
-      '<span style="font-size:11px;color:var(--gray-500);font-weight:600;">From</span>'
-      +'<input type="date" value="'+kpiState.customStart+'" onchange="kpiSetCustom(\'start\',this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">'
-      +'<span style="font-size:11px;color:var(--gray-500);font-weight:600;">To</span>'
+      '<input type="date" value="'+kpiState.customStart+'" onchange="kpiSetCustom(\'start\',this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">'
+      +'<span style="font-size:11px;color:var(--gray-400);">→</span>'
       +'<input type="date" value="'+kpiState.customEnd+'" onchange="kpiSetCustom(\'end\',this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">';
   }
 
-  // ── Build the grid ──
+  // ── Formatters (plain — empty cells render as a quiet em-dash) ──
   const fM    = n => n==null||isNaN(n)?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
   const fMc   = n => n==null||isNaN(n)?'—':'$'+Number(n).toFixed(2);
   const fInt  = n => !n?'—':Math.round(Number(n)).toLocaleString();
   const f2    = n => n==null||isNaN(n)?'—':Number(n).toFixed(2);
 
+  // ── Row builders ──
+  // Section header — single dark bar that spans all columns.
   const sectionHdr = (title) =>
-    '<tr class="icr-company-hdr"><td>'+title+'</td>'+'<td></td>'.repeat(cols.length)+'</tr>';
-  const blankSep = '<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(cols.length)+'</tr>';
-
-  const metricRow = (label, key, fmt) => {
-    let r = '<tr><td>'+label+'</td>';
+    '<tr class="kpi-section"><td colspan="'+(cols.length+1)+'">'+title+'</td></tr>';
+  // Metric row. `opts` may include {stripe:bool, total:bool, subrow:bool}.
+  const metricRow = (label, key, fmt, opts) => {
+    opts = opts || {};
+    const trCls = [];
+    if(opts.total)  trCls.push('kpi-total');
+    if(opts.subrow) trCls.push('kpi-subrow');
+    if(opts.stripe && !opts.total && !opts.subrow) trCls.push('kpi-stripe');
+    const trAttr = trCls.length ? ' class="'+trCls.join(' ')+'"' : '';
+    let r = '<tr'+trAttr+'><td>'+label+'</td>';
     cols.forEach((c, i) => {
       const v = colAggs[i][key];
-      const cls = c.kind==='agg' || c.kind==='wk' ? ' class="icr-agg"' : '';
-      r += '<td'+cls+'>'+fmt(v)+'</td>';
+      const tdCls = [];
+      if(c.kind==='agg' || c.kind==='wk') tdCls.push('kpi-agg');
+      if(c.label==='YTD') tdCls.push('kpi-ytd');
+      const tdAttr = tdCls.length ? ' class="'+tdCls.join(' ')+'"' : '';
+      r += '<td'+tdAttr+'>'+fmt(v)+'</td>';
     });
-    r += '</tr>';
-    return r;
+    return r + '</tr>';
   };
 
-  // Header
+  // ── Header row ──
   let head = '<thead><tr><th></th>';
   cols.forEach(c => {
-    head += '<th>'+c.label+(c.sub?'<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">'+c.sub+'</span>':'')+'</th>';
+    const cls = c.label==='YTD' ? ' class="kpi-ytd"' : '';
+    head += '<th'+cls+'>'+c.label+(c.sub?'<span class="sub">'+c.sub+'</span>':'')+'</th>';
   });
   head += '</tr></thead>';
 
-  // Body — sections
+  // ── Body ──
+  // Stripe counter resets per section so zebra rhythm starts fresh.
+  let stripeIdx = 0;
+  const S = () => (++stripeIdx) % 2 === 0;   // returns true on every other call
   let body = '<tbody>';
+
   // 1. Rolloff Totals
-  body += sectionHdr('ROLLOFF TOTALS');
-  body += metricRow('Loads',         'rolloffLoads', fInt);
-  body += metricRow('Total Tons',    'rolloffTons',  f2);
-  body += metricRow('Total Revenue', 'rolloffRev',   fM);
-  body += metricRow('Rev / Load',    'revPerLoad',   fMc);
-  body += metricRow('Tons / Load',   'tonsPerLoad',  f2);
-  body += blankSep;
+  body += sectionHdr('Rolloff Totals'); stripeIdx = 0;
+  body += metricRow('Loads',         'rolloffLoads', fInt, {stripe:S()});
+  body += metricRow('Total Tons',    'rolloffTons',  f2,   {stripe:S()});
+  body += metricRow('Tons / Load',   'tonsPerLoad',  f2,   {stripe:S()});
+  body += metricRow('Rev / Load',    'revPerLoad',   fMc,  {stripe:S()});
+  body += metricRow('Total Revenue', 'rolloffRev',   fM,   {total:true});
+
   // 2. Walk-Ins
-  body += sectionHdr('WALK-INS');
-  body += metricRow('Tickets',          'walkinTickets',       fInt);
-  body += metricRow('Total Tons',       'walkinTons',          f2);
-  body += metricRow('Total Revenue',    'walkinRev',           fM);
-  body += metricRow('Rev / Ton',        'walkinRevPerTon',     fMc);
-  body += metricRow('Avg Tons/Ticket',  'walkinTonsPerTicket', f2);
-  body += blankSep;
-  // 3. All Inbound (consolidating — matches daily email Revenue MTD line)
-  body += sectionHdr('ALL INBOUND  (Rolloff + Walk-Ins)');
-  body += metricRow('Loads / Tickets', 'inboundLoads',     fInt);
-  body += metricRow('Total Tons',      'inboundTons',      f2);
-  body += metricRow('Total Revenue',   'inboundRev',       fM);
-  body += metricRow('Rev / Ton',       'inboundRevPerTon', fMc);
-  body += blankSep;
+  body += sectionHdr('Walk-Ins'); stripeIdx = 0;
+  body += metricRow('Tickets',          'walkinTickets',       fInt, {stripe:S()});
+  body += metricRow('Total Tons',       'walkinTons',          f2,   {stripe:S()});
+  body += metricRow('Avg Tons / Ticket','walkinTonsPerTicket', f2,   {stripe:S()});
+  body += metricRow('Rev / Ton',        'walkinRevPerTon',     fMc,  {stripe:S()});
+  body += metricRow('Total Revenue',    'walkinRev',           fM,   {total:true});
+
+  // 3. All Inbound (Rolloff + Walk-Ins) — volume only, revenue rolls into Total Revenue section
+  body += sectionHdr('All Inbound  (Rolloff + Walk-Ins)'); stripeIdx = 0;
+  body += metricRow('Loads / Tickets', 'inboundLoads',     fInt, {stripe:S()});
+  body += metricRow('Total Tons',      'inboundTons',      f2,   {stripe:S()});
+
   // 4. Outbound (Vinagro)
-  body += sectionHdr('OUTBOUND  (Vinagro)');
-  body += metricRow('Loads',         'vinLoads',       fInt);
-  body += metricRow('Total Tons',    'vinTons',        f2);
-  body += metricRow('Tons / Load',   'vinTonsPerLoad', f2);
-  body += blankSep;
-  // 5. Rolloff Breakdown
-  body += sectionHdr('ROLLOFF BREAKDOWN');
-  body += metricRow('Empty/Return + Double Drop (Reis)', 'reisEmptyReturn', fInt);
-  body += metricRow('Delivery (Reis)',                   'reisDeliveries',  fInt);
-  body += metricRow('Rev / Load — Empty/Return',    'revPerEmptyLoad', fMc);
-  body += metricRow('Reis Rolloff Count',                'reisTickets',     fInt);
-  body += metricRow('Island Rubbish Rolloff Count',      'islandTickets',   fInt);
-  body += metricRow('Santos (East End) Rolloff Count',   'santosTickets',   fInt);
+  body += sectionHdr('Outbound  (Vinagro)'); stripeIdx = 0;
+  body += metricRow('Loads',         'vinLoads',       fInt, {stripe:S()});
+  body += metricRow('Total Tons',    'vinTons',        f2,   {stripe:S()});
+  body += metricRow('Tons / Load',   'vinTonsPerLoad', f2,   {stripe:S()});
+
+  // 5. TOTAL REVENUE — headline financial summary, stitched from the streams above
+  body += sectionHdr('Total Revenue'); stripeIdx = 0;
+  body += metricRow('Rolloff Revenue',          'rolloffRev',       fM,  {stripe:S()});
+  body += metricRow('Walk-In Revenue',          'walkinRev',        fM,  {stripe:S()});
+  body += metricRow('Rev / Ton (All Inbound)',  'inboundRevPerTon', fMc, {stripe:S()});
+  body += metricRow('Total Revenue',            'inboundRev',       fM,  {total:true});
+
+  // 6. Rolloff Breakdown
+  body += sectionHdr('Rolloff Breakdown'); stripeIdx = 0;
+  body += metricRow('Empty/Return + Double Drop (Reis)', 'reisEmptyReturn', fInt, {stripe:S()});
+  body += metricRow('Delivery (Reis)',                   'reisDeliveries',  fInt, {stripe:S()});
+  body += metricRow('Rev / Load — Empty/Return',         'revPerEmptyLoad', fMc,  {stripe:S()});
+  body += metricRow('Reis',           'reisTickets',   fInt, {subrow:true});
+  body += metricRow('Island Rubbish', 'islandTickets', fInt, {subrow:true});
+  body += metricRow('Santos (East End)', 'santosTickets', fInt, {subrow:true});
+
   body += '</tbody>';
 
   tab.innerHTML =
-    '<div class="irr-wrap" style="max-width:1400px;">'
-      +'<div class="icr-controls" style="flex-wrap:wrap;gap:6px;">'
-        + modeBtn('week','Week') + modeBtn('month','Month') + modeBtn('custom','Custom')
-        +'<span style="display:inline-block;width:8px;"></span>'
+    '<div class="kpi-wrap">'
+      +'<div class="kpi-toolbar">'
+        +'<div class="kpi-mode-strip">'
+          + modeBtn('week','Week') + modeBtn('month','Month') + modeBtn('custom','Custom')
+        +'</div>'
+        +'<div class="kpi-period">'+periodLabel+'<span class="kpi-period-sub">'+periodSub+'</span></div>'
+        +'<div style="flex:1"></div>'
         + dateControls
-        +'<button class="icr-nav-btn" style="margin-left:auto;background:var(--navy);color:white;border-color:var(--navy);" onclick="kpiGenerateReport()">Generate Report</button>'
+        +'<button class="icr-nav-btn" style="background:var(--navy);color:white;border-color:var(--navy);margin-left:8px;" onclick="kpiGenerateReport()">Generate Report</button>'
         +'<button class="icr-nav-btn" onclick="kpiPrintGrid()">Print</button>'
       +'</div>'
-      +'<table class="icr-table">'+head+body+'</table>'
-      // ── Driver Hours Entry form (carried from old KPIs & Tools) ──
+      +'<table class="kpi-table">'+head+body+'</table>'
+      // Driver Hours Entry form
       +'<div class="irr-hours-form" style="margin-top:24px;">'
         +'<h4>Driver Hours Entry</h4>'
         +'<div class="irr-hours-row">'
@@ -6587,7 +6698,7 @@ function kpiSetCustom(which, iso){
 
 // ── Print current grid ───────────────────────────────────────────────
 function kpiPrintGrid(){
-  const table = document.querySelector('#tab-kpis table.icr-table');
+  const table = document.querySelector('#tab-kpis table.kpi-table');
   if(!table) return;
   const win = window.open('', '_blank');
   win.document.write('<!DOCTYPE html><html><head><title>Scale KPIs</title>'
