@@ -6306,15 +6306,375 @@ function renderConsolidatedTab(){
   crcLoadReport();
 }
 
-// Scale KPIs — placeholder until Phase 2 rebuild lands.
-function renderScaleKpis(){
+// ── SCALE KPIs TAB ───────────────────────────────────────────────────
+// Replaces the old IRR Scale "KPIs & Tools" sub-tab. ICR-style weekly
+// grid, plus Month and Custom modes. Rolloffs + Walk-Ins + Outbound +
+// Rolloff Breakdown sections, with metric values computed via
+// kpiAggregate so they match the Daily Scale Report email and the
+// Scale Monthly Review.
+
+let kpiState = {
+  mode: 'week',           // 'week' | 'month' | 'custom'
+  weekStart: null,        // ISO Monday of selected week
+  monthSel: null,         // 'YYYY-MM'
+  customStart: null,
+  customEnd: null,
+};
+let kpiAllRows = [];      // all irr_reports rows for the visible year (+ prior YTD if needed)
+let kpiYear = null;       // numeric year currently loaded
+
+function kpiIsoToday(){
+  const d = new Date(); d.setHours(0,0,0,0);
+  return d.toISOString().split('T')[0];
+}
+function kpiMondayOf(d){
+  const dt = (typeof d === 'string') ? new Date(d+'T00:00:00') : new Date(d);
+  const day = dt.getDay();
+  dt.setDate(dt.getDate() - day + (day===0?-6:1));
+  return dt.toISOString().split('T')[0];
+}
+function kpiAddDays(iso, n){
+  const dt = new Date(iso+'T00:00:00');
+  dt.setDate(dt.getDate()+n);
+  return dt.toISOString().split('T')[0];
+}
+function kpiMonthLabel(ym){
+  const [y,m] = ym.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+}
+function kpiPrettyDate(iso){
+  return new Date(iso+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+async function renderScaleKpis(){
   const tab = document.getElementById('tab-kpis');
-  tab.innerHTML = `<div class="irr-wrap" style="text-align:center;padding:60px 24px;color:var(--gray-500);">
-    <h2 style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--navy);font-weight:400;margin-bottom:8px;">Scale KPIs</h2>
-    <p style="font-size:13px;line-height:1.6;max-width:520px;margin:0 auto;">
-      Rebuild in progress. This tab will host the KPI grid (rolloffs + walk-ins + outbound + breakdown) with Week / Month / Custom date-range modes, in the same visual format as the Intercompany Rolloff weekly grid. Numbers will tie out to the Daily Scale Report email and Scale Monthly Review.
-    </p>
-  </div>`;
+  if(!tab) return;
+  // Default state
+  if(!kpiState.weekStart) kpiState.weekStart = kpiMondayOf(new Date());
+  if(!kpiState.monthSel)  kpiState.monthSel  = (new Date()).getFullYear()+'-'+String((new Date()).getMonth()+1).padStart(2,'0');
+  if(!kpiState.customStart){
+    kpiState.customStart = kpiAddDays(kpiIsoToday(), -29);
+    kpiState.customEnd   = kpiIsoToday();
+  }
+  tab.innerHTML = '<div style="padding:30px;color:var(--gray-400);font-size:13px;">Loading…</div>';
+  // Load full year for YTD context
+  const wantedYear = (kpiState.mode==='month'
+    ? parseInt(kpiState.monthSel.split('-')[0])
+    : kpiState.mode==='custom'
+      ? parseInt(kpiState.customEnd.split('-')[0])
+      : parseInt(kpiState.weekStart.split('-')[0]));
+  if(kpiYear !== wantedYear){
+    const {data} = await db.from('irr_reports').select('*')
+      .gte('report_date', wantedYear+'-01-01')
+      .lte('report_date', wantedYear+'-12-31')
+      .order('report_date');
+    kpiAllRows = await kpiPrepRows(data || []);
+    kpiYear = wantedYear;
+  }
+  kpiRenderUI(tab);
+}
+
+function kpiRowsBetween(start, end){
+  if(!start || !end) return [];
+  return kpiAllRows.filter(r => r.report_date >= start && r.report_date <= end);
+}
+
+// Build column definitions for the current mode. Each column has:
+//   {label, sub?, start, end}.
+// All modes get a YTD column appended for context.
+function kpiBuildColumns(){
+  const today = kpiIsoToday();
+  const cols = [];
+  if(kpiState.mode === 'week'){
+    const ws = kpiState.weekStart;
+    const days = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+    for(let i=0;i<6;i++){
+      const iso = kpiAddDays(ws, i);
+      cols.push({label: days[i], sub: iso.substring(5), start: iso, end: iso, kind:'day'});
+    }
+    const weekEnd = kpiAddDays(ws, 5);
+    const monthOfWk = ws.substring(0,8)+'01';
+    const lastDayOfMonth = (()=>{
+      const [y,m] = ws.split('-').map(Number);
+      return y+'-'+String(m).padStart(2,'0')+'-'+String(new Date(y, m, 0).getDate()).padStart(2,'0');
+    })();
+    const mtdEnd = (today < lastDayOfMonth ? today : lastDayOfMonth);
+    cols.push({label:'WTD', start: ws, end: weekEnd, kind:'agg'});
+    cols.push({label:'MTD', start: monthOfWk, end: mtdEnd, kind:'agg'});
+  } else if(kpiState.mode === 'month'){
+    const [y,m] = kpiState.monthSel.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    const monthStart = y+'-'+String(m).padStart(2,'0')+'-01';
+    const monthEnd   = y+'-'+String(m).padStart(2,'0')+'-'+String(lastDay).padStart(2,'0');
+    // Weekly buckets: days 1-7, 8-14, 15-21, 22-28, 29-end
+    const ranges = [[1,7],[8,14],[15,21],[22,28],[29,lastDay]].filter(([a,b])=>a<=b);
+    ranges.forEach(([a,b], i) => {
+      const startD = y+'-'+String(m).padStart(2,'0')+'-'+String(a).padStart(2,'0');
+      const endD   = y+'-'+String(m).padStart(2,'0')+'-'+String(b).padStart(2,'0');
+      cols.push({label:'W'+(i+1), sub: a+'–'+b, start:startD, end:endD, kind:'wk'});
+    });
+    cols.push({label:'Month', start:monthStart, end: (today<monthEnd?today:monthEnd), kind:'agg'});
+  } else {
+    // custom
+    cols.push({label:'Range', sub: kpiPrettyDate(kpiState.customStart)+' → '+kpiPrettyDate(kpiState.customEnd), start:kpiState.customStart, end:kpiState.customEnd, kind:'agg'});
+  }
+  // Always append YTD
+  cols.push({label:'YTD', start: kpiYear+'-01-01', end: today, kind:'agg'});
+  return cols;
+}
+
+function kpiRenderUI(tab){
+  const cols = kpiBuildColumns();
+  const colAggs = cols.map(c => kpiAggregate(kpiRowsBetween(c.start, c.end)));
+
+  // ── Top toolbar: mode selector + date controls + Generate Report ──
+  const modeBtn = (id, label) =>
+    '<button class="icr-nav-btn'+(kpiState.mode===id?' active':'')+'" '
+    +'style="'+(kpiState.mode===id?'background:var(--navy);color:white;border-color:var(--navy);':'')+'" '
+    +'onclick="kpiSetMode(\''+id+'\')">'+label+'</button>';
+
+  let dateControls = '';
+  if(kpiState.mode === 'week'){
+    const wd = new Date(kpiState.weekStart+'T00:00:00');
+    const wkLabel = 'Week of '+wd.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    dateControls =
+      '<button class="icr-nav-btn" onclick="kpiPrevWeek()">&larr;</button>'
+      +'<h3 style="margin:0 6px;font-size:13px;color:var(--navy);">'+wkLabel+'</h3>'
+      +'<button class="icr-nav-btn" onclick="kpiNextWeek()">&rarr;</button>'
+      +'<input type="date" value="'+kpiState.weekStart+'" onchange="kpiJumpWeek(this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">';
+  } else if(kpiState.mode === 'month'){
+    // Month dropdown — current year + last 2 years, capped at this month
+    const today = new Date();
+    const opts = [];
+    for(let y=today.getFullYear(); y>=today.getFullYear()-2; y--){
+      for(let m=12; m>=1; m--){
+        if(y===today.getFullYear() && m>today.getMonth()+1) continue;
+        const ym = y+'-'+String(m).padStart(2,'0');
+        opts.push('<option value="'+ym+'" '+(ym===kpiState.monthSel?'selected':'')+'>'+kpiMonthLabel(ym)+'</option>');
+      }
+    }
+    dateControls =
+      '<span style="font-size:11px;color:var(--gray-500);font-weight:600;">Month</span>'
+      +'<select onchange="kpiSetMonth(this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">'+opts.join('')+'</select>';
+  } else {
+    dateControls =
+      '<span style="font-size:11px;color:var(--gray-500);font-weight:600;">From</span>'
+      +'<input type="date" value="'+kpiState.customStart+'" onchange="kpiSetCustom(\'start\',this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">'
+      +'<span style="font-size:11px;color:var(--gray-500);font-weight:600;">To</span>'
+      +'<input type="date" value="'+kpiState.customEnd+'" onchange="kpiSetCustom(\'end\',this.value)" style="font-family:\'DM Sans\',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);">';
+  }
+
+  // ── Build the grid ──
+  const fM    = n => n==null||isNaN(n)?'—':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const fMc   = n => n==null||isNaN(n)?'—':'$'+Number(n).toFixed(2);
+  const fInt  = n => !n?'—':Math.round(Number(n)).toLocaleString();
+  const f2    = n => n==null||isNaN(n)?'—':Number(n).toFixed(2);
+
+  const sectionHdr = (title) =>
+    '<tr class="icr-company-hdr"><td>'+title+'</td>'+'<td></td>'.repeat(cols.length)+'</tr>';
+  const blankSep = '<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(cols.length)+'</tr>';
+
+  const metricRow = (label, key, fmt) => {
+    let r = '<tr><td>'+label+'</td>';
+    cols.forEach((c, i) => {
+      const v = colAggs[i][key];
+      const cls = c.kind==='agg' || c.kind==='wk' ? ' class="icr-agg"' : '';
+      r += '<td'+cls+'>'+fmt(v)+'</td>';
+    });
+    r += '</tr>';
+    return r;
+  };
+
+  // Header
+  let head = '<thead><tr><th></th>';
+  cols.forEach(c => {
+    head += '<th>'+c.label+(c.sub?'<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">'+c.sub+'</span>':'')+'</th>';
+  });
+  head += '</tr></thead>';
+
+  // Body — sections
+  let body = '<tbody>';
+  // 1. Rolloff Totals
+  body += sectionHdr('ROLLOFF TOTALS');
+  body += metricRow('Loads',         'rolloffLoads', fInt);
+  body += metricRow('Total Tons',    'rolloffTons',  f2);
+  body += metricRow('Total Revenue', 'rolloffRev',   fM);
+  body += metricRow('Rev / Load',    'revPerLoad',   fMc);
+  body += metricRow('Tons / Load',   'tonsPerLoad',  f2);
+  body += blankSep;
+  // 2. Walk-Ins
+  body += sectionHdr('WALK-INS');
+  body += metricRow('Tickets',          'walkinTickets',       fInt);
+  body += metricRow('Total Tons',       'walkinTons',          f2);
+  body += metricRow('Total Revenue',    'walkinRev',           fM);
+  body += metricRow('Rev / Ton',        'walkinRevPerTon',     fMc);
+  body += metricRow('Avg Tons/Ticket',  'walkinTonsPerTicket', f2);
+  body += blankSep;
+  // 3. All Inbound (consolidating — matches daily email Revenue MTD line)
+  body += sectionHdr('ALL INBOUND  (Rolloff + Walk-Ins)');
+  body += metricRow('Loads / Tickets', 'inboundLoads',     fInt);
+  body += metricRow('Total Tons',      'inboundTons',      f2);
+  body += metricRow('Total Revenue',   'inboundRev',       fM);
+  body += metricRow('Rev / Ton',       'inboundRevPerTon', fMc);
+  body += blankSep;
+  // 4. Outbound (Vinagro)
+  body += sectionHdr('OUTBOUND  (Vinagro)');
+  body += metricRow('Loads',         'vinLoads',       fInt);
+  body += metricRow('Total Tons',    'vinTons',        f2);
+  body += metricRow('Tons / Load',   'vinTonsPerLoad', f2);
+  body += blankSep;
+  // 5. Rolloff Breakdown
+  body += sectionHdr('ROLLOFF BREAKDOWN');
+  body += metricRow('Empty/Return + Double Drop (Reis)', 'reisEmptyReturn', fInt);
+  body += metricRow('Delivery (Reis)',                   'reisDeliveries',  fInt);
+  body += metricRow('Rev / Load — Empty/Return',    'revPerEmptyLoad', fMc);
+  body += metricRow('Reis Rolloff Count',                'reisTickets',     fInt);
+  body += metricRow('Island Rubbish Rolloff Count',      'islandTickets',   fInt);
+  body += metricRow('Santos (East End) Rolloff Count',   'santosTickets',   fInt);
+  body += '</tbody>';
+
+  tab.innerHTML =
+    '<div class="irr-wrap" style="max-width:1400px;">'
+      +'<div class="icr-controls" style="flex-wrap:wrap;gap:6px;">'
+        + modeBtn('week','Week') + modeBtn('month','Month') + modeBtn('custom','Custom')
+        +'<span style="display:inline-block;width:8px;"></span>'
+        + dateControls
+        +'<button class="icr-nav-btn" style="margin-left:auto;background:var(--navy);color:white;border-color:var(--navy);" onclick="kpiGenerateReport()">Generate Report</button>'
+        +'<button class="icr-nav-btn" onclick="kpiPrintGrid()">Print</button>'
+      +'</div>'
+      +'<table class="icr-table">'+head+body+'</table>'
+      // ── Driver Hours Entry form (carried from old KPIs & Tools) ──
+      +'<div class="irr-hours-form" style="margin-top:24px;">'
+        +'<h4>Driver Hours Entry</h4>'
+        +'<div class="irr-hours-row">'
+          +'<label>Date<input type="date" id="irrHoursDate" value="'+kpiIsoToday()+'"></label>'
+          +'<label>Total Hours (HH:MM)<input type="text" id="irrHoursVal" placeholder="e.g. 8:57"></label>'
+          +'<button onclick="irrSaveHours()">Save</button>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+}
+
+// ── Mode setters ───────────────────────────────────────────────────────
+function kpiSetMode(mode){
+  kpiState.mode = mode;
+  renderScaleKpis();
+}
+function kpiPrevWeek(){
+  kpiState.weekStart = kpiAddDays(kpiState.weekStart, -7);
+  renderScaleKpis();
+}
+function kpiNextWeek(){
+  kpiState.weekStart = kpiAddDays(kpiState.weekStart, 7);
+  renderScaleKpis();
+}
+function kpiJumpWeek(iso){
+  if(!iso) return;
+  kpiState.weekStart = kpiMondayOf(iso);
+  renderScaleKpis();
+}
+function kpiSetMonth(ym){ kpiState.monthSel = ym; renderScaleKpis(); }
+function kpiSetCustom(which, iso){
+  if(which==='start') kpiState.customStart = iso;
+  else                kpiState.customEnd   = iso;
+  // Sanity: ensure start<=end
+  if(kpiState.customStart && kpiState.customEnd && kpiState.customStart > kpiState.customEnd){
+    if(which==='start') kpiState.customEnd = iso;
+    else                kpiState.customStart = iso;
+  }
+  renderScaleKpis();
+}
+
+// ── Print current grid ───────────────────────────────────────────────
+function kpiPrintGrid(){
+  const table = document.querySelector('#tab-kpis table.icr-table');
+  if(!table) return;
+  const win = window.open('', '_blank');
+  win.document.write('<!DOCTYPE html><html><head><title>Scale KPIs</title>'
+    +'<style>'
+    +'body{font-family:Arial;color:#000;padding:18px;}'
+    +'table{border-collapse:collapse;font-size:11px;width:100%;}'
+    +'th,td{border:1px solid #999;padding:5px 8px;}'
+    +'th{background:#0f1f3d;color:#fff;}'
+    +'.icr-company-hdr td{background:#e6f5f3;font-weight:700;}'
+    +'.icr-sep td{height:6px;border:none;background:transparent;}'
+    +'.icr-agg{background:#f1f5f9;font-weight:600;}'
+    +'</style></head><body>'
+    +'<h2 style="margin-bottom:8px;">Scale KPIs</h2>'
+    + table.outerHTML
+    +'<script>window.onload=function(){window.print();}<\/script>'
+    +'</body></html>');
+  win.document.close();
+}
+
+// ── Generate Report (PDF + XLSX + Files) for the current window ──────
+async function kpiGenerateReport(){
+  if(!currentUser){ toast('Sign in first'); return; }
+  const cols = kpiBuildColumns();
+  // The "main" window is the last non-YTD column; if only YTD + custom,
+  // pick the custom range (the lone non-YTD column).
+  const mainCol = cols.filter(c => c.label !== 'YTD').slice(-1)[0]
+                || cols[cols.length-1];
+  const start = mainCol.start, end = mainCol.end;
+  const label =
+      kpiState.mode==='week'  ? 'Week of '+(new Date(kpiState.weekStart+'T00:00:00')).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})
+    : kpiState.mode==='month' ? kpiMonthLabel(kpiState.monthSel)
+    : kpiPrettyDate(start)+' — '+kpiPrettyDate(end);
+
+  toast('Generating PDF + XLSX…');
+  const rows = kpiRowsBetween(start, end);
+  const agg  = kpiAggregate(rows);
+
+  // Folder
+  const folderName = 'Scale Reports';
+  let {data:folders} = await db.from('helm_folders').select('id').eq('name',folderName).eq('scope','shared').limit(1);
+  let folderId;
+  if(folders && folders.length>0){
+    folderId = folders[0].id;
+  } else {
+    const {data:newFolder, error} = await db.from('helm_folders').insert({name:folderName,scope:'shared',owner:null,created_by:currentUser.username}).select().single();
+    if(error || !newFolder){ toast('Could not create folder: '+(error?error.message:'unknown')); return; }
+    folderId = newFolder.id;
+  }
+
+  // PDF — reuse the Scale Monthly Review's printable HTML (it already
+  // renders all the sections we want, and uses kpiAggregate fields)
+  const printEl = icrMonthlyBuildPrintEl(agg, label);
+  document.body.appendChild(printEl);
+  let pdfBlob;
+  try {
+    pdfBlob = await html2pdf().set({
+      margin: 0.4,
+      image:{type:'jpeg',quality:0.96},
+      html2canvas:{scale:2, useCORS:true},
+      jsPDF:{unit:'in',format:'letter',orientation:'portrait'},
+    }).from(printEl).output('blob');
+  } finally {
+    printEl.remove();
+  }
+  // XLSX
+  const xlsBlob = icrMonthlyXlsxBlob(agg, label);
+
+  const base = 'Scale_Report_'+label.replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-]/g,'');
+  const ts = Date.now();
+  async function uploadOne(blob, ext, mime){
+    const fileName = base + '.' + ext;
+    const storagePath = folderId + '/' + ts + '-' + fileName;
+    const {error:sErr} = await db.storage.from('helm-files').upload(storagePath, blob, {contentType:mime, upsert:false});
+    if(sErr){ toast('Upload failed ('+ext+'): '+sErr.message); return false; }
+    await db.from('helm_files').insert({
+      folder_id: folderId, filename: fileName, storage_path: storagePath,
+      size_bytes: blob.size, mime_type: mime, uploaded_by: currentUser.username,
+    });
+    return true;
+  }
+  const okPdf = await uploadOne(pdfBlob,'pdf','application/pdf');
+  const okXls = await uploadOne(xlsBlob,'xls','application/vnd.ms-excel');
+  if(okPdf && okXls){
+    toast('Saved to Files → Scale Reports', true);
+  } else if(okPdf || okXls){
+    toast('Partial save — check Files', true);
+  }
 }
 
 function irrSwitchView(view) {
@@ -8060,9 +8420,16 @@ function icrRenderReport(allData, container) {
   const byDate={};
   for(const d of allData) byDate[d.report_date]=d;
 
-  // MTD and YTD always sum through today (or end of year for past years)
+  // MTD: 1st of the selected week's month → last day of that month
+  // (or today, whichever is earlier — so MTD never spills into the
+  // next month after the calendar rolls over). YTD always extends to
+  // today / end of past year.
   const monthStart = icrWeekStart.substring(0,8)+'01';
-  const monthEnd = aggEnd;
+  const _monthLastDay = (()=>{
+    const [yy, mm] = icrWeekStart.split('-').slice(0,2).map(Number);
+    return yy+'-'+String(mm).padStart(2,'0')+'-'+String(new Date(yy, mm, 0).getDate()).padStart(2,'0');
+  })();
+  const monthEnd = (aggEnd < _monthLastDay) ? aggEnd : _monthLastDay;
   const yearStart = icrYear+'-01-01';
   const ytdEnd = aggEnd;
 
@@ -9395,14 +9762,23 @@ async function icrShowMonthly(){
   icrRenderMonthly();
 }
 
-function icrMonthlyAggregate(rows){
+// ── SHARED METRIC AGGREGATOR ──────────────────────────────────────
+// Single source of truth for every scale metric. Used by:
+//   - Scale Monthly Review (icrMonthlyAggregate wraps this)
+//   - Scale KPIs grid (kpiRenderGrid + per-column aggregates)
+//   - Scale KPIs Generate Report (PDF/XLSX/email exports)
+// Anything that displays "MTD revenue" or "Tons per load" anywhere in
+// HELM should ultimately compute it through this function so the
+// numbers tie out across the daily email, the KPI grid, and the
+// monthly review.
+function kpiAggregate(rows){
   let reisTickets=0, islandTickets=0, santosTickets=0;
   let reisTons=0, islandTons=0, santosTons=0;
   let reisTipRev=0, reisSvcRev=0, islandRev=0, santosRev=0;
   let reisDeliveries=0, reisEmpties=0, reisDoubleDrops=0;
   let vinLoads=0, vinTons=0;
   let walkinTickets=0, walkinTons=0, walkinRev=0;
-  for(const d of rows){
+  for(const d of (rows||[])){
     reisTickets   += d.reis_tickets||0;
     islandTickets += d.island_tickets||0;
     santosTickets += d.santos_tickets||0;
@@ -9422,39 +9798,69 @@ function icrMonthlyAggregate(rows){
     walkinTons    += parseFloat(d.walkin_tons)||0;
     walkinRev     += parseFloat(d.walkin_tip_revenue)||0;
   }
-  // Consolidated rolloff totals (Reis + Island + East End)
+  // Rolloff totals (Reis + Island + East End)
   const rolloffLoads = reisTickets + islandTickets + santosTickets;
   const rolloffTons  = reisTons + islandTons + santosTons;
   const rolloffRev   = reisTipRev + reisSvcRev + islandRev + santosRev;
-
-  // Empty/Return + Double-Drop ticket counts:
-  //   Reis side: empties + double_drops (the tipping events)
-  //   Island/East End: every ticket is an empty/return at our scale
+  // Empty/Return + Double Drop loads (Reis tipping events) and
+  // consolidated empty-return loads (Reis empties+DD + all IC tickets).
   const reisEmptyReturn = reisEmpties + reisDoubleDrops;
   const consolidatedEmptyReturn = reisEmptyReturn + islandTickets + santosTickets;
-
-  // Rev/Load for Empty/Return trips (consolidated). Numerator =
-  // total rolloff revenue minus Reis delivery service fees ($100 each
-  // post-4/17). Denominator = consolidated empty/return loads.
   const deliveryFees = reisDeliveries * 100;
   const emptyReturnRev = rolloffRev - deliveryFees;
-  const revPerEmptyLoad = consolidatedEmptyReturn > 0
-    ? emptyReturnRev / consolidatedEmptyReturn : null;
-
+  // Walk-in derived
+  const walkinRevPerTon     = walkinTons>0    ? walkinRev/walkinTons    : null;
+  const walkinTonsPerTicket = walkinTickets>0 ? walkinTons/walkinTickets: null;
+  // All inbound = rolloff + walk-in (matches the daily email's Revenue line)
+  const inboundLoads = rolloffLoads + walkinTickets;
+  const inboundTons  = rolloffTons + walkinTons;
+  const inboundRev   = rolloffRev + walkinRev;
   return {
-    days: rows.length,
+    days: (rows||[]).length,
+    // Rolloff
+    reisTickets, islandTickets, santosTickets,
+    reisTons, islandTons, santosTons,
     rolloffLoads, rolloffTons, rolloffRev,
     revPerLoad: rolloffLoads>0 ? rolloffRev/rolloffLoads : null,
     tonsPerLoad: rolloffLoads>0 ? rolloffTons/rolloffLoads : null,
+    // Rolloff breakdown
+    reisDeliveries, reisEmpties, reisDoubleDrops,
+    reisEmptyReturn, consolidatedEmptyReturn,
+    deliveryFees, emptyReturnRev,
+    revPerEmptyLoad: consolidatedEmptyReturn>0 ? emptyReturnRev/consolidatedEmptyReturn : null,
+    // Walk-ins
     walkinTickets, walkinTons, walkinRev,
-    walkinRevPerTon:    walkinTons>0    ? walkinRev/walkinTons    : null,
-    walkinTonsPerTicket:walkinTickets>0 ? walkinTons/walkinTickets: null,
+    walkinRevPerTon, walkinTonsPerTicket,
+    // Vinagro outbound
     vinLoads, vinTons,
     vinTonsPerLoad: vinLoads>0 ? vinTons/vinLoads : null,
-    reisDeliveries, reisEmpties, reisDoubleDrops, reisEmptyReturn,
-    consolidatedEmptyReturn, revPerEmptyLoad,
-    reisTickets, islandTickets, santosTickets,
+    // All inbound (rolloff + walk-in) — matches daily email's Revenue MTD line
+    inboundLoads, inboundTons, inboundRev,
+    inboundRevPerTon: inboundTons>0 ? inboundRev/inboundTons : null,
+    inboundTonsPerLoad: inboundLoads>0 ? inboundTons/inboundLoads : null,
   };
+}
+
+// Backfill missing IC revenue (some early rows pre-date the revenue
+// parser) using current rates from irrRatesFor.
+async function kpiPrepRows(rows){
+  await irrLoadRates();
+  for(const d of (rows||[])){
+    const {ir, er} = irrRatesFor(d.report_date);
+    if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0)
+      d.island_revenue = ir.hook_fee*d.island_tickets + (ir.per_ton*(1+(ir.ton_markup||0)))*parseFloat(d.island_tons||0);
+    if(er && !(parseFloat(d.santos_revenue)>0) && (d.santos_tickets||0)>0)
+      d.santos_revenue = er.hook_fee*d.santos_tickets + (er.per_ton*(1+(er.ton_markup||0)))*parseFloat(d.santos_tons||0);
+  }
+  return rows||[];
+}
+
+// Scale Monthly Review aggregator — kept for backward compat with
+// existing PDF/XLSX/HTML exports. Just delegates to kpiAggregate.
+function icrMonthlyAggregate(rows){
+  return kpiAggregate(rows);
+  /* legacy commented-out body for reference:
+  */
 }
 
 function icrMonthlyHtml(agg, label){
@@ -9481,6 +9887,11 @@ function icrMonthlyHtml(agg, label){
     +   row('Total Revenue',   fM(agg.walkinRev))
     +   row('Rev / Ton',       fM(agg.walkinRevPerTon))
     +   row('Avg Tons / Ticket', f2(agg.walkinTonsPerTicket))
+    +   sectHdr('All Inbound (Rolloff + Walk-Ins)')
+    +   row('Loads / Tickets', fInt(agg.inboundLoads))
+    +   row('Total Tons',      f2(agg.inboundTons))
+    +   row('Total Revenue',   fM(agg.inboundRev))
+    +   row('Rev / Ton',       fM(agg.inboundRevPerTon))
     +   sectHdr('Vinagro (Outbound)')
     +   row('Loads',          fInt(agg.vinLoads))
     +   row('Total Tons',     f2(agg.vinTons))
@@ -9565,6 +9976,11 @@ function icrMonthlyXlsxBlob(agg, label){
     +   r('Total Revenue', fM(agg.walkinRev))
     +   r('Rev / Ton', fM(agg.walkinRevPerTon))
     +   r('Avg Tons / Ticket', f2(agg.walkinTonsPerTicket))
+    +   hdr('All Inbound (Rolloff + Walk-Ins)')
+    +   r('Loads / Tickets', fInt(agg.inboundLoads))
+    +   r('Total Tons', f2(agg.inboundTons))
+    +   r('Total Revenue', fM(agg.inboundRev))
+    +   r('Rev / Ton', fM(agg.inboundRevPerTon))
     +   hdr('Vinagro (Outbound)')
     +   r('Loads', fInt(agg.vinLoads))
     +   r('Total Tons', f2(agg.vinTons))
