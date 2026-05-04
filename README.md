@@ -53,9 +53,13 @@ No build step. No npm. No framework. One file.
 **Access control:**
 - **All users** see: Client Lookup, Add Client, Reports, Roll-offs
 - **Admins only** (`role='admin'`): Import tab
-- **David & admins**: IRR Scale, Files
-- **David + Chris + admin (hardcoded usernames)**: Xfer Station
-- **David only** (hardcoded): Command tab (PIN-locked, PIN = `1144`), **Workflow** tab (Action Items / project management)
+- **Jack + admins**: Import tab
+- **David / Jack / admins**: Files
+- **David / Chris / Jack / admins**: every Analysis tab — Daily Scale Report, Intercompany Rolloff, Consolidated Rolloff, Scale KPIs, Rolloff Visual, Xfer Station, Business Line Analysis
+- **David only**: Workflow tab (Action Items / project management)
+- **David + Chris + admin (per-user nav variant):** Roll-offs tab moves *into* the Client Management group (rather than sitting standalone). Other users still see Roll-offs as a top-level item.
+
+**Nav grouping:** the side rail uses two collapsible groups — **Client Management** (Client Lookup / Add Client / Reports, plus Roll-offs for David/Chris/admin) and **Analysis** (the seven analysis tabs above). Standalone tabs sit beneath the groups: Roll-offs (for non-D/C/admin users), Files, Workflow, Import. Group state persists in localStorage (`helm_nav_groups`) and the entire side rail can be collapsed via the chevron toggle in the topbar (state persisted as `helm_nav_collapsed`).
 
 **Layout:** Every signed-in user gets the **vertical left-side nav** layout (`body.layout-side`) — the topbar is `position:fixed` at the top, nav rail is `position:fixed` on the left, content fills the rest of the viewport. Login screen unaffected. (Was originally David-only, rolled out to everyone after the topbar inline-style bug was traced and fixed.)
 
@@ -81,6 +85,7 @@ Per-user themes live in `applyUserTheme()`:
 | autopay | BOOLEAN | Credit card on file |
 | status | TEXT | `Active`, `Paused` |
 | route | SMALLINT | Route number 1–14 (shown on edit form and action report) |
+| route_note | TEXT | Optional per-client route note; rendered inline on every report |
 
 **`skips`** — Weekly skip records
 | Column | Type | Notes |
@@ -175,9 +180,53 @@ Reis walk-in and rolloff tonnage revenue is parsed **from the scale file directl
 
 **`helm_folders`** / **`helm_files`** — Folder + file metadata for the Files tab. Private `helm-files` Supabase Storage bucket holds the actual blobs.
 
-### Command Center (David only)
+### Business Line Analysis Tables
 
-**`helm_command_state`** — Private strategic dashboard state (not documented here).
+**`bla_staff`** — drivers + helpers roster
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | |
+| name | TEXT | |
+| role | TEXT | `driver` or `helper` (CHECK constraint) |
+| active | BOOLEAN | Defaults TRUE |
+| created_at | TIMESTAMPTZ | |
+
+**`bla_resi_entries`** — daily Residential entries (one per driver per slip)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | |
+| entry_date | DATE | |
+| driver_id | BIGINT (FK -> bla_staff) | ON DELETE SET NULL |
+| driver_minutes | INT | |
+| helper_minutes | INT | |
+| net_weight_lbs | NUMERIC | from landfill slip |
+| landfill_minutes | INT | |
+| landfill_trips | INT | Defaults 1 |
+| total_miles | NUMERIC | |
+| routes | JSONB | `[{name, stops, helper_id}, ...]` |
+| notes | TEXT | |
+| created_at, updated_at | TIMESTAMPTZ | |
+
+**`bla_comm_entries`** — daily Commercial entries (same shape as Residential, helpers supported)
+
+**`bla_rolloff_manual`** — manual ST/OT hours per driver per day
+| Column | Type | Notes |
+|---|---|---|
+| entry_date | DATE (PK) | |
+| driver_hours | JSONB | `[{driver_id, st_hours, ot_hours}, ...]` |
+| notes | TEXT | |
+| updated_at | TIMESTAMPTZ | |
+
+**`bla_xfer_manual`** — manual Xfer Station fields per day
+| Column | Type | Notes |
+|---|---|---|
+| entry_date | DATE (PK) | |
+| trlrs_loaded | INT | |
+| tons_loaded | NUMERIC | |
+| loads_hauled | INT | optional override of Vinagro auto-pull |
+| tons_hauled | NUMERIC | optional override |
+| notes | TEXT | |
+| updated_at | TIMESTAMPTZ | |
 
 ### Workflow Tables (David only — Action Items / project management)
 
@@ -198,7 +247,7 @@ All tables RLS-enabled with open policies (HELM standard).
 ### Client Lookup (all users)
 - **Empty-state welcome screen** — when no search or client is open:
   - Italic "welcome back, *[Name]*" watermark in Playfair Display
-  - **Service Rate Sheet card** (Tip Fee $250, Special Tonnage $480/ton, Standard Tonnage $525/ton, **Insulation $575/ton**, Rolloff Delivery $100, Pile Pickup $160/hr per worker, Metal Tonnage Disposal $125/ton)
+  - **Service Rate Sheet card** (Tip Fee $250, Special Tonnage $480/ton, Standard Tonnage $525/ton, **Insulation $575/ton**, Rolloff Delivery $100, **40 Yard Delivery $200**, Pile Pickup $160/hr per worker, Metal Tonnage Disposal $125/ton)
   - **My Notes card** — per-user free-form textarea, auto-syncs to `user_notes` table (cross-device)
   - Rate Sheet and My Notes render side-by-side on desktop (collapse to stacked under 780px)
 - **Tokenized search** — "viola howard" matches "HOWARD, VIOLA" regardless of word order
@@ -216,6 +265,7 @@ All tables RLS-enabled with open policies (HELM standard).
 ### Edit Client
 - Name / address / phone / email / pickup days / **route 1-14 dropdown** / autopay
 - Routes chosen from "Select Route" dropdown; renders as a navy pill on the card
+- **Route Note** — when a route is selected, an optional textarea slides in beneath the route dropdown ("leave bins on left side", "gate code 4321", etc.). Auto-clears if the user removes the route. Saved to `clients.route_note` and surfaced inline (`📋` italic teal line beneath the address) on the Daily Action Report, Notes Added Today, and Everything Report — both screen and print versions.
 
 ### Reports (all users)
 Four cards on the Reports tab:
@@ -253,49 +303,40 @@ Four cards on the Reports tab:
 - **Export Untipped** button — `.xls` of all non-deleted, untipped rolloffs. Output sheet has two trailing empty columns (manual day-count + auto `=prev*4` charge formula); the legacy "days on site" pre-calculated column was removed in favor of this manual entry pattern
 - **Export Print Sheet** button — alpha-by-company `.xls` matching the legacy Times New Roman template, with 20 blank rows for handwriting
 
-### IRR Scale (David + admins)
-
-Four sub-views:
-
-**1. Daily Scale Report**
+### Daily Scale Report (David / Chris / Jack / admin)
+Top-level Analysis tab — replaces the old IRR Scale → Daily Scale Report sub-view.
 - Drag/drop `.xls` upload
 - **Review IC Tickets modal** (post-parse) lists Island / East End / **Delta** tickets with three checkbox columns:
   - **Exclude** — drop the ticket entirely (tons/tickets/revenue removed)
   - **Pile Pickup** — Island/East End only; move to walk-in
   - **Walk In** — any IC ticket that's actually a walk-in; move to walk-in
   - Exclude wins if multiple boxes are checked
-- Driver hours prompt — asks for Island Rubbish driver count + hours
+- Driver hours prompt — asks for Island Rubbish driver count + hours (HH:MM input)
 - Auto-save — raw .xls saved to Files → shared "Daily Scale Reports" folder
-- Generates formatted **daily email** in a unified three-section layout (no per-company breakdown). Identical structure renders both inside the Daily Scale Report tab (`irrRenderReportView`) and as the email body the Copy/Gmail buttons emit:
-  - **Section 1: Rolloff Internal Volume** (combined Reis + Island + East End rolloff tonnage)
-    - **Today** row: `X trips · Y.YY tons` — **highlighted across the whole row** (soft yellow `#fff4cc`)
-    - WTD / MTD / **MOM** / YTD / **YOY** — each in tons
-    - **MOM** = sum across the same days of the prior month (capped if prior month is shorter); shows the prior-period absolute total + a signed `(+X.XX tons, +Y.Y% vs MTD)` delta colored green when this month is up, red when down
-    - **YOY** = sum from Jan 1 of prior year through the prior-year equivalent of today (handles Feb 29 → Feb 28 in non-leap years); shows the same `(±X tons, ±Y% vs YTD)` delta
-  - **Section 2: Inbound vs Outbound — Xfer Station, Rolloffs + Walk-Ins**
-    - **Today** row formatted `inbound, outbound : net` — **highlighted across the whole row**
-    - WTD / MTD / YTD rows in the same format
-    - Net = inbound − outbound. **Red** when net is positive (material accumulating); **green** when net is negative (material clearing out)
-    - **MTD YOY** and **YTD YOY** rows render as a two-line block: `2025: X.XX tons, 2026: Y.YY tons` followed by `% Change: ±Z%` (green when current year is up, red when down). Single tonnage figure = total inbound (rolloff + walkin); year labels track the report's date so historical reports show the correct year pair.
-  - **Section 3: Revenue**
-    - **Total Revenue Today** (bold) — **highlighted across the whole row**
-    - **Rolloff Revenue** with two indented sub-rows: `Hook Fee Revenue` and `Tonnage Revenue` (split using `irr_rates` to back out IC hook contribution)
-    - **Walk-In Revenue** displayed as `$X · N tickets` (ticket count includes walkin + pile pickups, since pile pickups don't have their own revenue line)
+- Generates a formatted **daily email** in a five-section layout. Identical structure renders both as the in-app preview and as the email body the Copy/Gmail buttons emit. Uniform 5-row format per section (Today / MTD / MTD YoY / YTD / YTD YoY), accounting-paren convention for negatives, positive percent deltas in green:
+  - **Internal Volume** — rolloff tonnage (Reis + Island + East End)
+  - **External Volume** — walk-in tonnage
+  - **Total Volume** — Internal + External (inbound consolidating row)
+  - **Outbound** — Vinagro tonnage to mainland
+  - **Revenue** — total $ + $/ton appended inline (e.g. `$525.27/ton | $733,706.86`); YoY rows show absolute $ delta + percent (e.g. `+$192,482.54 | +35.6%`); Internal/External rev/ton sub-rows under each main row
+- Today rows + all main Revenue rows get a thin gray (`#f0f0f0`) row highlight; section titles underlined; bolded Today rows on every section
 - Copy to clipboard / Gmail draft creation
 - Historical report viewer (click any past date)
 - **Historical bulk import** — upload date-range .xls to upsert history
 
-**2. Intercompany Rolloff Report**
+### Intercompany Rolloff (David / Chris / Jack / admin)
+Top-level Analysis tab — formerly the IRR Scale → Intercompany Rolloff Report sub-view.
 - Weekly view: Mon-Sat + WTD, MTD, YTD
 - TOTALS at top, then Vinagro (Outbound), then Total Tonnage Inbound v Outbound, then REIS / ISLAND / SANTOS sub-blocks (Rev/Load, Total Revenue, Loads, Tons/Load, Total Tons, # Drivers, # Hours)
+- **MTD column clips at the last day of the selected week's month** (or today, whichever is earlier) so it never spills into the following month after a calendar rollover
 - Prev/next week arrows, date picker
 - **Export File** — generates .xlsx + .pdf in the consolidated layout
 - **Print** — print preview
-- **Quarterly Report** — quarter-vs-prior-year overlay with KPI tables + per-month bar/line charts
-- **Yearly Report** — *(new)* custom-range modal with two daily line charts (Tickets per Day, Revenue per Day). Each chart overlays Rolloff (Reis+Island+East End combined, teal) vs Walk-In (gold). `From / To` date pickers + `90d / 6mo / 1yr / 2yr` quick presets (default = trailing 12 months). Stock-chart styling: Y axis auto-fits the data range (no forced zero baseline), no point markers, smooth lines. Days without a scale report (Sundays, holidays) show as **gaps** in the line rather than dropping to zero. Indexed hover tooltip shows both series' exact values for any day.
-- **Projections** overlay
+- **Scale Monthly Review** button (gold) — opens the month-end summary modal (see Scale Monthly Review below)
+- *(Quarterly Report / Yearly Report / Projections buttons were removed in the May 2026 cleanup; underlying functions remain in the codebase but are not wired to the toolbar.)*
 
-**3. Consolidated Rolloff**
+### Consolidated Rolloff (David / Chris / Jack / admin)
+Top-level Analysis tab — formerly the IRR Scale → Consolidated Rolloff sub-view.
 - Weekly table combining Reis + Island + East End
 - Columns: Mon–Sat + Total
 - Rows (auto): Date, Revenue, Loads, Tons, Loads/Day, Rev/Load, Tons/Load
@@ -303,15 +344,56 @@ Four sub-views:
 - Rows (derived, auto-calc with manual override): Total Hours, Hrs/Drvr, Hrs/Load
 - Manual entries saved to `crc_weekly_manual` (shared across users via Supabase)
 - Prev/next week arrows, date picker, **Export to Excel** button
-- **2025 Historical Rolloff/C&D table** *(new)* below the weekly grid — 12 month columns (Jan→Dec) with 4 rows: `Loads/Month` (rolloff), `Rev/Load (Rolloff)`, `C&D Loads/Month` (rolloff + walk-ins), `Rev/Load (C&D)`. Sourced from `irr_reports` for calendar 2025; cached on `window._crc2025Data` so week-flipping doesn't re-fetch.
+- **2025 Historical Rolloff/C&D table** below the weekly grid — 12 month columns (Jan→Dec) with 4 rows: `Loads/Month` (rolloff), `Rev/Load (Rolloff)`, `C&D Loads/Month` (rolloff + walk-ins), `Rev/Load (C&D)`. Sourced from `irr_reports` for calendar 2025
 
-**4. Dashboard**
-- Date range (WTD/MTD/30D/YTD/Custom) + company filter (All/Reis/Island/East End)
-- KPI cards + Chart.js line chart with toggleable series
-- Driver Hours Entry form (Island only currently)
-- Generate Report → date-range period report with KPIs, daily breakdown, WoW summary, print/Gmail/PDF
+### Scale KPIs (David / Chris / Jack / admin)
+Top-level Analysis tab — rebuild of the old IRR Scale → KPIs & Tools (formerly "Dashboard") sub-view.
+- **Three explicit modes** in a strip at the top: **Week** / **Month** / **Custom**
+  - **Week** mode: Mon-Sat day columns + WTD + MTD + YTD with Prev/Next week navigation + date picker
+  - **Month** mode: weekly buckets W1–W5 (days 1-7, 8-14, 15-21, 22-28, 29-end) + Month + YTD with month dropdown (current year + prior 2 years)
+  - **Custom** mode: from/to date pickers, single Range column + YTD context
+- **SEC-style table polish:** dark navy section header bars, zebra-striped data rows (`#fafbfd`), tinted aggregate columns (`#f3f6fa`), bold "Total" rows with thin top border, left-bordered YTD column to read as context, monospace right-aligned numbers
+- **Six sections** as rows:
+  1. **Rolloff Totals** — Loads, Tons, Tons/Load, Rev/Load, Total Revenue (bold)
+  2. **Walk-Ins** — Tickets, Tons, Avg Tons/Ticket, Rev/Ton, Total Revenue (bold)
+  3. **All Inbound (Rolloff + Walk-Ins)** — Loads/Tickets, Tons (volume only)
+  4. **Outbound (Vinagro)** — Loads, Tons, Tons/Load
+  5. **Total Revenue** — Rolloff Revenue, Walk-In Revenue, Rev/Ton (All Inbound), Total Revenue (bold)
+  6. **Rolloff Breakdown** — Empty/Return + Double Drop (Reis), Delivery (Reis), Rev/Load Empty/Return; sub-row counts: Reis / Island Rubbish / Santos (East End)
+- **Generate Report** — drops a PDF + XLSX matching the current window into the shared Files folder `Scale Reports`. Reuses the Scale Monthly Review export pipeline so output formatting is consistent across week / month / custom periods.
+- **Print** — opens a styled printable view of the grid
+- **Driver Hours Entry form** — Date + HH:MM input, saves to `irr_reports.driver_hours` for that date
 
-### Xfer Station (David + Chris + admin)
+### Scale Monthly Review (button on Intercompany Rolloff)
+Month-end summary modal launched from the gold "Scale Monthly Review" button on the Intercompany Rolloff toolbar.
+- Defaults to the previous calendar month; month dropdown lets you pick any prior month back two years
+- Sections (consistent with the daily email and Scale KPIs grid via shared `kpiAggregate`):
+  1. Rolloff Totals (Rev/Load, Total Revenue, Loads, Tons/Load)
+  2. Walk-Ins (Tickets, Total Tons, Total Revenue, Rev/Ton, Avg Tons/Ticket)
+  3. **All Inbound (Rolloff + Walk-Ins)** — consolidating block whose Total Revenue equals what the daily email's Revenue MTD line shows on month-end
+  4. Vinagro (Outbound) — Loads, Total Tons, Avg Tons/Load
+  5. Rolloff Breakdown — Empty/Return + Double Drop (Reis), Delivery (Reis), Rev/Load Empty/Return; per-company counts (Reis, Island, Santos)
+- **Email** button copies a rich HTML version to clipboard for paste-into-Gmail
+- **Save to Files (PDF + XLSX)** button auto-creates a shared `Scale Monthly Review` folder if missing and drops both formats in
+- **Download PDF** / **Download XLSX** for local download
+
+### Rolloff Visual (David / Chris / Jack / admin)
+Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fidelity charts.
+- **Single chart** with a metric dropdown, series-mode dropdown (Combined / By Company / Both), and a "Compare to Last Year" overlay toggle
+- **Time-frame strip** above the chart: `1W / 1M / 3M / 6M / YTD / 1Y / 2Y / ALL / Custom` — one click swaps the visible window
+- **Dark stock-terminal theme** (panel `#0e1019`, brightened series colors, soft white grid)
+- **Volume sub-chart** at the bottom: faint blue bars showing daily Loads (combined activity), pinned via stacked Y-axes (3:1 weight) so the main chart gets ~75% of the height and volume gets ~25%
+- **Chart toolbar** in a header strip above the chart: ↺ Reset zoom · ⛶ Fullscreen pop-out (94vw × 90vh modal). Toolbar lives outside the canvas so it never covers data.
+- **Stock-chart interactions** (powered by `chartjs-plugin-zoom`):
+  - Mouse-wheel zoom on X axis
+  - Click-drag to pan
+  - **Click-and-drag the Y or X axis labels to rescale that axis** (TradingView-style — drag toward the chart to compress, away to expand)
+  - Y-axis is clamped at zero (rolloff metrics can't be negative)
+- **Period summary bar** below chart: Avg/day, Min, Max, Total (level metrics only), Days, YoY %
+- **Studies** (collapsible): 7-day moving average, 30-day moving average, per-company breakdown overlay
+- State persisted in localStorage (`helm_rvisual_state`); default landing = Loads · Combined · 3M · no LY · no studies
+
+### Xfer Station (David / Chris / Jack / admin)
 - **Seed balance panel** — shared "on this date the C&D room held X tons" anchor; edit button requires confirmation
 - **KPI cards** — Currently in station · 30-day avg daily net · Days to capacity · YTD inbound · YTD outbound
 - **Weekly grid** with prev/next + date picker — Inbound / Outbound / Net / End-of-day balance rows × Mon–Sat + WTD + MTD + YTD columns
@@ -325,9 +407,15 @@ Four sub-views:
 - Download via 5-minute signed URLs
 - Auto-saves daily .xls uploads to shared "Daily Scale Reports" folder
 
-### Command (David only, PIN-locked)
-- Private strategic dashboard (PIN `1144`)
-- Persists state per-user in `helm_command_state`
+### Business Line Analysis (David / Chris / Jack / admin)
+Top-level Analysis tab — manual KPI entry + analysis for the four business lines.
+- **Top toggle:** `Input` ↔ `Analysis`
+- **Input view** has four sub-tabs: Residential / Commercial / Rolloff / Xfer Station
+  - **Residential & Commercial:** day entry per driver — Date, Driver (`bla_staff` dropdown + add-new), Helper Time (HH:MM), Net Weight (lbs), Landfill Time (HH:MM), # of Landfill Trips, Total Miles, plus a repeating list of Routes worked (Route name + # Stops + optional helper). Notes field. Saved entries appear below the form with Edit / → Comm (or → Resi) / Del buttons. The "→ Comm" / "→ Resi" button moves an entry to the other section.
+  - **Rolloff:** Manual ST/OT hours per driver (HH:MM each) for a date. Tonnage / loads / revenue auto-pull from the Daily Scale Report.
+  - **Xfer Station:** Manual Trlrs Loaded, Tons Loaded, Loads Hauled override, Tons Hauled override per date. Other fields auto-pull from the Daily Scale Report.
+- **Analysis view** — four stacked accordions (Resi / Comm / Rolloff / Xfer). Click ▶ to expand → metric × Mon-Sat dates × Wk / Mo / Yr columns. Click any number to jump back to Input filtered to the entries that produced that cell.
+- Click-to-edit: cell click in Analysis sends you to the Input view filtered to the contributing entries (yellow filter banner with "Clear filter").
 
 ### Workflow (David only) — Project Management
 Full project-management surface, Linear/Notion polish on top of a Zoho-style hierarchy. **David-only** (gated via username check, no separate PIN). Lands as the default tab on login.
@@ -387,7 +475,8 @@ Nantucket follows Northeast peak construction pattern: peak May-October (tourist
 **Reis rolloff hook fees** (hardcoded in helm, effective 4/17/2026; pre-4/17 uses file values):
 | Service | Price |
 |---|---|
-| ROLLOFF DELIVERY | $100 |
+| ROLLOFF DELIVERY (15-yard) | $100 |
+| 40 YARD DELIVERY | $200 |
 | EMPTY ROLLOFF / EMPTY ROLL-OFF & RETURN | $250 |
 | ROLLOFF DOUBLE DROP | $250 |
 | MOVE ROLLOFF ON JOB SITE | $100 |
@@ -519,6 +608,75 @@ CREATE POLICY "user_notes_all" ON user_notes FOR ALL USING (true) WITH CHECK (tr
 -- created_at on clients (for the "Clients added by date" lookup; harmless if not used)
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 
+-- Route note on clients
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS route_note TEXT;
+
+-- Business Line Analysis tables
+CREATE TABLE IF NOT EXISTS bla_staff (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('driver','helper')),
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS bla_resi_entries (
+  id BIGSERIAL PRIMARY KEY,
+  entry_date DATE NOT NULL,
+  driver_id BIGINT REFERENCES bla_staff(id) ON DELETE SET NULL,
+  driver_minutes INT,
+  helper_minutes INT,
+  net_weight_lbs NUMERIC,
+  landfill_minutes INT,
+  landfill_trips INT DEFAULT 1,
+  total_miles NUMERIC,
+  routes JSONB DEFAULT '[]'::jsonb,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS bla_resi_entries_date_idx ON bla_resi_entries(entry_date);
+CREATE TABLE IF NOT EXISTS bla_comm_entries (
+  id BIGSERIAL PRIMARY KEY,
+  entry_date DATE NOT NULL,
+  driver_id BIGINT REFERENCES bla_staff(id) ON DELETE SET NULL,
+  driver_minutes INT,
+  helper_minutes INT,
+  net_weight_lbs NUMERIC,
+  landfill_minutes INT,
+  landfill_trips INT DEFAULT 1,
+  total_miles NUMERIC,
+  routes JSONB DEFAULT '[]'::jsonb,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS bla_comm_entries_date_idx ON bla_comm_entries(entry_date);
+CREATE TABLE IF NOT EXISTS bla_rolloff_manual (
+  entry_date DATE PRIMARY KEY,
+  driver_hours JSONB DEFAULT '[]'::jsonb,
+  notes TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS bla_xfer_manual (
+  entry_date DATE PRIMARY KEY,
+  trlrs_loaded INT,
+  tons_loaded NUMERIC,
+  loads_hauled INT,
+  tons_hauled NUMERIC,
+  notes TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE bla_staff           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bla_resi_entries    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bla_comm_entries    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bla_rolloff_manual  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bla_xfer_manual     ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "bla_staff_all"          ON bla_staff          FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "bla_resi_entries_all"   ON bla_resi_entries   FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "bla_comm_entries_all"   ON bla_comm_entries   FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "bla_rolloff_manual_all" ON bla_rolloff_manual FOR ALL USING(true) WITH CHECK(true);
+CREATE POLICY "bla_xfer_manual_all"    ON bla_xfer_manual    FOR ALL USING(true) WITH CHECK(true);
+
 -- Workflow tab schema (David only) — six tables for project management
 CREATE TABLE IF NOT EXISTS helm_action_projects (
   id BIGSERIAL PRIMARY KEY, identifier TEXT UNIQUE, name TEXT NOT NULL,
@@ -590,9 +748,9 @@ CREATE POLICY "ap_activity_all"     ON helm_action_activity     FOR ALL USING(tr
 
 - **Authentication** is shared password + per-user login. Fine for small internal team (~9 users).
 - **No real-time sync** — users must refresh to see others' changes.
-- **Single file** — all HTML, CSS, and JS in `index.html` (~7,200 lines). Intentional simplicity.
+- **Single file** — all HTML, CSS, and JS in `index.html` (~13,000 lines as of May 2026). Intentional simplicity.
 - **Autopay** is informational only — billing is external.
-- **Driver hours** only captured for Island Rubbish currently (Reis & East End pending — entered manually on Consolidated Rolloff).
+- **Driver hours** only captured for Island Rubbish on the Daily Scale Report path (entered HH:MM in the post-upload prompt). Reis hours can be entered manually via the Driver Hours Entry form on the Scale KPIs tab; East End hours are not yet tracked.
 - **Walk-in revenue** pre-imports (before walk-in revenue tracking was added) show $0. Recent re-imports fixed this.
 - **Xfer Station capacity** is per-browser localStorage; seed balance is shared via app state (experimental — may move to DB).
 
@@ -615,6 +773,19 @@ helm-app/
 
 ## Recent Major Changes
 
+- **May 4, 2026** — **Scale KPIs** tab built out (rebuild of the old IRR Scale → KPIs & Tools sub-view). Three explicit modes (Week / Month / Custom), six sections including a new **Total Revenue** block, SEC-style table polish (zebra stripes, dark navy section bars, tinted aggregate columns, bold totals with thin top border), Driver Hours Entry form preserved, **Generate Report** button drops PDF + XLSX into a shared `Scale Reports` Files folder for any selected window. Powered by a shared `kpiAggregate(rows)` helper so the daily email, the ICR weekly grid, the Scale Monthly Review, and the KPIs grid all compute every metric the same way.
+- **May 4, 2026** — **Tie-out fixes:** ICR MTD column now clips to the last day of the selected week's month (or today, whichever earlier), so it never spills into the following month after a calendar rollover. Scale Monthly Review now includes an **All Inbound (Rolloff + Walk-Ins)** section in HTML, PDF, and XLSX outputs — its Total Revenue value matches the daily email's Revenue MTD on month-end.
+- **May 4, 2026** — **Analysis section restructure** (David / Chris / admin): Roll-offs tab moves into the Client Management group (other users keep it standalone). IRR Scale parent tab deleted; sub-views promoted to top-level Analysis tabs (Daily Scale Report, Intercompany Rolloff, Consolidated Rolloff, Scale KPIs). Quarterly / Yearly / Projections buttons removed from the Intercompany Rolloff toolbar.
+- **May 1, 2026** — **Scale Monthly Review** (renamed from "Monthly Rolloff Report"), accessible from the gold button on the Intercompany Rolloff toolbar. Adds a **Walk-Ins** section + an **All Inbound** consolidating section. Saves to a shared `Scale Monthly Review` Files folder with PDF + XLSX.
+- **April 30, 2026** — **Rolloff Visual** dark-themed stock-chart studio: dark navy panel (`#0e1019`), brightened series colors, faint blue volume bar sub-chart pinned to the bottom 25% via stacked Y-axes (3:1 weight). Toolbar moved out of the chart canvas into a header strip so it never covers data. Line widths thinned for readability. Y-axis drag-rescale clamped at zero (rolloff metrics are always non-negative).
+- **April 29, 2026** — **Rolloff Visual** tab launched — single-chart stock-chart studio with metric dropdown, series-mode dropdown, Compare-to-LY overlay, classic time-frame strip (1W/1M/3M/6M/YTD/1Y/2Y/ALL/Custom), studies (7-day MA, 30-day MA, per-company breakdown), Period summary bar, fullscreen pop-out, click-and-drag axis rescale (TradingView-style).
+- **April 29, 2026** — Daily email refinements: section titles underlined, Today rows + all main Revenue rows get a thin gray (`#f0f0f0`) row highlight, positive percent deltas now render in green, `Total Volume` section added between External and Outbound (combined inbound count + tonnage), tighter line spacing, max-width tightened to 440px.
+- **April 28, 2026** — Daily email Revenue section restructured: $/ton appears before total revenue (boss's priority), YoY rows show absolute $ delta + percent (e.g. `+$192,482.54 | +35.6%`), Internal/External rev/ton sub-rows under each main row. All charts in IRR Scale gain stock-chart features (mouse-wheel zoom, drag pan, axis-drag rescale, fullscreen pop-out, reset button) via `chartjs-plugin-zoom` and a `helmAddChartToolbar` helper.
+- **April 28, 2026** — **Business Line Analysis** tab launched (David / Chris / admin) — manual KPI entry + analysis for Residential / Commercial / Rolloff / Xfer Station business lines. Input view with per-day per-driver entry, repeating route rows (name + stops + helper), HH:MM time inputs. Analysis view with stacked accordions, click-cell-to-drill-down. Move-entry buttons (→ Comm / → Resi). Per-route helper assignments, # of Landfill Trips field. Six new Supabase tables: `bla_staff`, `bla_resi_entries`, `bla_comm_entries`, `bla_rolloff_manual`, `bla_xfer_manual`.
+- **April 28, 2026** — **Route Note** field added to client edit form. Slides in beneath the route dropdown when a route is selected; surfaces as a 📋 italic teal line under each client's address on Daily Action Report, Notes Added Today, and Everything Report (screen + print).
+- **April 28, 2026** — **40 Yard Delivery $200** line item added to the Service Rate Sheet card on the Client Lookup home screen.
+- **April 28, 2026** — **Move Rolloff On Job Site** fee bumped from $60 to $100 (matches Rolloff Delivery).
+- **April 27, 2026** — **Side-nav grouping**: Client Management group (Lookup / Add / Reports) and Analysis group (the analysis tabs) added with collapsible headers. Side rail itself can be collapsed via a chevron toggle in the topbar (state persisted in localStorage). Roll-offs sits standalone for most users; David / Chris / admin see it inside Client Management. **Command tab removed** entirely (was unused).
 - **April 26, 2026** — **Yearly Report** added to Intercompany Rolloff (next to Quarterly): custom date range, daily-granularity line charts, stock-chart styling (Y auto-fits, no point markers, missing days gap out via null + `spanGaps:false`, no fill). Two stacked charts — Tickets and Revenue — each with Rolloff vs Walk-In lines.
 - **April 26, 2026** — **Consolidated Rolloff** sub-tab gets a new 2025 Historical Rolloff/C&D table beneath the weekly grid (12 month columns, 4 metric rows: Loads/Month, Rev/Load Rolloff, C&D Loads/Month, Rev/Load C&D).
 - **April 25, 2026** — Daily email/report final shape: Section 1 Today shows `X trips · Y.YY tons` (was just tons); Section 3 renamed to "Revenue" (dropped "(today)"), Rolloff Revenue gets indented Hook Fee + Tonnage sub-rows, Walk-In Revenue shows ticket count (incl. pile pickups), Total Revenue Today highlighted in soft yellow alongside the existing Today highlights in Sections 1 + 2. Pile Pickups section removed entirely. YOY block label "Delta:" → "% Change:".
@@ -630,7 +801,7 @@ helm-app/
 - **April 19, 2026** — Hook fee vs disposal fee split. Disposal fees (mattress, appliance, freon, monitor, tire) now route based on ticket: Reis rolloff ticket → tonnage revenue; walk-in → walk-in revenue. Move Rolloff stays in hook fees.
 - **April 19, 2026** — Review IC Tickets modal extended: includes Delta; three columns (Exclude / Pile Pickup / Walk In).
 - **April 18, 2026** — Consolidated Rolloff sub-tab added under IRR Scale. Excel export + shared manual hours/drivers entry.
-- **April 17, 2026** — Rate change: rolloff service fees hardcoded ($100/$250/$250/$60) for dates ≥ 4/17. East End billing: $200+$380+10% → $250+$480+0%. Walk-in tiers: $380→$480, $425→$525.
+- **April 17, 2026** — Rate change: rolloff service fees hardcoded ($100/$250/$250/$60) for dates ≥ 4/17 (Move Rolloff later bumped to $100 on Apr 28, 2026). East End billing: $200+$380+10% → $250+$480+0%. Walk-in tiers: $380→$480, $425→$525.
 - **April 17, 2026** — Per-unit fee tracking (mattress/appliance/freon/monitor/tire/move rolloff) with fixed HELM-side prices.
 - **April 17, 2026** — Route dropdown (1-14) on client edit form; Route column on daily action reports.
 - **April 17, 2026** — Roll-offs: Monthly Tip toggle, Export Untipped, Reset button, last-day-of-month banner, Export Print Sheet mirroring the alpha-by-company legacy template.
@@ -641,5 +812,6 @@ helm-app/
 - **April 16, 2026** — Contacts panel cells inline-editable.
 - **Oct 2025 → present**: Full IRR Scale system (daily parsing, email drafts, historical viewing, intercompany report, quarterly charts, projections, dashboard).
 - **Files tab** with Supabase Storage.
-- **Command Center** (David only, PIN-gated).
 - **Chris user** added as admin.
+
+*(The Command tab was deprecated and removed in May 2026; the codebase still contains the underlying functions but no nav entry. `helm_command_state` table still exists but is unused.)*

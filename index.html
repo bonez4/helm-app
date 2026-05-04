@@ -3191,6 +3191,8 @@ function switchTab(name,btn){
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
+  // Remember last-visited tab so a refresh lands you back where you left off
+  try { localStorage.setItem('helm_active_tab', name); } catch(_){}
   // Action Items / Command both need to escape .main's max-width
   document.body.classList.toggle('on-action-tab', name==='action');
   document.body.classList.toggle('on-cmd-tab', name==='cmd');
@@ -11105,8 +11107,36 @@ if(_saved && _saved !== '1'){
     init().catch(err=>{
       toast('Connection error — please refresh');
       console.error('Init failed:',err);
-    });
+    }).then(()=>{ try { restoreActiveTab(); } catch(_){} });
   }catch(e){ sessionStorage.removeItem('helm_auth'); }
+}
+
+// Maps a saved tab name to the nav button that activates it. Used to
+// re-trigger the click on page reload so the user lands on the tab
+// they last visited rather than the default Lookup screen.
+function restoreActiveTab(){
+  const saved = localStorage.getItem('helm_active_tab');
+  if(!saved || saved === 'lookup') return;   // lookup is the default; nothing to do
+  // Find the button that drives this tab. We scan the tab-nav for an
+  // onclick that calls switchTab('<saved>', this).
+  const navBtns = document.querySelectorAll('#tabNav button');
+  for(const btn of navBtns){
+    const onClick = btn.getAttribute('onclick') || '';
+    const m = onClick.match(/switchTab\(['"]([^'"]+)['"]/);
+    if(m && m[1] === saved){
+      // Skip if the tab isn't visible (gating hides things the user can't see)
+      // Walk up to the parent and see if it or any ancestor is display:none
+      let el = btn;
+      while(el){
+        const style = window.getComputedStyle(el);
+        if(style.display === 'none') return;
+        el = el.parentElement;
+        if(el && el.id === 'tabNav') break;
+      }
+      switchTab(saved, btn);
+      return;
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
