@@ -3098,6 +3098,10 @@ function fmtDate(iso){
 }
 
 // Per-pickup rate helpers (R1 Trash, R2 Extra Bag, R3 Recycle, R4 Intermitt, R5 Cardboard)
+// Gated to user 'david' for now while the feature stabilizes — other users see no change.
+function userIsDavid(){
+  return !!(currentUser && currentUser.username==='david');
+}
 function fmtRate(v){
   if(v==null||v==='') return '—';
   const n=Number(v);
@@ -3112,6 +3116,7 @@ function rateTotal(c){
   return sum;
 }
 function renderRatePanel(c){
+  if(!userIsDavid()) return '';
   const rates=[
     {n:1,label:'R1 Trash',     v:c.rate1},
     {n:2,label:'R2 Extra Bag', v:c.rate2},
@@ -3671,6 +3676,7 @@ function editClient(cid){
             <textarea id="editRouteNote" rows="2" placeholder="Notes for the driver running this route…" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;resize:vertical;">${esc(c.route_note||'')}</textarea>
           </div>
         </div>
+        ${userIsDavid() ? `
         <div class="form-group">
           <label>Rate Schedule (per pickup)</label>
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
@@ -3682,6 +3688,7 @@ function editClient(cid){
           </div>
           <div style="font-size:10px;color:var(--gray-400);margin-top:5px;line-height:1.3;">R1 trash pickup · R2 extra bag · R3 recycle bag · R4 intermittent · R5 cardboard armload. Per-pickup rates. Leave blank if not applicable.</div>
         </div>
+        ` : ''}
         <div class="form-group">
           <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
             <input type="checkbox" id="editAutopay" ${c.autopay?'checked':''}/> Autopay (credit card on file)
@@ -3717,15 +3724,9 @@ async function saveClientEdit(cid){
   const routeVal=document.getElementById('editRoute')?.value||'';
   const route=routeVal?parseInt(routeVal):null;
   const routeNote=route?(document.getElementById('editRouteNote')?.value||'').trim():'';
-  const parseRate=id=>{
-    const raw=(document.getElementById(id)?.value||'').trim();
-    if(raw==='') return null;
-    const n=parseFloat(raw);
-    return isFinite(n)?n:null;
-  };
   if(!addr){toast('Address is required');return;}
   if(!days.length){toast('Select at least one pickup day');return;}
-  const {error}=await db.from('clients').update({
+  const payload={
     client_name:name||null,
     address:addr,
     phone:phone||null,
@@ -3733,13 +3734,25 @@ async function saveClientEdit(cid){
     service_day:days.join(','),
     autopay:autopay,
     route:route,
-    route_note: routeNote||null,
-    rate1: parseRate('editRate1'),
-    rate2: parseRate('editRate2'),
-    rate3: parseRate('editRate3'),
-    rate4: parseRate('editRate4'),
-    rate5: parseRate('editRate5')
-  }).eq('client_id',cid);
+    route_note: routeNote||null
+  };
+  // Rate fields are David-only for now. Only include them in the update payload
+  // when David is logged in, so other users can't inadvertently wipe rates by
+  // saving an edit on a card that didn't render the rate inputs.
+  if(userIsDavid()){
+    const parseRate=id=>{
+      const raw=(document.getElementById(id)?.value||'').trim();
+      if(raw==='') return null;
+      const n=parseFloat(raw);
+      return isFinite(n)?n:null;
+    };
+    payload.rate1=parseRate('editRate1');
+    payload.rate2=parseRate('editRate2');
+    payload.rate3=parseRate('editRate3');
+    payload.rate4=parseRate('editRate4');
+    payload.rate5=parseRate('editRate5');
+  }
+  const {error}=await db.from('clients').update(payload).eq('client_id',cid);
   if(error){toast('Error: '+error.message);return;}
   await loadClients();
   const updated=clients.find(x=>x.client_id===cid);
