@@ -1,0 +1,9 @@
+# PII-bearing extract artifacts from master_list_extract.py — generated locally,
+# never committed to the public Pages repo.
+master_extract.json
+master_extract_*.csv
+dryrun_*.csv
+dryrun_summary.txt
+
+# Ad-hoc Python helpers used during PDF exploration (kept locally only).
+peek_*.py
