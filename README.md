@@ -86,6 +86,11 @@ Per-user themes live in `applyUserTheme()`:
 | status | TEXT | `Active`, `Paused` |
 | route | SMALLINT | Route number 1–14 (shown on edit form and action report) |
 | route_note | TEXT | Optional per-client route note; rendered inline on every report |
+| rate1 | NUMERIC(8,2) | Per-pickup price: regular trash pickup |
+| rate2 | NUMERIC(8,2) | Per-pickup price: extra bag of trash |
+| rate3 | NUMERIC(8,2) | Per-pickup price: per bag of recyclables |
+| rate4 | NUMERIC(8,2) | Per-pickup price: intermittent pickup (rarely used) |
+| rate5 | NUMERIC(8,2) | Per-pickup price: cardboard armload |
 
 **`skips`** — Weekly skip records
 | Column | Type | Notes |
@@ -266,6 +271,7 @@ All tables RLS-enabled with open policies (HELM standard).
 - Name / address / phone / email / pickup days / **route 1-14 dropdown** / autopay
 - Routes chosen from "Select Route" dropdown; renders as a navy pill on the card
 - **Route Note** — when a route is selected, an optional textarea slides in beneath the route dropdown ("leave bins on left side", "gate code 4321", etc.). Auto-clears if the user removes the route. Saved to `clients.route_note` and surfaced inline (`📋` italic teal line beneath the address) on the Daily Action Report, Notes Added Today, and Everything Report — both screen and print versions.
+- **Rate Schedule (per-pickup)** — five inputs covering R1 trash pickup, R2 extra bag, R3 recycle bag, R4 intermittent pickup (rarely used), R5 cardboard armload. Stored as `clients.rate1` … `rate5`. Surfaced on the Lookup card as a 5-cell strip with running Total below the info-tiles. Mirrors the legacy NetWork software's R1-R5 view. Rates vary per address — they are not uniform across clients.
 
 ### Reports (all users)
 Four cards on the Reports tab:
@@ -611,6 +617,13 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW(
 -- Route note on clients
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS route_note TEXT;
 
+-- Per-pickup rate schedule on clients (R1=trash, R2=extra bag, R3=recycle, R4=intermittent, R5=cardboard armload)
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate1 NUMERIC(8,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate2 NUMERIC(8,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate3 NUMERIC(8,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate4 NUMERIC(8,2);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate5 NUMERIC(8,2);
+
 -- Business Line Analysis tables
 CREATE TABLE IF NOT EXISTS bla_staff (
   id BIGSERIAL PRIMARY KEY,
@@ -773,6 +786,7 @@ helm-app/
 
 ## Recent Major Changes
 
+- **May 5, 2026** — **Per-pickup rate schedule on clients.** Added `rate1`-`rate5` NUMERIC columns to `clients` (R1 trash pickup, R2 extra bag, R3 recycle bag, R4 intermittent, R5 cardboard armload — each per pickup, varies by address). Edit Client form gets a 5-cell rate input row. Lookup card surfaces a compact rate panel with running Total below the existing info-tiles, mirroring the legacy NetWork R1-R5 view. Run the new ALTER TABLE block in Supabase before deploying. Wired ahead of the upcoming Master List import which will populate these from the Delta export.
 - **May 5, 2026** — **Daily Scale Reports auto-save dedupe.** Re-uploading the same daily .xls used to stack duplicate copies in `Files → Daily Scale Reports` (each upload got a fresh timestamp-prefixed storage path + a new `helm_files` row). `irrAutoSaveFile` now runs a dedupe pass over the whole folder before each upload: marks every existing copy of the about-to-be-uploaded filename for removal (replace-on-write semantics), and for every other filename keeps the most recently uploaded copy and removes older duplicates. Legacy duplicates clean up organically the next time anyone uploads.
 - **May 5, 2026** — **Tab persistence on refresh.** `switchTab` writes the active tab to `localStorage.helm_active_tab`. `restoreActiveTab()` runs after the cached-session boot path applies access gating, parses each nav button's inline `switchTab('<name>',this)` onclick to find the right button, and re-fires the click. Skips silently if the saved tab is hidden by gating. Default Lookup still loads on first-ever open and after hard logout.
 - **May 4, 2026** — **Scale KPIs** tab built out (rebuild of the old IRR Scale → KPIs & Tools sub-view). Three explicit modes (Week / Month / Custom), six sections including a new **Total Revenue** block, SEC-style table polish (zebra stripes, dark navy section bars, tinted aggregate columns, bold totals with thin top border), Driver Hours Entry form preserved, **Generate Report** button drops PDF + XLSX into a shared `Scale Reports` Files folder for any selected window. Powered by a shared `kpiAggregate(rows)` helper so the daily email, the ICR weekly grid, the Scale Monthly Review, and the KPIs grid all compute every metric the same way.
