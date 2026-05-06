@@ -208,18 +208,34 @@ def main():
         candidates = candidates[:args.limit]
         print(f'  --limit applied: trimmed to {len(candidates)} clients')
 
-    # Build flat row list
+    # Build flat row list (deduped by (client_id, day_of_week) — PK constraint)
+    seen = {}
+    duplicates = []
     flat_rows = []
     for acct in candidates:
         for r in routes_by_acct[acct]:
-            flat_rows.append({
+            key = (acct, DAY_LETTER_TO_NUM[r['day_letter']])
+            row = {
                 'client_id': acct,
                 'day_of_week': DAY_LETTER_TO_NUM[r['day_letter']],
                 'route': r['route'],
                 'position': r['position'],
                 'route_note': r['note'] or None,
                 'source': 'delta',
-            })
+            }
+            if key in seen:
+                duplicates.append((key, seen[key], row))
+                continue  # keep the FIRST occurrence per (client, day)
+            seen[key] = row
+            flat_rows.append(row)
+
+    if duplicates:
+        print(f'\n[WARN] {len(duplicates)} duplicate (client_id, day) pairs in source PDF — kept first, dropped rest:')
+        for (acct, dow), kept, dropped in duplicates[:10]:
+            day_names = {1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri',6:'Sat'}
+            print(f'  acct {acct} {day_names[dow]}: kept R{kept["route"]} pos {kept["position"]} -- dropped R{dropped["route"]} pos {dropped["position"]}')
+        if len(duplicates) > 10:
+            print(f'  ... and {len(duplicates) - 10} more')
 
     print(f'\nTotal route_assignments rows to upsert: {len(flat_rows)}')
 
