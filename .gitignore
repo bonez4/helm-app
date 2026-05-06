@@ -10,5 +10,9 @@ audit_*.csv
 audit_summary.txt
 HELM_Delta_Audit.xlsx
 
+# Import dry-run + applied logs from import_rates.py.
+import_rates_preview.csv
+import_rates_applied.csv
+
 # Ad-hoc Python helpers used during PDF exploration (kept locally only).
 peek_*.py
