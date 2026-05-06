@@ -5,5 +5,10 @@ master_extract_*.csv
 dryrun_*.csv
 dryrun_summary.txt
 
+# Audit artifacts from helm_delta_audit.py (acct lists with names, addrs, phones).
+audit_*.csv
+audit_summary.txt
+HELM_Delta_Audit.xlsx
+
 # Ad-hoc Python helpers used during PDF exploration (kept locally only).
 peek_*.py
