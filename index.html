@@ -2512,6 +2512,14 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <button id="blaTabBtn"         class="nav-child" style="display:none" onclick="switchTab('bla',this)">Business Line Analysis</button>
       </div>
     </div>
+    <div class="nav-group" id="navGroup-routing" style="display:none">
+      <button class="nav-group-hdr" onclick="toggleNavGroup('routing')">
+        <span class="nav-group-arrow">▼</span><span class="nav-group-label">Routing</span>
+      </button>
+      <div class="nav-group-children">
+        <button id="resiRoutesTabBtn"  class="nav-child" style="display:none" onclick="switchTab('resiroutes',this)">Residential Routing</button>
+      </div>
+    </div>
     <button id="rolloffsSolo" class="nav-solo" onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button id="filesTabBtn"  class="nav-solo" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="actionTabBtn" class="nav-solo" style="display:none" onclick="switchTab('action',this)">Workflow</button>
@@ -2530,6 +2538,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <div id="tab-rvisual" style="display:none"></div>
     <div id="tab-xfer"   style="display:none"></div>
     <div id="tab-bla"    style="display:none"></div>
+    <div id="tab-resiroutes" style="display:none"></div>
     <div id="tab-files"  style="display:none"></div>
     <div id="tab-cmd"    style="display:none"></div>
     <div id="tab-action" style="display:none"></div>
@@ -3032,6 +3041,8 @@ async function login() {
   applyNavRailState();
   if(data.username==='david'){
     document.getElementById('actionTabBtn').style.display='';
+    document.getElementById('navGroup-routing').style.display='';
+    document.getElementById('resiRoutesTabBtn').style.display='';
   }
   startHeartbeat();
   init();
@@ -3193,7 +3204,8 @@ async function loadNotes(baseId){
 // Which group does each tab belong to? (Used for auto-expand on switch.)
 const NAV_GROUP_OF_TAB = {
   lookup:'clients', add:'clients', report:'clients',
-  dailyscale:'analysis', icr:'analysis', crc:'analysis', kpis:'analysis', rvisual:'analysis', xfer:'analysis', bla:'analysis'
+  dailyscale:'analysis', icr:'analysis', crc:'analysis', kpis:'analysis', rvisual:'analysis', xfer:'analysis', bla:'analysis',
+  resiroutes:'routing'
 };
 function toggleNavGroup(id){
   const el = document.getElementById('navGroup-'+id);
@@ -3239,7 +3251,7 @@ function expandNavGroupFor(tabName){
 }
 function switchTab(name,btn){
   expandNavGroupFor(name);
-  ['lookup','add','report','rolloffs','dailyscale','icr','crc','kpis','rvisual','xfer','bla','files','cmd','action','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','dailyscale','icr','crc','kpis','rvisual','xfer','bla','resiroutes','files','cmd','action','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -3261,6 +3273,7 @@ function switchTab(name,btn){
   if(name==='rvisual') renderRolloffVisual();
   if(name==='xfer')   renderXfer();
   if(name==='bla')    renderBLA();
+  if(name==='resiroutes') renderResidentialRouting();
   if(name==='files')  renderFiles();
   if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
   if(name==='action') { apInit(); }
@@ -11217,6 +11230,8 @@ if(_saved && _saved !== '1'){
     }
     if(currentUser.username==='david'){
       document.getElementById('actionTabBtn').style.display='';
+      document.getElementById('navGroup-routing').style.display='';
+      document.getElementById('resiRoutesTabBtn').style.display='';
     }
     applyNavGroupState();
     applyNavRailState();
@@ -14640,6 +14655,236 @@ function rvUpdateSummary(rows, metric, lyValues){
   el.innerHTML = stats.map(s =>
     `<div class="rv-stat"><div class="rv-stat-label">${s.label}</div><div class="rv-stat-value ${s.cls||''}">${s.value}</div></div>`
   ).join('');
+}
+
+// ── RESIDENTIAL ROUTING ──────────────────────────────────────────────────
+// Day mapping: 1=Mon..6=Sat (matches route_assignments.day_of_week column).
+// Sunday (JS getDay()===0) = no pickups.
+const RR_DAY_NAMES = {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+
+let resiRoutesData = null;       // cached route_assignments rows
+let resiRoutesState = { date: null, route: 'all' };
+
+function rrTomorrowISO(){
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  if(d.getDay() === 0) d.setDate(d.getDate() + 1);  // skip Sunday
+  return d.toISOString().split('T')[0];
+}
+function rrDateToDow(iso){
+  if(!iso) return null;
+  const d = new Date(iso + 'T00:00:00');
+  const dow = d.getDay();
+  return dow === 0 ? null : dow;  // null = Sunday
+}
+function rrDayShort(serviceDay){
+  if(!serviceDay) return '';
+  return serviceDay.split(',').map(d=>{
+    d = d.trim();
+    if(d==='Monday') return 'M';
+    if(d==='Tuesday') return 'T';
+    if(d==='Wednesday') return 'W';
+    if(d==='Thursday') return 'Th';
+    if(d==='Friday') return 'F';
+    if(d==='Saturday') return 'S';
+    return d.slice(0,1);
+  }).join(' ');
+}
+
+async function rrLoadData(){
+  if(resiRoutesData) return resiRoutesData;
+  const all = [];
+  let from = 0;
+  const batch = 1000;
+  while(true){
+    const {data, error} = await db.from('route_assignments').select('*').range(from, from+batch-1);
+    if(error){ toast('Routes load error: '+error.message); return []; }
+    if(!data || !data.length) break;
+    all.push(...data);
+    if(data.length < batch) break;
+    from += batch;
+  }
+  resiRoutesData = all;
+  return all;
+}
+
+async function renderResidentialRouting(){
+  const tab = document.getElementById('tab-resiroutes');
+  if(!tab) return;
+  if(!resiRoutesState.date) resiRoutesState.date = rrTomorrowISO();
+  tab.innerHTML = '<div class="loading" style="padding:40px;text-align:center;color:var(--gray-400);">Loading routes…</div>';
+  await rrLoadData();
+  rrRender();
+}
+
+function rrRender(){
+  const tab = document.getElementById('tab-resiroutes');
+  if(!tab) return;
+  const date = resiRoutesState.date;
+  const dow = rrDateToDow(date);
+  const routeFilter = resiRoutesState.route;
+
+  let rows = (resiRoutesData||[]).filter(r => r.day_of_week === dow);
+  if(routeFilter !== 'all') rows = rows.filter(r => r.route === parseInt(routeFilter));
+  rows.sort((a,b)=> (a.route - b.route) || (a.position - b.position));
+
+  const byRoute = {};
+  rows.forEach(r => { (byRoute[r.route] = byRoute[r.route] || []).push(r); });
+
+  const dayLabel = dow ? RR_DAY_NAMES[dow] : 'Sunday';
+  const dateLabel = fmtDate(date);
+
+  let html = `
+    <div class="form-card" style="margin-bottom:1rem">
+      <h2>Residential Routing</h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
+        Pick a date to see that day's pickup routes in driving order. Print by 3pm for next-day routes.
+      </p>
+      <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+        <div class="form-group" style="margin-bottom:0;flex:0 0 auto">
+          <label>Route Date</label>
+          <div style="display:flex;gap:4px;align-items:center">
+            <button class="btn-add" style="background:var(--gray-100);color:var(--gray-700);padding:6px 12px;font-size:14px;font-weight:700;line-height:1" onclick="rrShiftDate(-1)" title="Previous day">‹</button>
+            <input type="date" id="rrDate" value="${date}" onchange="rrSetDate(this.value)" style="width:160px;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--gray-50);"/>
+            <button class="btn-add" style="background:var(--gray-100);color:var(--gray-700);padding:6px 12px;font-size:14px;font-weight:700;line-height:1" onclick="rrShiftDate(1)" title="Next day">›</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;flex:0 0 auto">
+          <label>Route Filter</label>
+          <select id="rrRoute" onchange="rrSetRoute(this.value)" style="width:140px;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--gray-50);">
+            <option value="all" ${routeFilter==='all'?'selected':''}>All routes</option>
+            ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${routeFilter==String(n)?'selected':''}>Route ${n}</option>`).join('')}
+          </select>
+        </div>
+        <button class="btn-add" onclick="rrPrint()" style="white-space:nowrap">Print</button>
+      </div>
+      <div style="margin-top:14px;font-size:13px;color:var(--gray-700)">
+        <strong style="color:var(--navy)">${dateLabel}</strong> &nbsp;·&nbsp; <span style="color:var(--gray-500)">${dayLabel}</span> ${dow ? `&nbsp;·&nbsp; <span style="color:var(--gray-500)">${rows.length} stop${rows.length===1?'':'s'}</span>` : ''}
+      </div>
+    </div>`;
+
+  if(!dow){
+    html += '<div class="empty-state" style="padding:40px;text-align:center;color:var(--gray-400);">No pickups on Sunday.</div>';
+    tab.innerHTML = html;
+    return;
+  }
+  if(!rows.length){
+    html += `<div class="empty-state" style="padding:40px;text-align:center;color:var(--gray-400);">No clients on ${routeFilter==='all'?'any route':'Route '+routeFilter} for ${dayLabel}.</div>`;
+    tab.innerHTML = html;
+    return;
+  }
+
+  Object.keys(byRoute).map(n=>parseInt(n)).sort((a,b)=>a-b).forEach(rt => {
+    const routeRows = byRoute[rt];
+    html += `<div class="report-group" style="margin-bottom:14px">
+      <div class="report-group-header">
+        <span>Route ${rt}</span>
+        <span>${routeRows.length} stop${routeRows.length===1?'':'s'}</span>
+      </div>
+      <table class="report-table"><thead><tr>
+        <th style="width:36px">#</th>
+        <th style="width:240px">Address</th>
+        <th>Account</th>
+        <th style="width:90px">Days</th>
+      </tr></thead><tbody>`;
+    routeRows.forEach((r, i) => {
+      const c = findClient(r.client_id) || {};
+      const note = r.route_note ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(r.route_note)}</div>` : '';
+      html += `<tr>
+        <td class="rt-num">${i+1}</td>
+        <td class="rt-addr">${esc(c.address || '—')}</td>
+        <td class="rt-name">
+          <strong>${esc(c.client_name || '—')}</strong>
+          <span style="color:var(--gray-500);font-family:'DM Mono',monospace;font-size:11px;margin-left:6px">#${esc(r.client_id)}</span>
+          ${note}
+        </td>
+        <td style="font-size:11px;color:var(--gray-500);font-family:'DM Mono',monospace">${esc(rrDayShort(c.service_day))}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  });
+
+  tab.innerHTML = html;
+}
+
+function rrShiftDate(delta){
+  const d = new Date(resiRoutesState.date + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  if(d.getDay() === 0) d.setDate(d.getDate() + (delta > 0 ? 1 : -1));  // skip Sunday
+  resiRoutesState.date = d.toISOString().split('T')[0];
+  rrRender();
+}
+function rrSetDate(iso){ resiRoutesState.date = iso; rrRender(); }
+function rrSetRoute(r){ resiRoutesState.route = r; rrRender(); }
+
+function rrPrint(){
+  const date = resiRoutesState.date;
+  const dow = rrDateToDow(date);
+  if(!dow){ toast('No pickups on Sunday'); return; }
+  const dayLabel = RR_DAY_NAMES[dow];
+  const routeFilter = resiRoutesState.route;
+
+  let rows = (resiRoutesData||[]).filter(r => r.day_of_week === dow);
+  if(routeFilter !== 'all') rows = rows.filter(r => r.route === parseInt(routeFilter));
+  rows.sort((a,b)=> (a.route - b.route) || (a.position - b.position));
+  if(!rows.length){ toast('Nothing to print'); return; }
+
+  const byRoute = {};
+  rows.forEach(r => { (byRoute[r.route] = byRoute[r.route] || []).push(r); });
+
+  const w = window.open('', '_blank');
+  let html = `<html><head><title>Routes ${date} ${dayLabel}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:12px;color:#000;padding:18px;margin:0}
+      h1{font-size:16px;margin:0;font-weight:700}
+      .route-page{page-break-after:always}
+      .route-page:last-child{page-break-after:auto}
+      .route-hdr{margin-bottom:8px;border-bottom:2px solid #000;padding-bottom:6px}
+      .route-hdr .top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+      .route-hdr .meta{font-size:11px;color:#000}
+      .driver-line{display:flex;gap:14px;font-size:11px;margin-top:6px}
+      .driver-line .blank{border-bottom:1px solid #000;display:inline-block;min-width:180px;padding-bottom:1px}
+      table{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}
+      th,td{padding:6px 8px;text-align:left;vertical-align:top;border-bottom:1px solid #999}
+      th{background:#000;color:#fff;text-transform:uppercase;font-size:10px;letter-spacing:0.04em}
+      .addr-col{width:30%;font-weight:700}
+      .acct-col{width:55%}
+      .days-col{width:15%;text-align:center;font-family:'Courier New',monospace}
+      .note{font-size:10px;color:#222;font-style:italic;margin-top:2px}
+      .acct-num{font-family:'Courier New',monospace;color:#444;font-size:10px;margin-left:6px}
+    </style></head><body>`;
+
+  Object.keys(byRoute).map(n=>parseInt(n)).sort((a,b)=>a-b).forEach(rt => {
+    const routeRows = byRoute[rt];
+    html += `<div class="route-page">
+      <div class="route-hdr">
+        <div class="top-row">
+          <h1>Myles Reis Trucking LLC &mdash; Route ${rt}</h1>
+          <div class="meta">${dayLabel} &middot; ${date}</div>
+        </div>
+        <div class="meta">${routeRows.length} stop${routeRows.length===1?'':'s'}</div>
+        <div class="driver-line">Driver: <span class="blank"></span></div>
+      </div>
+      <table><thead><tr>
+        <th class="addr-col">Address</th>
+        <th class="acct-col">Account</th>
+        <th class="days-col">Days</th>
+      </tr></thead><tbody>`;
+    routeRows.forEach(r => {
+      const c = findClient(r.client_id) || {};
+      const note = r.route_note ? `<div class="note">${esc(r.route_note)}</div>` : '';
+      html += `<tr>
+        <td class="addr-col">${esc(c.address || '')}</td>
+        <td class="acct-col"><strong>${esc(c.client_name || '')}</strong><span class="acct-num">#${esc(r.client_id)}</span>${note}</td>
+        <td class="days-col">${esc(rrDayShort(c.service_day))}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  });
+  html += '</body></html>';
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(), 300);
 }
 
 </script>

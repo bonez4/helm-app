@@ -56,7 +56,7 @@ No build step. No npm. No framework. One file.
 - **Jack + admins**: Import tab
 - **David / Jack / admins**: Files
 - **David / Chris / Jack / admins**: every Analysis tab — Daily Scale Report, Intercompany Rolloff, Consolidated Rolloff, Scale KPIs, Rolloff Visual, Xfer Station, Business Line Analysis
-- **David only**: Workflow tab (Action Items / project management)
+- **David only**: Workflow tab (Action Items / project management) **and Routing group → Residential Routing tab**
 - **David + Chris + admin (per-user nav variant):** Roll-offs tab moves *into* the Client Management group (rather than sitting standalone). Other users still see Roll-offs as a top-level item.
 
 **Nav grouping:** the side rail uses two collapsible groups — **Client Management** (Client Lookup / Add Client / Reports, plus Roll-offs for David/Chris/admin) and **Analysis** (the seven analysis tabs above). Standalone tabs sit beneath the groups: Roll-offs (for non-D/C/admin users), Files, Workflow, Import. Group state persists in localStorage (`helm_nav_groups`) and the entire side rail can be collapsed via the chevron toggle in the topbar (state persisted as `helm_nav_collapsed`).
@@ -232,6 +232,21 @@ Reis walk-in and rolloff tonnage revenue is parsed **from the scale file directl
 | tons_hauled | NUMERIC | optional override |
 | notes | TEXT | |
 | updated_at | TIMESTAMPTZ | |
+
+### Residential Routing Tables (David only)
+
+**`route_assignments`** — Per-(client, day) route position + driver note. Source of truth for the Routing → Residential Routing tab.
+| Column | Type | Notes |
+|---|---|---|
+| client_id | TEXT (FK) | References clients(client_id), ON DELETE CASCADE |
+| day_of_week | SMALLINT | 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat |
+| route | SMALLINT | Route number (typically 1-14) |
+| position | SMALLINT | Driving order within (day, route); lower = earlier stop |
+| route_note | TEXT | Optional driver instruction ("BEHIND HOUSE - DONT TAKE ANY RECYCLES") |
+| source | TEXT | `delta` for PDF imports, `manual` for hand-entered rows |
+| created_at, updated_at | TIMESTAMPTZ | |
+
+PK: `(client_id, day_of_week)`. Index: `(day_of_week, route, position)` for fast Routes-tab queries.
 
 ### Workflow Tables (David only — Action Items / project management)
 
@@ -422,6 +437,17 @@ Top-level Analysis tab — manual KPI entry + analysis for the four business lin
   - **Xfer Station:** Manual Trlrs Loaded, Tons Loaded, Loads Hauled override, Tons Hauled override per date. Other fields auto-pull from the Daily Scale Report.
 - **Analysis view** — four stacked accordions (Resi / Comm / Rolloff / Xfer). Click ▶ to expand → metric × Mon-Sat dates × Wk / Mo / Yr columns. Click any number to jump back to Input filtered to the entries that produced that cell.
 - Click-to-edit: cell click in Analysis sends you to the Input view filtered to the contributing entries (yellow filter banner with "Clear filter").
+
+### Residential Routing (David only) — new "Routing" nav group
+The first deliverable from the Master List import project. Picks a date and shows that day's residential pickup routes in driving order, sourced from the new `route_assignments` table (1,999 rows / 1,068 distinct clients across all 6 days).
+
+- **Top controls:** prev-day `‹` button + date picker + next-day `›` button (defaults to **tomorrow**, auto-skips Sundays); Route Filter dropdown (All routes / Route 1-14); Print button
+- **Body:** one section per route, each with a navy header bar (`Route N · X stops`) and a table — `# / Address / Account (name + acct # + 📋 italic teal route_note) / Days`. Driving order preserved via `position` column.
+- **Print** opens a popup window with one page per route, mirroring the legacy NetWork commercial route sheet (Address | Account | Days, with driver line at top). Works for any subset (single route or all).
+- **Sunday handling:** date picker can land on a Sunday but the body shows "No pickups on Sunday." Prev/next buttons skip Sunday automatically.
+- **Data flow:** `route_assignments` is fetched once on first tab open, cached in memory (`resiRoutesData`). Joined in-memory with the existing `clients` array for name/address/service_day. Fast enough for ~2k rows.
+- Currently **gated to user `david` only** while the feature stabilizes — other users see no Routing group in the side rail. Will roll out to office staff once skip/note/LPU lifecycle wiring lands.
+- **Pending integration (next iteration):** Skip Day → hide row entirely (per user direction), 1XER for the picked date → insert row even if not normally on that route, LPU after its date → auto-flip status to Paused + drop, 1X WK / 2X WK → resume Paused → Active.
 
 ### Workflow (David only) — Project Management
 Full project-management surface, Linear/Notion polish on top of a Zoho-style hierarchy. **David-only** (gated via username check, no separate PIN). Lands as the default tab on login.
@@ -624,6 +650,23 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate3 NUMERIC(8,2);
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate4 NUMERIC(8,2);
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate5 NUMERIC(8,2);
 
+-- Residential Routing: per-day route + position + note for the new Routing tab
+CREATE TABLE IF NOT EXISTS route_assignments (
+  client_id   TEXT NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+  day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 1 AND 6),
+  route       SMALLINT NOT NULL,
+  position    SMALLINT,
+  route_note  TEXT,
+  source      TEXT DEFAULT 'manual',
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY(client_id, day_of_week)
+);
+ALTER TABLE route_assignments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "route_assignments_all" ON route_assignments FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS route_assignments_day_route_idx
+  ON route_assignments(day_of_week, route, position);
+
 -- Business Line Analysis tables
 CREATE TABLE IF NOT EXISTS bla_staff (
   id BIGSERIAL PRIMARY KEY,
@@ -775,7 +818,10 @@ CREATE POLICY "ap_activity_all"     ON helm_action_activity     FOR ALL USING(tr
 helm-app/
 ├── index.html                                    ← The entire application
 ├── master_list_extract.py                        ← Master List import: PDF extractor + dry-run diff (paused mid-flight, see Recent Major Changes May 5)
-├── .gitignore                                    ← Excludes PII-bearing extract artifacts (master_extract*.{json,csv}, dryrun_*.csv, peek_*.py)
+├── helm_delta_audit.py                           ← HELM ↔ Delta cross-reference audit; outputs HELM_Delta_Audit.xlsx
+├── import_rates.py                               ← Fills clients.rate1-5 from the Delta PDF (1,292 accts done)
+├── import_routes.py                              ← Upserts route_assignments from the Delta PDF (1,999 rows done)
+├── .gitignore                                    ← Excludes PII-bearing extract artifacts (master_extract*.{json,csv}, dryrun_*.csv, audit_*.csv, import_*_*.csv, HELM_Delta_Audit.xlsx, peek_*.py)
 ├── IRR_DailyScaleReport.gs                       ← Legacy Google Apps Script (not used)
 ├── irr-daily-report.html                         ← Standalone daily report tool (legacy)
 ├── sample_clients.csv                            ← Client CSV import template
@@ -788,6 +834,8 @@ helm-app/
 
 ## Recent Major Changes
 
+- **May 6, 2026** — **Residential Routing tab launched (David-only).** New `Routing` nav group under Analysis with a single subtab `Residential Routing`. Picks a date (defaults tomorrow, auto-skips Sun) + Route filter (All or 1-14), renders a navy-headered route-grouped table in driving order with `# / Address / Account name + acct # + 📋 italic teal route_note / Days`. Print button opens a popup window with one page per route, mirroring the legacy NetWork commercial sheet (Address | Account | Days, driver line at top). Backed by the new `route_assignments` table populated by `import_routes.py`. Loads route data once on first open (~2k rows) and caches in memory; joins in-memory with the existing `clients` array. Three-place gate behind `currentUser.username==='david'`: nav group + nav child + tab dispatcher (`switchTab` already routes by tab name, so just hiding the button is enough). README + setup SQL include the new schema.
+- **May 6, 2026** — **Master List import: rates + route_assignments live in HELM.** Two Python importer scripts pull from the Delta export retry 2 PDF (1,564 accts with route records). `import_rates.py` filled `clients.rate1-rate5` for **1,292 / 1,292** Reis residentials (David-only-visible); `import_routes.py` upserted **1,999 / 1,999** rows into the new `route_assignments` table (1,068 distinct clients across all 6 days, routes R1-R13). Both scripts use Supabase REST PATCH/POST with retries and produce per-row CSV logs (gitignored). The PDF parser deduplicates `(client_id, day_of_week)` collisions before sending — one acct (204896) had two same-day route records in the legacy export. Cross-reference audit (`helm_delta_audit.py`) produced an Excel workbook bucketing all 8,486 HELM clients into in-delta-with-routes / in-delta-no-routes / totally-missing-from-delta. Findings: 1,292 ready, 4,233 in delta master but no routes (manual entry needed), 2,951 SANTOS (out of scope).
 - **May 5, 2026** — **Master List import — extractor + dry-run diff (groundwork, paused).** First half of the route digitization project: a Python script (`master_list_extract.py`) parses the Delta export PDF into structured records (acct, name, service address, KeyDate, service days, status code, billing, UDF code, R1-5 rates, route records with day/route/position/note), strict field-level validation, and runs a dry-run diff against current HELM clients via the Supabase REST API. Outputs JSON + CSVs for human review (gitignored — they carry PII). **Parse is clean: 1,127 / 1,127 records, 2,101 route records, 0 anomalies — matches the PDF's own "Total Accounts Listed = 1127" footer exactly.** Tolerates three documented edge cases: optional phone field, optional "Sales Territory" line, and one data-entry typo ("NANTU7CKET" on acct 209738). Skips the PDF's grand-totals footer block. **Open thread on resume:** the dry-run revealed that pure authoritative-overwrite is too aggressive — phone field would WIPE 350 numbers (PDF often blank, HELM has them), address overwrites would drop `/ SIASCONSET` neighborhood suffixes (~27 records), and 13 client_name diffs are mixed-quality. Proposed refined per-field policy: rate1-5 + service_day = PDF wins authoritative; phone = fill-if-empty; address + client_name = skip auto-import (manual review). Status codes (RAMA / XRMA / RZMA / RMMA / REMA / RBMA / RLMA / RGMA / RSMA / RQMA) need legend mapping before cancellation handling can be wired. PDF is confirmed as a *filtered* subset of the full master (1,127 vs ~4,484+ active residential in HELM). The new `route_assignments` table + import action are deferred until the policy is signed off.
 - **May 5, 2026** — **Per-pickup rate schedule on clients (David-only).** Added `rate1`-`rate5` NUMERIC columns to `clients` (R1 trash pickup, R2 extra bag, R3 recycle bag, R4 intermittent, R5 cardboard armload — each per pickup, varies by address). Edit Client form gets a 5-cell rate input row. Lookup card surfaces a compact rate panel with running Total below the existing info-tiles, mirroring the legacy NetWork R1-R5 view. Run the new ALTER TABLE block in Supabase before deploying. **Visibility/edit gated to user `david`** while the feature stabilizes — other users see zero change. Gate is a `userIsDavid()` helper checked in three places: `renderRatePanel` returns empty string, the Edit form template skips the rate input row, and `saveClientEdit` only includes `rate1-5` in the update payload if David is the saver (preventing accidental wipes by non-David users). Wired ahead of the upcoming Master List import which will populate these from the Delta export.
 - **May 5, 2026** — **Daily Scale Reports auto-save dedupe.** Re-uploading the same daily .xls used to stack duplicate copies in `Files → Daily Scale Reports` (each upload got a fresh timestamp-prefixed storage path + a new `helm_files` row). `irrAutoSaveFile` now runs a dedupe pass over the whole folder before each upload: marks every existing copy of the about-to-be-uploaded filename for removal (replace-on-write semantics), and for every other filename keeps the most recently uploaded copy and removes older duplicates. Legacy duplicates clean up organically the next time anyone uploads.
