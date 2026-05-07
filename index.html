@@ -5146,9 +5146,14 @@ async function confirmEmailUpload(){
 }
 
 // ── ADD CLIENT ────────────────────────────────────────────────────────
-// Track whether first add has happened in this session per company
-// First add gets +50 buffer, subsequent adds get +1
-let _firstAddReis = true, _firstAddSantos = true;
+// Per-company minimum acct # floors. Next-ID = max(floor, max acct in HELM
+// matching the company digit) + 1, then bumped further if there's a collision.
+//
+// REIS floor = 209742: that was the last acct added in the legacy NetWork
+// software (set 2026-05-07). New HELM-only adds start at 209743 and strict-
+// increment from there. Bump this floor whenever we ingest another batch of
+// legacy adds so HELM never re-uses an ID that exists in NetWork.
+const ACCT_BASELINE_BY_CO = { reis: 209742, santos: 300000 };
 
 function nextIdForCompany(company){
   // Match any 6-digit ID whose first digit matches the company
@@ -5156,17 +5161,15 @@ function nextIdForCompany(company){
   // SANTOS = first digit 3 (30xxxx, 31xxxx, ...)
   const firstDigit = company==='santos' ? '3' : '2';
   const matching = clients.map(c=>c.client_id||'').filter(id=>id.length>=6 && id[0]===firstDigit);
-  // Baseline: 200000 for REIS, 300000 for SANTOS
-  let maxId = parseInt(firstDigit+'00000', 10);
+  let maxId = ACCT_BASELINE_BY_CO[company] != null
+    ? ACCT_BASELINE_BY_CO[company]
+    : parseInt(firstDigit+'00000', 10);
   for(const id of matching){
     const n = parseInt(id, 10);
     if(!isNaN(n) && n > maxId) maxId = n;
   }
-  // First add gets +50 safety buffer (+1 for increment = +51)
-  const isFirst = (company==='santos' ? _firstAddSantos : _firstAddReis);
-  const bump = isFirst ? 51 : 1;
-  let next = maxId + bump;
-  // Ensure uniqueness: if by some chance the computed ID is already in use, bump until free
+  let next = maxId + 1;
+  // Defensive: if by some chance the computed ID is already in use, bump until free.
   const existing = new Set(clients.map(c=>c.client_id));
   while(existing.has(String(next))) next++;
   return String(next);
@@ -5223,11 +5226,6 @@ function renderAdd(){
 function setAddCompany(company){
   window._addCompany = company;
   renderAdd(); // re-render to enable/populate the form
-}
-
-function markCompanyFirstAddDone(company){
-  if(company==='santos') _firstAddSantos = false;
-  else _firstAddReis = false;
 }
 
 function toggleDay(btn){
@@ -5311,10 +5309,9 @@ async function saveClient(id,selectedDays,addr,phone,email,name){
     toast('Error: '+error.message);if(msg)msg.textContent='';return;
   }
   await loadClients();
-  // Mark that first-add has happened for this company (so next add increments by 1, not 51)
-  const co=getCompany(id);
-  if(co.name==='SANTOS') markCompanyFirstAddDone('santos');
-  else if(co.name==='REIS') markCompanyFirstAddDone('reis');
+  // nextIdForCompany() reads max(floor, max in clients) + 1 from a fresh
+  // clients array, so the next add will already see this just-added row and
+  // increment by exactly 1.
   if(msg){msg.style.color='var(--ok-text)';msg.textContent=`Client ${id} added — ${selectedDays.join(', ')}`;}
   toast(`Client ${id} added`,true);
   setTimeout(()=>{window._addCompany=null;renderAdd();}, 1800);
