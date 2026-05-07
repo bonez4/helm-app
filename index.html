@@ -3655,12 +3655,13 @@ async function submitNote(baseId){
   renderNotesTable(notes);
 }
 
-function editClient(cid){
+async function editClient(cid){
   const c=clients.find(x=>x.client_id===cid);
   if(!c) return;
   const allDays=c.service_day?c.service_day.split(',').map(d=>d.trim()):[];
   const container=document.getElementById('clientCardInline');
   if(!container) return;
+  const isDavid = userIsDavid();
   container.innerHTML=`
     <div class="cli-inline-card">
       <div style="padding:22px;">
@@ -3680,6 +3681,15 @@ function editClient(cid){
               </button>`).join('')}
           </div>
         </div>
+        ${isDavid ? `
+        <div class="form-group">
+          <label>Per-day Routes</label>
+          <div id="editPerDayRoutes" style="margin-top:4px;">
+            <div style="font-size:11px;color:var(--gray-400);font-style:italic;padding:6px 0;">Loading per-day routes…</div>
+          </div>
+          <div style="font-size:10px;color:var(--gray-400);margin-top:4px;line-height:1.3;">One row per selected pickup day. Sets the route + driver note in the new <code>route_assignments</code> table that powers the Routing tab and the Daily Action Report.</div>
+        </div>
+        ` : `
         <div class="form-group">
           <label>Route</label>
           <select id="editRoute" onchange="toggleRouteNoteField()" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;background:white;">
@@ -3691,6 +3701,7 @@ function editClient(cid){
             <textarea id="editRouteNote" rows="2" placeholder="Notes for the driver running this route…" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;resize:vertical;">${esc(c.route_note||'')}</textarea>
           </div>
         </div>
+        `}
         ${userIsDavid() ? `
         <div class="form-group">
           <label>Rate Schedule (per pickup)</label>
@@ -3716,6 +3727,27 @@ function editClient(cid){
       </div>
     </div>`;
   document.getElementById('editName').focus();
+  // Per-day routes editor (David only) — fetch this client's existing
+  // route_assignments rows, then render one row per selected pickup day.
+  if(isDavid){
+    editOriginalPerDay = {};
+    editPerDayState = {};
+    const {data, error} = await db.from('route_assignments').select('*').eq('client_id', cid);
+    if(error){
+      const el = document.getElementById('editPerDayRoutes');
+      if(el) el.innerHTML = '<div style="font-size:11px;color:var(--err-text);padding:6px 0;">Failed to load: '+esc(error.message)+'</div>';
+    } else {
+      for(const r of (data||[])){
+        editOriginalPerDay[r.day_of_week] = r;
+        editPerDayState[r.day_of_week] = {
+          route: r.route,
+          position: r.position,
+          route_note: r.route_note || ''
+        };
+      }
+      editRenderPerDayRoutes();
+    }
+  }
 }
 
 function toggleRouteNoteField(){
@@ -3729,6 +3761,54 @@ function toggleRouteNoteField(){
   }
 }
 
+// ── Per-day route editor (David only, inside Edit Client) ──────────────
+// Two state buckets: editOriginalPerDay = the rows fetched from DB on Edit
+// open (used to compute deletes on save), editPerDayState = the working
+// form values (mutated as user types).
+let editOriginalPerDay = {};   // {dow:1-6 -> route_assignments row}
+let editPerDayState   = {};    // {dow:1-6 -> {route, position, route_note}}
+
+const RR_DAY_NAME_TO_NUM = {Monday:1, Tuesday:2, Wednesday:3, Thursday:4, Friday:5, Saturday:6};
+
+// Render one row per currently-toggled-on pickup day in the Edit form.
+// Called from editClient() after fetch and from toggleDay() after each click.
+function editRenderPerDayRoutes(){
+  const container = document.getElementById('editPerDayRoutes');
+  if(!container) return;
+  // Persist any in-progress field values before re-render so the user
+  // doesn't lose typed-but-unsaved input when toggling another day.
+  container.querySelectorAll('[data-rr-dow]').forEach(input => {
+    const dow = parseInt(input.dataset.rrDow);
+    const field = input.dataset.rrField;
+    if(!editPerDayState[dow]) editPerDayState[dow] = {};
+    editPerDayState[dow][field] = input.value;
+  });
+
+  const selectedNames = [...document.querySelectorAll('#editDaysWrap .day-toggle-active')].map(b => b.dataset.day);
+  const selectedDows = selectedNames.map(n => RR_DAY_NAME_TO_NUM[n]).filter(Boolean).sort((a,b)=>a-b);
+
+  if(!selectedDows.length){
+    container.innerHTML = '<div style="font-size:11px;color:var(--gray-400);font-style:italic;padding:6px 0;">Toggle at least one pickup day above to set routes.</div>';
+    return;
+  }
+  const dayLabel = {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+  let html = '';
+  for(const dow of selectedDows){
+    const cur = editPerDayState[dow] || {};
+    const route = cur.route !== undefined && cur.route !== null ? String(cur.route) : '';
+    const note  = cur.route_note || '';
+    html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:8px 10px;background:var(--gray-50);border:1px solid var(--gray-100);border-radius:var(--radius-sm);">
+      <div style="width:78px;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--navy);">${dayLabel[dow]}</div>
+      <select data-rr-dow="${dow}" data-rr-field="route" style="width:100px;flex:0 0 auto;padding:6px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;">
+        <option value="">No route</option>
+        ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${route===String(n)?'selected':''}>R${n}</option>`).join('')}
+      </select>
+      <input type="text" data-rr-dow="${dow}" data-rr-field="route_note" value="${esc(note)}" placeholder="Driver note for this day…" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;"/>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
 async function saveClientEdit(cid){
   const name=document.getElementById('editName').value.trim();
   const addr=document.getElementById('editAddr').value.trim();
@@ -3736,11 +3816,10 @@ async function saveClientEdit(cid){
   const email=document.getElementById('editEmail').value.trim();
   const days=[...document.querySelectorAll('#editDaysWrap .day-toggle-active')].map(b=>b.dataset.day);
   const autopay=document.getElementById('editAutopay')?.checked||false;
-  const routeVal=document.getElementById('editRoute')?.value||'';
-  const route=routeVal?parseInt(routeVal):null;
-  const routeNote=route?(document.getElementById('editRouteNote')?.value||'').trim():'';
   if(!addr){toast('Address is required');return;}
   if(!days.length){toast('Select at least one pickup day');return;}
+
+  const isDavid = userIsDavid();
   const payload={
     client_name:name||null,
     address:addr,
@@ -3748,13 +3827,52 @@ async function saveClientEdit(cid){
     email:email||null,
     service_day:days.join(','),
     autopay:autopay,
-    route:route,
-    route_note: routeNote||null
   };
-  // Rate fields are David-only for now. Only include them in the update payload
-  // when David is logged in, so other users can't inadvertently wipe rates by
-  // saving an edit on a card that didn't render the rate inputs.
-  if(userIsDavid()){
+
+  // Routing: David uses the per-day editor (writes to route_assignments); other
+  // users use the single Route + Route Note fields (write only to clients.route).
+  let perDayUpserts = [];   // route_assignments rows to upsert
+  let perDayDeletes = [];   // day_of_week values to delete (rows that should go away)
+  if(isDavid){
+    // Pull current per-day form values into editPerDayState
+    document.querySelectorAll('#editPerDayRoutes [data-rr-dow]').forEach(input => {
+      const dow = parseInt(input.dataset.rrDow);
+      const field = input.dataset.rrField;
+      if(!editPerDayState[dow]) editPerDayState[dow] = {};
+      editPerDayState[dow][field] = input.value;
+    });
+    const selectedDows = days.map(n => RR_DAY_NAME_TO_NUM[n]).filter(Boolean);
+    for(const dow of selectedDows){
+      const s = editPerDayState[dow] || {};
+      const r = s.route === '' || s.route == null ? null : parseInt(s.route);
+      if(!isFinite(r) || r === null){
+        // Day toggled on but no route picked — treat as no per-day override
+        if(editOriginalPerDay[dow]) perDayDeletes.push(dow);
+        continue;
+      }
+      perDayUpserts.push({
+        client_id: cid,
+        day_of_week: dow,
+        route: r,
+        position: editOriginalPerDay[dow]?.position ?? null,
+        route_note: (s.route_note || '').trim() || null,
+        source: editOriginalPerDay[dow]?.source || 'manual',
+      });
+    }
+    // Days previously in DB but no longer in service_day → delete
+    for(const origDow of Object.keys(editOriginalPerDay).map(n=>parseInt(n))){
+      if(!selectedDows.includes(origDow) && !perDayDeletes.includes(origDow)){
+        perDayDeletes.push(origDow);
+      }
+    }
+    // Sync clients.route + route_note to the FIRST selected day's per-day values
+    // so resolveRoute() has a sensible fallback for any code path that reads
+    // clients.route directly. Picks lowest day_of_week to be deterministic.
+    const firstUpsert = perDayUpserts.slice().sort((a,b)=>a.day_of_week - b.day_of_week)[0];
+    payload.route = firstUpsert ? firstUpsert.route : null;
+    payload.route_note = firstUpsert ? firstUpsert.route_note : null;
+
+    // Rate fields are David-only.
     const parseRate=id=>{
       const raw=(document.getElementById(id)?.value||'').trim();
       if(raw==='') return null;
@@ -3766,9 +3884,32 @@ async function saveClientEdit(cid){
     payload.rate3=parseRate('editRate3');
     payload.rate4=parseRate('editRate4');
     payload.rate5=parseRate('editRate5');
+  } else {
+    // Non-David: existing single Route + Route Note flow.
+    const routeVal=document.getElementById('editRoute')?.value||'';
+    const route=routeVal?parseInt(routeVal):null;
+    const routeNote=route?(document.getElementById('editRouteNote')?.value||'').trim():'';
+    payload.route = route;
+    payload.route_note = routeNote || null;
   }
+
+  // Update clients first (the simpler write).
   const {error}=await db.from('clients').update(payload).eq('client_id',cid);
   if(error){toast('Error: '+error.message);return;}
+
+  // Then sync route_assignments (David only).
+  if(isDavid){
+    if(perDayUpserts.length){
+      const {error:err1} = await db.from('route_assignments').upsert(perDayUpserts, {onConflict:'client_id,day_of_week'});
+      if(err1){ toast('Per-day routes save error: '+err1.message); return; }
+    }
+    for(const dow of perDayDeletes){
+      const {error:err2} = await db.from('route_assignments').delete().eq('client_id',cid).eq('day_of_week',dow);
+      if(err2){ toast('Per-day route delete error: '+err2.message); return; }
+    }
+    rrInvalidateCache();  // next report/Routing tab render re-fetches
+  }
+
   await loadClients();
   const updated=clients.find(x=>x.client_id===cid);
   if(updated){activeClient=updated;showPanel(updated);}
@@ -3919,7 +4060,10 @@ function groupByRoute(data){
   const grouped = {};
   data.forEach(n=>{
     const c = findClient(n.client_id);
-    const route = (c.route !== null && c.route !== undefined && c.route !== '') ? String(c.route).padStart(2,'0') : 'No Route';
+    // Per-day override from route_assignments (e.g. acct on Mon=R4 / Wed=R2 / Sat=R2)
+    // takes precedence over the single clients.route field.
+    const r = resolveRoute(n.client_id, n.action_date || n.skip_week, c.route);
+    const route = (r !== null && r !== undefined && r !== '') ? String(r).padStart(2,'0') : 'No Route';
     if(!grouped[route]) grouped[route] = [];
     grouped[route].push(n);
   });
@@ -3932,6 +4076,30 @@ function groupByRoute(data){
     grouped[k].sort((a,b)=>(a.client_id||'').localeCompare(b.client_id||''));
   }
   return {sortedKeys, grouped};
+}
+
+// Resolve a per-day route from route_assignments (Map populated by rrLoadData).
+// Falls back to the single clients.route field if no override exists.
+// `isoDate` is the action_date of the note (or skip_week for skips).
+function resolveRoute(clientId, isoDate, fallbackRoute){
+  if(typeof resiRoutesByKey !== 'undefined' && resiRoutesByKey && isoDate){
+    const dow = rrDateToDow(isoDate);
+    if(dow){
+      const ov = resiRoutesByKey.get(clientId + '|' + dow);
+      if(ov && ov.route !== null && ov.route !== undefined) return ov.route;
+    }
+  }
+  return (fallbackRoute !== null && fallbackRoute !== undefined && fallbackRoute !== '') ? fallbackRoute : null;
+}
+function resolveRouteNote(clientId, isoDate, fallbackNote){
+  if(typeof resiRoutesByKey !== 'undefined' && resiRoutesByKey && isoDate){
+    const dow = rrDateToDow(isoDate);
+    if(dow){
+      const ov = resiRoutesByKey.get(clientId + '|' + dow);
+      if(ov && ov.route_note) return ov.route_note;
+    }
+  }
+  return fallbackNote || '';
 }
 
 // Action-tag CSS class lookup (reuse the same colors used in client notes)
@@ -3977,6 +4145,9 @@ async function generateReport(){
   const results=document.getElementById('reportResults');
   results.innerHTML='<div class="loading">Loading…</div>';
 
+  // Load per-day route assignments so the report groups multi-day clients on the
+  // correct route for each note's action_date (e.g. 208849 Mon=R4 / Wed,Sat=R2).
+  await rrLoadData();
   const {data:notesData,error}=await db.from('notes').select('*').eq('action_date',date).order('action').order('created_at');
   if(error){toast('Error: '+error.message);return;}
   const {data:skipsData}=await db.from('skips').select('*').eq('skip_week',date);
@@ -4031,7 +4202,8 @@ async function generateReport(){
         </tr></thead><tbody>`;
       notes.forEach((n,i)=>{
         const c=findClient(n.client_id);
-        const rn = c.route_note ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(c.route_note)}</div>` : '';
+        const rnText = resolveRouteNote(n.client_id, n.action_date || n.skip_week, c.route_note);
+        const rn = rnText ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(rnText)}</div>` : '';
         html+=`<tr>
           <td class="rt-num">${i+1}</td>
           <td class="rt-id">${esc(n.client_id)}</td>
@@ -4080,7 +4252,8 @@ function printReport(date){
         <table><thead><tr><th style="width:30px">#</th><th style="width:58px">Acct</th><th style="width:90px">Action</th><th style="width:180px">Name</th><th>Address</th>${hasNotes?'<th>Note</th>':''}</tr></thead><tbody>`;
         notes.forEach((n,i)=>{
           const c=findClient(n.client_id);
-          const rn = c.route_note ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(c.route_note)}</div>` : '';
+          const rnText = resolveRouteNote(n.client_id, n.action_date || n.skip_week, c.route_note);
+          const rn = rnText ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(rnText)}</div>` : '';
           sections+=`<tr>
             <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
             <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
@@ -4140,6 +4313,8 @@ async function generateNotesAddedReport(){
   const results = document.getElementById('notesAddedResults');
   results.innerHTML = '<div class="loading">Loading…</div>';
 
+  // Per-day route_assignments for multi-day clients (resolved per-row by action_date).
+  await rrLoadData();
   // Local-day boundaries → ISO range. created_at is stored in UTC.
   const startDt = new Date(date+'T00:00:00');
   const endDt = new Date(date+'T00:00:00'); endDt.setDate(endDt.getDate()+1);
@@ -4229,8 +4404,10 @@ async function generateNotesAddedReport(){
       const c = findClient(n.client_id);
       const co = getCompany(n.client_id);
       const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
-      const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
-      const rn = c.route_note ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(c.route_note)}</div>` : '';
+      const rResolved = resolveRoute(n.client_id, n.action_date || n.skip_week, c.route);
+      const route = (rResolved !== null && rResolved !== undefined && rResolved !== '') ? 'R'+rResolved : '—';
+      const rnText = resolveRouteNote(n.client_id, n.action_date || n.skip_week, c.route_note);
+      const rn = rnText ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(rnText)}</div>` : '';
       html+=`<tr>
         <td class="rt-num">${i+1}</td>
         <td class="rt-id" style="font-weight:700;color:var(--navy)">${route}</td>
@@ -4301,8 +4478,10 @@ function printNotesAddedReport(date){
           const c = findClient(n.client_id);
           const co = getCompany(n.client_id).name;
           const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
-          const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
-          const rn = c.route_note ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(c.route_note)}</div>` : '';
+          const rResolved = resolveRoute(n.client_id, n.action_date || n.skip_week, c.route);
+          const route = (rResolved !== null && rResolved !== undefined && rResolved !== '') ? 'R'+rResolved : '—';
+          const rnText = resolveRouteNote(n.client_id, n.action_date || n.skip_week, c.route_note);
+          const rn = rnText ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(rnText)}</div>` : '';
           sections += `<tr>
             <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
             <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${route}</td>
@@ -4438,6 +4617,8 @@ async function generateEverythingReport(){
     : 'All-time';
   results.innerHTML = '<div class="loading">Loading notes input ('+esc(rangeStr.toLowerCase())+')…</div>';
 
+  // Per-day route_assignments for multi-day clients (resolved per-row by action_date).
+  await rrLoadData();
   let data;
   try { data = await apFetchAllNotes(fromDate||null, toDate||null); }
   catch(err){
@@ -4494,8 +4675,10 @@ async function generateEverythingReport(){
       const c = findClient(n.client_id);
       const co = getCompany(n.client_id);
       const inputAt = n.created_at ? new Date(n.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'}) : '—';
-      const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
-      const rn = c.route_note ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(c.route_note)}</div>` : '';
+      const rResolved = resolveRoute(n.client_id, n.action_date || n.skip_week, c.route);
+      const route = (rResolved !== null && rResolved !== undefined && rResolved !== '') ? 'R'+rResolved : '—';
+      const rnText = resolveRouteNote(n.client_id, n.action_date || n.skip_week, c.route_note);
+      const rn = rnText ? `<div style="font-size:11px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(rnText)}</div>` : '';
       html+=`<tr>
         <td class="rt-num">${i+1}</td>
         <td class="rt-id" style="font-weight:700;color:var(--navy)">${route}</td>
@@ -4545,8 +4728,10 @@ async function printEverythingReport(){
       const c = findClient(n.client_id);
       const co = getCompany(n.client_id).name;
       const inputAt = n.created_at ? new Date(n.created_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'}) : '—';
-      const route = (c.route !== null && c.route !== undefined && c.route !== '') ? 'R'+c.route : '—';
-      const rn = c.route_note ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(c.route_note)}</div>` : '';
+      const rResolved = resolveRoute(n.client_id, n.action_date || n.skip_week, c.route);
+      const route = (rResolved !== null && rResolved !== undefined && rResolved !== '') ? 'R'+rResolved : '—';
+      const rnText = resolveRouteNote(n.client_id, n.action_date || n.skip_week, c.route_note);
+      const rn = rnText ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(rnText)}</div>` : '';
       sections += `<tr>
         <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
         <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${route}</td>
@@ -4895,7 +5080,13 @@ function markCompanyFirstAddDone(company){
   else _firstAddReis = false;
 }
 
-function toggleDay(btn){ btn.classList.toggle('day-toggle-active'); }
+function toggleDay(btn){
+  btn.classList.toggle('day-toggle-active');
+  // Live-refresh the David-only per-day routes editor when in the Edit form
+  if(document.getElementById('editPerDayRoutes')){
+    editRenderPerDayRoutes();
+  }
+}
 
 async function addClient(){
   const id=document.getElementById('nId').value.trim();
@@ -14664,7 +14855,8 @@ function rvUpdateSummary(rows, metric, lyValues){
 // Sunday (JS getDay()===0) = no pickups.
 const RR_DAY_NAMES = {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
 
-let resiRoutesData = null;       // cached route_assignments rows
+let resiRoutesData = null;       // cached route_assignments rows (array)
+let resiRoutesByKey = null;      // Map: 'client_id|day_of_week' -> row (for per-day route lookup)
 let resiRoutesState = { date: null, route: 'all' };
 
 function rrTomorrowISO(){
@@ -14707,8 +14899,15 @@ async function rrLoadData(){
     from += batch;
   }
   resiRoutesData = all;
+  // Build the (client_id, day_of_week) lookup Map for the report code paths.
+  resiRoutesByKey = new Map();
+  for(const r of all){
+    resiRoutesByKey.set(r.client_id + '|' + r.day_of_week, r);
+  }
   return all;
 }
+// Invalidate caches after a write so subsequent renders see fresh data.
+function rrInvalidateCache(){ resiRoutesData = null; resiRoutesByKey = null; }
 
 async function renderResidentialRouting(){
   const tab = document.getElementById('tab-resiroutes');
