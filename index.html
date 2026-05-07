@@ -3666,7 +3666,13 @@ async function editClient(cid){
     <div class="cli-inline-card">
       <div style="padding:22px;">
         <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:14px;">Edit Client — ${esc(c.client_name||c.client_id)}</div>
-        <div class="form-group"><label>Name</label><input id="editName" value="${esc(c.client_name||'')}"/></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Account # <span style="color:var(--gray-400);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(change with care — moves notes/skips/routes too)</span></label>
+            <input id="editAcct" value="${esc(c.client_id)}" autocomplete="off" maxlength="10"/>
+          </div>
+          <div class="form-group"><label>Name</label><input id="editName" value="${esc(c.client_name||'')}"/></div>
+        </div>
         <div class="form-group"><label>Address</label><input id="editAddr" value="${esc(c.address||'')}"/></div>
         <div class="form-row">
           <div class="form-group"><label>Phone</label><input id="editPhone" value="${esc(c.phone||'')}"/></div>
@@ -3799,25 +3805,68 @@ function editRenderPerDayRoutes(){
     const note  = cur.route_note || '';
     html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:8px 10px;background:var(--gray-50);border:1px solid var(--gray-100);border-radius:var(--radius-sm);">
       <div style="width:78px;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--navy);">${dayLabel[dow]}</div>
-      <select data-rr-dow="${dow}" data-rr-field="route" style="width:100px;flex:0 0 auto;padding:6px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;">
+      <select data-rr-dow="${dow}" data-rr-field="route" onchange="editPerDayPairFill(${dow}, 'route', this.value)" style="width:100px;flex:0 0 auto;padding:6px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;">
         <option value="">No route</option>
         ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${route===String(n)?'selected':''}>R${n}</option>`).join('')}
       </select>
-      <input type="text" data-rr-dow="${dow}" data-rr-field="route_note" value="${esc(note)}" placeholder="Driver note for this day…" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;"/>
+      <input type="text" data-rr-dow="${dow}" data-rr-field="route_note" value="${esc(note)}" placeholder="Driver note for this day…" oninput="editPerDayPairFill(${dow}, 'route_note', this.value)" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;"/>
     </div>`;
   }
   container.innerHTML = html;
 }
 
+// Pickup-day pairs (a 2x/wk client typically uses one pair):
+//   Mon (1) <-> Thu (4)    Tue (2) <-> Fri (5)    Wed (3) <-> Sat (6)
+// When the user fills route or route_note for one day in a pair, auto-copy
+// the value to the partner — but ONLY if the partner is currently selected
+// AND the partner's same field is empty. Manual edits are never overwritten.
+// For 3x/wk like Mon+Wed+Sat: Wed-Sat auto-pair, Monday is standalone (its
+// pair Thursday isn't selected) — so Monday isn't auto-filled from anywhere.
+function editPerDayPairFill(sourceDow, field, value){
+  // Update state for the source first.
+  if(!editPerDayState[sourceDow]) editPerDayState[sourceDow] = {};
+  editPerDayState[sourceDow][field] = value;
+  if(value === '' || value == null) return;  // user cleared — don't propagate
+
+  const partnerDow = sourceDow <= 3 ? sourceDow + 3 : sourceDow - 3;
+  const partnerInput = document.querySelector(`#editPerDayRoutes [data-rr-dow="${partnerDow}"][data-rr-field="${field}"]`);
+  if(!partnerInput) return;  // partner day not selected (no row rendered)
+  const partnerCurrent = (partnerInput.value || '').trim();
+  if(partnerCurrent !== '') return;  // partner already has a value — don't overwrite
+
+  partnerInput.value = value;
+  if(!editPerDayState[partnerDow]) editPerDayState[partnerDow] = {};
+  editPerDayState[partnerDow][field] = value;
+}
+
 async function saveClientEdit(cid){
+  const newAcct=(document.getElementById('editAcct')?.value||'').trim();
   const name=document.getElementById('editName').value.trim();
   const addr=document.getElementById('editAddr').value.trim();
   const phone=document.getElementById('editPhone').value.trim();
   const email=document.getElementById('editEmail').value.trim();
   const days=[...document.querySelectorAll('#editDaysWrap .day-toggle-active')].map(b=>b.dataset.day);
   const autopay=document.getElementById('editAutopay')?.checked||false;
+  if(!newAcct){toast('Account # is required');return;}
+  if(!/^\d+$/.test(newAcct)){toast('Account # must contain only digits');return;}
   if(!addr){toast('Address is required');return;}
   if(!days.length){toast('Select at least one pickup day');return;}
+
+  // Account # rename (PK migration). Has to happen BEFORE any other writes
+  // so the per-day route_assignments edits below can target the new ID.
+  let workingId = cid;
+  if(newAcct !== cid){
+    if(clients.some(c => c.client_id === newAcct)){
+      toast('Account # '+newAcct+' already exists — pick a different number');
+      return;
+    }
+    const ok = confirm(`Change account # from ${cid} to ${newAcct}?\n\nThis will also move every note, skip, and route assignment for this client to the new account number. The change cannot be easily reversed.`);
+    if(!ok) return;
+    const migrationOk = await migrateAccountId(cid, newAcct);
+    if(!migrationOk) return;
+    workingId = newAcct;
+    logActivity('client_acct_changed', `${cid} -> ${newAcct}`);
+  }
 
   const isDavid = userIsDavid();
   const payload={
@@ -3851,7 +3900,7 @@ async function saveClientEdit(cid){
         continue;
       }
       perDayUpserts.push({
-        client_id: cid,
+        client_id: workingId,
         day_of_week: dow,
         route: r,
         position: editOriginalPerDay[dow]?.position ?? null,
@@ -3894,7 +3943,7 @@ async function saveClientEdit(cid){
   }
 
   // Update clients first (the simpler write).
-  const {error}=await db.from('clients').update(payload).eq('client_id',cid);
+  const {error}=await db.from('clients').update(payload).eq('client_id',workingId);
   if(error){toast('Error: '+error.message);return;}
 
   // Then sync route_assignments (David only).
@@ -3904,16 +3953,51 @@ async function saveClientEdit(cid){
       if(err1){ toast('Per-day routes save error: '+err1.message); return; }
     }
     for(const dow of perDayDeletes){
-      const {error:err2} = await db.from('route_assignments').delete().eq('client_id',cid).eq('day_of_week',dow);
+      const {error:err2} = await db.from('route_assignments').delete().eq('client_id',workingId).eq('day_of_week',dow);
       if(err2){ toast('Per-day route delete error: '+err2.message); return; }
     }
     rrInvalidateCache();  // next report/Routing tab render re-fetches
   }
 
   await loadClients();
-  const updated=clients.find(x=>x.client_id===cid);
+  const updated=clients.find(x=>x.client_id===workingId);
   if(updated){activeClient=updated;showPanel(updated);}
-  toast('Client updated',true);
+  toast(workingId !== cid ? `Account # changed to ${workingId}` : 'Client updated', true);
+}
+
+// PK rename: copy old client row to a new client_id, migrate FK-bearing rows
+// (notes, skips, route_assignments) to the new ID, then delete the old row.
+// Returns true on success. On any failure, attempts to roll back the new row.
+async function migrateAccountId(oldId, newId){
+  const oldRow = clients.find(x => x.client_id === oldId);
+  if(!oldRow){ toast('Client not found in cache'); return false; }
+  // Copy every field of the old row to the new ID. Strip created_at so the DB
+  // assigns a fresh timestamp (so "Date Added" reflects the rename, not 2007).
+  const copy = {...oldRow, client_id: newId};
+  delete copy.created_at;
+
+  // 1. Insert the new row.
+  const {error: insErr} = await db.from('clients').insert(copy);
+  if(insErr){ toast('Account move failed: '+insErr.message); return false; }
+
+  // 2. Re-point FK-bearing tables to the new ID.
+  for(const tbl of ['notes','skips','route_assignments']){
+    const {error} = await db.from(tbl).update({client_id: newId}).eq('client_id', oldId);
+    if(error){
+      toast(`Account move: ${tbl} update failed (${error.message}). Rolling back.`);
+      await db.from('clients').delete().eq('client_id', newId);
+      return false;
+    }
+  }
+
+  // 3. Delete the old client row. With FKs already re-pointed, ON DELETE
+  // CASCADE on route_assignments has nothing to cascade.
+  const {error: delErr} = await db.from('clients').delete().eq('client_id', oldId);
+  if(delErr){
+    toast('Account move: delete old failed ('+delErr.message+'). New row + FK rows are in place; old row may need manual cleanup.');
+    return false;
+  }
+  return true;
 }
 
 async function deleteNote(noteId){
@@ -5045,7 +5129,7 @@ function renderAdd(){
 
       <fieldset id="addFormFields" ${!currentCompany?'disabled':''} style="border:none;padding:0;margin:0;${!currentCompany?'opacity:0.4;pointer-events:none':''}">
         <div class="form-row">
-          <div class="form-group"><label>Account #</label><input id="nId" value="${currentCompany?nextIdForCompany(currentCompany):''}"/></div>
+          <div class="form-group"><label>Account #</label><input id="nId" value="${currentCompany?nextIdForCompany(currentCompany):''}" autocomplete="off" inputmode="numeric" pattern="[0-9]*"/></div>
           <div class="form-group"><label>Client Name</label><input id="nName" placeholder="e.g. John Smith"/></div>
         </div>
         <div class="form-group"><label>Street Address</label><input id="nAddr" placeholder="e.g. 47 Polpis Rd"/></div>
@@ -5096,6 +5180,9 @@ async function addClient(){
   const email=document.getElementById('nEmail').value.trim();
   const selectedDays=[...document.querySelectorAll('.day-toggle-active')].map(b=>b.dataset.day);
   if(!id||!addr){toast('Account # and address are required');return;}
+  // Account # must be all digits — guards against the "I typed a name into
+  // the Account # field by mistake" failure mode.
+  if(!/^\d+$/.test(id)){toast('Account # must contain only digits (no letters, no spaces)');return;}
   if(!selectedDays.length){toast('Select at least one pickup day');return;}
 
   const addrLower=addr.toLowerCase().trim();
