@@ -4439,7 +4439,7 @@ h2{background:#0f1f3d;color:white;padding:6px 10px;font-size:13px;margin:14px 0 
 </style></head><body>
 <div class="header">
   <h1>HELM — Daily Action Report</h1>
-  <div class="sub">Date: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} items</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
+  <div class="sub">Date: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} items</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
 </div>
 <div class="summary">${summary}</div>
 ${sections}
