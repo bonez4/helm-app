@@ -9070,112 +9070,73 @@ function icrRenderReport(allData, container) {
   const yearStart = icrYear+'-01-01';
   const ytdEnd = aggEnd;
 
-  function getCompanyData(d, company) {
-    if(!d) return {loads:0,tons:0,rev:0,drivers:null,hours:null};
-    if(company==='reis') return {
-      loads:d.reis_tickets||0, tons:parseFloat(d.reis_tons)||0,
-      rev:(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0),
-      drivers:null, hours:null
-    };
-    if(company==='island') return {
-      loads:d.island_tickets||0, tons:parseFloat(d.island_tons)||0,
-      rev:parseFloat(d.island_revenue)||0,
-      drivers:d.island_drivers!=null?d.island_drivers:null,
-      hours:d.island_hours!=null?parseFloat(d.island_hours):null
-    };
-    if(company==='santos') return {
-      loads:d.santos_tickets||0, tons:parseFloat(d.santos_tons)||0,
-      rev:parseFloat(d.santos_revenue)||0,
-      drivers:null, hours:null
-    };
-    // null company = totals (sum all)
-    return {
-      loads:allLoads(d),
-      tons:allTons(d),
-      rev:allRev(d),
-      drivers:d.island_drivers!=null?d.island_drivers:null,
-      hours:d.island_hours!=null?parseFloat(d.island_hours):null
-    };
+  // Per-day metric extractors. All map a single irr_reports row → numeric value.
+  // Mirrors the daily email's section structure (Internal / External / Total /
+  // Outbound / Revenue with rev-per-ton sub-rows).
+  const internalTons = d => d ? (parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0) : 0;
+  const externalTons = d => d ? (parseFloat(d.walkin_tons)||0) : 0;
+  const totalTons    = d => internalTons(d) + externalTons(d);
+  const outboundTons = d => d ? (parseFloat(d.vinagro_tons)||0) : 0;
+  const internalRev  = d => d ? (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0) : 0;
+  const externalRev  = d => d ? (parseFloat(d.walkin_tip_revenue)||0) : 0;
+  const totalRev     = d => internalRev(d) + externalRev(d);
+
+  function sumMetric(start, end, fn){
+    let s = 0;
+    for(const d of allData){
+      if(d.report_date<start||d.report_date>end) continue;
+      s += fn(d);
+    }
+    return s;
   }
 
-  function sumRange(data, startDate, endDate, company) {
-    const r={loads:0,tons:0,rev:0,drivers:0,hours:0,driverDays:0};
-    for(const d of data){
-      if(d.report_date<startDate||d.report_date>endDate) continue;
-      const c=getCompanyData(d,company);
-      r.loads+=c.loads;r.tons+=c.tons;r.rev+=c.rev;
-      if(c.drivers!==null){r.drivers+=c.drivers;r.driverDays++;}
-      if(c.hours!==null) r.hours+=c.hours;
-    }
-    return r;
+  const f2 = n => (n||0).toFixed(2);
+  const fM = n => '$'+(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fT = n => f2(n)+' tons';
+  const fRpt = (rev, tons) => tons > 0.005 ? '$'+(rev/tons).toFixed(2)+'/ton' : '--';
+
+  // Build a row: label + 6 daily cells + spacer + WTD + spacer + MTD + spacer + YTD.
+  // valFn turns a numeric metric into the display string.
+  // showZeroAsDash: per-day cells show '--' when the value is zero (cleaner sparse view).
+  function metricRow(label, perDayFn, valFn, opts){
+    opts = opts || {};
+    const cls  = opts.bold ? ' style="font-weight:700;"' : '';
+    const cls2 = opts.bold ? ' style="font-weight:700;"' : '';
+    const dailyHtml = weekDates.map(dt => {
+      const d = byDate[dt];
+      const v = perDayFn(d);
+      const txt = (!d || (opts.showZeroAsDash !== false && Math.abs(v) < 0.005)) ? '--' : valFn(v);
+      return `<td${cls}>${txt}</td>`;
+    }).join('');
+    const wV = sumMetric(icrWeekStart, weekEnd,  perDayFn);
+    const mV = sumMetric(monthStart,   monthEnd, perDayFn);
+    const yV = sumMetric(yearStart,    ytdEnd,   perDayFn);
+    return `<tr><td${cls2}>${label}</td>${dailyHtml}`+
+      `<td class="icr-spacer"></td><td class="icr-agg"${cls2}>${valFn(wV)}</td>`+
+      `<td class="icr-spacer"></td><td class="icr-agg"${cls2}>${valFn(mV)}</td>`+
+      `<td class="icr-spacer"></td><td class="icr-agg"${cls2}>${valFn(yV)}</td></tr>`;
   }
 
-  function sumRangeAll(data, startDate, endDate) {
-    const r={loads:0,tons:0,rev:0,drivers:0,hours:0,driverDays:0};
-    for(const d of data){
-      if(d.report_date<startDate||d.report_date>endDate) continue;
-      r.loads+=(d.reis_tickets||0)+(d.island_tickets||0)+(d.santos_tickets||0);
-      r.tons+=(parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0);
-      r.rev+=(parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0);
-      if(d.island_drivers!=null){r.drivers+=d.island_drivers;r.driverDays++;}
-      if(d.island_hours!=null) r.hours+=parseFloat(d.island_hours);
-    }
-    return r;
+  // Ratio row ($/ton): aggregate the numerator & denominator over each period
+  // separately, then divide at display time. (Don't average the per-day ratios.)
+  function ratioRow(label, numFn, denFn, opts){
+    opts = opts || {};
+    const indent = opts.indent ? 'padding-left:24px;color:var(--gray-500);font-size:11px;' : '';
+    const dailyHtml = weekDates.map(dt => {
+      const d = byDate[dt];
+      const n = numFn(d), de = denFn(d);
+      return `<td${indent?` style="${indent}"`:''}>${(!d || de < 0.005) ? '--' : fRpt(n, de)}</td>`;
+    }).join('');
+    const wN = sumMetric(icrWeekStart, weekEnd,  numFn), wD = sumMetric(icrWeekStart, weekEnd,  denFn);
+    const mN = sumMetric(monthStart,   monthEnd, numFn), mD = sumMetric(monthStart,   monthEnd, denFn);
+    const yN = sumMetric(yearStart,    ytdEnd,   numFn), yD = sumMetric(yearStart,    ytdEnd,   denFn);
+    return `<tr><td${indent?` style="${indent}"`:''}>${label}</td>${dailyHtml}`+
+      `<td class="icr-spacer"></td><td class="icr-agg"${indent?` style="${indent}"`:''}>${fRpt(wN,wD)}</td>`+
+      `<td class="icr-spacer"></td><td class="icr-agg"${indent?` style="${indent}"`:''}>${fRpt(mN,mD)}</td>`+
+      `<td class="icr-spacer"></td><td class="icr-agg"${indent?` style="${indent}"`:''}>${fRpt(yN,yD)}</td></tr>`;
   }
-
-  const f2=n=>n.toFixed(2);
-  const fM=n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const fv=(v,fmt)=>v===null||v===undefined||isNaN(v)?'--':fmt(v);
-
-  function companyBlock(label, company, isTotal) {
-    const hdrClass = isTotal?'icr-total-hdr':'icr-company-hdr';
-    let rows=`<tr class="${hdrClass}"><td>${label}</td>${'<td></td>'.repeat(12)}</tr>`;
-
-    const daily = weekDates.map(dt=>getCompanyData(byDate[dt],company));
-    const wtd = isTotal ? sumRangeAll(allData, icrWeekStart, weekEnd) : sumRange(allData, icrWeekStart, weekEnd, company);
-    const mtd = isTotal ? sumRangeAll(allData, monthStart, monthEnd) : sumRange(allData, monthStart, monthEnd, company);
-    const ytd = isTotal ? sumRangeAll(allData, yearStart, ytdEnd) : sumRange(allData, yearStart, ytdEnd, company);
-
-    function row(lbl, dailyFn, wtdV, mtdV, ytdV) {
-      return `<tr><td>${lbl}</td>${daily.map(d=>'<td>'+dailyFn(d)+'</td>').join('')}<td class="icr-spacer"></td><td class="icr-agg">${wtdV}</td><td class="icr-spacer"></td><td class="icr-agg">${mtdV}</td><td class="icr-spacer"></td><td class="icr-agg">${ytdV}</td></tr>`;
-    }
-    const blank=()=>'<tr class="icr-blank"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
-
-    // Revenue block
-    rows+=row('Rev/Load', d=>d.loads>0?fM(d.rev/d.loads):'--',
-      wtd.loads>0?fM(wtd.rev/wtd.loads):'--', mtd.loads>0?fM(mtd.rev/mtd.loads):'--', ytd.loads>0?fM(ytd.rev/ytd.loads):'--');
-    rows+=row('Total Revenue', d=>d.loads>0?fM(d.rev):'--',
-      fM(wtd.rev), fM(mtd.rev), fM(ytd.rev));
-    rows+=blank();
-
-    // Loads block
-    rows+=row('Loads', d=>d.loads>0?d.loads:'--',
-      wtd.loads||'--', mtd.loads||'--', ytd.loads||'--');
-    rows+=blank();
-
-    // Tonnage block
-    rows+=row('Tons/Load', d=>d.loads>0?f2(d.tons/d.loads):'--',
-      wtd.loads>0?f2(wtd.tons/wtd.loads):'--', mtd.loads>0?f2(mtd.tons/mtd.loads):'--', ytd.loads>0?f2(ytd.tons/ytd.loads):'--');
-    rows+=row('Total Tons', d=>d.tons>0?f2(d.tons):'--',
-      f2(wtd.tons), f2(mtd.tons), f2(ytd.tons));
-    rows+=blank();
-
-    // Drivers / Hours
-    if(company==='island'||isTotal){
-      rows+=row('# Drivers', d=>d.drivers!==null?d.drivers:'--',
-        wtd.driverDays>0?Math.round(wtd.drivers/wtd.driverDays):'--',
-        mtd.driverDays>0?Math.round(mtd.drivers/mtd.driverDays):'--',
-        ytd.driverDays>0?Math.round(ytd.drivers/ytd.driverDays):'--');
-      rows+=row('# Hours', d=>d.hours!==null?f2(d.hours):'--',
-        wtd.hours>0?f2(wtd.hours):'--', mtd.hours>0?f2(mtd.hours):'--', ytd.hours>0?f2(ytd.hours):'--');
-    } else {
-      rows+=row('# Drivers', ()=>'--', '--','--','--');
-      rows+=row('# Hours', ()=>'--', '--','--','--');
-    }
-
-    rows+='<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(12)+'</tr>';
-    return rows;
-  }
+  const sectionHdr = label => `<tr class="icr-total-hdr"><td>${label}</td>${'<td></td>'.repeat(12)}</tr>`;
+  const blankRow   = ()    => `<tr class="icr-blank"><td></td>${'<td></td>'.repeat(12)}</tr>`;
 
   const yearBtn=(y)=>`<button class="icr-year-btn ${icrYear===y?'active':''}" onclick="icrYear=${y};icrLoadReport()">${y}</button>`;
 
@@ -9195,30 +9156,29 @@ function icrRenderReport(allData, container) {
         <th class="icr-spacer"></th><th>WTD</th><th class="icr-spacer"></th><th>MTD</th><th class="icr-spacer"></th><th>YTD</th>
       </tr></thead>
       <tbody>
-        ${companyBlock('TOTALS',null,true)}
-        ${(()=>{
-          // Vinagro outbound block
-          const vDaily = weekDates.map(dt=>{const d=byDate[dt];return d?{loads:d.vinagro_loads||0,tons:parseFloat(d.vinagro_tons)||0}:{loads:0,tons:0};});
-          function vSum(start,end){const r={loads:0,tons:0};for(const d of allData){if(d.report_date<start||d.report_date>end)continue;r.loads+=d.vinagro_loads||0;r.tons+=parseFloat(d.vinagro_tons)||0;}return r;}
-          const vWtd=vSum(icrWeekStart,weekEnd),vMtd=vSum(monthStart,monthEnd),vYtd=vSum(yearStart,ytdEnd);
-          function vRow(lbl,dFn,w,m,y){return '<tr><td>'+lbl+'</td>'+vDaily.map(d=>'<td>'+dFn(d)+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+w+'</td><td class="icr-spacer"></td><td class="icr-agg">'+m+'</td><td class="icr-spacer"></td><td class="icr-agg">'+y+'</td></tr>';}
+        ${sectionHdr('INTERNAL VOLUME')}
+        ${metricRow('Rolloff Tonnage', internalTons, fT, {bold:true})}
+        ${blankRow()}
 
-          // Total inbound = ALL inbound (rolloff + walk-in + pile)
-          function totalInboundSum(start,end){let tons=0;for(const d of allData){if(d.report_date<start||d.report_date>end)continue;tons+=parseFloat(d.total_inbound_tons)||0;}return tons;}
-          const tiWtd=totalInboundSum(icrWeekStart,weekEnd),tiMtd=totalInboundSum(monthStart,monthEnd),tiYtd=totalInboundSum(yearStart,ytdEnd);
-          const iDaily=weekDates.map(dt=>{const d=byDate[dt];return d?{tons:parseFloat(d.total_inbound_tons)||0}:{tons:0};});
+        ${sectionHdr('EXTERNAL VOLUME')}
+        ${metricRow('Walk-In Tonnage', externalTons, fT, {bold:true})}
+        ${blankRow()}
 
-          return '<tr class="icr-company-hdr"><td>VINAGRO (OUTBOUND)</td>'+'<td></td>'.repeat(12)+'</tr>'+
-            vRow('Loads',d=>d.loads>0?d.loads:'--',vWtd.loads||'--',vMtd.loads||'--',vYtd.loads||'--')+
-            vRow('Total Tons',d=>d.tons>0?f2(d.tons):'--',f2(vWtd.tons),f2(vMtd.tons),f2(vYtd.tons))+
-            '<tr class="icr-sep"><td></td>'+'<td></td>'.repeat(12)+'</tr>'+
-            '<tr class="icr-total-hdr"><td>TOTAL TONNAGE INBOUND V OUTBOUND</td>'+'<td></td>'.repeat(12)+'</tr>'+
-            '<tr><td style="font-weight:600">Total Inbound (all sources incl. walk-ins)</td>'+iDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(tiWtd)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(tiMtd)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(tiYtd)+'</td></tr>'+
-            '<tr><td style="font-weight:600">Total Outbound</td>'+vDaily.map(d=>'<td>'+(d.tons>0?f2(d.tons):'--')+'</td>').join('')+'<td class="icr-spacer"></td><td class="icr-agg">'+f2(vWtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(vMtd.tons)+'</td><td class="icr-spacer"></td><td class="icr-agg">'+f2(vYtd.tons)+'</td></tr>';
-        })()}
-        ${companyBlock('REIS','reis',false)}
-        ${companyBlock('ISLAND','island',false)}
-        ${companyBlock('SANTOS','santos',false)}
+        ${sectionHdr('TOTAL VOLUME')}
+        ${metricRow('Total Inbound', totalTons, fT, {bold:true})}
+        ${blankRow()}
+
+        ${sectionHdr('OUTBOUND')}
+        ${metricRow('Vinagro Tonnage', outboundTons, fT, {bold:true})}
+        ${blankRow()}
+
+        ${sectionHdr('REVENUE')}
+        ${metricRow('Internal Revenue', internalRev, fM)}
+        ${metricRow('External Revenue', externalRev, fM)}
+        ${metricRow('Total Revenue',    totalRev,    fM, {bold:true})}
+        ${ratioRow('Internal $/ton', internalRev, internalTons, {indent:true})}
+        ${ratioRow('External $/ton', externalRev, externalTons, {indent:true})}
+        ${ratioRow('Overall $/ton',  totalRev,    totalTons,    {indent:true})}
       </tbody>
     </table>`;
 }

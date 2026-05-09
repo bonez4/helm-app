@@ -379,13 +379,18 @@ Top-level Analysis tab — replaces the old IRR Scale → Daily Scale Report sub
 ### Intercompany Rolloff (David / Chris / Jack / admin)
 Top-level Analysis tab — formerly the IRR Scale → Intercompany Rolloff Report sub-view.
 - Weekly view: Mon-Sat + WTD, MTD, YTD
-- TOTALS at top, then Vinagro (Outbound), then Total Tonnage Inbound v Outbound, then REIS / ISLAND / SANTOS sub-blocks (Rev/Load, Total Revenue, Loads, Tons/Load, Total Tons, # Drivers, # Hours)
+- **Rows mirror the daily email's section layout** (so the on-screen weekly grid and the daily email read the same):
+  - **Internal Volume** — Rolloff Tonnage (Reis + Island + East End)
+  - **External Volume** — Walk-In Tonnage
+  - **Total Volume** — Total Inbound (Internal + External)
+  - **Outbound** — Vinagro Tonnage
+  - **Revenue** — Internal Revenue, External Revenue, Total Revenue, plus indented `Internal $/ton` / `External $/ton` / `Overall $/ton` ratio sub-rows. Ratios aggregate numerator + denominator across each period separately, then divide at display time (don't average per-day ratios).
 - **MTD column clips at the last day of the selected week's month** (or today, whichever is earlier) so it never spills into the following month after a calendar rollover
-- Prev/next week arrows, date picker
+- Prev/next week arrows, date picker, year toggle
 - **Export File** — generates .xlsx + .pdf in the consolidated layout
-- **Print** — print preview
+- **Print** — print preview (mirrors the on-screen table directly, so it picks up the new daily-email row layout automatically)
 - **Scale Monthly Review** button (gold) — opens the month-end summary modal (see Scale Monthly Review below)
-- *(Quarterly Report / Yearly Report / Projections buttons were removed in the May 2026 cleanup; underlying functions remain in the codebase but are not wired to the toolbar.)*
+- *(Quarterly Report / Yearly Report / Projections buttons were removed in the May 2026 cleanup; underlying functions remain in the codebase but are not wired to the toolbar. Per-company REIS / ISLAND / SANTOS sub-blocks were retired on 2026-05-09 in favor of the daily-email row layout.)*
 
 ### Consolidated Rolloff (David / Chris / Jack / admin)
 Top-level Analysis tab — formerly the IRR Scale → Consolidated Rolloff sub-view.
@@ -932,6 +937,7 @@ helm-app/
 
 ## Recent Major Changes
 
+- **May 9, 2026** — **Intercompany Rolloff: rows now mirror the daily email's section layout.** Same Mon-Sat + WTD + MTD + YTD column structure, same prev/next week + year toggle + Export + Print + Scale Monthly Review controls, but the body changes from the per-company TOTALS / Vinagro / REIS / ISLAND / SANTOS sub-blocks to the daily-email's five sections: **Internal Volume** (Rolloff Tonnage), **External Volume** (Walk-In Tonnage), **Total Volume** (Total Inbound), **Outbound** (Vinagro Tonnage), and **Revenue** (Internal Rev, External Rev, Total Rev plus indented `Internal $/ton` / `External $/ton` / `Overall $/ton` ratio sub-rows). Ratios aggregate numerator + denominator across each period separately and divide at display time so a 7-day average isn't pulled toward zero by an empty Sunday slot. Old `companyBlock` / `getCompanyData` / `sumRange` / `sumRangeAll` helpers retired in favor of `metricRow` + `ratioRow` builders that take per-day extractor functions.
 - **May 9, 2026** — **Dispatch — Phase 3 (Rolloff Queue card grid + modal + Empty-and-Home soft-delete + admin default-landing).** The dispatcher view goes live. Card grid with job-type-colored left edge, hover lift, Queue/Completed pill toggle, ◀ date ▶ navigator with Today shortcut. Click a card → navy-headered modal with Box/Address/Phone/Notes/By laid out vertically and a Mark Complete button (green) for queued tickets. Empty-and-Home tickets show a red warning banner in the modal explaining that completion will also soft-delete the matching rolloff in the book; on click, the rolloffs row matched by customer + parsed address_number+street is soft-deleted in the same flow as the ticket completion. Admin user accounts default to this tab on fresh login when no saved tab is in localStorage.
 - **May 9, 2026** — **Dispatch — Phase 2 (Input form + History + bidirectional sync to "the book").** New collapsible Dispatch nav group with three children: Dispatch Input (all users), Rolloff Queue (David/Chris/admin — Phase 3 stub), and History (all users). Dispatch Input is the office intake form: Existing/New mode toggle, Job Type dropdown (Delivery / Empty and Return / Move on Site / Empty and Home), Customer + Address with autosuggest from `rolloffs`, Box ID auto-uppercased with tare datalist, Phone normalized, Notes free-form. Live preview card mirrors the queue-card shape. Send to Dispatch creates a `ROLL000N` ticket AND enriches the `rolloffs` book — Existing mode UPDATEs the anchored rolloff (only non-empty fields, never wipes), New mode INSERTs a fresh rolloff row with type inferred from box prefix and address parsed into number + street. History tab is a read-only audit log of every ticket grouped by date, newest first.
 - **May 9, 2026** — **Dispatch — Phase 1 (schema + Roll-offs page extension).** Foundation for the new Rolloff Dispatching feature. Schema: `rolloffs.phone` + `rolloffs.tare_id` columns added; new `dispatch_tickets` table created (id, ticket_number `ROLL0001`+, created_at/by, entry_kind `existing`/`new`, customer_name, address, box_id, phone, job_type [Delivery / Empty and Return / Move on Site / Empty and Home], notes, status `queued`/`completed`, completed_at/by). UI: Roll-offs spreadsheet now has a Tare ID column (between Type and Customer, auto-uppercased, monospace, datalist autosuggest) and a Phone column (between Street and Monthly Tip, normalized through `normalizePhone()` on save and reflected back to the cell). Search/filter extended to include both new fields. The actual Dispatch Input form, Rolloff Queue page, and History tab land in subsequent phases.
