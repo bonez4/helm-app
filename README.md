@@ -51,11 +51,12 @@ No build step. No npm. No framework. One file.
 **Current users:** admin, david, chris, jackie, esme, hannah, kobie, maria, tom, jaime, jack
 
 **Access control:**
-- **All users** see: Client Lookup, Add Client, Reports, Roll-offs
+- **All users** see: Client Lookup, Add Client, Reports, Roll-offs, **Dispatch group → Dispatch Input + History**
 - **Admins only** (`role='admin'`): Import tab
 - **Jack + admins**: Import tab
 - **David / Jack / admins**: Files
 - **David / Chris / Jack / admins**: every Analysis tab — Daily Scale Report, Intercompany Rolloff, Consolidated Rolloff, Scale KPIs, Rolloff Visual, Xfer Station, Business Line Analysis
+- **David / Chris / admin**: **Dispatch group → Rolloff Queue** (the dispatcher view)
 - **David only**: Workflow tab (Action Items / project management) **and Routing group → Residential Routing tab**
 - **David + Chris + admin (per-user nav variant):** Roll-offs tab moves *into* the Client Management group (rather than sitting standalone). Other users still see Roll-offs as a top-level item.
 
@@ -467,6 +468,40 @@ Top-level Analysis tab — manual KPI entry + analysis for the four business lin
   - **Xfer Station:** Manual Trlrs Loaded, Tons Loaded, Loads Hauled override, Tons Hauled override per date. Other fields auto-pull from the Daily Scale Report.
 - **Analysis view** — four stacked accordions (Resi / Comm / Rolloff / Xfer). Click ▶ to expand → metric × Mon-Sat dates × Wk / Mo / Yr columns. Click any number to jump back to Input filtered to the entries that produced that cell.
 - Click-to-edit: cell click in Analysis sends you to the Input view filtered to the contributing entries (yellow filter banner with "Clear filter").
+
+### Dispatch group — Office → Dispatcher → Docket pipeline
+
+A new collapsible group in the side nav with three children. The premise: when an office staff member takes a phone call for a rolloff job, they enter it into HELM. HELM creates a queue of tickets the dispatcher works through; the dispatcher then enters them into Docket (external software). As a side effect, the Roll-offs spreadsheet ("the book") gets enriched with phone + tare data over time — so the office never has to do a manual data backfill.
+
+#### Dispatch Input (all users)
+The intake form. Lives at `Dispatch › Dispatch Input`.
+
+- **Mode toggle: Existing / New** — Existing means "this customer + site is already in the book"; New means "brand-new site (existing customer or new customer)". Default: Existing.
+- **Job Type dropdown** (required): `Delivery`, `Empty and Return`, `Move on Site`, `Empty and Home`. Each gets a colored chip in the preview/queue (green / blue / orange / red).
+- **Box ID** — tare # like `AJ55`, or just the type like `30YD`. Auto-uppercased on input. Datalist autosuggests from every known tare in `rolloffs`.
+- **Customer Name** (required) — datalist autosuggests every distinct customer in `rolloffs` regardless of mode (so a "new site" for an existing customer like Hanley Cons still gets the name autosuggest).
+- **Address** (required) — in Existing mode, the datalist is populated with that customer's existing rolloffs only (selected automatically once Name is chosen). When the typed address matches an existing rolloff exactly, the form auto-anchors: address goes readonly with a `× clear` button, and Box + Phone auto-fill from the matching `rolloffs` row (only fills empty fields — never overwrites what the user has typed).
+- **Phone** — any input format normalizes to `XXX-XXX-XXXX` on save via `normalizePhone()`.
+- **Notes** — free-form, optional, never autofilled.
+- **Live preview card** — mirrors the queue-card shape; updates as fields fill. Customer name + today's date + current time on the header row, Box + Address + Phone + italic Notes below, Job Type as a colored chip in the corner.
+- **Send to Dispatch** button — triggers the bidirectional sync (see below).
+
+#### Bidirectional sync to "the book" (rolloffs)
+Every Send to Dispatch does two writes:
+
+1. `INSERT` into `dispatch_tickets` with the next `ROLL000N` ticket number, `created_at` = now, `created_by` = username, `status` = `queued`.
+2. **Sync to `rolloffs`** based on mode:
+   - **Existing + anchored:** `UPDATE` that exact rolloff row with `phone` and `tare_id` from the form — but only the non-empty fields (so an empty phone in the form never wipes a phone that's already in the book).
+   - **New:** `INSERT` a fresh `rolloffs` row with everything from the form (`type` inferred from the Box ID prefix, `address` parsed into `address_number` + `street`, `phone` normalized).
+3. `dispatch_tickets.entry_kind` records which mode was used.
+
+The cache `dispatchRolloffs` is invalidated after each submit so the next form open picks up the just-written data.
+
+#### Dispatch History (all users)
+Lives at `Dispatch › History`. Read-only audit log of every ticket ever sent. Pulled newest-first (LIMIT 1000) and grouped by date with a per-day section header. Columns: Time · Ticket # · Job Type (colored pill) · Box · Customer · Address · Phone · Notes · Status (queued/completed pill) · By (username).
+
+#### Rolloff Queue (David / Chris / admin) — Phase 3
+Currently a placeholder. The full card-grid view with click-to-modal Mark-Complete, `Queue ↔ Completed` tab toggle, date navigator, and the **Empty-and-Home auto soft-delete on Complete** lands in the next phase. For now, dispatchers can see queued tickets in the History tab (yellow Status pill).
 
 ### Residential Routing (David only) — new "Routing" nav group
 The first deliverable from the Master List import project. Picks a date and shows that day's residential pickup routes in driving order, sourced from the new `route_assignments` table (1,999 rows / 1,068 distinct clients across all 6 days).
@@ -890,6 +925,7 @@ helm-app/
 
 ## Recent Major Changes
 
+- **May 9, 2026** — **Dispatch — Phase 2 (Input form + History + bidirectional sync to "the book").** New collapsible Dispatch nav group with three children: Dispatch Input (all users), Rolloff Queue (David/Chris/admin — Phase 3 stub), and History (all users). Dispatch Input is the office intake form: Existing/New mode toggle, Job Type dropdown (Delivery / Empty and Return / Move on Site / Empty and Home), Customer + Address with autosuggest from `rolloffs`, Box ID auto-uppercased with tare datalist, Phone normalized, Notes free-form. Live preview card mirrors the queue-card shape. Send to Dispatch creates a `ROLL000N` ticket AND enriches the `rolloffs` book — Existing mode UPDATEs the anchored rolloff (only non-empty fields, never wipes), New mode INSERTs a fresh rolloff row with type inferred from box prefix and address parsed into number + street. History tab is a read-only audit log of every ticket grouped by date, newest first.
 - **May 9, 2026** — **Dispatch — Phase 1 (schema + Roll-offs page extension).** Foundation for the new Rolloff Dispatching feature. Schema: `rolloffs.phone` + `rolloffs.tare_id` columns added; new `dispatch_tickets` table created (id, ticket_number `ROLL0001`+, created_at/by, entry_kind `existing`/`new`, customer_name, address, box_id, phone, job_type [Delivery / Empty and Return / Move on Site / Empty and Home], notes, status `queued`/`completed`, completed_at/by). UI: Roll-offs spreadsheet now has a Tare ID column (between Type and Customer, auto-uppercased, monospace, datalist autosuggest) and a Phone column (between Street and Monthly Tip, normalized through `normalizePhone()` on save and reflected back to the cell). Search/filter extended to include both new fields. The actual Dispatch Input form, Rolloff Queue page, and History tab land in subsequent phases.
 - **May 8, 2026** — **Daily Action Report print header now shows time-of-print, not just date.** Header `Printed:` field went from `May 8, 2026` to `May 8, 2026, 2:45 PM`. Useful when running multiple snapshots through a busy morning. Single-line change in `printReport()` — switched `toLocaleDateString` to `toLocaleString` with `hour:'numeric'` + `minute:'2-digit'`.
 - **May 7, 2026** — **Add Client next-ID floor for REIS = 209742 (last legacy add).** New HELM-only adds start at 209743 and strict-increment by 1 from the highest matching acct in HELM. Replaces the prior `+51` first-of-session safety buffer (was for sync slack against the legacy NetWork software; no longer needed since HELM is fully populated from the Delta export). Floor lives in `ACCT_BASELINE_BY_CO = { reis: 209742, santos: 300000 }` — bump it whenever another batch of legacy adds is ingested so HELM never re-uses an ID that exists in NetWork. The unused `_firstAddReis` / `_firstAddSantos` flags + `markCompanyFirstAddDone` helper were removed as dead code.

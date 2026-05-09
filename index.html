@@ -2521,6 +2521,16 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <button id="resiRoutesTabBtn"  class="nav-child" style="display:none" onclick="switchTab('resiroutes',this)">Residential Routing</button>
       </div>
     </div>
+    <div class="nav-group" id="navGroup-dispatch">
+      <button class="nav-group-hdr" onclick="toggleNavGroup('dispatch')">
+        <span class="nav-group-arrow">▼</span><span class="nav-group-label">Dispatch</span>
+      </button>
+      <div class="nav-group-children">
+        <button id="dispatchInputTabBtn"  class="nav-child" onclick="switchTab('dispatch',this)">Dispatch Input</button>
+        <button id="rolloffQueueTabBtn"   class="nav-child" style="display:none" onclick="switchTab('rolloffqueue',this)">Rolloff Queue</button>
+        <button id="dispatchHistoryTabBtn" class="nav-child" onclick="switchTab('history',this)">History</button>
+      </div>
+    </div>
     <button id="rolloffsSolo" class="nav-solo" onclick="switchTab('rolloffs',this)">Roll-offs</button>
     <button id="filesTabBtn"  class="nav-solo" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="actionTabBtn" class="nav-solo" style="display:none" onclick="switchTab('action',this)">Workflow</button>
@@ -2540,6 +2550,9 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <div id="tab-xfer"   style="display:none"></div>
     <div id="tab-bla"    style="display:none"></div>
     <div id="tab-resiroutes" style="display:none"></div>
+    <div id="tab-dispatch" style="display:none"></div>
+    <div id="tab-rolloffqueue" style="display:none"></div>
+    <div id="tab-history" style="display:none"></div>
     <div id="tab-files"  style="display:none"></div>
     <div id="tab-cmd"    style="display:none"></div>
     <div id="tab-action" style="display:none"></div>
@@ -3037,6 +3050,9 @@ async function login() {
   if(['david','chris','admin'].includes(data.username) || data.role==='admin') {
     document.getElementById('rolloffsClientChild').style.display='';
     document.getElementById('rolloffsSolo').style.display='none';
+    // Same audience sees the dispatcher view (Rolloff Queue) — others get
+    // only the Dispatch Input + History within the Dispatch group.
+    document.getElementById('rolloffQueueTabBtn').style.display='';
   }
   // Restore persisted nav-group collapsed state + rail collapsed state
   applyNavGroupState();
@@ -3224,7 +3240,8 @@ async function loadNotes(baseId){
 const NAV_GROUP_OF_TAB = {
   lookup:'clients', add:'clients', report:'clients',
   dailyscale:'analysis', icr:'analysis', crc:'analysis', kpis:'analysis', rvisual:'analysis', xfer:'analysis', bla:'analysis',
-  resiroutes:'routing'
+  resiroutes:'routing',
+  dispatch:'dispatch', rolloffqueue:'dispatch', history:'dispatch'
 };
 function toggleNavGroup(id){
   const el = document.getElementById('navGroup-'+id);
@@ -3270,7 +3287,7 @@ function expandNavGroupFor(tabName){
 }
 function switchTab(name,btn){
   expandNavGroupFor(name);
-  ['lookup','add','report','rolloffs','dailyscale','icr','crc','kpis','rvisual','xfer','bla','resiroutes','files','cmd','action','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','dailyscale','icr','crc','kpis','rvisual','xfer','bla','resiroutes','dispatch','rolloffqueue','history','files','cmd','action','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -3293,6 +3310,9 @@ function switchTab(name,btn){
   if(name==='xfer')   renderXfer();
   if(name==='bla')    renderBLA();
   if(name==='resiroutes') renderResidentialRouting();
+  if(name==='dispatch')   renderDispatchInput();
+  if(name==='rolloffqueue') renderRolloffQueue();
+  if(name==='history')    renderDispatchHistory();
   if(name==='files')  renderFiles();
   if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
   if(name==='action') { apInit(); }
@@ -11601,6 +11621,7 @@ if(_saved && _saved !== '1'){
     if(['david','chris','admin'].includes(currentUser.username) || currentUser.role==='admin') {
       document.getElementById('rolloffsClientChild').style.display='';
       document.getElementById('rolloffsSolo').style.display='none';
+      document.getElementById('rolloffQueueTabBtn').style.display='';
     }
     if(currentUser.username==='david'){
       document.getElementById('actionTabBtn').style.display='';
@@ -15267,6 +15288,421 @@ function rrPrint(){
   w.document.write(html);
   w.document.close();
   setTimeout(()=>w.print(), 300);
+}
+
+// ── DISPATCH (Office input → Rolloff Queue → History) ───────────────────
+// "The book" = rolloffs table. Dispatch tickets enrich it as a side effect.
+//   Existing mode: anchor to a known rolloff, UPDATE it with new phone/tare on submit
+//   New mode: INSERT a new rolloff row on submit (a fresh site enters the book)
+//   Empty and Home + ticket marked complete by dispatcher: soft-delete the rolloff (Phase 3)
+
+const DISPATCH_JOB_TYPES = [
+  { value: 'Delivery',         color: '#16a34a', bg: '#dcfce7' },
+  { value: 'Empty and Return', color: '#1d4ed8', bg: '#dbeafe' },
+  { value: 'Move on Site',     color: '#c2410c', bg: '#ffedd5' },
+  { value: 'Empty and Home',   color: '#b91c1c', bg: '#fee2e2' },
+];
+const DISPATCH_BOX_TYPES = ['AJ','REIS','AJ/REIS','30YD','40YD','30/40YD','SANTOS BOX'];
+
+let dispatchState = null;        // current form state
+let dispatchRolloffs = null;     // cached rolloffs for autosuggest
+
+function dispatchResetState(){
+  dispatchState = {
+    mode: 'existing',
+    customer_name: '',
+    address: '',
+    box_id: '',
+    phone: '',
+    job_type: 'Delivery',
+    notes: '',
+    anchoredRolloffId: null,   // set when an existing rolloff is selected
+  };
+}
+
+async function dispatchLoadRolloffs(force){
+  if(dispatchRolloffs && !force) return dispatchRolloffs;
+  const {data, error} = await db.from('rolloffs').select('*').eq('deleted', false);
+  if(error){ toast('Rolloffs load error: '+error.message); return []; }
+  dispatchRolloffs = data || [];
+  return dispatchRolloffs;
+}
+function dispatchInvalidateRolloffs(){ dispatchRolloffs = null; }
+
+async function renderDispatchInput(){
+  const tab = document.getElementById('tab-dispatch');
+  if(!tab) return;
+  if(!dispatchState) dispatchResetState();
+  tab.innerHTML = '<div class="loading" style="padding:40px;text-align:center;color:var(--gray-400)">Loading dispatch form…</div>';
+  await dispatchLoadRolloffs();
+  dispatchRenderForm();
+}
+
+function dispatchRenderForm(){
+  const tab = document.getElementById('tab-dispatch');
+  if(!tab) return;
+  const s = dispatchState;
+  const allRolloffs = (dispatchRolloffs||[]);
+  // Customer datalist — every distinct customer in rolloffs (both modes)
+  const custSet = new Set();
+  for(const r of allRolloffs){ if(r.customer && r.customer.trim()) custSet.add(r.customer.trim()); }
+  const customers = [...custSet].sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}));
+  // Address datalist — only this customer's rolloffs (Existing mode); empty otherwise
+  let addrOptions = [];
+  if(s.mode==='existing' && s.customer_name.trim()){
+    const k = s.customer_name.trim().toLowerCase();
+    addrOptions = allRolloffs.filter(r => (r.customer||'').trim().toLowerCase() === k)
+      .map(r => `${r.address_number||''} ${r.street||''}`.trim())
+      .filter(Boolean);
+  }
+  const isAnchored = !!s.anchoredRolloffId;
+
+  tab.innerHTML = `
+    <datalist id="dispCustomers">${customers.map(c=>`<option value="${esc(c)}"></option>`).join('')}</datalist>
+    <datalist id="dispAddresses">${addrOptions.map(a=>`<option value="${esc(a)}"></option>`).join('')}</datalist>
+    <div class="form-card" style="margin-bottom:1rem;max-width:780px">
+      <h2>Dispatch Input</h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">Take a rolloff job over the phone. Filling this in updates "the book" (Roll-offs) and queues a ticket for the dispatcher.</p>
+
+      <!-- Mode toggle -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button type="button" onclick="dispSetMode('existing')" class="co-pick-btn ${s.mode==='existing'?'co-pick-active':''}" style="flex:1">
+          <strong>Existing</strong>
+          <span style="font-size:11px;color:var(--gray-500);margin-left:6px;">customer + site already in the book</span>
+        </button>
+        <button type="button" onclick="dispSetMode('new')" class="co-pick-btn ${s.mode==='new'?'co-pick-active':''}" style="flex:1">
+          <strong>New</strong>
+          <span style="font-size:11px;color:var(--gray-500);margin-left:6px;">brand-new site (existing or new customer)</span>
+        </button>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Job Type <span style="color:var(--err-text);font-weight:600">*</span></label>
+          <select id="dispJobType" onchange="dispUpdate('job_type',this.value)" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:var(--gray-50);">
+            ${DISPATCH_JOB_TYPES.map(t=>`<option value="${t.value}" ${s.job_type===t.value?'selected':''}>${t.value}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Box ID <span style="color:var(--gray-400);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(tare # like AJ55, or just type like 30YD)</span></label>
+          <input type="text" id="dispBox" value="${esc(s.box_id)}" placeholder="AJ55"
+            list="rolloffTares" autocomplete="off"
+            oninput="dispUpdate('box_id',this.value.toUpperCase()); this.value=this.value.toUpperCase();"
+            style="text-transform:uppercase;font-family:'DM Mono',monospace;"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Customer Name <span style="color:var(--err-text);font-weight:600">*</span></label>
+        <input type="text" id="dispName" value="${esc(s.customer_name)}" placeholder="Hanley Cons"
+          list="dispCustomers" autocomplete="off"
+          oninput="dispUpdate('customer_name',this.value)"
+          onchange="dispOnNameCommit(this.value)"/>
+      </div>
+
+      <div class="form-group">
+        <label>Address <span style="color:var(--err-text);font-weight:600">*</span> ${isAnchored ? '<span style="color:var(--ok-text);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">· anchored to existing rolloff</span>' : ''}</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="dispAddr" value="${esc(s.address)}" placeholder="${s.mode==='existing'?'15 Pilgrim Road':'15 Pilgrim Road'}"
+            ${s.mode==='existing' && !isAnchored ? 'list="dispAddresses"' : ''}
+            ${isAnchored ? 'readonly style="background:var(--gray-100);cursor:not-allowed;"' : ''}
+            autocomplete="off"
+            oninput="dispUpdate('address',this.value)"
+            onchange="dispOnAddressCommit(this.value)"/>
+          ${isAnchored ? `<button type="button" onclick="dispClearAnchor()" style="background:var(--gray-100);border:1px solid var(--gray-200);padding:7px 11px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--gray-700);" title="Clear and pick a different site">× clear</button>` : ''}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Phone <span style="color:var(--gray-400);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(any format → saves as XXX-XXX-XXXX)</span></label>
+          <input type="text" id="dispPhone" value="${esc(s.phone)}" placeholder="(508) 228-3938"
+            inputmode="tel" autocomplete="off"
+            oninput="dispUpdate('phone',this.value)"/>
+        </div>
+        <div class="form-group">
+          <label>Notes <span style="color:var(--gray-400);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(optional, free-form)</span></label>
+          <input type="text" id="dispNotes" value="${esc(s.notes)}" placeholder="Behind the row of trees"
+            autocomplete="off"
+            oninput="dispUpdate('notes',this.value)"/>
+        </div>
+      </div>
+
+      <!-- Live preview card (mirrors the queue card shape) -->
+      <div id="dispPreview"></div>
+
+      <div style="display:flex;gap:6px;margin-top:14px;">
+        <button class="btn-add" style="flex:1;background:var(--gray-400)" onclick="dispatchResetState();dispatchRenderForm();">Reset</button>
+        <button class="btn-add" style="flex:2" onclick="dispatchSubmit()">Send to Dispatch</button>
+      </div>
+      <div id="dispMsg" style="margin-top:6px;font-size:12px;min-height:16px;"></div>
+    </div>`;
+
+  dispatchRenderPreview();
+  // Tare datalist comes from the Roll-offs page; (re)build a copy here
+  if(!document.getElementById('rolloffTares')){
+    const tareSet = new Set();
+    for(const r of allRolloffs){ if(r.tare_id && r.tare_id.trim()) tareSet.add(r.tare_id.trim().toUpperCase()); }
+    const tares = [...tareSet].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+    const dl = document.createElement('datalist'); dl.id = 'rolloffTares';
+    dl.innerHTML = tares.map(t=>`<option value="${esc(t)}"></option>`).join('');
+    tab.appendChild(dl);
+  }
+}
+
+function dispSetMode(mode){
+  dispatchState.mode = mode;
+  dispatchState.anchoredRolloffId = null;  // changing mode breaks anchor
+  dispatchRenderForm();
+}
+function dispUpdate(field, value){
+  dispatchState[field] = value;
+  dispatchRenderPreview();
+}
+function dispOnNameCommit(value){
+  // When the user blurs the name field after typing/picking, in Existing
+  // mode try to match a single rolloff and auto-anchor.
+  dispatchState.customer_name = value;
+  if(dispatchState.mode !== 'existing') { dispatchRenderForm(); return; }
+  const matches = (dispatchRolloffs||[]).filter(r =>
+    (r.customer||'').trim().toLowerCase() === value.trim().toLowerCase()
+  );
+  if(matches.length === 1){
+    dispatchAnchorRolloff(matches[0]);
+    return;
+  }
+  // Multiple or none — just refresh the form so the address datalist updates
+  dispatchRenderForm();
+}
+function dispOnAddressCommit(value){
+  dispatchState.address = value;
+  if(dispatchState.mode !== 'existing' || dispatchState.anchoredRolloffId) return;
+  const k = (dispatchState.customer_name||'').trim().toLowerCase();
+  const v = value.trim().toLowerCase();
+  const match = (dispatchRolloffs||[]).find(r =>
+    (r.customer||'').trim().toLowerCase() === k &&
+    `${r.address_number||''} ${r.street||''}`.trim().toLowerCase() === v
+  );
+  if(match) dispatchAnchorRolloff(match);
+  else dispatchRenderPreview();
+}
+function dispatchAnchorRolloff(r){
+  dispatchState.anchoredRolloffId = r.id;
+  dispatchState.address = `${r.address_number||''} ${r.street||''}`.trim();
+  if(r.tare_id && !dispatchState.box_id) dispatchState.box_id = r.tare_id;
+  if(r.phone && !dispatchState.phone) dispatchState.phone = r.phone;
+  dispatchRenderForm();
+}
+function dispClearAnchor(){
+  dispatchState.anchoredRolloffId = null;
+  // Don't auto-clear the typed values — user might just want to fix the address.
+  dispatchRenderForm();
+}
+
+function dispatchRenderPreview(){
+  const el = document.getElementById('dispPreview');
+  if(!el) return;
+  const s = dispatchState;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'2-digit'});
+  const timeStr = now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const jt = DISPATCH_JOB_TYPES.find(t=>t.value===s.job_type) || DISPATCH_JOB_TYPES[0];
+  const phoneFmt = normalizePhone(s.phone) || s.phone || '';
+  const placeholder = (s.customer_name||s.address||s.box_id||s.phone||s.notes) ? '' :
+    '<div style="font-size:11px;color:var(--gray-400);font-style:italic;text-align:center;">Preview will populate as you fill in the form…</div>';
+  el.innerHTML = `
+    <div style="margin-top:10px;padding:14px 18px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:13px;line-height:1.6;color:var(--gray-800);">
+      ${placeholder}
+      ${placeholder ? '' : `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+        <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;">
+          <strong style="color:var(--navy);font-size:14px;">${esc(s.customer_name||'(customer)')}</strong>
+          <span style="color:var(--gray-500);">${dateStr}</span>
+          <span style="color:var(--gray-500);">${timeStr}</span>
+        </div>
+        <span style="background:${jt.bg};color:${jt.color};font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;">${esc(jt.value)}</span>
+      </div>
+      <div style="display:flex;gap:14px;align-items:baseline;">
+        <strong style="color:var(--navy);min-width:60px;">${esc(s.box_id||'—')}</strong>
+        <span>${esc(s.address||'(address)')}</span>
+      </div>
+      <div style="color:var(--gray-600);">${esc(phoneFmt||'(no phone)')}</div>
+      ${s.notes ? `<div style="font-style:italic;color:var(--gray-700);margin-top:4px;">"${esc(s.notes)}"</div>` : ''}
+      `}
+    </div>`;
+}
+
+async function dispatchSubmit(){
+  const s = dispatchState;
+  if(!s.customer_name.trim()){ toast('Customer name is required'); return; }
+  if(!s.address.trim()){ toast('Address is required'); return; }
+  if(!s.job_type){ toast('Job type is required'); return; }
+
+  const msg = document.getElementById('dispMsg');
+  if(msg){ msg.style.color='var(--gray-500)'; msg.textContent='Sending…'; }
+
+  const ticketNumber = await dispatchNextTicketNumber();
+  if(!ticketNumber){ if(msg) msg.textContent=''; return; }
+
+  const phone = normalizePhone(s.phone) || null;
+  const boxId = (s.box_id||'').trim().toUpperCase() || null;
+  const ticket = {
+    ticket_number: ticketNumber,
+    created_by: currentUser ? currentUser.username : null,
+    entry_kind: s.mode,
+    customer_name: s.customer_name.trim(),
+    address: s.address.trim(),
+    box_id: boxId,
+    phone: phone,
+    job_type: s.job_type,
+    notes: (s.notes||'').trim() || null,
+    status: 'queued',
+  };
+  const {error: e1} = await db.from('dispatch_tickets').insert(ticket);
+  if(e1){ if(msg){msg.style.color='var(--err-text)';msg.textContent='Ticket save failed: '+e1.message;} return; }
+
+  // Sync to "the book" — rolloffs table.
+  if(s.mode === 'existing' && s.anchoredRolloffId){
+    const upd = {};
+    if(phone) upd.phone = phone;
+    if(boxId) upd.tare_id = boxId;
+    if(Object.keys(upd).length){
+      const {error:e2} = await db.from('rolloffs').update(upd).eq('id', s.anchoredRolloffId);
+      if(e2){ toast('Ticket saved, but rolloff sync failed: '+e2.message); }
+    }
+  } else if(s.mode === 'new'){
+    // Parse "15 Pilgrim Road" into number + street; if no leading number, all goes to street.
+    const m = ticket.address.match(/^(\d+\S*)\s+(.+)$/);
+    const newRolloff = {
+      date: new Date().toISOString().split('T')[0],
+      type: dispatchInferType(boxId),
+      tare_id: boxId,
+      customer: ticket.customer_name,
+      address_number: m ? m[1] : '',
+      street: m ? m[2] : ticket.address,
+      phone: phone,
+      notes: null,
+      monthly_tip: false,
+      deleted: false,
+    };
+    const {error:e3} = await db.from('rolloffs').insert(newRolloff);
+    if(e3){ toast('Ticket saved, but new rolloff create failed: '+e3.message); }
+  }
+
+  logActivity('dispatch_ticket', `${ticketNumber} ${s.job_type} ${s.customer_name}`);
+  dispatchInvalidateRolloffs();
+  dispatchResetState();
+  dispatchRenderForm();
+  if(msg){ msg.style.color='var(--ok-text)'; msg.textContent='Ticket '+ticketNumber+' sent to dispatch.'; }
+  toast(ticketNumber+' sent to dispatch', true);
+}
+
+async function dispatchNextTicketNumber(){
+  const {data, error} = await db.from('dispatch_tickets')
+    .select('ticket_number')
+    .order('id', {ascending:false}).limit(1);
+  if(error){ toast('Ticket # lookup failed: '+error.message); return null; }
+  let n = 0;
+  if(data && data.length){
+    const m = (data[0].ticket_number||'').match(/ROLL(\d+)/i);
+    if(m) n = parseInt(m[1], 10) || 0;
+  }
+  return 'ROLL' + String(n+1).padStart(4, '0');
+}
+
+function dispatchInferType(boxId){
+  if(!boxId) return null;
+  const t = boxId.toUpperCase();
+  if(t.startsWith('30/40')) return '30/40YD';
+  if(t.startsWith('30YD')) return '30YD';
+  if(t.startsWith('40YD')) return '40YD';
+  if(t.startsWith('AJ/REIS') || t.startsWith('AJREIS')) return 'AJ/REIS';
+  if(t.startsWith('AJ')) return 'AJ';
+  if(t.startsWith('REIS')) return 'REIS';
+  if(t.startsWith('SANTOS')) return 'SANTOS BOX';
+  return null;
+}
+
+// ── DISPATCH HISTORY (all users — flat read-only record of every ticket) ──
+async function renderDispatchHistory(){
+  const tab = document.getElementById('tab-history');
+  if(!tab) return;
+  tab.innerHTML = '<div class="loading" style="padding:40px;text-align:center;color:var(--gray-400)">Loading dispatch history…</div>';
+  // Pull all tickets newest first (LIMIT 1000 — paginate later if needed)
+  const {data, error} = await db.from('dispatch_tickets')
+    .select('*').order('created_at', {ascending:false}).limit(1000);
+  if(error){ tab.innerHTML = `<div class="empty-state">Error: ${esc(error.message)}</div>`; return; }
+  const tickets = data || [];
+  if(!tickets.length){
+    tab.innerHTML = '<div class="form-card" style="max-width:780px"><h2>Dispatch History</h2><div class="empty-state" style="padding:40px;color:var(--gray-400);">No dispatch tickets yet. They appear here once the office hits Send to Dispatch.</div></div>';
+    return;
+  }
+
+  // Group by local-date (YYYY-MM-DD)
+  const byDate = {};
+  for(const t of tickets){
+    const d = new Date(t.created_at);
+    const key = d.toISOString().split('T')[0];
+    (byDate[key] = byDate[key] || []).push(t);
+  }
+  const dates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+
+  let html = `<div class="form-card" style="max-width:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <h2>Dispatch History</h2>
+      <div style="font-size:11px;color:var(--gray-400);">Last ${tickets.length} ticket${tickets.length===1?'':'s'}</div>
+    </div>
+    <p style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">Every ticket ever sent to dispatch, newest first. Read-only audit log.</p>`;
+  for(const date of dates){
+    const rows = byDate[date];
+    const dLabel = new Date(date+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    html += `<div class="report-group" style="margin-bottom:14px;">
+      <div class="report-group-header"><span>${esc(dLabel)}</span><span>${rows.length} ticket${rows.length===1?'':'s'}</span></div>
+      <table class="report-table"><thead><tr>
+        <th style="width:70px">Time</th>
+        <th style="width:90px">Ticket #</th>
+        <th style="width:120px">Job Type</th>
+        <th style="width:80px">Box</th>
+        <th>Customer</th>
+        <th>Address</th>
+        <th style="width:110px">Phone</th>
+        <th>Notes</th>
+        <th style="width:90px">Status</th>
+        <th style="width:85px">By</th>
+      </tr></thead><tbody>`;
+    for(const t of rows){
+      const tm = new Date(t.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      const jt = DISPATCH_JOB_TYPES.find(x=>x.value===t.job_type);
+      const jtPill = jt ? `<span style="background:${jt.bg};color:${jt.color};font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;">${esc(jt.value)}</span>` : esc(t.job_type||'');
+      const statusCls = t.status==='completed' ? 's-active' : 's-skipped';
+      html += `<tr>
+        <td style="white-space:nowrap;">${esc(tm)}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--navy);font-weight:700;">${esc(t.ticket_number)}</td>
+        <td>${jtPill}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px;">${esc(t.box_id||'—')}</td>
+        <td>${esc(t.customer_name||'')}</td>
+        <td>${esc(t.address||'')}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:11px;">${esc(t.phone||'—')}</td>
+        <td style="font-style:italic;color:var(--gray-700);">${esc(t.notes||'')}</td>
+        <td><span class="status-pill ${statusCls}">${esc(t.status||'queued')}</span></td>
+        <td style="font-size:11px;color:var(--gray-500);">${esc(t.created_by||'')}</td>
+      </tr>`;
+    }
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+  tab.innerHTML = html;
+}
+
+// ── DISPATCH ROLLOFF QUEUE — Phase 3 stub ──────────────────────────────
+async function renderRolloffQueue(){
+  const tab = document.getElementById('tab-rolloffqueue');
+  if(!tab) return;
+  tab.innerHTML = `<div class="form-card" style="max-width:780px">
+    <h2>Rolloff Queue</h2>
+    <p style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">Card-grid view with click-to-modal Mark-Complete + Empty-and-Home soft-delete is the next phase.</p>
+    <div class="empty-state" style="padding:30px;color:var(--gray-500);">For now, see the History tab — queued tickets show with a yellow Status pill.</div>
+  </div>`;
 }
 
 </script>
