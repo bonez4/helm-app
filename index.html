@@ -5396,7 +5396,7 @@ function renderRolloffTable(){
   }
   const q=rolloffSearch.trim().toLowerCase();
   const filtered=q?rolloffsData.filter(r=>{
-    return [r.customer,r.address_number,r.street,r.type,r.notes,r.date]
+    return [r.customer,r.address_number,r.street,r.type,r.notes,r.date,r.phone,r.tare_id]
       .filter(Boolean).some(v=>v.toLowerCase().includes(q));
   }):rolloffsData;
   if(q&&!filtered.length){
@@ -5404,13 +5404,15 @@ function renderRolloffTable(){
     return;
   }
   const cols=[
-    {key:'date',label:'Date',width:'100px'},
-    {key:'type',label:'Type',width:'70px'},
+    {key:'date',label:'Date',width:'92px'},
+    {key:'type',label:'Type',width:'68px'},
+    {key:'tare_id',label:'Tare ID',width:'80px'},
     {key:'customer',label:'Customer',width:'auto'},
-    {key:'address_number',label:'Number',width:'80px'},
+    {key:'address_number',label:'#',width:'56px'},
     {key:'street',label:'Street',width:'auto'},
-    {key:'monthly_tip',label:'Monthly Tip',width:'90px'},
-    {key:'notes',label:'Notes',width:'120px'}
+    {key:'phone',label:'Phone',width:'108px'},
+    {key:'monthly_tip',label:'Monthly Tip',width:'78px'},
+    {key:'notes',label:'Notes',width:'140px'}
   ];
   // Build datalist of unique customer names from past roll-offs (for autosuggest)
   const customerSet = new Set();
@@ -5430,8 +5432,17 @@ function renderRolloffTable(){
   const streetList = [...streetSet].sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
   const streetDatalist = `<datalist id="rolloffStreets">${streetList.map(s=>`<option value="${esc(s)}"></option>`).join('')}</datalist>`;
 
+  // Tare ID datalist — every assigned tare so dispatchers can scan / pick from a list
+  const tareSet = new Set();
+  for(const r of rolloffsData){
+    const t = (r.tare_id||'').trim();
+    if(t) tareSet.add(t);
+  }
+  const tareList = [...tareSet].sort((a,b)=>a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}));
+  const tareDatalist = `<datalist id="rolloffTares">${tareList.map(t=>`<option value="${esc(t)}"></option>`).join('')}</datalist>`;
+
   const sortIcon=(col)=>rolloffSort.col===col?(rolloffSort.asc?'&#9650;':'&#9660;'):'';
-  let html=datalistHtml+streetDatalist+`<table class="ro-table"><thead><tr>`;
+  let html=datalistHtml+streetDatalist+tareDatalist+`<table class="ro-table"><thead><tr>`;
   cols.forEach(c=>{
     html+=`<th style="width:${c.width};cursor:pointer;user-select:none" onclick="sortRolloffs('${c.key}')">${c.label} <span style="font-size:9px">${sortIcon(c.key)}</span></th>`;
   });
@@ -5448,12 +5459,16 @@ function renderRolloffTable(){
       <option value=""${!r.type?' selected':''}></option>
       ${roTypes.map(t=>`<option value="${t}"${r.type===t?' selected':''}>${t}</option>`).join('')}
     </select></td>`;
+    // Tare ID cell — sticker number on the physical box (e.g. AJ55, REIS12, 30YD7)
+    html+=`<td><input type="text" class="ro-input" list="rolloffTares" value="${esc(r.tare_id||'')}" placeholder="—" onchange="updateRolloff(${r.id},'tare_id',this.value.trim().toUpperCase())" onkeydown="roKeyNav(event,${r.id},'tare_id')" ${deleted?'disabled':''} style="text-transform:uppercase;font-family:'DM Mono',monospace;font-size:11px;"/></td>`;
     // Customer cell — datalist gives autosuggest from past roll-off customers
     html+=`<td><input type="text" class="ro-input" list="rolloffCustomers" value="${esc(r.customer||'')}" onchange="updateRolloff(${r.id},'customer',this.value)" onkeydown="roKeyNav(event,${r.id},'customer')" ${deleted?'disabled':''}/></td>`;
     // Number cell
     html+=`<td><input type="text" class="ro-input" value="${esc(r.address_number||'')}" onchange="updateRolloff(${r.id},'address_number',this.value)" onkeydown="roKeyNav(event,${r.id},'address_number')" ${deleted?'disabled':''}/></td>`;
     // Street cell — datalist with previously-used street names
     html+=`<td><input type="text" class="ro-input" list="rolloffStreets" value="${esc(r.street||'')}" onchange="updateRolloff(${r.id},'street',this.value)" onkeydown="roKeyNav(event,${r.id},'street')" ${deleted?'disabled':''}/></td>`;
+    // Phone cell — runs through normalizePhone() on save (XXX-XXX-XXXX canonical)
+    html+=`<td><input type="text" class="ro-input" inputmode="tel" value="${esc(r.phone||'')}" placeholder="—" onchange="updateRolloffPhone(${r.id},this.value)" onkeydown="roKeyNav(event,${r.id},'phone')" ${deleted?'disabled':''} style="font-family:'DM Mono',monospace;font-size:11px;"/></td>`;
     // Monthly Tip cell — checkbox + Yes/No label
     const tipped = !!r.monthly_tip;
     html+=`<td style="text-align:center;"><button class="ro-tip-btn ${tipped?'tipped':''}" onclick="toggleRolloffTip(${r.id})" ${deleted?'disabled':''} title="Click to toggle">${tipped?'Yes':'No'}</button></td>`;
@@ -5504,6 +5519,22 @@ async function updateRolloff(id,col,val){
   const {error}=await db.from('rolloffs').update(update).eq('id',id);
   if(error) toast('Save error: '+error.message);
   else logActivity('rolloff_edit','id:'+id+' '+col+'='+val);
+}
+
+// Phone goes through normalizePhone() so any input format saves as XXX-XXX-XXXX.
+// Reflects the canonical value back to the input so the user sees what was saved.
+async function updateRolloffPhone(id, raw){
+  const norm = normalizePhone(raw) || null;
+  await updateRolloff(id, 'phone', norm);
+  // Reflect canonical value back to the input
+  const tr = document.querySelector(`tr[data-roid="${id}"]`);
+  if(tr){
+    const input = tr.querySelector('input[inputmode="tel"]');
+    if(input && norm) input.value = norm;
+  }
+  // Refresh in-memory cache so search picks up the new value without reload
+  const r = rolloffsData.find(x=>x.id===id);
+  if(r) r.phone = norm;
 }
 
 async function softDeleteRolloff(id){

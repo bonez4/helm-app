@@ -117,12 +117,32 @@ Per-user themes live in `applyUserTheme()`:
 | id | SERIAL (PK) | Auto |
 | date | DATE | Date placed |
 | type | TEXT | `AJ`, `REIS`, `30YD`, `40YD`, etc. |
+| tare_id | TEXT | Sticker ID on the physical box (e.g. `AJ55`, `REIS12`) — pinpoints which exact dumpster is at this location |
 | customer | TEXT | Customer name |
 | address_number | TEXT | Street number |
 | street | TEXT | Street name |
+| phone | TEXT | Job-site contact phone, normalized to `XXX-XXX-XXXX` on save |
 | notes | TEXT | Special instructions |
 | monthly_tip | BOOLEAN | Monthly rental tipped flag (default FALSE) |
 | deleted | BOOLEAN | Soft delete flag |
+
+**`dispatch_tickets`** — Rolloff request queue (Office → Dispatcher → Docket flow)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| ticket_number | TEXT (UNIQUE) | `ROLL0001`, `ROLL0002`, … sequential |
+| created_at | TIMESTAMPTZ | When the office hit Send to Dispatch |
+| created_by | TEXT | Username of the office staff |
+| entry_kind | TEXT | `existing` (use existing rolloff data) or `new` (new site) |
+| customer_name | TEXT | |
+| address | TEXT | |
+| box_id | TEXT | Tare ID like `AJ55` if known, otherwise just the type |
+| phone | TEXT | Normalized `XXX-XXX-XXXX` |
+| job_type | TEXT | `Delivery`, `Empty and Return`, `Move on Site`, `Empty and Home` |
+| notes | TEXT | Free-form for the dispatcher |
+| status | TEXT | `queued` or `completed` |
+| completed_at | TIMESTAMPTZ | When the dispatcher checked it off |
+| completed_by | TEXT | Username of the dispatcher who closed it |
 
 **`users`** — Authentication
 | Column | Type | Notes |
@@ -324,7 +344,10 @@ Four cards on the Reports tab:
 
 ### Roll-offs (all users)
 - Editable spreadsheet with sortable columns, soft delete + undo, show/restore deleted
-- **Customer + Street auto-suggest** — both fields use a `<datalist>` populated from previously-used values; type a few letters then Tab/Enter to accept
+- **Columns:** Date · Type · **Tare ID** · Customer · # · Street · **Phone** · Monthly Tip · Notes
+- **Tare ID** — sticker number on the physical box (`AJ55`, `REIS12`, `30YD7`, `40YD2`, `SANTOS3`). Auto-uppercased on save, monospace render. Datalist autosuggests previously-used tare IDs (alphanumeric-aware sort). Powers the "which physical box is at this address" lookup that the new Dispatch Input form auto-fills from.
+- **Phone** — job-site contact number. Saved through `normalizePhone()` so `(508) 228-3938`, `508.228.3938`, `5082283938`, `+1 508-228-3938` all canonicalize to `508-228-3938`. The input is reflected back to the cell on save so users see the canonical form.
+- **Customer + Street + Tare ID auto-suggest** — all three fields use a `<datalist>` populated from previously-used values; type a few letters then Tab/Enter to accept
 - **Monthly Tip** column — click the pill to toggle No (gray) ↔ Yes (green)
 - **Reset Monthly Tips** button — yellow-highlighted, clears all tipped flags with confirmation
 - **Banner** "⚠ RESET MONTHLY RENTAL FEES" appears on the **last day of each month** if any tipped rolloffs remain (configurable via `ROLLOFF_TIP_RESET_DAY`). Clicking Reset auto-hides the banner
@@ -650,6 +673,32 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW(
 -- Route note on clients
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS route_note TEXT;
 
+-- Phone + tare_id on rolloffs (Dispatch Input phase 1)
+ALTER TABLE rolloffs ADD COLUMN IF NOT EXISTS phone   TEXT;
+ALTER TABLE rolloffs ADD COLUMN IF NOT EXISTS tare_id TEXT;
+
+-- Dispatch ticket queue (Office input -> Dispatcher Queue -> Docket)
+CREATE TABLE IF NOT EXISTS dispatch_tickets (
+  id            BIGSERIAL PRIMARY KEY,
+  ticket_number TEXT UNIQUE NOT NULL,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  created_by    TEXT,
+  entry_kind    TEXT,
+  customer_name TEXT,
+  address       TEXT,
+  box_id        TEXT,
+  phone         TEXT,
+  job_type      TEXT,
+  notes         TEXT,
+  status        TEXT DEFAULT 'queued',
+  completed_at  TIMESTAMPTZ,
+  completed_by  TEXT
+);
+ALTER TABLE dispatch_tickets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "dispatch_tickets_all" ON dispatch_tickets FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS dispatch_tickets_created_idx ON dispatch_tickets(created_at);
+CREATE INDEX IF NOT EXISTS dispatch_tickets_status_idx  ON dispatch_tickets(status);
+
 -- Per-pickup rate schedule on clients (R1=trash, R2=extra bag, R3=recycle, R4=intermittent, R5=cardboard armload)
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate1 NUMERIC(8,2);
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS rate2 NUMERIC(8,2);
@@ -841,6 +890,7 @@ helm-app/
 
 ## Recent Major Changes
 
+- **May 9, 2026** — **Dispatch — Phase 1 (schema + Roll-offs page extension).** Foundation for the new Rolloff Dispatching feature. Schema: `rolloffs.phone` + `rolloffs.tare_id` columns added; new `dispatch_tickets` table created (id, ticket_number `ROLL0001`+, created_at/by, entry_kind `existing`/`new`, customer_name, address, box_id, phone, job_type [Delivery / Empty and Return / Move on Site / Empty and Home], notes, status `queued`/`completed`, completed_at/by). UI: Roll-offs spreadsheet now has a Tare ID column (between Type and Customer, auto-uppercased, monospace, datalist autosuggest) and a Phone column (between Street and Monthly Tip, normalized through `normalizePhone()` on save and reflected back to the cell). Search/filter extended to include both new fields. The actual Dispatch Input form, Rolloff Queue page, and History tab land in subsequent phases.
 - **May 8, 2026** — **Daily Action Report print header now shows time-of-print, not just date.** Header `Printed:` field went from `May 8, 2026` to `May 8, 2026, 2:45 PM`. Useful when running multiple snapshots through a busy morning. Single-line change in `printReport()` — switched `toLocaleDateString` to `toLocaleString` with `hour:'numeric'` + `minute:'2-digit'`.
 - **May 7, 2026** — **Add Client next-ID floor for REIS = 209742 (last legacy add).** New HELM-only adds start at 209743 and strict-increment by 1 from the highest matching acct in HELM. Replaces the prior `+51` first-of-session safety buffer (was for sync slack against the legacy NetWork software; no longer needed since HELM is fully populated from the Delta export). Floor lives in `ACCT_BASELINE_BY_CO = { reis: 209742, santos: 300000 }` — bump it whenever another batch of legacy adds is ingested so HELM never re-uses an ID that exists in NetWork. The unused `_firstAddReis` / `_firstAddSantos` flags + `markCompanyFirstAddDone` helper were removed as dead code.
 - **May 7, 2026** — **Delete Client (Danger Zone) + phone normalization on save.** Edit Client form now has a red Delete Client Permanently button at the bottom under a "Danger Zone" header. Pre-counts the related notes / skips / route_assignments and shows the totals in the confirmation prompt; requires the user to *type the exact account #* (not just OK a confirm()) before any DB write happens. Deletes child rows first then the client row, logs to activity_log, clears activeClient + the inline card + the search field. Phone numbers entered into Edit Client and Add Client now run through `normalizePhone()` before saving — `(508) 228-3938`, `508.228.3938`, `5082283938`, `+1 508-228-3938` all canonicalize to `508-228-3938`. Anything not parseable as a 10-digit (or `1`-prefixed 11-digit) US number passes through unchanged so existing free-form values never get truncated.
