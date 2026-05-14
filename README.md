@@ -378,19 +378,20 @@ Top-level Analysis tab — replaces the old IRR Scale → Daily Scale Report sub
 
 ### Intercompany Rolloff (David / Chris / Jack / admin)
 Top-level Analysis tab — formerly the IRR Scale → Intercompany Rolloff Report sub-view.
-- Weekly view: Mon-Sat + WTD, MTD, YTD
-- **Rows mirror the daily email's section layout** (so the on-screen weekly grid and the daily email read the same):
+- **Columns mirror the daily email** (so the on-screen table and the daily email read the same):
+  - `Today` · `MTD` · `MTD YoY` · `YTD` · `YTD YoY`
+  - YoY columns display signed deltas with signed percent change (e.g. `+432.50 tons | +35.6%` or `($45,200.10) | (8.4%)`)
+  - Data comes from `irrLoadYTD()` — the same helper the daily email itself calls, so values reconcile exactly
+- **Rows mirror the daily email's section layout**:
   - **Internal Volume** — Rolloff Tonnage (Reis + Island + East End)
   - **External Volume** — Walk-In Tonnage
   - **Total Volume** — Total Inbound (Internal + External)
   - **Outbound** — Vinagro Tonnage
-  - **Revenue** — Internal Revenue, External Revenue, Total Revenue, plus indented `Internal $/ton` / `External $/ton` / `Overall $/ton` ratio sub-rows. Ratios aggregate numerator + denominator across each period separately, then divide at display time (don't average per-day ratios).
-- **MTD column clips at the last day of the selected week's month** (or today, whichever is earlier) so it never spills into the following month after a calendar rollover
-- Prev/next week arrows, date picker, year toggle
-- **Export File** — generates .xlsx + .pdf in the consolidated layout
-- **Print** — print preview (mirrors the on-screen table directly, so it picks up the new daily-email row layout automatically)
+  - **Revenue** — Internal Revenue, External Revenue, Total Revenue, plus indented `Internal $/ton` / `External $/ton` / `Overall $/ton` ratio sub-rows. Ratios aggregate numerator + denominator separately, then divide at display time
+- **Single-date navigation** — prev day arrow, date picker, next day arrow, Today shortcut. Defaults to today.
+- **Print** — print preview (mirrors the on-screen table directly, so it picks up the new layout automatically)
 - **Scale Monthly Review** button (gold) — opens the month-end summary modal (see Scale Monthly Review below)
-- *(Quarterly Report / Yearly Report / Projections buttons were removed in the May 2026 cleanup; underlying functions remain in the codebase but are not wired to the toolbar. Per-company REIS / ISLAND / SANTOS sub-blocks were retired on 2026-05-09 in favor of the daily-email row layout.)*
+- *(Mon-Sat columns + WTD + MTD/YTD aggregate columns + week navigation + year toggle + Export File button were retired on 2026-05-14 in favor of the daily-email-shaped layout. Quarterly Report / Yearly Report / Projections / per-company REIS / ISLAND / SANTOS sub-blocks were all retired earlier. Underlying functions remain in the codebase but are unreachable from the toolbar.)*
 
 ### Consolidated Rolloff (David / Chris / Jack / admin)
 Top-level Analysis tab — formerly the IRR Scale → Consolidated Rolloff sub-view.
@@ -937,6 +938,7 @@ helm-app/
 
 ## Recent Major Changes
 
+- **May 14, 2026** — **Intercompany Rolloff: columns now mirror the daily email (Today / MTD / MTD YoY / YTD / YTD YoY).** Second pass on this tab — the prior 2026-05-09 change kept the per-day Mon-Sat + WTD/MTD/YTD aggregate columns and only replaced the row structure. User asked to go further: drop the weekly columns entirely, adopt the daily email's column shape with YoY deltas. Now the table is exactly the same shape as the daily email's body (5 sections × 5 columns), pulling from `irrLoadYTD()` — the same period-bucket helper the email itself uses — so values reconcile to the cent. YoY columns format as `+/-ABS | +/-PCT` (e.g. `+432.50 tons | +35.6%` or `($45,200.10) | (8.4%)`). Controls swapped from week navigation + year toggle to single-date prev/next + Today shortcut. Export File button removed (the weekly export was incompatible with the new shape; we can rebuild a single-date export later if needed). Print still works — it copies the rendered DOM table directly.
 - **May 14, 2026** — **Rate Schedule panel rolled out to all users too.** Follow-up to the per-day-routes rollout the same day. The Rate Schedule (R1-R5 per-pickup inputs) and the lookup-card rate display were both `userIsDavid()` gated since 2026-05-05; dropped that gate so every user can see and edit the rates. `renderRatePanel()` no longer early-returns for non-David; the Edit Client rate input block is no longer wrapped in `${userIsDavid() ? ... : ''}`; the rate-fields branch in `saveClientEdit()` no longer guarded. The unused `const isDavid = userIsDavid()` declarations in both `editClient()` and `saveClientEdit()` were removed since nothing inside those functions branches on user anymore. The `userIsDavid()` helper itself is kept (still callable) in case future features need it.
 - **May 14, 2026** — **Per-day Routes editor rolled out to all users.** The Edit Client per-day routing UI was originally David-only when it shipped on 2026-05-07 — Esme reported she couldn't set different routes for a 3x/wk client (Mon=R4 / Wed,Sat=R2 pattern). Dropped the `userIsDavid()` gate around the per-day section so everyone now sees the per-day editor (with pair auto-fill, day-toggle live re-render, save → upsert/delete `route_assignments`). The old single Route + Route Note fallback render is gone — there's no path that needs it anymore since every multi-day client needs per-day. The fetch + save logic was hoisted out of the David branch in `editClient()` / `saveClientEdit()`; the non-David `else` branch that read from `#editRoute` / `#editRouteNote` is removed.
 - **May 9, 2026** — **Intercompany Rolloff: rows now mirror the daily email's section layout.** Same Mon-Sat + WTD + MTD + YTD column structure, same prev/next week + year toggle + Export + Print + Scale Monthly Review controls, but the body changes from the per-company TOTALS / Vinagro / REIS / ISLAND / SANTOS sub-blocks to the daily-email's five sections: **Internal Volume** (Rolloff Tonnage), **External Volume** (Walk-In Tonnage), **Total Volume** (Total Inbound), **Outbound** (Vinagro Tonnage), and **Revenue** (Internal Rev, External Rev, Total Rev plus indented `Internal $/ton` / `External $/ton` / `Overall $/ton` ratio sub-rows). Ratios aggregate numerator + denominator across each period separately and divide at display time so a 7-day average isn't pulled toward zero by an empty Sunday slot. Old `companyBlock` / `getCompanyData` / `sumRange` / `sumRangeAll` helpers retired in favor of `metricRow` + `ratioRow` builders that take per-day extractor functions.

@@ -8965,7 +8965,8 @@ async function irrSaveDriverData(reportDate) {
 // ── INTERCOMPANY ROLLOFF REPORT ──────────────────────────────────────
 
 let icrYear = new Date().getFullYear();
-let icrWeekStart = null; // ISO date string for Monday of current week
+let icrWeekStart = null; // (legacy — kept for the export + quarterly modal paths)
+let icrDate = null;      // ISO date for the new daily-email-shaped report
 
 function icrGetMonday(d) {
   const dt = new Date(d);
@@ -8977,180 +8978,178 @@ function icrGetMonday(d) {
 
 function icrInit() {
   if(!icrWeekStart) icrWeekStart = icrGetMonday(new Date());
+  if(!icrDate) icrDate = new Date().toISOString().split('T')[0];
 }
 
 async function icrLoadReport() {
   icrInit();
   const container = document.getElementById('irrICRContent');
   container.innerHTML = '<div style="padding:20px;color:var(--gray-400);font-size:12px;">Loading...</div>';
-
-  // Load all data for the selected year
-  const {data,error} = await db.from('irr_reports').select('*')
-    .gte('report_date', icrYear+'-01-01')
-    .lte('report_date', icrYear+'-12-31')
-    .order('report_date',{ascending:true});
-  if(error){container.innerHTML='Error loading data';return;}
-
   await irrLoadRates();
-  const allData = data||[];
-
-  // Fill in Island/East End revenue if missing
-  for(const d of allData){
-    const {ir, er} = irrRatesFor(d.report_date);
-    if(ir && !(parseFloat(d.island_revenue)>0) && (d.island_tickets||0)>0)
-      d.island_revenue=(ir.hook_fee*(d.island_tickets||0))+((ir.per_ton*(1+(ir.ton_markup||0)))*(parseFloat(d.island_tons)||0));
-    if(er && !(parseFloat(d.santos_revenue)>0) && (d.santos_tickets||0)>0)
-      d.santos_revenue=(er.hook_fee*(d.santos_tickets||0))+((er.per_ton*(1+(er.ton_markup||0)))*(parseFloat(d.santos_tons)||0));
-  }
-
-  icrRenderReport(allData, container);
+  // irrLoadYTD expects MM/DD/YYYY (the daily-email format). Build that from icrDate.
+  const [yy, mm, dd] = icrDate.split('-');
+  const asOfStr = parseInt(mm,10)+'/'+parseInt(dd,10)+'/'+yy;
+  let ytd;
+  try { ytd = await irrLoadYTD(asOfStr); }
+  catch(e){ container.innerHTML = 'Error: '+esc(e.message||String(e)); return; }
+  icrRenderReport(ytd, container);
 }
 
-function icrRenderReport(allData, container) {
-  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat'];
-  const weekDates=[];
-  for(let i=0;i<6;i++){
-    const d=new Date(icrWeekStart+'T00:00:00');
-    d.setDate(d.getDate()+i);
-    weekDates.push(d.toISOString().split('T')[0]);
-  }
+function icrRenderReport(ytd, container) {
+  // Columns: Today | MTD | MTD YoY | YTD | YTD YoY — same shape as the daily email.
+  // ytd buckets come straight from irrLoadYTD() — same data source the email uses.
+  const t  = ytd.today  || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const m  = ytd.mtd    || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const y  = ytd.ytd    || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const my = ytd.mtdYoy || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
+  const yo = ytd.yoy    || {rolloff:0,walkin:0,vin:0,rollRev:0,walkRev:0};
 
-  const weekEnd = weekDates[5];
-  const today = new Date().toISOString().split('T')[0];
-  const aggEnd = icrYear===new Date().getFullYear() ? today : icrYear+'-12-31';
-  const weekLabel = (()=>{
-    const s=new Date(icrWeekStart+'T00:00:00');
-    return 'Week of '+s.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-  })();
-
-  // Index data by date
-  const byDate={};
-  for(const d of allData) byDate[d.report_date]=d;
-
-  // MTD: 1st of the selected week's month → last day of that month
-  // (or today, whichever is earlier — so MTD never spills into the
-  // next month after the calendar rolls over). YTD always extends to
-  // today / end of past year.
-  const monthStart = icrWeekStart.substring(0,8)+'01';
-  const _monthLastDay = (()=>{
-    const [yy, mm] = icrWeekStart.split('-').slice(0,2).map(Number);
-    return yy+'-'+String(mm).padStart(2,'0')+'-'+String(new Date(yy, mm, 0).getDate()).padStart(2,'0');
-  })();
-  const monthEnd = (aggEnd < _monthLastDay) ? aggEnd : _monthLastDay;
-  const yearStart = icrYear+'-01-01';
-  const ytdEnd = aggEnd;
-
-  // Per-day metric extractors. All map a single irr_reports row → numeric value.
-  // Mirrors the daily email's section structure (Internal / External / Total /
-  // Outbound / Revenue with rev-per-ton sub-rows).
-  const internalTons = d => d ? (parseFloat(d.reis_tons)||0)+(parseFloat(d.island_tons)||0)+(parseFloat(d.santos_tons)||0) : 0;
-  const externalTons = d => d ? (parseFloat(d.walkin_tons)||0) : 0;
-  const totalTons    = d => internalTons(d) + externalTons(d);
-  const outboundTons = d => d ? (parseFloat(d.vinagro_tons)||0) : 0;
-  const internalRev  = d => d ? (parseFloat(d.reis_tip_revenue)||0)+(parseFloat(d.reis_svc_revenue)||0)+(parseFloat(d.island_revenue)||0)+(parseFloat(d.santos_revenue)||0) : 0;
-  const externalRev  = d => d ? (parseFloat(d.walkin_tip_revenue)||0) : 0;
-  const totalRev     = d => internalRev(d) + externalRev(d);
-
-  function sumMetric(start, end, fn){
-    let s = 0;
-    for(const d of allData){
-      if(d.report_date<start||d.report_date>end) continue;
-      s += fn(d);
-    }
-    return s;
-  }
-
-  const f2 = n => (n||0).toFixed(2);
-  const fM = n => '$'+(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Formatters — match the daily email exactly so values reconcile.
+  const f2 = n => (Number(n)||0).toFixed(2);
   const fT = n => f2(n)+' tons';
-  const fRpt = (rev, tons) => tons > 0.005 ? '$'+(rev/tons).toFixed(2)+'/ton' : '--';
+  const fM = n => '$'+(Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fRpt = (rev, tons) => tons > 0.005 ? '$'+(rev/tons).toFixed(2)+'/ton' : '—';
+  const moneyDelta = d => {
+    const abs = '$'+Math.abs(d).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return d >= 0 ? '+'+abs : '('+abs+')';
+  };
+  const tonsDelta = d => {
+    const abs = Math.abs(d).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' tons';
+    return d >= 0 ? '+'+abs : '('+abs+')';
+  };
+  const pctAcct = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    if(Math.abs(p) < 0.005) return 'new';
+    const pct = ((c - p) / Math.abs(p)) * 100;
+    if(pct >= 0) return '<span style="color:#2e7d32;">+'+pct.toFixed(1)+'%</span>';
+    return '('+Math.abs(pct).toFixed(1)+'%)';
+  };
+  const yoyTons = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    return tonsDelta(c - p) + '  |  ' + pctAcct(c, p);
+  };
+  const yoyMoney = (cur, prev) => {
+    const c = Number(cur)||0, p = Number(prev)||0;
+    if(Math.abs(c) < 0.005 && Math.abs(p) < 0.005) return '—';
+    return moneyDelta(c - p) + '  |  ' + pctAcct(c, p);
+  };
+  const yoyRpt = (curR, curT, prevR, prevT) => {
+    const cur  = curT  > 0.005 ? curR/curT   : null;
+    const prev = prevT > 0.005 ? prevR/prevT : null;
+    if(cur === null || prev === null) return '—';
+    const d = cur - prev;
+    const absStr = '$' + Math.abs(d).toFixed(2) + '/ton';
+    const absPart = d >= 0 ? '+'+absStr : '('+absStr+')';
+    if(Math.abs(prev) < 0.005) return absPart;
+    const pct = (d / Math.abs(prev)) * 100;
+    const pctPart = pct >= 0 ? '<span style="color:#2e7d32;">+'+pct.toFixed(1)+'%</span>' : '('+Math.abs(pct).toFixed(1)+'%)';
+    return absPart + '  |  ' + pctPart;
+  };
 
-  // Build a row: label + 6 daily cells + spacer + WTD + spacer + MTD + spacer + YTD.
-  // valFn turns a numeric metric into the display string.
-  // showZeroAsDash: per-day cells show '--' when the value is zero (cleaner sparse view).
-  function metricRow(label, perDayFn, valFn, opts){
+  // Per-period totals (Internal + External, used for Total Volume + Revenue rows).
+  const mTons = m.rolloff + m.walkin;
+  const yTons = y.rolloff + y.walkin;
+  const myTons = my.rolloff + my.walkin;
+  const yoTons = yo.rolloff + yo.walkin;
+  const mRev   = (m.rollRev||0) + (m.walkRev||0);
+  const yRev   = (y.rollRev||0) + (y.walkRev||0);
+  const myRev  = (my.rollRev||0) + (my.walkRev||0);
+  const yoRev  = (yo.rollRev||0) + (yo.walkRev||0);
+  const tTons  = t.rolloff + t.walkin;
+  const tRev   = (t.rollRev||0) + (t.walkRev||0);
+
+  // Row builders: 5 columns (Today / MTD / MTD YoY / YTD / YTD YoY).
+  function row(label, todayV, mtdV, mtdYoyV, ytdV, ytdYoyV, opts){
     opts = opts || {};
-    const cls  = opts.bold ? ' style="font-weight:700;"' : '';
-    const cls2 = opts.bold ? ' style="font-weight:700;"' : '';
-    const dailyHtml = weekDates.map(dt => {
-      const d = byDate[dt];
-      const v = perDayFn(d);
-      const txt = (!d || (opts.showZeroAsDash !== false && Math.abs(v) < 0.005)) ? '--' : valFn(v);
-      return `<td${cls}>${txt}</td>`;
-    }).join('');
-    const wV = sumMetric(icrWeekStart, weekEnd,  perDayFn);
-    const mV = sumMetric(monthStart,   monthEnd, perDayFn);
-    const yV = sumMetric(yearStart,    ytdEnd,   perDayFn);
-    return `<tr><td${cls2}>${label}</td>${dailyHtml}`+
-      `<td class="icr-spacer"></td><td class="icr-agg"${cls2}>${valFn(wV)}</td>`+
-      `<td class="icr-spacer"></td><td class="icr-agg"${cls2}>${valFn(mV)}</td>`+
-      `<td class="icr-spacer"></td><td class="icr-agg"${cls2}>${valFn(yV)}</td></tr>`;
+    const labelStyle = opts.indent
+      ? ' style="padding-left:24px;color:var(--gray-500);font-size:11px;"'
+      : (opts.bold ? ' style="font-weight:700;"' : '');
+    const valStyle = opts.indent
+      ? ' style="padding-left:0;color:var(--gray-500);font-size:11px;"'
+      : (opts.bold ? ' style="font-weight:700;"' : '');
+    return `<tr><td${labelStyle}>${label}</td>`+
+      `<td class="icr-agg"${valStyle}>${todayV}</td>`+
+      `<td class="icr-spacer"></td>`+
+      `<td class="icr-agg"${valStyle}>${mtdV}</td>`+
+      `<td class="icr-agg"${valStyle}>${mtdYoyV}</td>`+
+      `<td class="icr-spacer"></td>`+
+      `<td class="icr-agg"${valStyle}>${ytdV}</td>`+
+      `<td class="icr-agg"${valStyle}>${ytdYoyV}</td></tr>`;
   }
+  const sectionHdr = label => `<tr class="icr-total-hdr"><td>${label}</td>${'<td></td>'.repeat(7)}</tr>`;
+  const blankRow   = ()    => `<tr class="icr-blank"><td></td>${'<td></td>'.repeat(7)}</tr>`;
 
-  // Ratio row ($/ton): aggregate the numerator & denominator over each period
-  // separately, then divide at display time. (Don't average the per-day ratios.)
-  function ratioRow(label, numFn, denFn, opts){
-    opts = opts || {};
-    const indent = opts.indent ? 'padding-left:24px;color:var(--gray-500);font-size:11px;' : '';
-    const dailyHtml = weekDates.map(dt => {
-      const d = byDate[dt];
-      const n = numFn(d), de = denFn(d);
-      return `<td${indent?` style="${indent}"`:''}>${(!d || de < 0.005) ? '--' : fRpt(n, de)}</td>`;
-    }).join('');
-    const wN = sumMetric(icrWeekStart, weekEnd,  numFn), wD = sumMetric(icrWeekStart, weekEnd,  denFn);
-    const mN = sumMetric(monthStart,   monthEnd, numFn), mD = sumMetric(monthStart,   monthEnd, denFn);
-    const yN = sumMetric(yearStart,    ytdEnd,   numFn), yD = sumMetric(yearStart,    ytdEnd,   denFn);
-    return `<tr><td${indent?` style="${indent}"`:''}>${label}</td>${dailyHtml}`+
-      `<td class="icr-spacer"></td><td class="icr-agg"${indent?` style="${indent}"`:''}>${fRpt(wN,wD)}</td>`+
-      `<td class="icr-spacer"></td><td class="icr-agg"${indent?` style="${indent}"`:''}>${fRpt(mN,mD)}</td>`+
-      `<td class="icr-spacer"></td><td class="icr-agg"${indent?` style="${indent}"`:''}>${fRpt(yN,yD)}</td></tr>`;
-  }
-  const sectionHdr = label => `<tr class="icr-total-hdr"><td>${label}</td>${'<td></td>'.repeat(12)}</tr>`;
-  const blankRow   = ()    => `<tr class="icr-blank"><td></td>${'<td></td>'.repeat(12)}</tr>`;
-
-  const yearBtn=(y)=>`<button class="icr-year-btn ${icrYear===y?'active':''}" onclick="icrYear=${y};icrLoadReport()">${y}</button>`;
+  // Date label for header
+  const dt = new Date(icrDate+'T00:00:00');
+  const dateLabel = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const isToday = icrDate === new Date().toISOString().split('T')[0];
 
   container.innerHTML = `
     <div class="icr-controls">
-      <button class="icr-nav-btn" onclick="icrPrevWeek()">&larr;</button>
-      <h3>${weekLabel}</h3>
-      <button class="icr-nav-btn" onclick="icrNextWeek()">&rarr;</button>
-      <input type="date" value="${icrWeekStart}" onchange="icrJumpToWeek(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
-      <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrExportFile()">Export File</button>
-      <button class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
+      <button class="icr-nav-btn" onclick="icrPrevDay()">&larr;</button>
+      <h3>${dateLabel}</h3>
+      <button class="icr-nav-btn" onclick="icrNextDay()">&rarr;</button>
+      <input type="date" value="${icrDate}" onchange="icrJumpToDate(this.value)" style="font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);margin-left:8px;">
+      ${!isToday ? '<button class="icr-nav-btn" onclick="icrSetToday()" style="margin-left:4px;">Today</button>' : ''}
+      <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
       <button class="icr-nav-btn" style="background:var(--gold);color:white;border-color:var(--gold);" onclick="icrShowMonthly()">Scale Monthly Review</button>
     </div>
     <table class="icr-table">
       <thead><tr>
-        <th></th>${dayNames.map((n,i)=>'<th>'+n+'<br><span style="font-weight:400;font-size:9px;color:var(--gray-300);">'+weekDates[i].substring(5)+'</span></th>').join('')}
-        <th class="icr-spacer"></th><th>WTD</th><th class="icr-spacer"></th><th>MTD</th><th class="icr-spacer"></th><th>YTD</th>
+        <th></th>
+        <th>Today</th>
+        <th class="icr-spacer"></th>
+        <th>MTD</th>
+        <th>MTD YoY</th>
+        <th class="icr-spacer"></th>
+        <th>YTD</th>
+        <th>YTD YoY</th>
       </tr></thead>
       <tbody>
         ${sectionHdr('INTERNAL VOLUME')}
-        ${metricRow('Rolloff Tonnage', internalTons, fT, {bold:true})}
+        ${row('Rolloff Tonnage', fT(t.rolloff), fT(m.rolloff), yoyTons(m.rolloff, my.rolloff), fT(y.rolloff), yoyTons(y.rolloff, yo.rolloff), {bold:true})}
         ${blankRow()}
 
         ${sectionHdr('EXTERNAL VOLUME')}
-        ${metricRow('Walk-In Tonnage', externalTons, fT, {bold:true})}
+        ${row('Walk-In Tonnage', fT(t.walkin), fT(m.walkin), yoyTons(m.walkin, my.walkin), fT(y.walkin), yoyTons(y.walkin, yo.walkin), {bold:true})}
         ${blankRow()}
 
         ${sectionHdr('TOTAL VOLUME')}
-        ${metricRow('Total Inbound', totalTons, fT, {bold:true})}
+        ${row('Total Inbound', fT(tTons), fT(mTons), yoyTons(mTons, myTons), fT(yTons), yoyTons(yTons, yoTons), {bold:true})}
         ${blankRow()}
 
         ${sectionHdr('OUTBOUND')}
-        ${metricRow('Vinagro Tonnage', outboundTons, fT, {bold:true})}
+        ${row('Vinagro Tonnage', fT(t.vin), fT(m.vin), yoyTons(m.vin, my.vin), fT(y.vin), yoyTons(y.vin, yo.vin), {bold:true})}
         ${blankRow()}
 
         ${sectionHdr('REVENUE')}
-        ${metricRow('Internal Revenue', internalRev, fM)}
-        ${metricRow('External Revenue', externalRev, fM)}
-        ${metricRow('Total Revenue',    totalRev,    fM, {bold:true})}
-        ${ratioRow('Internal $/ton', internalRev, internalTons, {indent:true})}
-        ${ratioRow('External $/ton', externalRev, externalTons, {indent:true})}
-        ${ratioRow('Overall $/ton',  totalRev,    totalTons,    {indent:true})}
+        ${row('Internal Revenue', fM(t.rollRev||0), fM(m.rollRev||0), yoyMoney(m.rollRev||0, my.rollRev||0), fM(y.rollRev||0), yoyMoney(y.rollRev||0, yo.rollRev||0))}
+        ${row('External Revenue', fM(t.walkRev||0), fM(m.walkRev||0), yoyMoney(m.walkRev||0, my.walkRev||0), fM(y.walkRev||0), yoyMoney(y.walkRev||0, yo.walkRev||0))}
+        ${row('Total Revenue',    fM(tRev),         fM(mRev),         yoyMoney(mRev, myRev),                 fM(yRev),         yoyMoney(yRev, yoRev),                 {bold:true})}
+        ${row('Internal $/ton',   fRpt(t.rollRev||0, t.rolloff), fRpt(m.rollRev||0, m.rolloff), yoyRpt(m.rollRev||0, m.rolloff, my.rollRev||0, my.rolloff), fRpt(y.rollRev||0, y.rolloff), yoyRpt(y.rollRev||0, y.rolloff, yo.rollRev||0, yo.rolloff), {indent:true})}
+        ${row('External $/ton',   fRpt(t.walkRev||0, t.walkin),  fRpt(m.walkRev||0, m.walkin),  yoyRpt(m.walkRev||0, m.walkin, my.walkRev||0, my.walkin),  fRpt(y.walkRev||0, y.walkin),  yoyRpt(y.walkRev||0, y.walkin, yo.walkRev||0, yo.walkin),  {indent:true})}
+        ${row('Overall $/ton',    fRpt(tRev, tTons),             fRpt(mRev, mTons),             yoyRpt(mRev, mTons, myRev, myTons),                          fRpt(yRev, yTons),             yoyRpt(yRev, yTons, yoRev, yoTons),                          {indent:true})}
       </tbody>
     </table>`;
+}
+
+// Single-date navigation (replaces the prior week-nav for the new daily-email layout).
+function icrPrevDay(){
+  const d=new Date(icrDate+'T00:00:00'); d.setDate(d.getDate()-1);
+  icrDate=d.toISOString().split('T')[0]; icrLoadReport();
+}
+function icrNextDay(){
+  const d=new Date(icrDate+'T00:00:00'); d.setDate(d.getDate()+1);
+  icrDate=d.toISOString().split('T')[0]; icrLoadReport();
+}
+function icrJumpToDate(dateStr){
+  if(!dateStr) return;
+  icrDate=dateStr; icrLoadReport();
+}
+function icrSetToday(){
+  icrDate=new Date().toISOString().split('T')[0]; icrLoadReport();
 }
 
 function icrPrintWeekly(){
