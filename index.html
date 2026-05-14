@@ -3724,27 +3724,13 @@ async function editClient(cid){
               </button>`).join('')}
           </div>
         </div>
-        ${isDavid ? `
         <div class="form-group">
           <label>Per-day Routes</label>
           <div id="editPerDayRoutes" style="margin-top:4px;">
             <div style="font-size:11px;color:var(--gray-400);font-style:italic;padding:6px 0;">Loading per-day routes…</div>
           </div>
-          <div style="font-size:10px;color:var(--gray-400);margin-top:4px;line-height:1.3;">One row per selected pickup day. Sets the route + driver note in the new <code>route_assignments</code> table that powers the Routing tab and the Daily Action Report.</div>
+          <div style="font-size:10px;color:var(--gray-400);margin-top:4px;line-height:1.3;">One row per selected pickup day. Sets the route + driver note in the <code>route_assignments</code> table that powers the Routing tab and the Daily Action Report.</div>
         </div>
-        ` : `
-        <div class="form-group">
-          <label>Route</label>
-          <select id="editRoute" onchange="toggleRouteNoteField()" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;background:white;">
-            <option value="">Select Route</option>
-            ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(c.route)===String(n)?'selected':''}>Route ${n}</option>`).join('')}
-          </select>
-          <div id="editRouteNoteWrap" style="margin-top:8px;${c.route?'':'display:none;'}">
-            <label style="font-size:11px;color:var(--gray-500);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block;">Route Note <span style="color:var(--gray-400);font-weight:400;text-transform:none;letter-spacing:0;">(optional — e.g. "leave bins on left side", "gate code 4321")</span></label>
-            <textarea id="editRouteNote" rows="2" placeholder="Notes for the driver running this route…" style="padding:8px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;width:100%;resize:vertical;">${esc(c.route_note||'')}</textarea>
-          </div>
-        </div>
-        `}
         ${userIsDavid() ? `
         <div class="form-group">
           <label>Rate Schedule (per pickup)</label>
@@ -3775,26 +3761,24 @@ async function editClient(cid){
       </div>
     </div>`;
   document.getElementById('editName').focus();
-  // Per-day routes editor (David only) — fetch this client's existing
+  // Per-day routes editor (all users) — fetch this client's existing
   // route_assignments rows, then render one row per selected pickup day.
-  if(isDavid){
-    editOriginalPerDay = {};
-    editPerDayState = {};
-    const {data, error} = await db.from('route_assignments').select('*').eq('client_id', cid);
-    if(error){
-      const el = document.getElementById('editPerDayRoutes');
-      if(el) el.innerHTML = '<div style="font-size:11px;color:var(--err-text);padding:6px 0;">Failed to load: '+esc(error.message)+'</div>';
-    } else {
-      for(const r of (data||[])){
-        editOriginalPerDay[r.day_of_week] = r;
-        editPerDayState[r.day_of_week] = {
-          route: r.route,
-          position: r.position,
-          route_note: r.route_note || ''
-        };
-      }
-      editRenderPerDayRoutes();
+  editOriginalPerDay = {};
+  editPerDayState = {};
+  const {data: perDayData, error: perDayErr} = await db.from('route_assignments').select('*').eq('client_id', cid);
+  if(perDayErr){
+    const el = document.getElementById('editPerDayRoutes');
+    if(el) el.innerHTML = '<div style="font-size:11px;color:var(--err-text);padding:6px 0;">Failed to load: '+esc(perDayErr.message)+'</div>';
+  } else {
+    for(const r of (perDayData||[])){
+      editOriginalPerDay[r.day_of_week] = r;
+      editPerDayState[r.day_of_week] = {
+        route: r.route,
+        position: r.position,
+        route_note: r.route_note || ''
+      };
     }
+    editRenderPerDayRoutes();
   }
 }
 
@@ -3920,50 +3904,53 @@ async function saveClientEdit(cid){
     autopay:autopay,
   };
 
-  // Routing: David uses the per-day editor (writes to route_assignments); other
-  // users use the single Route + Route Note fields (write only to clients.route).
-  let perDayUpserts = [];   // route_assignments rows to upsert
-  let perDayDeletes = [];   // day_of_week values to delete (rows that should go away)
-  if(isDavid){
-    // Pull current per-day form values into editPerDayState
-    document.querySelectorAll('#editPerDayRoutes [data-rr-dow]').forEach(input => {
-      const dow = parseInt(input.dataset.rrDow);
-      const field = input.dataset.rrField;
-      if(!editPerDayState[dow]) editPerDayState[dow] = {};
-      editPerDayState[dow][field] = input.value;
+  // Per-day routes editor: all users use the per-day form that writes to
+  // route_assignments. Pull current values into state, build upserts/deletes,
+  // and sync clients.route + route_note from the first selected day for any
+  // legacy code path that still reads the single-field fallback.
+  let perDayUpserts = [];
+  let perDayDeletes = [];
+  document.querySelectorAll('#editPerDayRoutes [data-rr-dow]').forEach(input => {
+    const dow = parseInt(input.dataset.rrDow);
+    const field = input.dataset.rrField;
+    if(!editPerDayState[dow]) editPerDayState[dow] = {};
+    editPerDayState[dow][field] = input.value;
+  });
+  const selectedDows = days.map(n => RR_DAY_NAME_TO_NUM[n]).filter(Boolean);
+  for(const dow of selectedDows){
+    const s = editPerDayState[dow] || {};
+    const r = s.route === '' || s.route == null ? null : parseInt(s.route);
+    if(!isFinite(r) || r === null){
+      // Day toggled on but no route picked — treat as no per-day override
+      if(editOriginalPerDay[dow]) perDayDeletes.push(dow);
+      continue;
+    }
+    perDayUpserts.push({
+      client_id: workingId,
+      day_of_week: dow,
+      route: r,
+      position: editOriginalPerDay[dow]?.position ?? null,
+      route_note: (s.route_note || '').trim() || null,
+      source: editOriginalPerDay[dow]?.source || 'manual',
     });
-    const selectedDows = days.map(n => RR_DAY_NAME_TO_NUM[n]).filter(Boolean);
-    for(const dow of selectedDows){
-      const s = editPerDayState[dow] || {};
-      const r = s.route === '' || s.route == null ? null : parseInt(s.route);
-      if(!isFinite(r) || r === null){
-        // Day toggled on but no route picked — treat as no per-day override
-        if(editOriginalPerDay[dow]) perDayDeletes.push(dow);
-        continue;
-      }
-      perDayUpserts.push({
-        client_id: workingId,
-        day_of_week: dow,
-        route: r,
-        position: editOriginalPerDay[dow]?.position ?? null,
-        route_note: (s.route_note || '').trim() || null,
-        source: editOriginalPerDay[dow]?.source || 'manual',
-      });
+  }
+  // Days previously in DB but no longer in service_day → delete
+  for(const origDow of Object.keys(editOriginalPerDay).map(n=>parseInt(n))){
+    if(!selectedDows.includes(origDow) && !perDayDeletes.includes(origDow)){
+      perDayDeletes.push(origDow);
     }
-    // Days previously in DB but no longer in service_day → delete
-    for(const origDow of Object.keys(editOriginalPerDay).map(n=>parseInt(n))){
-      if(!selectedDows.includes(origDow) && !perDayDeletes.includes(origDow)){
-        perDayDeletes.push(origDow);
-      }
-    }
-    // Sync clients.route + route_note to the FIRST selected day's per-day values
-    // so resolveRoute() has a sensible fallback for any code path that reads
-    // clients.route directly. Picks lowest day_of_week to be deterministic.
-    const firstUpsert = perDayUpserts.slice().sort((a,b)=>a.day_of_week - b.day_of_week)[0];
-    payload.route = firstUpsert ? firstUpsert.route : null;
-    payload.route_note = firstUpsert ? firstUpsert.route_note : null;
+  }
+  // Sync clients.route + route_note to the FIRST selected day's per-day values
+  // so resolveRoute() has a sensible fallback for any code path that reads
+  // clients.route directly. Picks lowest day_of_week to be deterministic.
+  const firstUpsert = perDayUpserts.slice().sort((a,b)=>a.day_of_week - b.day_of_week)[0];
+  payload.route = firstUpsert ? firstUpsert.route : null;
+  payload.route_note = firstUpsert ? firstUpsert.route_note : null;
 
-    // Rate fields are David-only.
+  // Rate fields are David-only. Only include them in the update payload when
+  // David is logged in, so other users can't inadvertently wipe rates by
+  // saving an edit on a card that didn't render the rate inputs.
+  if(isDavid){
     const parseRate=id=>{
       const raw=(document.getElementById(id)?.value||'').trim();
       if(raw==='') return null;
@@ -3975,31 +3962,22 @@ async function saveClientEdit(cid){
     payload.rate3=parseRate('editRate3');
     payload.rate4=parseRate('editRate4');
     payload.rate5=parseRate('editRate5');
-  } else {
-    // Non-David: existing single Route + Route Note flow.
-    const routeVal=document.getElementById('editRoute')?.value||'';
-    const route=routeVal?parseInt(routeVal):null;
-    const routeNote=route?(document.getElementById('editRouteNote')?.value||'').trim():'';
-    payload.route = route;
-    payload.route_note = routeNote || null;
   }
 
   // Update clients first (the simpler write).
   const {error}=await db.from('clients').update(payload).eq('client_id',workingId);
   if(error){toast('Error: '+error.message);return;}
 
-  // Then sync route_assignments (David only).
-  if(isDavid){
-    if(perDayUpserts.length){
-      const {error:err1} = await db.from('route_assignments').upsert(perDayUpserts, {onConflict:'client_id,day_of_week'});
-      if(err1){ toast('Per-day routes save error: '+err1.message); return; }
-    }
-    for(const dow of perDayDeletes){
-      const {error:err2} = await db.from('route_assignments').delete().eq('client_id',workingId).eq('day_of_week',dow);
-      if(err2){ toast('Per-day route delete error: '+err2.message); return; }
-    }
-    rrInvalidateCache();  // next report/Routing tab render re-fetches
+  // Then sync route_assignments — applies for all users now.
+  if(perDayUpserts.length){
+    const {error:err1} = await db.from('route_assignments').upsert(perDayUpserts, {onConflict:'client_id,day_of_week'});
+    if(err1){ toast('Per-day routes save error: '+err1.message); return; }
   }
+  for(const dow of perDayDeletes){
+    const {error:err2} = await db.from('route_assignments').delete().eq('client_id',workingId).eq('day_of_week',dow);
+    if(err2){ toast('Per-day route delete error: '+err2.message); return; }
+  }
+  rrInvalidateCache();  // next report/Routing tab render re-fetches
 
   await loadClients();
   const updated=clients.find(x=>x.client_id===workingId);
