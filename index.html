@@ -1112,6 +1112,50 @@ select.ro-input{cursor:pointer;}
 }
 .icr-spacer{width:8px!important;border-bottom:none!important;}
 .icr-agg{background:var(--gray-50);font-weight:600!important;}
+
+/* ── Intercompany Rolloff v2 (daily-email-shape table) — clean financial-report styling ── */
+.icr2-card{background:#fff;border:1px solid var(--gray-200);border-radius:8px;box-shadow:0 1px 3px rgba(15,31,61,0.06);overflow:hidden;}
+.icr2-table{width:100%;border-collapse:collapse;font-size:12px;}
+.icr2-table thead th{
+  background:#fff;font-family:'DM Sans',sans-serif;
+  font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--gray-400);padding:13px 14px 11px;border-bottom:1px solid var(--gray-200);
+  text-align:right;white-space:nowrap;vertical-align:bottom;
+}
+.icr2-table thead th:first-child{text-align:left;width:180px;}
+.icr2-table thead th.icr2-grp{border-left:1px solid var(--gray-200);}
+.icr2-table tbody tr.icr2-sec td{
+  background:var(--navy);color:#fff;
+  font-family:'DM Sans',sans-serif;font-weight:700;font-size:10px;
+  letter-spacing:.14em;text-transform:uppercase;
+  padding:8px 14px;border:none;text-align:left;
+}
+.icr2-table tbody td{
+  padding:10px 14px;text-align:right;
+  font-family:'DM Mono',monospace;font-size:12px;color:var(--gray-800);
+  white-space:nowrap;border-bottom:1px solid var(--gray-100);
+}
+.icr2-table tbody td:first-child{
+  text-align:left;font-family:'DM Sans',sans-serif;
+  font-weight:500;color:var(--gray-700);
+}
+.icr2-table tbody td.icr2-grp{border-left:1px solid var(--gray-100);}
+.icr2-table tbody tr.icr2-data:nth-of-type(even) td{background:#fafbfd;}
+.icr2-table tbody tr.icr2-data:hover td{background:#eef2f7;}
+.icr2-table tbody tr.icr2-bold td{font-weight:700;color:var(--navy);}
+.icr2-table tbody tr.icr2-bold td:first-child{color:var(--navy);}
+.icr2-table tbody tr.icr2-sub td{
+  font-size:11px;color:var(--gray-500);padding-top:6px;padding-bottom:6px;
+  border-bottom:1px solid var(--gray-100);
+}
+.icr2-table tbody tr.icr2-sub td:first-child{
+  padding-left:34px;font-style:italic;color:var(--gray-500);font-weight:400;
+}
+.icr2-table tbody tr.icr2-data + tr.icr2-sec td,
+.icr2-table tbody tr.icr2-sub + tr.icr2-sec td{padding-top:8px;}
+.icr2-yoy-pos{color:#15803d;font-weight:600;}
+.icr2-yoy-neg{color:var(--err-text);font-weight:600;}
+.icr2-yoy-cell{color:var(--gray-600);font-size:11px;}
 .crc-manual td:first-child{color:var(--gray-500)!important;font-style:italic;}
 .crc-manual td{background:#fffcf0;}
 .crc-derived td{background:#f0f7ff;color:var(--navy)!important;font-weight:600;}
@@ -9060,28 +9104,21 @@ function icrRenderReport(ytd, container) {
   const tTons  = t.rolloff + t.walkin;
   const tRev   = (t.rollRev||0) + (t.walkRev||0);
 
-  // Row builders: 5 columns (Today / MTD / MTD YoY / YTD / YTD YoY).
+  // Row builder: 5 data columns (Today / MTD / MTD YoY / YTD / YTD YoY).
+  // MTD + YTD start each "period group" so they get an .icr2-grp left border.
   function row(label, todayV, mtdV, mtdYoyV, ytdV, ytdYoyV, opts){
     opts = opts || {};
-    const labelStyle = opts.indent
-      ? ' style="padding-left:24px;color:var(--gray-500);font-size:11px;"'
-      : (opts.bold ? ' style="font-weight:700;"' : '');
-    const valStyle = opts.indent
-      ? ' style="padding-left:0;color:var(--gray-500);font-size:11px;"'
-      : (opts.bold ? ' style="font-weight:700;"' : '');
-    return `<tr><td${labelStyle}>${label}</td>`+
-      `<td class="icr-agg"${valStyle}>${todayV}</td>`+
-      `<td class="icr-spacer"></td>`+
-      `<td class="icr-agg"${valStyle}>${mtdV}</td>`+
-      `<td class="icr-agg"${valStyle}>${mtdYoyV}</td>`+
-      `<td class="icr-spacer"></td>`+
-      `<td class="icr-agg"${valStyle}>${ytdV}</td>`+
-      `<td class="icr-agg"${valStyle}>${ytdYoyV}</td></tr>`;
+    const cls = opts.bold ? 'icr2-bold' : (opts.indent ? 'icr2-sub' : 'icr2-data');
+    return `<tr class="${cls}"><td>${label}</td>`+
+      `<td>${todayV}</td>`+
+      `<td class="icr2-grp">${mtdV}</td>`+
+      `<td class="icr2-yoy-cell">${mtdYoyV}</td>`+
+      `<td class="icr2-grp">${ytdV}</td>`+
+      `<td class="icr2-yoy-cell">${ytdYoyV}</td></tr>`;
   }
-  const sectionHdr = label => `<tr class="icr-total-hdr"><td>${label}</td>${'<td></td>'.repeat(7)}</tr>`;
-  const blankRow   = ()    => `<tr class="icr-blank"><td></td>${'<td></td>'.repeat(7)}</tr>`;
+  const sectionHdr = label => `<tr class="icr2-sec"><td colspan="6">${label}</td></tr>`;
 
-  // Date label for header
+  // Header date + nav state
   const dt = new Date(icrDate+'T00:00:00');
   const dateLabel = dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const isToday = icrDate === new Date().toISOString().split('T')[0];
@@ -9096,43 +9133,39 @@ function icrRenderReport(ytd, container) {
       <button style="margin-left:auto;" class="icr-nav-btn" onclick="icrPrintWeekly()">Print</button>
       <button class="icr-nav-btn" style="background:var(--gold);color:white;border-color:var(--gold);" onclick="icrShowMonthly()">Scale Monthly Review</button>
     </div>
-    <table class="icr-table">
-      <thead><tr>
-        <th></th>
-        <th>Today</th>
-        <th class="icr-spacer"></th>
-        <th>MTD</th>
-        <th>MTD YoY</th>
-        <th class="icr-spacer"></th>
-        <th>YTD</th>
-        <th>YTD YoY</th>
-      </tr></thead>
-      <tbody>
-        ${sectionHdr('INTERNAL VOLUME')}
-        ${row('Rolloff Tonnage', fT(t.rolloff), fT(m.rolloff), yoyTons(m.rolloff, my.rolloff), fT(y.rolloff), yoyTons(y.rolloff, yo.rolloff), {bold:true})}
-        ${blankRow()}
+    <div class="icr2-card">
+      <table class="icr2-table">
+        <thead><tr>
+          <th></th>
+          <th>Today</th>
+          <th class="icr2-grp">MTD</th>
+          <th>MTD YoY</th>
+          <th class="icr2-grp">YTD</th>
+          <th>YTD YoY</th>
+        </tr></thead>
+        <tbody>
+          ${sectionHdr('Internal Volume')}
+          ${row('Rolloff Tonnage', fT(t.rolloff), fT(m.rolloff), yoyTons(m.rolloff, my.rolloff), fT(y.rolloff), yoyTons(y.rolloff, yo.rolloff), {bold:true})}
 
-        ${sectionHdr('EXTERNAL VOLUME')}
-        ${row('Walk-In Tonnage', fT(t.walkin), fT(m.walkin), yoyTons(m.walkin, my.walkin), fT(y.walkin), yoyTons(y.walkin, yo.walkin), {bold:true})}
-        ${blankRow()}
+          ${sectionHdr('External Volume')}
+          ${row('Walk-In Tonnage', fT(t.walkin), fT(m.walkin), yoyTons(m.walkin, my.walkin), fT(y.walkin), yoyTons(y.walkin, yo.walkin), {bold:true})}
 
-        ${sectionHdr('TOTAL VOLUME')}
-        ${row('Total Inbound', fT(tTons), fT(mTons), yoyTons(mTons, myTons), fT(yTons), yoyTons(yTons, yoTons), {bold:true})}
-        ${blankRow()}
+          ${sectionHdr('Total Volume')}
+          ${row('Total Inbound', fT(tTons), fT(mTons), yoyTons(mTons, myTons), fT(yTons), yoyTons(yTons, yoTons), {bold:true})}
 
-        ${sectionHdr('OUTBOUND')}
-        ${row('Vinagro Tonnage', fT(t.vin), fT(m.vin), yoyTons(m.vin, my.vin), fT(y.vin), yoyTons(y.vin, yo.vin), {bold:true})}
-        ${blankRow()}
+          ${sectionHdr('Outbound')}
+          ${row('Vinagro Tonnage', fT(t.vin), fT(m.vin), yoyTons(m.vin, my.vin), fT(y.vin), yoyTons(y.vin, yo.vin), {bold:true})}
 
-        ${sectionHdr('REVENUE')}
-        ${row('Internal Revenue', fM(t.rollRev||0), fM(m.rollRev||0), yoyMoney(m.rollRev||0, my.rollRev||0), fM(y.rollRev||0), yoyMoney(y.rollRev||0, yo.rollRev||0))}
-        ${row('External Revenue', fM(t.walkRev||0), fM(m.walkRev||0), yoyMoney(m.walkRev||0, my.walkRev||0), fM(y.walkRev||0), yoyMoney(y.walkRev||0, yo.walkRev||0))}
-        ${row('Total Revenue',    fM(tRev),         fM(mRev),         yoyMoney(mRev, myRev),                 fM(yRev),         yoyMoney(yRev, yoRev),                 {bold:true})}
-        ${row('Internal $/ton',   fRpt(t.rollRev||0, t.rolloff), fRpt(m.rollRev||0, m.rolloff), yoyRpt(m.rollRev||0, m.rolloff, my.rollRev||0, my.rolloff), fRpt(y.rollRev||0, y.rolloff), yoyRpt(y.rollRev||0, y.rolloff, yo.rollRev||0, yo.rolloff), {indent:true})}
-        ${row('External $/ton',   fRpt(t.walkRev||0, t.walkin),  fRpt(m.walkRev||0, m.walkin),  yoyRpt(m.walkRev||0, m.walkin, my.walkRev||0, my.walkin),  fRpt(y.walkRev||0, y.walkin),  yoyRpt(y.walkRev||0, y.walkin, yo.walkRev||0, yo.walkin),  {indent:true})}
-        ${row('Overall $/ton',    fRpt(tRev, tTons),             fRpt(mRev, mTons),             yoyRpt(mRev, mTons, myRev, myTons),                          fRpt(yRev, yTons),             yoyRpt(yRev, yTons, yoRev, yoTons),                          {indent:true})}
-      </tbody>
-    </table>`;
+          ${sectionHdr('Revenue')}
+          ${row('Internal Revenue', fM(t.rollRev||0), fM(m.rollRev||0), yoyMoney(m.rollRev||0, my.rollRev||0), fM(y.rollRev||0), yoyMoney(y.rollRev||0, yo.rollRev||0))}
+          ${row('External Revenue', fM(t.walkRev||0), fM(m.walkRev||0), yoyMoney(m.walkRev||0, my.walkRev||0), fM(y.walkRev||0), yoyMoney(y.walkRev||0, yo.walkRev||0))}
+          ${row('Total Revenue',    fM(tRev),         fM(mRev),         yoyMoney(mRev, myRev),                 fM(yRev),         yoyMoney(yRev, yoRev),                 {bold:true})}
+          ${row('Internal $/ton',   fRpt(t.rollRev||0, t.rolloff), fRpt(m.rollRev||0, m.rolloff), yoyRpt(m.rollRev||0, m.rolloff, my.rollRev||0, my.rolloff), fRpt(y.rollRev||0, y.rolloff), yoyRpt(y.rollRev||0, y.rolloff, yo.rollRev||0, yo.rolloff), {indent:true})}
+          ${row('External $/ton',   fRpt(t.walkRev||0, t.walkin),  fRpt(m.walkRev||0, m.walkin),  yoyRpt(m.walkRev||0, m.walkin, my.walkRev||0, my.walkin),  fRpt(y.walkRev||0, y.walkin),  yoyRpt(y.walkRev||0, y.walkin, yo.walkRev||0, yo.walkin),  {indent:true})}
+          ${row('Overall $/ton',    fRpt(tRev, tTons),             fRpt(mRev, mTons),             yoyRpt(mRev, mTons, myRev, myTons),                          fRpt(yRev, yTons),             yoyRpt(yRev, yTons, yoRev, yoTons),                          {indent:true})}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 // Single-date navigation (replaces the prior week-nav for the new daily-email layout).
@@ -9153,7 +9186,10 @@ function icrSetToday(){
 }
 
 function icrPrintWeekly(){
-  const table=document.querySelector('#irrICRContent table.icr-table');
+  // Tolerate both class names: icr2-table (current daily-email layout) and
+  // the legacy icr-table for any older rendered state.
+  const table=document.querySelector('#irrICRContent table.icr2-table')
+            ||document.querySelector('#irrICRContent table.icr-table');
   const title=document.querySelector('#irrICRContent .icr-controls h3');
   if(!table) return;
 
