@@ -15671,7 +15671,7 @@ async function renderDispatchHistory(){
 // prev/next day arrows, Queue ↔ Completed tab toggle. Click a card → modal
 // with Mark Complete. Empty-and-Home tickets soft-delete the matching
 // rolloff on completion (the box went home — book stops tracking it).
-let rqState = { view: 'queue', date: null };
+let rqState = { view: 'queued', date: null };
 let rqTicketsCache = null;     // last-fetched tickets
 let rqOpenTicket = null;       // currently-open modal ticket
 
@@ -15712,7 +15712,7 @@ function rqRender(){
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
       <h2 style="margin:0">Rolloff Queue</h2>
       <div style="display:flex;gap:0;background:var(--gray-100);border-radius:var(--radius-sm);padding:3px;">
-        <button onclick="rqSetView('queue')" style="padding:6px 14px;border:none;background:${rqState.view==='queue'?'var(--navy)':'transparent'};color:${rqState.view==='queue'?'#fff':'var(--gray-700)'};font-family:inherit;font-size:12px;font-weight:600;border-radius:4px;cursor:pointer;">Queue</button>
+        <button onclick="rqSetView('queued')" style="padding:6px 14px;border:none;background:${rqState.view==='queued'?'var(--navy)':'transparent'};color:${rqState.view==='queued'?'#fff':'var(--gray-700)'};font-family:inherit;font-size:12px;font-weight:600;border-radius:4px;cursor:pointer;">Queue</button>
         <button onclick="rqSetView('completed')" style="padding:6px 14px;border:none;background:${rqState.view==='completed'?'var(--navy)':'transparent'};color:${rqState.view==='completed'?'#fff':'var(--gray-700)'};font-family:inherit;font-size:12px;font-weight:600;border-radius:4px;cursor:pointer;">Completed</button>
       </div>
     </div>
