@@ -5211,8 +5211,14 @@ function nextIdForCompany(company){
   return String(next);
 }
 
+// Per-day routes state for the Add Client form (parallel to editPerDayState
+// used by Edit Client). Cleared when the form returns to the company-picker.
+let addPerDayState = {};
+
 function renderAdd(){
   const currentCompany = window._addCompany || null;
+  // No company picked = fresh / post-save state → wipe any stale per-day state
+  if(!currentCompany) addPerDayState = {};
   document.getElementById('tab-add').innerHTML=`
     <div class="form-card">
       <h2>Add New Client</h2>
@@ -5252,6 +5258,13 @@ function renderAdd(){
               </button>`).join('')}
           </div>
         </div>
+        <div class="form-group">
+          <label>Per-day Routes <span style="color:var(--gray-400);font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(optional — fill any time after toggling pickup days)</span></label>
+          <div id="addPerDayRoutes" style="margin-top:4px;">
+            <div style="font-size:11px;color:var(--gray-400);font-style:italic;padding:6px 0;">Toggle at least one pickup day above to set routes.</div>
+          </div>
+          <div style="font-size:10px;color:var(--gray-400);margin-top:4px;line-height:1.3;">One row per selected pickup day. Mon↔Thu, Tue↔Fri, Wed↔Sat pairs auto-fill each other when the partner is empty. Saved to <code>route_assignments</code>.</div>
+        </div>
         <button class="btn-add" onclick="addClient()" ${!currentCompany?'disabled':''}>Add Client</button>
       </fieldset>
 
@@ -5266,10 +5279,67 @@ function setAddCompany(company){
 
 function toggleDay(btn){
   btn.classList.toggle('day-toggle-active');
-  // Live-refresh the David-only per-day routes editor when in the Edit form
+  // Live-refresh the per-day routes editor on whichever form is open.
   if(document.getElementById('editPerDayRoutes')){
     editRenderPerDayRoutes();
   }
+  if(document.getElementById('addPerDayRoutes')){
+    addRenderPerDayRoutes();
+  }
+}
+
+// Renders one route row per currently-toggled-on pickup day inside the Add
+// Client form. Mirrors editRenderPerDayRoutes (see Edit Client) but reads
+// from #tab-add's day-toggle grid and writes to addPerDayState.
+function addRenderPerDayRoutes(){
+  const container = document.getElementById('addPerDayRoutes');
+  if(!container) return;
+  // Persist in-progress values before re-render
+  container.querySelectorAll('[data-rr-dow]').forEach(input => {
+    const dow = parseInt(input.dataset.rrDow);
+    const field = input.dataset.rrField;
+    if(!addPerDayState[dow]) addPerDayState[dow] = {};
+    addPerDayState[dow][field] = input.value;
+  });
+  const selectedNames = [...document.querySelectorAll('#tab-add .day-toggle-active')].map(b => b.dataset.day);
+  const selectedDows  = selectedNames.map(n => RR_DAY_NAME_TO_NUM[n]).filter(Boolean).sort((a,b)=>a-b);
+  if(!selectedDows.length){
+    container.innerHTML = '<div style="font-size:11px;color:var(--gray-400);font-style:italic;padding:6px 0;">Toggle at least one pickup day above to set routes.</div>';
+    return;
+  }
+  const dayLabel = {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+  let html = '';
+  for(const dow of selectedDows){
+    const cur = addPerDayState[dow] || {};
+    const route = cur.route !== undefined && cur.route !== null ? String(cur.route) : '';
+    const note  = cur.route_note || '';
+    html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:8px 10px;background:var(--gray-50);border:1px solid var(--gray-100);border-radius:var(--radius-sm);">
+      <div style="width:78px;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--navy);">${dayLabel[dow]}</div>
+      <select data-rr-dow="${dow}" data-rr-field="route" onchange="addPerDayPairFill(${dow}, 'route', this.value)" style="width:100px;flex:0 0 auto;padding:6px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;">
+        <option value="">No route</option>
+        ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${route===String(n)?'selected':''}>R${n}</option>`).join('')}
+      </select>
+      <input type="text" data-rr-dow="${dow}" data-rr-field="route_note" value="${esc(note)}" placeholder="Driver note for this day…" oninput="addPerDayPairFill(${dow}, 'route_note', this.value)" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;"/>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// Same pair logic as Edit Client: Mon<->Thu, Tue<->Fri, Wed<->Sat — fill the
+// partner's same field only when the partner is selected as a pickup day AND
+// its current value is empty. Manual edits are never overwritten.
+function addPerDayPairFill(sourceDow, field, value){
+  if(!addPerDayState[sourceDow]) addPerDayState[sourceDow] = {};
+  addPerDayState[sourceDow][field] = value;
+  if(value === '' || value == null) return;
+  const partnerDow = sourceDow <= 3 ? sourceDow + 3 : sourceDow - 3;
+  const partnerInput = document.querySelector(`#addPerDayRoutes [data-rr-dow="${partnerDow}"][data-rr-field="${field}"]`);
+  if(!partnerInput) return;
+  const partnerCurrent = (partnerInput.value || '').trim();
+  if(partnerCurrent !== '') return;
+  partnerInput.value = value;
+  if(!addPerDayState[partnerDow]) addPerDayState[partnerDow] = {};
+  addPerDayState[partnerDow][field] = value;
 }
 
 async function addClient(){
@@ -5344,6 +5414,45 @@ async function saveClient(id,selectedDays,addr,phone,email,name){
     }
     toast('Error: '+error.message);if(msg)msg.textContent='';return;
   }
+  // Per-day route_assignments — pull form values, upsert any non-empty rows.
+  // Done after the clients insert so FK to clients.client_id is satisfied.
+  document.querySelectorAll('#addPerDayRoutes [data-rr-dow]').forEach(input => {
+    const dow = parseInt(input.dataset.rrDow);
+    const field = input.dataset.rrField;
+    if(!addPerDayState[dow]) addPerDayState[dow] = {};
+    addPerDayState[dow][field] = input.value;
+  });
+  const selectedDows = selectedDays.map(n => RR_DAY_NAME_TO_NUM[n]).filter(Boolean);
+  const routeUpserts = [];
+  for(const dow of selectedDows){
+    const s = addPerDayState[dow] || {};
+    const r = s.route === '' || s.route == null ? null : parseInt(s.route);
+    if(!isFinite(r) || r === null) continue;  // day toggled on but no route picked
+    routeUpserts.push({
+      client_id: id,
+      day_of_week: dow,
+      route: r,
+      position: null,
+      route_note: (s.route_note || '').trim() || null,
+      source: 'manual',
+    });
+  }
+  if(routeUpserts.length){
+    const {error: rerr} = await db.from('route_assignments').upsert(routeUpserts, {onConflict:'client_id,day_of_week'});
+    if(rerr){
+      toast('Client added, but per-day routes save failed: '+rerr.message);
+    } else {
+      // Also stamp clients.route + route_note from the first selected day so any
+      // legacy code path that reads the single-field fallback gets something sensible.
+      const first = routeUpserts.slice().sort((a,b)=>a.day_of_week - b.day_of_week)[0];
+      if(first){
+        await db.from('clients').update({route: first.route, route_note: first.route_note}).eq('client_id', id);
+      }
+      rrInvalidateCache();
+    }
+  }
+  addPerDayState = {};  // reset for next add
+
   await loadClients();
   // nextIdForCompany() reads max(floor, max in clients) + 1 from a fresh
   // clients array, so the next add will already see this just-added row and
