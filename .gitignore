@@ -19,6 +19,10 @@ import_routes_applied.csv
 # find_missing_accts.py output — PII (acct + name + address)
 missing_from_helm.csv
 
+# bulk_import_missing_accts.py outputs — PII
+bulk_import_preview.csv
+bulk_import_applied.csv
+
 # Day-route master list PDFs themselves carry customer names + addresses
 master list pdfs/
 
