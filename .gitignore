@@ -34,3 +34,6 @@ route_notes_preview.csv
 route_notes_skipped.csv
 route_notes_applied_log.csv
 peek_stops.py
+
+# sync_client_route_fallback.py output (PII)
+sync_route_fallback_preview.csv
