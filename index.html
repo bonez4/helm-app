@@ -3612,6 +3612,7 @@ async function showPanel(c){
             </div>
             <div class="cli-acct">Acct #: <strong>${esc(c.client_id)}</strong></div>
             <div class="cli-addr">${esc(c.address)}, Nantucket MA</div>
+            ${c.route_note ? `<div class="cli-route-note" style="font-size:12px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(c.route_note)}</div>` : ''}
             <div class="cli-phone">${esc(c.phone)||'No phone on file'}</div>
             <div class="cli-email">${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:'<span style="color:var(--gray-400)">No email on file</span>'}</div>
           </div>
