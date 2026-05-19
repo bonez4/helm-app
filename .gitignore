@@ -28,3 +28,9 @@ master list pdfs/
 
 # Ad-hoc Python helpers used during PDF exploration (kept locally only).
 peek_*.py
+
+# import_route_notes_xlsx.py outputs (PII)
+route_notes_preview.csv
+route_notes_skipped.csv
+route_notes_applied_log.csv
+peek_stops.py
