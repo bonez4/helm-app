@@ -2540,8 +2540,8 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       </button>
       <div class="nav-group-children">
         <button class="nav-child active" onclick="switchTab('lookup',this)">Client Lookup</button>
-        <button class="nav-child" onclick="switchTab('add',this)">Add Client</button>
-        <button class="nav-child" onclick="switchTab('report',this)">Reports</button>
+        <button id="addClientChild" class="nav-child" onclick="switchTab('add',this)">Add Client</button>
+        <button id="reportChild" class="nav-child" onclick="switchTab('report',this)">Reports</button>
         <button id="rolloffsClientChild" class="nav-child" style="display:none" onclick="switchTab('rolloffs',this)">Roll-offs</button>
       </div>
     </div>
@@ -3107,6 +3107,13 @@ async function login() {
     document.getElementById('actionTabBtn').style.display='';
     document.getElementById('navGroup-routing').style.display='';
     document.getElementById('resiRoutesTabBtn').style.display='';
+  }
+  // Sharon: restricted view — only Client Lookup + Reports under Client
+  // Management; hide Add Client, Roll-offs, and the entire Dispatch group.
+  if(data.username==='sharon'){
+    document.getElementById('addClientChild').style.display='none';
+    document.getElementById('rolloffsSolo').style.display='none';
+    document.getElementById('navGroup-dispatch').style.display='none';
   }
   startHeartbeat();
   init();
@@ -11704,6 +11711,12 @@ if(_saved && _saved !== '1'){
       document.getElementById('actionTabBtn').style.display='';
       document.getElementById('navGroup-routing').style.display='';
       document.getElementById('resiRoutesTabBtn').style.display='';
+    }
+    // Sharon: restricted view — only Client Lookup + Reports.
+    if(currentUser.username==='sharon'){
+      document.getElementById('addClientChild').style.display='none';
+      document.getElementById('rolloffsSolo').style.display='none';
+      document.getElementById('navGroup-dispatch').style.display='none';
     }
     applyNavGroupState();
     applyNavRailState();
