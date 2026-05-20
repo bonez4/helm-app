@@ -37,3 +37,12 @@ peek_stops.py
 
 # sync_client_route_fallback.py output (PII)
 sync_route_fallback_preview.csv
+
+# Source scale export (PII — customer-by-customer ticket history)
+1776188206521-*.xls
+
+# min_tonnage_analysis.py output (PII — per-ticket customer + revenue)
+Tonnage_Analysis_*.xlsx
+
+# Python bytecode cache
+__pycache__/
