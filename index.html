@@ -638,6 +638,37 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .action-tag.at-lpu{background:#fef3c7;color:#92400e;}
 .action-tag.at-special{background:#fce7f3;color:#9d174d;}
 .action-tag.at-complaint{background:#fecaca;color:#991b1b;border:1px solid #dc2626;}
+
+/* Complaint entries woven into the client-card Notes history — visually
+   distinct from regular notes so reps can scan the timeline and tell at a
+   glance that a complaint was logged on this client. */
+.note-row-complaint{
+  border-left:3px solid #dc2626;
+  background:#fef9f9;
+  padding-left:8px;
+  border-radius:0 4px 4px 0;
+  margin-left:-2px;
+}
+.status-pill-sm{
+  display:inline-flex;align-items:center;
+  padding:1px 7px;border-radius:9px;
+  font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  font-family:'DM Sans',sans-serif;
+}
+.status-pill-sm.status-new{background:#fee2e2;color:#991b1b;border:1px solid #dc2626;}
+.status-pill-sm.status-case_open{background:#fef3c7;color:#92400e;border:1px solid #d97706;}
+.status-pill-sm.status-resolved{background:#dcfce7;color:#166534;border:1px solid #16a34a;}
+.status-pill-sm.status-ignored{background:var(--gray-100);color:var(--gray-500);border:1px solid var(--gray-200);}
+.note-row-resolution{
+  font-size:11px;color:#166534;background:#f0fdf4;
+  padding:5px 8px;border-radius:4px;margin-top:5px;line-height:1.4;
+  border-left:3px solid #16a34a;font-style:italic;
+}
+.note-row-ignored{
+  font-size:11px;color:var(--gray-600);background:var(--gray-100);
+  padding:5px 8px;border-radius:4px;margin-top:5px;line-height:1.4;
+  border-left:3px solid var(--gray-400);font-style:italic;
+}
 .action-tag.at-misc{background:var(--gray-100);color:var(--gray-500);}
 .action-tag.at-pause{background:var(--err-bg);color:var(--err-text);}
 
@@ -3633,9 +3664,17 @@ async function loadSkips() {
 }
 
 async function loadNotes(baseId){
-  // Load notes for base ID (notes are stored against base ID, not suffixed IDs)
-  const {data,error}=await db.from('notes').select('*').eq('client_id',baseId).order('created_at',{ascending:false});
-  if(!error) clientNotes=data||[];
+  // Pull regular notes + every complaint logged against this client. Merging
+  // them into one timeline gives reps a single "what's happened with this
+  // client" view — they see when a complaint was logged, what type, status,
+  // and (if applicable) how it was resolved or why it was ignored.
+  const [notesRes, complaintsRes] = await Promise.all([
+    db.from('notes').select('*').eq('client_id', baseId).order('created_at',{ascending:false}),
+    db.from('complaints').select('*').eq('client_id', baseId).order('logged_at',{ascending:false}),
+  ]);
+  const notes = (notesRes.data || []).map(n => ({...n, _kind:'note',      _ts: n.created_at}));
+  const cmps  = (complaintsRes.data || []).map(c => ({...c, _kind:'complaint', _ts: c.logged_at}));
+  clientNotes = [...notes, ...cmps].sort((a,b) => (b._ts||'').localeCompare(a._ts||''));
   return clientNotes;
 }
 
@@ -4036,26 +4075,19 @@ function toggleNoteDateField(){
   dateIn.style.display=action&&action.needsDate?'':'none';
 }
 
-function renderNotesTable(notes){
+function renderNotesTable(items){
   const wrap=document.getElementById('notesTableWrap');
   if(!wrap) return;
-  if(!notes.length){
+  if(!items.length){
     wrap.innerHTML='<div style="padding:8px;text-align:center;color:var(--gray-400);font-size:11px">No notes yet</div>';
     return;
   }
-  wrap.innerHTML=notes.map(n=>{
-    return `<div class="note-row">
-      <div class="note-row-header">
-        <span class="note-meta">${fmtTimestamp(n.created_at)}</span>
-        <span class="note-user">${esc(n.user_id)||''}</span>
-        <span class="action-tag ${actionTagClass(n.action)}">${esc(n.action)}</span>
-        ${n.action_date?`<span style="font-size:10px;color:var(--teal);font-weight:600">${fmtDate(n.action_date)}</span>`:''}
-        <button class="note-del" data-note-id="${n.id}" title="Delete note">&times;</button>
-      </div>
-      ${n.note?`<div class="note-row-body">${esc(n.note)}</div>`:''}
-    </div>`;
+  wrap.innerHTML = items.map(item => {
+    if(item._kind === 'complaint') return renderComplaintHistoryRow(item);
+    return renderNoteHistoryRow(item);
   }).join('');
-  // Event delegation — inline confirm replaces × button on first click
+  // Event delegation — inline confirm replaces × button on first click.
+  // Only regular notes have a × button; complaints stay read-only in this view.
   wrap.onclick=function(e){
     const btn=e.target.closest('.note-del');
     const yes=e.target.closest('.note-del-yes');
@@ -4066,10 +4098,51 @@ function renderNotesTable(notes){
     } else if(yes){
       deleteNote(yes.dataset.noteId);
     } else if(no){
-      // Reset — re-render notes to restore × button
+      // Reset — re-render to restore × button
       renderNotesTable(clientNotes);
     }
   };
+}
+
+function renderNoteHistoryRow(n){
+  return `<div class="note-row">
+    <div class="note-row-header">
+      <span class="note-meta">${fmtTimestamp(n.created_at)}</span>
+      <span class="note-user">${esc(n.user_id)||''}</span>
+      <span class="action-tag ${actionTagClass(n.action)}">${esc(n.action)}</span>
+      ${n.action_date?`<span style="font-size:10px;color:var(--teal);font-weight:600">${fmtDate(n.action_date)}</span>`:''}
+      <button class="note-del" data-note-id="${n.id}" title="Delete note">&times;</button>
+    </div>
+    ${n.note?`<div class="note-row-body">${esc(n.note)}</div>`:''}
+  </div>`;
+}
+
+function renderComplaintHistoryRow(c){
+  const statusLabel = c.status==='case_open' ? 'CASE OPEN' : (c.status||'').toUpperCase();
+  let outcome = '';
+  if(c.status === 'resolved'){
+    const by = c.resolved_by || '—';
+    const when = c.resolved_at ? fmtTimestamp(c.resolved_at) : '';
+    outcome = `<div class="note-row-resolution">✓ Resolved by ${esc(by)}${when?` · ${esc(when)}`:''} — ${esc(c.resolution_notes || '(no resolution notes)')}</div>`;
+  } else if(c.status === 'ignored'){
+    const by = c.ignored_by || '—';
+    const when = c.ignored_at ? fmtTimestamp(c.ignored_at) : '';
+    outcome = `<div class="note-row-ignored">Ignored by ${esc(by)}${when?` · ${esc(when)}`:''} — ${esc(c.ignored_reason || '(no reason)')}</div>`;
+  } else if(c.status === 'case_open'){
+    const by = c.case_opened_by || '—';
+    outcome = `<div class="note-row-ignored" style="color:#92400e;background:#fef3c7;border-left-color:#d97706;font-style:normal;">Case opened by ${esc(by)} — investigation in progress.</div>`;
+  }
+  const typeUpper = String(complaintTypeLabel(c.type)).toUpperCase();
+  return `<div class="note-row note-row-complaint">
+    <div class="note-row-header">
+      <span class="note-meta">${fmtTimestamp(c.logged_at)}</span>
+      <span class="note-user">${esc(c.logged_by)||''}</span>
+      <span class="action-tag at-complaint">COMPLAINT — ${esc(typeUpper)}</span>
+      <span class="status-pill-sm status-${c.status}">${esc(statusLabel)}</span>
+    </div>
+    ${c.notes?`<div class="note-row-body">${esc(c.notes)}</div>`:''}
+    ${outcome}
+  </div>`;
 }
 
 async function submitNote(baseId){
@@ -5992,6 +6065,12 @@ async function submitComplaint(){
   toast('Complaint logged — sent to David\'s inbox', true);
   logActivity('complaint_logged', `${c.client_id} ${type}`);
   refreshComplaintBadge();
+  // If the rep still has this client's card open, refresh the notes history
+  // so their new complaint entry appears immediately in the timeline.
+  if(activeClient && activeClient.client_id === c.client_id){
+    const refreshed = await loadNotes(c.client_id);
+    renderNotesTable(refreshed);
+  }
 }
 
 // ── INBOX BADGE (David only) ──────────────────────────────────────────

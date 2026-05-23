@@ -320,6 +320,7 @@ All tables RLS-enabled with open policies (HELM standard).
 - Inline client card with name + company tag, Acct #, address, phone, **email** (clickable `mailto:` link in teal when set, "No email on file" placeholder when missing), pickup days, status, autopay, **route pill**, Edit button
 - Notes support 8 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, Misc). Complaints are no longer a note category — they have their own dedicated flow (see Complaint Pipeline below).
 - **Edit Client** button sits on the top-right of the info column, in line with the address/email block (above the divider that precedes the Pickup Days tiles). **Log Complaint** is a red button at the bottom right of the info column where Edit Client used to be.
+- **Complaint entries appear in the Notes history alongside regular notes** — same chronological timeline. They render with a red left border + pink background tint, a `COMPLAINT — TYPE` chip, and a small status pill (NEW / CASE OPEN / RESOLVED / IGNORED). If the case was resolved, a green resolution footer shows who resolved it and the resolution notes; if ignored, a gray footer shows the ignore reason. Complaint entries are read-only in this view (no × delete button) — reps can see them but can't modify them. Gives reps a single "what's happened with this client" view when the client calls in.
 - Inline Yes/No delete confirmation on notes
 
 ### Add Client (all users)
