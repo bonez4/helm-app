@@ -400,7 +400,9 @@ A dedicated workflow for tracking and resolving customer complaints. Complaints 
     - `case_open` → action log timeline + + Add Entry button + ✓ Mark Resolved button
     - `resolved` → resolution banner + read-only action log
     - `ignored` → ignore-reason banner
-  - **Print** button on the detail pane writes a printable case file (snapshot + original + every action log entry with timestamp + by-whom + notes)
+  - **Week navigator at the top of the sidebar** — ‹ / › arrows + "This Week" / "All" shortcuts. Default is All weeks. When a specific week is selected, the chip counts and list rows scope to that Mon–Sun window so the status chips never lie about what's available.
+  - **🖨 Print Week** button (enabled when a specific week is selected) writes a single document containing every complaint logged that week as its own page-broken section — client snapshot, original notes, action log, resolution/ignore details. Includes a cover sheet with by-type and by-status totals. Use this for the weekly archive print.
+  - **Print** button on the detail pane writes a single-case printable file (snapshot + original + every action log entry with timestamp + by-whom + notes)
 
 **Opening a case:**
 - Status flips to `case_open`; first `complaint_actions` entry written as `opened`

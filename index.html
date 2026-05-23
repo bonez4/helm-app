@@ -732,6 +732,28 @@ body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
   width:320px;border-right:1px solid var(--gray-100);
   display:flex;flex-direction:column;background:#fafbfd;
 }
+.inbox-week-strip{
+  padding:9px 12px;border-bottom:1px solid var(--gray-100);
+  background:#f7f9fc;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;
+}
+.inbox-week-strip .lbl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);}
+.inbox-week-strip .week-nav-btn{
+  padding:3px 9px;border:1px solid var(--gray-200);background:white;border-radius:4px;
+  color:var(--gray-700);cursor:pointer;font-size:11px;font-weight:600;font-family:inherit;
+}
+.inbox-week-strip .week-nav-btn:hover{background:var(--gray-100);border-color:var(--gray-300);}
+.inbox-week-strip .week-display{
+  padding:3px 10px;background:white;border:1px solid var(--gray-200);border-radius:4px;
+  font-weight:700;color:var(--navy);font-size:11px;letter-spacing:.01em;
+}
+.inbox-week-strip .week-display.all{color:var(--gray-400);font-style:italic;font-weight:500;}
+.inbox-week-strip .week-print-btn{
+  margin-left:auto;padding:4px 12px;background:#dc2626;color:white;border:none;border-radius:4px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px;font-family:inherit;
+}
+.inbox-week-strip .week-print-btn:hover:not(:disabled){background:#b91c1c;}
+.inbox-week-strip .week-print-btn:disabled{background:var(--gray-100);color:var(--gray-400);cursor:not-allowed;border:1px solid var(--gray-200);}
 .inbox-filter-strip{padding:10px 12px;border-bottom:1px solid var(--gray-100);display:flex;gap:4px;flex-wrap:wrap;background:white;}
 .inbox-filter-chip{
   padding:4px 10px;border-radius:14px;font-size:11px;font-weight:600;
@@ -2877,7 +2899,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       </div>
       <div class="cmp-field cmp-field-notes" id="cmpNotesField">
         <label>Describe the complaint *</label>
-        <textarea id="cmpNotes" placeholder="What did the client say? Be specific — this is what David sees in the inbox."></textarea>
+        <textarea id="cmpNotes" placeholder="What did the client say? Be specific."></textarea>
       </div>
     </div>
     <div class="helm-modal-footer">
@@ -2896,6 +2918,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     </div>
     <div class="helm-modal-body helm-inbox-body">
       <div class="inbox-list">
+        <div class="inbox-week-strip" id="inboxWeekStrip"></div>
         <div class="inbox-filter-strip" id="inboxFilterStrip"></div>
         <div class="inbox-list-rows" id="inboxListRows"></div>
       </div>
@@ -6006,12 +6029,56 @@ function startComplaintBadgePoll(){
 let _inboxComplaints = [];
 let _inboxFilter = 'new';
 let _inboxSelectedId = null;
+// Week filter: null = all weeks, else 'YYYY-MM-DD' Monday-of-week string.
+// Combines with _inboxFilter (status) — both must match for a row to show.
+let _inboxWeek = null;
+
+// ISO Monday string for the week containing the given date (or today by default).
+function inboxMondayOf(refDate){
+  const d = refDate ? new Date(refDate) : new Date();
+  d.setHours(0,0,0,0);
+  const dow = d.getDay();                  // 0=Sun, 1=Mon, ... 6=Sat
+  const offset = dow === 0 ? -6 : 1 - dow;  // Sun rolls back to previous Mon
+  d.setDate(d.getDate() + offset);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// Half-open ISO range for a Monday-anchored week + display strings for the UI.
+function inboxWeekRange(monIso){
+  if(!monIso) return null;
+  const start = new Date(monIso+'T00:00:00');
+  const end   = new Date(monIso+'T00:00:00'); end.setDate(end.getDate()+7);
+  const endVis = new Date(end.getTime() - 1);
+  return {
+    startISO: start.toISOString(),
+    endISO:   end.toISOString(),
+    startStr: start.toLocaleDateString('en-US',{month:'short',day:'numeric'}),
+    endStr:   endVis.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+  };
+}
+
+function shiftInboxWeek(dir){
+  const cur = _inboxWeek || inboxMondayOf();
+  const d = new Date(cur+'T00:00:00');
+  d.setDate(d.getDate() + dir*7);
+  _inboxWeek = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  renderInbox();
+}
+function thisInboxWeek(){
+  _inboxWeek = inboxMondayOf();
+  renderInbox();
+}
+function clearInboxWeek(){
+  _inboxWeek = null;
+  renderInbox();
+}
 
 async function openComplaintInbox(){
   if(!userIsDavid()){ toast('David only'); return; }
   document.getElementById('complaintInbox').classList.add('open');
   document.body.style.overflow = 'hidden';
   _inboxFilter = 'new';
+  _inboxWeek = null;          // default to all weeks; user picks one if they want
   _inboxSelectedId = null;
   await loadInboxComplaints();
 }
@@ -6029,9 +6096,33 @@ async function loadInboxComplaints(){
 }
 
 function renderInbox(){
-  // Filter chips with counts
-  const counts = {new:0, case_open:0, resolved:0, ignored:0, all:_inboxComplaints.length};
-  for(const c of _inboxComplaints){ if(counts.hasOwnProperty(c.status)) counts[c.status]++; }
+  // Render the week navigator + bulk-print button at the top of the sidebar.
+  const range = _inboxWeek ? inboxWeekRange(_inboxWeek) : null;
+  const wsEl = document.getElementById('inboxWeekStrip');
+  if(wsEl){
+    wsEl.innerHTML = `
+      <span class="lbl">Week:</span>
+      <button class="week-nav-btn" onclick="shiftInboxWeek(-1)" title="Previous week">‹</button>
+      ${range
+        ? `<span class="week-display">${esc(range.startStr)} – ${esc(range.endStr)}</span>`
+        : `<span class="week-display all">All weeks</span>`}
+      <button class="week-nav-btn" onclick="shiftInboxWeek(1)" title="Next week">›</button>
+      <button class="week-nav-btn" onclick="thisInboxWeek()" title="Jump to this week">This Week</button>
+      ${_inboxWeek
+        ? `<button class="week-nav-btn" onclick="clearInboxWeek()" title="Show all weeks">All</button>`
+        : ''}
+      <button class="week-print-btn" onclick="printComplaintWeek()" ${!_inboxWeek?'disabled title="Pick a week first"':'title="Print every complaint logged in this week as a single document"'}>🖨 Print Week</button>
+    `;
+  }
+
+  // Apply the week filter first so the chip counts reflect what's actually
+  // available in the current week — otherwise the chips would lie.
+  const weekScoped = _inboxWeek
+    ? _inboxComplaints.filter(c => c.logged_at && c.logged_at >= range.startISO && c.logged_at < range.endISO)
+    : _inboxComplaints;
+
+  const counts = {new:0, case_open:0, resolved:0, ignored:0, all:weekScoped.length};
+  for(const c of weekScoped){ if(counts.hasOwnProperty(c.status)) counts[c.status]++; }
   const filters = [
     {key:'new',       label:'New'},
     {key:'case_open', label:'Open Cases'},
@@ -6049,8 +6140,8 @@ function renderInbox(){
   }
 
   const filtered = _inboxFilter==='all'
-    ? _inboxComplaints
-    : _inboxComplaints.filter(c=>c.status===_inboxFilter);
+    ? weekScoped
+    : weekScoped.filter(c=>c.status===_inboxFilter);
 
   const listEl = document.getElementById('inboxListRows');
   if(filtered.length){
@@ -6334,6 +6425,166 @@ async function confirmIgnoreComplaint(){
   _inboxSelectedId = complaintId;
   renderInbox();
   refreshComplaintBadge();
+}
+
+// Print every complaint from the currently-selected week as a single document.
+// Each complaint becomes its own page (CSS page-break) with the same content
+// shape as printComplaintCase: client snapshot, original notes, action log.
+// Includes a cover header with the week range + totals broken out by type and status.
+async function printComplaintWeek(){
+  if(!userIsDavid()) return;
+  if(!_inboxWeek){ toast('Pick a week first using the navigator at the top of the inbox'); return; }
+  const range = inboxWeekRange(_inboxWeek);
+  const weekComplaints = _inboxComplaints
+    .filter(c => c.logged_at && c.logged_at >= range.startISO && c.logged_at < range.endISO)
+    // Chronological top-to-bottom so the printout reads like a journal of the week.
+    .sort((a,b) => (a.logged_at||'').localeCompare(b.logged_at||''));
+  if(!weekComplaints.length){ toast('No complaints in this week'); return; }
+
+  // Fetch every action log entry for these complaints in one shot.
+  const ids = weekComplaints.map(c => c.id);
+  const {data:allActions} = await db.from('complaint_actions')
+    .select('*').in('complaint_id', ids)
+    .order('performed_at', {ascending:true});
+  const actionsByCmp = {};
+  (allActions||[]).forEach(a => {
+    (actionsByCmp[a.complaint_id] = actionsByCmp[a.complaint_id] || []).push(a);
+  });
+
+  // Tallies for the cover summary.
+  const typeCounts   = {DRIVER:0, BILLING:0, MISSED_STOP:0, OTHER:0};
+  const statusCounts = {new:0, case_open:0, resolved:0, ignored:0};
+  weekComplaints.forEach(c => {
+    if(typeCounts.hasOwnProperty(c.type))     typeCounts[c.type]++;
+    if(statusCounts.hasOwnProperty(c.status)) statusCounts[c.status]++;
+  });
+
+  const renderComplaint = (c, idx) => {
+    const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '—';
+    const route = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
+    let statusLine = '';
+    if(c.status==='resolved'){
+      const t = c.resolved_at ? new Date(c.resolved_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+      statusLine = `<div class="status-line resolved">RESOLVED by ${esc(c.resolved_by||'—')} on ${esc(t)}</div>
+        <div class="block"><strong>Resolution:</strong> ${esc(c.resolution_notes||'(none)')}</div>`;
+    } else if(c.status==='ignored'){
+      const t = c.ignored_at ? new Date(c.ignored_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+      statusLine = `<div class="status-line ignored">IGNORED by ${esc(c.ignored_by||'—')} on ${esc(t)}</div>
+        <div class="block"><strong>Reason for ignoring:</strong> ${esc(c.ignored_reason||'(none)')}</div>`;
+    } else if(c.status==='case_open'){
+      statusLine = `<div class="status-line case">CASE OPEN — opened by ${esc(c.case_opened_by||'—')}</div>`;
+    } else {
+      statusLine = `<div class="status-line new">NEW — awaiting triage</div>`;
+    }
+
+    const actionRows = (actionsByCmp[c.id]||[]).map(a => {
+      const t = a.performed_at ? new Date(a.performed_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+      return `<tr>
+        <td style="white-space:nowrap;color:#555;">${esc(t)}</td>
+        <td style="font-weight:700;color:#0f1f3d;text-transform:uppercase;font-size:12px;">${esc(caseActionLabel(a.action_type))}</td>
+        <td style="color:#555;">${esc(a.performed_by||'—')}</td>
+        <td>${esc(a.notes||'')}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:#999;font-style:italic;">No actions logged</td></tr>';
+
+    return `
+    <div class="page-break"></div>
+    <div class="case-header">
+      <h2>Case #${c.id} — ${esc(complaintTypeLabel(c.type))} — ${esc(c.client_name||'Account '+c.client_id)}</h2>
+      <div class="case-sub">Logged by <span>${esc(c.logged_by||'—')}</span> on <span>${esc(when)}</span></div>
+    </div>
+    ${statusLine}
+    <div class="section"><h3>Client Snapshot (at time of complaint)</h3>
+      <div class="grid">
+        <label>Name</label><div class="val">${esc(c.client_name||'—')}</div>
+        <label>Acct #</label><div class="val">${esc(c.client_id)}</div>
+        <label>Address</label><div class="val">${esc(c.client_address||'—')}</div>
+        <label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div>
+        <label>Email</label><div class="val">${esc(c.client_email||'—')}</div>
+        <label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div>
+      </div>
+    </div>
+    <div class="section"><h3>Original Complaint</h3>
+      <div class="block">${esc(c.notes||'(no description)')}</div>
+    </div>
+    <div class="section"><h3>Case Action Log</h3>
+      <table><thead><tr><th style="width:130px">When</th><th style="width:140px">Action</th><th style="width:110px">By</th><th>Notes</th></tr></thead><tbody>
+        ${actionRows}
+      </tbody></table>
+    </div>`;
+  };
+
+  const sections = weekComplaints.map((c,i)=>renderComplaint(c,i)).join('');
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/><title>HELM Complaints — Week of ${range.startStr} – ${range.endStr}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:18px;}
+.cover{border:2px solid #dc2626;padding:20px 22px;margin-bottom:18px;border-radius:6px;background:#fff7f7;}
+.cover h1{font-size:22px;color:#991b1b;margin-bottom:6px;}
+.cover .range{font-size:15px;color:#000;font-weight:700;margin-bottom:14px;}
+.cover .totals{display:flex;gap:24px;flex-wrap:wrap;}
+.cover .totals .col{font-size:12px;}
+.cover .totals .col h4{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#666;margin-bottom:6px;}
+.cover .totals .col ul{list-style:none;padding:0;}
+.cover .totals .col li{padding:2px 0;color:#333;}
+.cover .totals .col li strong{color:#000;display:inline-block;min-width:34px;text-align:right;margin-right:6px;}
+.cover .grand{margin-top:14px;padding-top:10px;border-top:1px solid #dc2626;font-size:13px;color:#000;font-weight:700;}
+.case-header{margin-top:18px;border-bottom:2px solid #dc2626;padding-bottom:8px;margin-bottom:10px;}
+.case-header h2{font-size:17px;color:#991b1b;font-weight:700;}
+.case-header .case-sub{font-size:12px;color:#444;margin-top:3px;}
+.case-header .case-sub span{font-weight:700;color:#000;}
+.status-line{display:inline-block;padding:4px 10px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;}
+.status-line.new{background:#fee2e2;color:#991b1b;}
+.status-line.case{background:#fef3c7;color:#92400e;}
+.status-line.resolved{background:#dcfce7;color:#166534;}
+.status-line.ignored{background:#e5e7eb;color:#374151;}
+.section{margin-bottom:12px;}
+.section h3{background:#0f1f3d;color:white;padding:5px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.grid{display:grid;grid-template-columns:140px 1fr;gap:4px 14px;font-size:13px;padding:0 4px;}
+.grid label{color:#666;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding-top:2px;}
+.grid .val{color:#000;}
+.block{padding:8px 12px;background:#fef9e7;border-left:4px solid #f59e0b;border-radius:4px;font-size:13px;line-height:1.5;white-space:pre-wrap;}
+table{width:100%;border-collapse:collapse;margin-top:4px;}
+th{background:#0f1f3d;color:white;padding:5px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+td{padding:6px 8px;border-bottom:1px solid #d5d9e0;font-size:13px;line-height:1.35;}
+tr:nth-child(even) td{background:#fafbfd;}
+.page-break{page-break-before:always;}
+.page-break:first-of-type{page-break-before:auto;}
+.footer{margin-top:18px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+@media print{body{padding:10px;font-size:13px;}@page{margin:0.6cm;}.cover{background:white;}}
+</style></head><body>
+<div class="cover">
+  <h1>HELM — Weekly Complaints</h1>
+  <div class="range">Week of ${esc(range.startStr)} – ${esc(range.endStr)}</div>
+  <div class="totals">
+    <div class="col"><h4>By Type</h4><ul>
+      <li><strong>${typeCounts.DRIVER}</strong> Driver</li>
+      <li><strong>${typeCounts.BILLING}</strong> Billing</li>
+      <li><strong>${typeCounts.MISSED_STOP}</strong> Missed Stop</li>
+      <li><strong>${typeCounts.OTHER}</strong> Other</li>
+    </ul></div>
+    <div class="col"><h4>By Status</h4><ul>
+      <li><strong>${statusCounts.new}</strong> New</li>
+      <li><strong>${statusCounts.case_open}</strong> Case Open</li>
+      <li><strong>${statusCounts.resolved}</strong> Resolved</li>
+      <li><strong>${statusCounts.ignored}</strong> Ignored</li>
+    </ul></div>
+  </div>
+  <div class="grand">${weekComplaints.length} complaint${weekComplaints.length===1?'':'s'} this week &nbsp;·&nbsp; Printed ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div>
+</div>
+${sections}
+<div class="footer">
+  <span>Reis Trucking — Nantucket, MA</span>
+  <span>HELM Weekly Complaint Archive — Confidential</span>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+  win.document.close();
+  logActivity('complaint_week_print', _inboxWeek+' '+weekComplaints.length);
 }
 
 // Print a single complaint case file (auditable record).
