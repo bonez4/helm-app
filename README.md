@@ -108,7 +108,7 @@ Per-user themes live in `applyUserTheme()`:
 | id | SERIAL (PK) | Auto |
 | client_id | TEXT | Client ID |
 | user_id | TEXT | Display name of staff |
-| action | TEXT | `Skip Day`, `1XER`, `1X WK`, `2X WK`, `3X WK`, `LPU`, `Special Pickup`, `Misc` |
+| action | TEXT | `Skip Day`, `1XER`, `1X WK`, `2X WK`, `3X WK`, `LPU`, `Special Pickup`, `Complaint`, `Misc` |
 | action_date | DATE | Date the action applies (nullable for Misc) |
 | note | TEXT | Free-text content |
 
@@ -293,7 +293,7 @@ All tables RLS-enabled with open policies (HELM standard).
   - Rate Sheet and My Notes render side-by-side on desktop (collapse to stacked under 780px)
 - **Tokenized search** — "viola howard" matches "HOWARD, VIOLA" regardless of word order
 - Inline client card with name + company tag, Acct #, address, phone, **email** (clickable `mailto:` link in teal when set, "No email on file" placeholder when missing), pickup days, status, autopay, **route pill**, Edit button
-- Notes support 8 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, Misc)
+- Notes support 9 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, **Complaint**, Misc). Complaint renders with a strong red chip + border so it stands out on every report and pile of notes — it's the action type for "we got yelled at" so we can finally track complaints by client / route / period.
 - Inline Yes/No delete confirmation on notes
 
 ### Add Client (all users)
@@ -940,8 +940,9 @@ helm-app/
 
 Older entries are intentionally terse — full detail lives in git history. The most recent week is given fuller context.
 
-### May 18-20, 2026
+### May 18-21, 2026
 
+- **May 21** — `Complaint` action type added to client Notes (9th category, between Special Pickup and Misc). Renders with a strong red chip + red border so it pops on every report. Closes the long-standing gap where complaints had no dedicated channel and got buried under Misc; now they're trackable by client / route / period via the existing Notes Added Today and Everything Report.
 - **May 20** — `sharon` staff user added with restricted view (Client Lookup + Reports only — Add Client / Roll-offs / Dispatch nav group hidden via username gate in both auth paths).
 - **May 19** — Bulk-loaded route notes from `STOPS WITH RT NOTES.xlsx` into `route_assignments` (7,519 upserts, 5,881 with notes). Destructive note-blanks neutralized via two-batch upsert (preserve-existing branch omits `route_note` from payload so PostgREST leaves it untouched on conflict). Then `sync_client_route_fallback.py` copied each client's first-day route + note down to `clients.route` / `clients.route_note` (3,444 PATCHes) so the lookup-card pill matches. Lookup card now renders `📋 route_note` as italic teal line under the address (same look as reports).
 - **May 18** — `find_missing_accts.py` parses all 6 day-route master-list PDFs and diffs vs HELM; `bulk_import_missing_accts.py` creates the surfaced sub-accounts (160 clients + 274 route_assignments inserted, names + addresses enriched from the broader delta export where available). All 176 sub-accts now in HELM. Per-day Routes section added to Add Client (mirrors Edit Client editor).
