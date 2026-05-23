@@ -3187,6 +3187,36 @@ function userIsDavid(){
   return !!(currentUser && currentUser.username==='david');
 }
 
+// Complaint Report gate — David + Esme only. Complaints are intentionally hidden
+// from every other report (Daily Action, Notes Added Today, Everything) so only
+// these two users can review the weekly complaint flow.
+function userCanSeeComplaints(){
+  if(!currentUser) return false;
+  const u = (currentUser.username||'').toLowerCase();
+  return u==='david' || u==='esme';
+}
+
+// Any action string that starts with "Complaint" — covers the canonical
+// "Complaint - DRIVER" / "Complaint - BILLING" / "Complaint - OTHER" we store
+// (and the bare "Complaint" if someone ever logs one without a subtype).
+function isComplaintAction(a){
+  return typeof a === 'string' && a.indexOf('Complaint') === 0;
+}
+
+// Extract the subtype from a stored complaint action. "Complaint - DRIVER" → "DRIVER".
+// Returns "OTHER" for any malformed value so the report never breaks.
+function complaintType(action){
+  if(!action) return 'OTHER';
+  const m = String(action).match(/Complaint\s*-\s*(\w+)/i);
+  return m ? m[1].toUpperCase() : 'OTHER';
+}
+
+// Strip complaints out of a notes array. Used by Daily Action / Notes Added /
+// Everything reports so complaints only ever surface on the Complaint Report.
+function filterOutComplaints(notes){
+  return (notes||[]).filter(n => !isComplaintAction(n && n.action));
+}
+
 // Normalize phone input to canonical XXX-XXX-XXXX format. Strips parens,
 // spaces, dots, dashes, +1 prefixes, etc. Anything that doesn't look like a
 // 10-digit US number passes through unchanged so we never lose data.
@@ -3655,6 +3685,11 @@ async function showPanel(c){
               ${ACTION_TYPES.map(a=>`<option value="${a.value}">${a.label}</option>`).join('')}
             </select>
             <input type="date" id="noteActionDate" style="display:none"/>
+            <select id="noteComplaintType" style="display:none" title="Complaint type">
+              <option value="DRIVER">Driver</option>
+              <option value="BILLING">Billing</option>
+              <option value="OTHER">Other</option>
+            </select>
             <input type="text" id="noteText" placeholder="Add a note…" onkeydown="if(event.key==='Enter'){event.preventDefault();submitNote('${c.client_id}');}"/>
             <button class="btn-note-add" onclick="submitNote('${c.client_id}')">Add</button>
           </div>
@@ -3677,9 +3712,11 @@ async function showPanel(c){
 function toggleNoteDateField(){
   const sel=document.getElementById('noteAction');
   const dateIn=document.getElementById('noteActionDate');
-  if(!sel||!dateIn) return;
+  const cType=document.getElementById('noteComplaintType');
+  if(!sel) return;
   const action=ACTION_TYPES.find(a=>a.value===sel.value);
-  dateIn.style.display=action&&action.needsDate?'':'none';
+  if(dateIn) dateIn.style.display=action&&action.needsDate?'':'none';
+  if(cType) cType.style.display=sel.value==='Complaint'?'':'none';
 }
 
 function renderNotesTable(notes){
@@ -3690,12 +3727,11 @@ function renderNotesTable(notes){
     return;
   }
   wrap.innerHTML=notes.map(n=>{
-    const at=ACTION_TYPES.find(a=>a.value===n.action)||{tag:'at-note'};
     return `<div class="note-row">
       <div class="note-row-header">
         <span class="note-meta">${fmtTimestamp(n.created_at)}</span>
         <span class="note-user">${esc(n.user_id)||''}</span>
-        <span class="action-tag ${at.tag}">${esc(n.action)}</span>
+        <span class="action-tag ${actionTagClass(n.action)}">${esc(n.action)}</span>
         ${n.action_date?`<span style="font-size:10px;color:var(--teal);font-weight:600">${fmtDate(n.action_date)}</span>`:''}
         <button class="note-del" data-note-id="${n.id}" title="Delete note">&times;</button>
       </div>
@@ -3720,15 +3756,24 @@ function renderNotesTable(notes){
 }
 
 async function submitNote(baseId){
-  const action=document.getElementById('noteAction').value;
+  const rawAction=document.getElementById('noteAction').value;
   const dateIn=document.getElementById('noteActionDate');
   const textIn=document.getElementById('noteText');
   const noteText=textIn.value.trim();
-  const actionType=ACTION_TYPES.find(a=>a.value===action);
+  const actionType=ACTION_TYPES.find(a=>a.value===rawAction);
   const actionDate=actionType&&actionType.needsDate?dateIn.value:null;
 
   if(actionType&&actionType.needsDate&&!actionDate){
     toast('Select a date for this action');return;
+  }
+
+  // Complaint subtype: store action as "Complaint - DRIVER|BILLING|OTHER" so we
+  // can later split the weekly Complaint Report by type without a schema change.
+  let action = rawAction;
+  if(rawAction==='Complaint'){
+    const cType = document.getElementById('noteComplaintType');
+    const sub = (cType && cType.value) ? cType.value : 'OTHER';
+    action = 'Complaint - ' + sub;
   }
 
   const {error}=await db.from('notes').insert({
@@ -4179,6 +4224,30 @@ function renderReport(){
       <div id="everythingResults"></div>
     </div>
 
+    ${userCanSeeComplaints() ? `
+    <div class="form-card" style="margin-bottom:1rem;border-left:4px solid #dc2626;">
+      <h2 style="display:flex;align-items:center;gap:8px;">
+        <span>Complaint Report</span>
+        <span style="background:#fecaca;color:#991b1b;border:1px solid #dc2626;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;">Restricted</span>
+      </h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
+        Weekly list of complaints logged on client cards (Driver / Billing / Other). Complaints never appear on the Daily Action Report, Notes Added Today, or Everything Report — they only surface here. Visible to David and Esme only.
+      </p>
+      <div style="display:flex;gap:8px;align-items:end;margin-bottom:0.75rem;flex-wrap:wrap">
+        <button class="btn-edit-sm" type="button" onclick="shiftComplaintWeek(-1)" title="Previous week" style="padding:6px 10px;font-size:14px;line-height:1;">‹</button>
+        <div class="form-group" style="margin-bottom:0;flex:0 0 auto">
+          <label>Week starting (Monday)</label>
+          <input type="date" id="complaintWeekStart" value="${defaultComplaintMonday()}" style="width:160px"/>
+        </div>
+        <button class="btn-edit-sm" type="button" onclick="shiftComplaintWeek(1)" title="Next week" style="padding:6px 10px;font-size:14px;line-height:1;">›</button>
+        <button class="btn-edit-sm" type="button" onclick="setComplaintThisWeek()" style="font-size:11px;">This Week</button>
+        <button class="btn-edit-sm" type="button" onclick="setComplaintLastWeek()" style="font-size:11px;">Last Week</button>
+        <button class="btn-add" onclick="generateComplaintReport()">Generate Report</button>
+      </div>
+      <div id="complaintResults"></div>
+    </div>
+    ` : ''}
+
     <div class="form-card">
       <h2>Export Clients to Excel</h2>
       <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
@@ -4298,8 +4367,11 @@ function resolveRouteNote(clientId, isoDate, fallbackNote){
   return fallbackNote || '';
 }
 
-// Action-tag CSS class lookup (reuse the same colors used in client notes)
+// Action-tag CSS class lookup (reuse the same colors used in client notes).
+// "Complaint - DRIVER" / "Complaint - BILLING" / "Complaint - OTHER" all map
+// to at-complaint so the red chip works regardless of subtype.
 function actionTagClass(action){
+  if(isComplaintAction(action)) return 'at-complaint';
   const t = ACTION_TYPES.find(x=>x.value===action);
   return t ? t.tag : 'at-misc';
 }
@@ -4348,7 +4420,8 @@ async function generateReport(){
   if(error){toast('Error: '+error.message);return;}
   const {data:skipsData}=await db.from('skips').select('*').eq('skip_week',date);
 
-  const {data,grouped}=fetchReportData(notesData,skipsData,date);
+  // Complaints are hidden from this report — they only surface on the Complaint Report.
+  const {data,grouped}=fetchReportData(filterOutComplaints(notesData),skipsData,date);
 
   if(!data.length){
     results.innerHTML='<div class="empty-state">No action items for '+fmtDate(date)+'</div>';
@@ -4423,7 +4496,7 @@ function printReport(date){
     db.from('notes').select('*').eq('action_date',date).order('action').order('created_at'),
     db.from('skips').select('*').eq('skip_week',date)
   ]).then(([{data:notesData},{data:skipsData}])=>{
-    const {data,grouped}=fetchReportData(notesData,skipsData,date);
+    const {data,grouped}=fetchReportData(filterOutComplaints(notesData),skipsData,date);
     if(!data.length) return;
 
     const companies=[
@@ -4517,7 +4590,7 @@ async function generateNotesAddedReport(){
   const startISO = startDt.toISOString();
   const endISO = endDt.toISOString();
 
-  const {data, error} = await db.from('notes')
+  const {data:rawData, error} = await db.from('notes')
     .select('*')
     .gte('created_at', startISO)
     .lt('created_at', endISO)
@@ -4527,6 +4600,8 @@ async function generateNotesAddedReport(){
     results.innerHTML = '<div class="empty-state" style="color:var(--err-text);text-align:left;line-height:1.5">Error: '+esc(error.message)+'</div>';
     return;
   }
+  // Complaints surface only on the Complaint Report — hide them from this view.
+  const data = filterOutComplaints(rawData);
   if(!data || !data.length){
     results.innerHTML = '<div class="empty-state">No notes input on '+fmtDate(date)+'</div>';
     return;
@@ -4630,8 +4705,11 @@ function printNotesAddedReport(date){
   const endISO = endDt.toISOString();
   db.from('notes').select('*')
     .gte('created_at', startISO).lt('created_at', endISO).order('created_at')
-    .then(({data, error})=>{
-      if(error || !data || !data.length){ toast(error?error.message:'No notes to print'); return; }
+    .then(({data:rawData, error})=>{
+      if(error){ toast(error.message); return; }
+      // Complaints surface only on the Complaint Report — hide them from this print view.
+      const data = filterOutComplaints(rawData);
+      if(!data.length){ toast('No notes to print'); return; }
       // Group by For Date (action_date), then sort each group by route asc
       const byForDate = {};
       for(const n of data){
@@ -4766,7 +4844,9 @@ async function apFetchAllNotes(fromDate, toDate){
     if(data.length < batch) break;
     from += batch;
   }
-  return all;
+  // Complaints surface only on the Complaint Report — strip them here so both
+  // the on-screen Everything Report and its print view stay clean.
+  return filterOutComplaints(all);
 }
 
 function _everythingGroupAndSort(data){
@@ -4971,6 +5051,209 @@ ${sections}
 <div class="footer">
   <span>Reis Trucking — Nantucket, MA</span>
   <span>HELM Route Management</span>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+  win.document.close();
+}
+
+// ── COMPLAINT REPORT (David + Esme only) ──────────────────────────────
+// Weekly view of all complaints logged on client cards. Complaints never
+// appear on the Daily Action Report, Notes Added Today, or Everything
+// Report — they're hidden everywhere except here. Subtype is parsed from
+// the stored action string ("Complaint - DRIVER" → DRIVER).
+
+// ISO Monday string for the week containing today (or a given Date).
+function complaintMondayOf(refDate){
+  const d = refDate ? new Date(refDate) : new Date();
+  d.setHours(0,0,0,0);
+  const dow = d.getDay();             // 0=Sun, 1=Mon, ..., 6=Sat
+  const offset = dow === 0 ? -6 : 1 - dow;  // Sun rolls back to previous Mon
+  d.setDate(d.getDate() + offset);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function defaultComplaintMonday(){ return complaintMondayOf(); }
+
+function shiftComplaintWeek(dir){
+  const inp = document.getElementById('complaintWeekStart');
+  if(!inp || !inp.value) return;
+  const d = new Date(inp.value+'T00:00:00');
+  d.setDate(d.getDate() + dir*7);
+  inp.value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function setComplaintThisWeek(){
+  const inp = document.getElementById('complaintWeekStart');
+  if(inp) inp.value = defaultComplaintMonday();
+}
+function setComplaintLastWeek(){
+  const inp = document.getElementById('complaintWeekStart');
+  if(!inp) return;
+  const d = new Date(defaultComplaintMonday()+'T00:00:00');
+  d.setDate(d.getDate() - 7);
+  inp.value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// Inclusive week end (Sunday) for display labels — Monday + 6 days.
+function complaintWeekEndStr(monIso){
+  const d = new Date(monIso+'T00:00:00'); d.setDate(d.getDate()+6);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+async function generateComplaintReport(){
+  if(!userCanSeeComplaints()){ toast('Access denied'); return; }
+  const start = document.getElementById('complaintWeekStart').value;
+  if(!start){ toast('Select a week'); return; }
+  const results = document.getElementById('complaintResults');
+  results.innerHTML = '<div class="loading">Loading complaints…</div>';
+
+  // Mon 00:00 → following Mon 00:00 (exclusive) in local time, converted to UTC for created_at.
+  const startDt = new Date(start+'T00:00:00');
+  const endDt   = new Date(start+'T00:00:00'); endDt.setDate(endDt.getDate()+7);
+  const startISO = startDt.toISOString();
+  const endISO   = endDt.toISOString();
+  const {data, error} = await db.from('notes')
+    .select('*')
+    .ilike('action','Complaint%')
+    .gte('created_at', startISO).lt('created_at', endISO)
+    .order('created_at',{ascending:false});
+  if(error){
+    results.innerHTML = '<div class="empty-state" style="color:var(--err-text);text-align:left;line-height:1.5">Error: '+esc(error.message)+'</div>';
+    return;
+  }
+  const weekLabel = `${fmtDate(start)} – ${fmtDate(complaintWeekEndStr(start))}`;
+  if(!data || !data.length){
+    results.innerHTML = '<div class="empty-state">No complaints logged for the week of '+weekLabel+'</div>';
+    return;
+  }
+
+  const counts = {DRIVER:0, BILLING:0, OTHER:0};
+  data.forEach(n => {
+    const t = complaintType(n.action);
+    if(counts.hasOwnProperty(t)) counts[t]++; else counts.OTHER++;
+  });
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${weekLabel} — ${data.length} complaint${data.length===1?'':'s'}</div>
+      <button class="btn-add" onclick="printComplaintReport('${start}')" style="white-space:nowrap">Print Report</button>
+    </div>
+    <div style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:6px;">
+      <span class="action-tag at-complaint">DRIVER ${counts.DRIVER}</span>
+      <span class="action-tag at-complaint">BILLING ${counts.BILLING}</span>
+      <span class="action-tag at-complaint">OTHER ${counts.OTHER}</span>
+    </div>
+    <div class="report-group">
+      <table class="report-table"><thead><tr>
+        <th style="width:28px">#</th>
+        <th style="width:110px">Logged</th>
+        <th style="width:80px">Type</th>
+        <th style="width:64px">Acct</th>
+        <th>Client</th>
+        <th>Address</th>
+        <th>Complaint</th>
+        <th style="width:90px">By</th>
+      </tr></thead><tbody>`;
+  data.forEach((n,i) => {
+    const c = findClient(n.client_id);
+    const t = complaintType(n.action);
+    const dateStr = n.created_at
+      ? new Date(n.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})
+        +' '+new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
+      : '—';
+    html += `<tr>
+      <td class="rt-num">${i+1}</td>
+      <td class="rt-id">${esc(dateStr)}</td>
+      <td><span class="action-tag at-complaint">${esc(t)}</span></td>
+      <td class="rt-id">${esc(n.client_id)}</td>
+      <td class="rt-name">${esc(c.client_name||'—')}</td>
+      <td class="rt-addr">${esc(c.address||'—')}</td>
+      <td class="rt-note">${esc(n.note||'')}</td>
+      <td class="rt-id">${esc(n.user_id||'—')}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  results.innerHTML = html;
+  logActivity('complaint_report', start);
+}
+
+async function printComplaintReport(start){
+  if(!userCanSeeComplaints()) return;
+  const startDt = new Date(start+'T00:00:00');
+  const endDt   = new Date(start+'T00:00:00'); endDt.setDate(endDt.getDate()+7);
+  const startISO = startDt.toISOString();
+  const endISO   = endDt.toISOString();
+  const {data} = await db.from('notes').select('*')
+    .ilike('action','Complaint%')
+    .gte('created_at', startISO).lt('created_at', endISO)
+    .order('created_at',{ascending:false});
+  if(!data || !data.length){ toast('No complaints to print'); return; }
+
+  const weekLabel = `${fmtDate(start)} – ${fmtDate(complaintWeekEndStr(start))}`;
+  const counts = {DRIVER:0, BILLING:0, OTHER:0};
+  data.forEach(n => {
+    const t = complaintType(n.action);
+    if(counts.hasOwnProperty(t)) counts[t]++; else counts.OTHER++;
+  });
+
+  let sections = `<table><thead><tr>
+    <th style="width:30px">#</th>
+    <th style="width:120px">Logged</th>
+    <th style="width:80px">Type</th>
+    <th style="width:64px">Acct</th>
+    <th style="width:180px">Client</th>
+    <th style="width:220px">Address</th>
+    <th>Complaint</th>
+    <th style="width:110px">By</th>
+  </tr></thead><tbody>`;
+  data.forEach((n,i) => {
+    const c = findClient(n.client_id);
+    const t = complaintType(n.action);
+    const dateStr = n.created_at
+      ? new Date(n.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})
+        +' '+new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
+      : '—';
+    sections += `<tr>
+      <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
+      <td style="font-size:13px;color:#555">${esc(dateStr)}</td>
+      <td style="font-size:12px;font-weight:700;color:#991b1b">${esc(t)}</td>
+      <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
+      <td style="font-weight:600">${esc(c.client_name||'—')}</td>
+      <td style="font-size:13px;color:#444">${esc(c.address||'—')}</td>
+      <td style="font-style:italic;color:#444">${esc(n.note||'')}</td>
+      <td style="font-size:12px;color:#555">${esc(n.user_id||'—')}</td>
+    </tr>`;
+  });
+  sections += `</tbody></table>`;
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/>
+<title>HELM Complaint Report — ${weekLabel}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:18px;}
+.header{border-bottom:2px solid #dc2626;padding-bottom:10px;margin-bottom:10px;}
+.header h1{font-size:20px;font-weight:700;color:#991b1b;}
+.header .sub{font-size:13px;color:#444;margin-top:4px;}
+.header .sub span{font-weight:700;color:#000;}
+.summary{font-size:12px;color:#555;margin-bottom:10px;padding:6px 0;border-bottom:1px solid #ddd;}
+.summary span{display:inline-block;background:#fecaca;color:#991b1b;border:1px solid #dc2626;padding:2px 8px;border-radius:10px;margin-right:6px;font-weight:700;letter-spacing:.04em;font-size:11px;}
+table{width:100%;border-collapse:collapse;margin-bottom:4px;}
+th{background:#991b1b;color:white;padding:7px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+td{padding:9px 8px;border-bottom:1px solid #d5d9e0;font-size:14px;line-height:1.35;}
+tr:nth-child(even) td{background:#fdf4f4;}
+.footer{margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+@media print{body{padding:10px;font-size:13px;}td{padding:8px 7px;font-size:13px;}@page{margin:0.75cm;}}
+</style></head><body>
+<div class="header">
+  <h1>HELM — Complaint Report</h1>
+  <div class="sub">Week of <span>${weekLabel}</span> &nbsp;·&nbsp; Total: <span>${data.length} complaint${data.length===1?'':'s'}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
+</div>
+<div class="summary"><span>DRIVER ${counts.DRIVER}</span><span>BILLING ${counts.BILLING}</span><span>OTHER ${counts.OTHER}</span></div>
+${sections}
+<div class="footer">
+  <span>Reis Trucking — Nantucket, MA</span>
+  <span>HELM — Confidential</span>
 </div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`);

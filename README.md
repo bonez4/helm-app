@@ -293,7 +293,7 @@ All tables RLS-enabled with open policies (HELM standard).
   - Rate Sheet and My Notes render side-by-side on desktop (collapse to stacked under 780px)
 - **Tokenized search** — "viola howard" matches "HOWARD, VIOLA" regardless of word order
 - Inline client card with name + company tag, Acct #, address, phone, **email** (clickable `mailto:` link in teal when set, "No email on file" placeholder when missing), pickup days, status, autopay, **route pill**, Edit button
-- Notes support 9 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, **Complaint**, Misc). Complaint renders with a strong red chip + border so it stands out on every report and pile of notes — it's the action type for "we got yelled at" so we can finally track complaints by client / route / period.
+- Notes support 9 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, **Complaint**, Misc). When Complaint is selected, a sub-selector appears for the type (DRIVER / BILLING / OTHER); the saved `action` string becomes `Complaint - DRIVER` etc so downstream queries can filter by subtype without a schema change. Complaint notes are **hidden** from the Daily Action Report, Notes Added Today, and Everything Report (and their print versions) — they only surface on the **Complaint Report** card, which is visible to David and Esme only. Red chip + red border makes them visually distinct wherever they do appear (client card history, Complaint Report).
 - Inline Yes/No delete confirmation on notes
 
 ### Add Client (all users)
@@ -316,7 +316,7 @@ All tables RLS-enabled with open policies (HELM standard).
 - **Rate Schedule (per-pickup)** — five inputs covering R1 trash pickup, R2 extra bag, R3 recycle bag, R4 intermittent pickup (rarely used), R5 cardboard armload. Stored as `clients.rate1` … `rate5`. Surfaced on the Lookup card as a 5-cell strip with running Total below the info-tiles. Mirrors the legacy NetWork software's R1-R5 view. Rates vary per address — they are not uniform across clients. *(Was David-only when first shipped on 2026-05-05; rolled out to all users on 2026-05-14 alongside the per-day routes rollout.)*
 
 ### Reports (all users)
-Four cards on the Reports tab:
+Five cards on the Reports tab (the fifth is gated to David + Esme):
 
 1. **Daily Action Report** — actionable notes for a specific date
    - Split by REIS / SANTOS / Other (first-digit classification)
@@ -342,6 +342,13 @@ Four cards on the Reports tab:
    - Toggleable columns: Account # / Company / Name / Address / Phone / Email / Pickup Days / Route / Status / Autopay / Date Added
    - Filters: Company (REIS / SANTOS), Status (Active / Paused), Email (with / without — useful for gap-hunting), Route (1-14 or "no route")
    - Downloads as `HELM_Clients_YYYYMMDD.xls`
+
+5. **Complaint Report** *(David + Esme only)* — weekly view of every Complaint note logged on a client card
+   - Week navigator: ‹ / › arrows, Monday date picker, This Week / Last Week shortcuts
+   - Summary strip with DRIVER / BILLING / OTHER counts
+   - Columns: # · Logged (date + time) · Type (DRIVER/BILLING/OTHER chip) · Acct · Client · Address · Complaint · By (staff who logged it)
+   - Print button opens a red-themed Arial print sheet titled "HELM — Complaint Report"
+   - **Complaints are hidden from every other report** (Daily Action, Notes Added Today, Everything Report — both screen and print). The only places complaints surface in HELM are this report and the client card's Notes history.
 
 ### Roll-offs (all users)
 - Editable spreadsheet with sortable columns, soft delete + undo, show/restore deleted
@@ -942,7 +949,10 @@ Older entries are intentionally terse — full detail lives in git history. The 
 
 ### May 18-21, 2026
 
-- **May 21** — `Complaint` action type added to client Notes (9th category, between Special Pickup and Misc). Renders with a strong red chip + red border so it pops on every report. Closes the long-standing gap where complaints had no dedicated channel and got buried under Misc; now they're trackable by client / route / period via the existing Notes Added Today and Everything Report.
+- **May 21** — Complaint pipeline:
+  - `Complaint` action type added to client Notes with a 3-option subtype selector (DRIVER / BILLING / OTHER) that appears when Complaint is chosen. Saved as `Complaint - DRIVER` etc in `notes.action` so subtype filtering needs no schema change.
+  - Complaints are **hidden** from Daily Action Report, Notes Added Today, and Everything Report (screen + print) via `filterOutComplaints()` so they don't pollute the operational reports staff scan every day.
+  - New **Complaint Report** card on the Reports tab — visible to David and Esme only. Week navigator (Mon–Sun), summary chips per type, print view in red theme. Closes the long-standing gap where complaints had no dedicated channel; now they have a private weekly review surface for the two people who actually act on them.
 - **May 20** — `sharon` staff user added with restricted view (Client Lookup + Reports only — Add Client / Roll-offs / Dispatch nav group hidden via username gate in both auth paths).
 - **May 19** — Bulk-loaded route notes from `STOPS WITH RT NOTES.xlsx` into `route_assignments` (7,519 upserts, 5,881 with notes). Destructive note-blanks neutralized via two-batch upsert (preserve-existing branch omits `route_note` from payload so PostgREST leaves it untouched on conflict). Then `sync_client_route_fallback.py` copied each client's first-day route + note down to `clients.route` / `clients.route_note` (3,444 PATCHes) so the lookup-card pill matches. Lookup card now renders `📋 route_note` as italic teal line under the address (same look as reports).
 - **May 18** — `find_missing_accts.py` parses all 6 day-route master-list PDFs and diffs vs HELM; `bulk_import_missing_accts.py` creates the surfaced sub-accounts (160 clients + 274 route_assignments inserted, names + addresses enriched from the broader delta export where available). All 176 sub-accts now in HELM. Per-day Routes section added to Add Client (mirrors Edit Client editor).
