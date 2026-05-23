@@ -641,6 +641,173 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .action-tag.at-misc{background:var(--gray-100);color:var(--gray-500);}
 .action-tag.at-pause{background:var(--err-bg);color:var(--err-text);}
 
+/* ── COMPLAINT PIPELINE ─────────────────────────────────────────────── */
+/* Topbar inbox button + iMessage-style badge */
+.topbar-inbox{position:relative;width:34px;height:30px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;cursor:pointer;border-radius:6px;color:rgba(255,255,255,0.75);transition:background .15s,color .15s;margin-right:4px;}
+.topbar-inbox:hover{background:rgba(255,255,255,0.12);color:white;}
+.topbar-inbox svg{width:19px;height:19px;}
+.topbar-inbox-badge{
+  position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;padding:0 5px;
+  background:#dc2626;color:white;font-size:10px;font-weight:800;line-height:1;
+  border-radius:9px;display:flex;align-items:center;justify-content:center;
+  border:1.5px solid var(--navy);font-family:'DM Sans',sans-serif;
+}
+body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
+
+/* Red Complaint button (replaces Edit Client at bottom of client card) */
+.btn-complaint{
+  background:#dc2626;color:white;
+  border:1px solid #b91c1c;
+  padding:8px 18px;border-radius:var(--radius-sm);
+  font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn-complaint:hover{background:#b91c1c;border-color:#991b1b;box-shadow:0 2px 6px rgba(220,38,38,0.3);}
+.btn-complaint svg{width:14px;height:14px;}
+
+/* Edit Client button in its new top-right slot */
+.btn-edit-top{
+  background:transparent;border:1px solid var(--gray-200);
+  color:var(--gray-500);font-size:11px;font-weight:500;
+  padding:4px 12px;border-radius:var(--radius-sm);cursor:pointer;
+  font-family:'DM Sans',sans-serif;transition:all .15s;
+}
+.btn-edit-top:hover{border-color:var(--teal);color:var(--teal);background:white;}
+
+/* Generic modal backdrop + sheet (used by Complaint form and Inbox) */
+.helm-modal-backdrop{
+  position:fixed;inset:0;background:rgba(15,31,61,0.55);
+  display:none;align-items:flex-start;justify-content:center;
+  z-index:9000;padding:24px 16px;overflow-y:auto;
+  animation:helmModalFade 0.15s ease-out;
+}
+.helm-modal-backdrop.open{display:flex;}
+.helm-modal-sheet{
+  background:white;border-radius:8px;box-shadow:0 20px 60px rgba(15,31,61,0.4);
+  width:100%;max-width:680px;margin-top:6vh;
+  overflow:hidden;display:flex;flex-direction:column;max-height:88vh;
+  animation:helmModalSlide 0.18s ease-out;
+}
+.helm-modal-sheet.wide{max-width:1100px;}
+.helm-modal-sheet.narrow{max-width:480px;}
+@keyframes helmModalFade{from{background:rgba(15,31,61,0);}to{background:rgba(15,31,61,0.55);}}
+@keyframes helmModalSlide{from{transform:translateY(-12px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.helm-modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;background:var(--navy);color:white;
+}
+.helm-modal-header.danger{background:#991b1b;}
+.helm-modal-header h3{font-size:15px;font-weight:700;margin:0;letter-spacing:-.005em;}
+.helm-modal-header .close-x{
+  background:none;border:none;color:rgba(255,255,255,0.7);font-size:22px;line-height:1;
+  cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;
+}
+.helm-modal-header .close-x:hover{background:rgba(255,255,255,0.15);color:white;}
+.helm-modal-body{padding:18px 22px;overflow-y:auto;flex:1;}
+.helm-modal-footer{padding:12px 20px;border-top:1px solid var(--gray-100);background:var(--gray-50);display:flex;gap:8px;justify-content:flex-end;}
+
+/* Complaint form fields */
+.cmp-snapshot{background:var(--gray-100);padding:12px 14px;border-radius:6px;margin-bottom:18px;font-size:13px;}
+.cmp-snapshot .row{display:flex;gap:10px;margin-bottom:6px;}
+.cmp-snapshot .row:last-child{margin-bottom:0;}
+.cmp-snapshot label{min-width:80px;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--gray-500);padding-top:2px;}
+.cmp-snapshot .val{color:var(--gray-800);flex:1;font-weight:500;}
+.cmp-field{margin-bottom:14px;}
+.cmp-field label{display:block;font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--gray-500);margin-bottom:5px;}
+.cmp-field select,.cmp-field textarea,.cmp-field input[type=text]{
+  width:100%;padding:9px 11px;border:1px solid var(--gray-200);
+  border-radius:5px;font-size:13px;font-family:'DM Sans',sans-serif;background:white;
+  color:var(--gray-800);box-sizing:border-box;
+}
+.cmp-field textarea{min-height:100px;resize:vertical;line-height:1.4;}
+.cmp-field select:focus,.cmp-field textarea:focus,.cmp-field input:focus{border-color:var(--teal);outline:none;}
+.cmp-field-notes{display:none;}
+.cmp-field-notes.show{display:block;animation:helmModalSlide 0.15s ease-out;}
+
+/* Inbox layout — email-style master/detail */
+.helm-inbox-sheet{max-width:1240px;height:88vh;}
+.helm-inbox-body{padding:0;display:flex;flex:1;min-height:0;}
+.inbox-list{
+  width:320px;border-right:1px solid var(--gray-100);
+  display:flex;flex-direction:column;background:#fafbfd;
+}
+.inbox-filter-strip{padding:10px 12px;border-bottom:1px solid var(--gray-100);display:flex;gap:4px;flex-wrap:wrap;background:white;}
+.inbox-filter-chip{
+  padding:4px 10px;border-radius:14px;font-size:11px;font-weight:600;
+  background:var(--gray-100);color:var(--gray-700);border:1px solid transparent;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.inbox-filter-chip.active{background:var(--navy);color:white;}
+.inbox-filter-chip .chip-count{
+  background:rgba(255,255,255,0.25);color:inherit;
+  padding:0 5px;border-radius:8px;font-size:10px;font-weight:700;min-width:16px;text-align:center;
+}
+.inbox-filter-chip:not(.active) .chip-count{background:rgba(15,31,61,0.08);}
+.inbox-list-rows{flex:1;overflow-y:auto;}
+.inbox-row{
+  padding:11px 14px;border-bottom:1px solid var(--gray-100);cursor:pointer;
+  border-left:3px solid transparent;
+}
+.inbox-row:hover{background:#f1f4f9;}
+.inbox-row.active{background:white;border-left-color:var(--navy);}
+.inbox-row .ir-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:3px;}
+.inbox-row .ir-name{font-size:13px;font-weight:700;color:var(--gray-800);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.inbox-row .ir-time{font-size:10px;color:var(--gray-500);white-space:nowrap;flex-shrink:0;}
+.inbox-row .ir-meta{display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+.inbox-row .ir-preview{font-size:11px;color:var(--gray-600);line-height:1.35;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.inbox-row.status-new .ir-name{color:#991b1b;}
+.inbox-row.status-new::before{content:"";position:absolute;}
+.inbox-detail{flex:1;overflow-y:auto;background:white;padding:22px 28px;display:flex;flex-direction:column;}
+.inbox-detail-empty{display:flex;flex:1;align-items:center;justify-content:center;color:var(--gray-400);font-size:13px;font-style:italic;padding:40px;}
+.inbox-detail h2{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.inbox-detail .id-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:12px;color:var(--gray-500);}
+.inbox-detail .id-row .acct{font-weight:600;color:var(--gray-700);}
+.status-pill-lg{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+}
+.status-pill-lg.status-new{background:#fee2e2;color:#991b1b;border:1px solid #dc2626;}
+.status-pill-lg.status-case_open{background:#fef3c7;color:#92400e;border:1px solid #d97706;}
+.status-pill-lg.status-resolved{background:#dcfce7;color:#166534;border:1px solid #16a34a;}
+.status-pill-lg.status-ignored{background:var(--gray-100);color:var(--gray-500);border:1px solid var(--gray-200);}
+.inbox-snapshot-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;background:#fafbfd;padding:12px 14px;border-radius:6px;margin-bottom:16px;font-size:12px;border:1px solid var(--gray-100);}
+.inbox-snapshot-grid .field label{display:block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);margin-bottom:2px;}
+.inbox-snapshot-grid .field .val{color:var(--gray-800);font-weight:500;}
+.inbox-section{margin-bottom:16px;}
+.inbox-section-hdr{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);margin-bottom:8px;}
+.inbox-original-note{background:#fef9e7;border:1px solid #fce96a;border-left:4px solid #f59e0b;padding:10px 12px;border-radius:4px;font-size:13px;color:var(--gray-800);line-height:1.5;font-family:'DM Sans',sans-serif;white-space:pre-wrap;}
+.inbox-action-row{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;}
+.btn-case-open{background:#d97706;color:white;border:none;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;}
+.btn-case-open:hover{background:#b45309;}
+.btn-ignore{background:var(--gray-100);color:var(--gray-700);border:1px solid var(--gray-200);padding:8px 16px;border-radius:5px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;}
+.btn-ignore:hover{background:var(--gray-200);}
+.btn-resolve{background:#16a34a;color:white;border:none;padding:8px 16px;border-radius:5px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;font-family:inherit;}
+.btn-resolve:hover{background:#15803d;}
+
+/* Action log timeline */
+.action-log{border-left:2px solid var(--gray-100);margin-left:6px;padding-left:14px;}
+.action-log-entry{position:relative;margin-bottom:14px;}
+.action-log-entry::before{content:"";position:absolute;left:-22px;top:5px;width:11px;height:11px;border-radius:50%;background:var(--gray-200);border:2px solid white;box-shadow:0 0 0 2px var(--gray-100);}
+.action-log-entry.action-opened::before{background:#d97706;box-shadow:0 0 0 2px #fed7aa;}
+.action-log-entry.action-resolved::before{background:#16a34a;box-shadow:0 0 0 2px #bbf7d0;}
+.action-log-entry .ale-top{display:flex;gap:8px;align-items:center;font-size:11px;color:var(--gray-500);margin-bottom:3px;}
+.action-log-entry .ale-type{font-weight:700;color:var(--gray-800);font-size:12px;letter-spacing:.02em;text-transform:uppercase;}
+.action-log-entry .ale-by{color:var(--gray-600);}
+.action-log-entry .ale-notes{font-size:13px;color:var(--gray-800);line-height:1.45;margin-top:2px;white-space:pre-wrap;}
+
+.add-action-form{background:#fafbfd;border:1px solid var(--gray-100);border-radius:6px;padding:12px 14px;margin-top:10px;}
+.add-action-form .row{display:flex;gap:8px;margin-bottom:8px;}
+.add-action-form select{padding:7px 10px;border:1px solid var(--gray-200);border-radius:4px;font-size:12px;background:white;flex:0 0 200px;}
+.add-action-form textarea{flex:1;padding:7px 10px;border:1px solid var(--gray-200);border-radius:4px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px;}
+.add-action-form .actions{display:flex;gap:6px;justify-content:flex-end;}
+.add-action-form .actions button{padding:5px 14px;border-radius:4px;font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:inherit;}
+.add-action-form .btn-add-entry{background:var(--teal);color:white;}
+.add-action-form .btn-add-cancel{background:var(--gray-100);color:var(--gray-700);}
+
+.resolution-display{background:#dcfce7;border:1px solid #86efac;border-left:4px solid #16a34a;padding:10px 12px;border-radius:4px;font-size:13px;color:var(--gray-800);line-height:1.5;}
+.ignored-display{background:var(--gray-100);border:1px solid var(--gray-200);border-left:4px solid var(--gray-400);padding:10px 12px;border-radius:4px;font-size:13px;color:var(--gray-700);line-height:1.5;font-style:italic;}
+
 /* ── REPORT ──────────────────────────────── */
 .report-filter-bar{
   display:flex;gap:6px;flex-wrap:wrap;align-items:center;
@@ -2546,6 +2713,13 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     </div>
     <div class="topbar-center" id="topbarCenter"></div>
     <div class="topbar-right">
+      <button id="complaintInboxBtn" class="topbar-inbox" style="display:none" onclick="openComplaintInbox()" title="Complaint inbox" aria-label="Complaint inbox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+          <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+        </svg>
+        <span id="complaintInboxBadge" class="topbar-inbox-badge" style="display:none">0</span>
+      </button>
       <div class="live-dot"></div>
       <div class="live-label" id="topbarUser"></div>
       <button class="btn-logout" onclick="logout()">Sign out</button>
@@ -2674,6 +2848,106 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
   </div>
 </div>
 
+<!-- ── COMPLAINT-LOG MODAL ─────────────────────────────────────────── -->
+<div class="helm-modal-backdrop" id="complaintModal" onclick="if(event.target===this)closeComplaintModal()">
+  <div class="helm-modal-sheet" onclick="event.stopPropagation()">
+    <div class="helm-modal-header danger">
+      <h3>Log Complaint</h3>
+      <button class="close-x" onclick="closeComplaintModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body">
+      <div class="cmp-snapshot">
+        <div class="row"><label>Client</label><div class="val" id="cmpName">—</div></div>
+        <div class="row"><label>Acct #</label><div class="val" id="cmpAcct">—</div></div>
+        <div class="row"><label>Address</label><div class="val" id="cmpAddr">—</div></div>
+        <div class="row"><label>Phone</label><div class="val" id="cmpPhone">—</div></div>
+        <div class="row"><label>Email</label><div class="val" id="cmpEmail">—</div></div>
+        <div class="row"><label>Route</label><div class="val" id="cmpRoute">—</div></div>
+        <div class="row"><label>Pickup Days</label><div class="val" id="cmpDays">—</div></div>
+      </div>
+      <div class="cmp-field">
+        <label>Complaint Type *</label>
+        <select id="cmpTypeSelect" onchange="onComplaintTypeChange()">
+          <option value="">— Choose —</option>
+          <option value="DRIVER">Driver</option>
+          <option value="BILLING">Billing</option>
+          <option value="MISSED_STOP">Missed Stop</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </div>
+      <div class="cmp-field cmp-field-notes" id="cmpNotesField">
+        <label>Describe the complaint *</label>
+        <textarea id="cmpNotes" placeholder="What did the client say? Be specific — this is what David sees in the inbox."></textarea>
+      </div>
+    </div>
+    <div class="helm-modal-footer">
+      <button class="btn-edit-sm" onclick="closeComplaintModal()">Cancel</button>
+      <button class="btn-complaint" onclick="submitComplaint()" style="padding:7px 18px;">Submit Complaint</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── COMPLAINT INBOX (David only) ────────────────────────────────── -->
+<div class="helm-modal-backdrop" id="complaintInbox" onclick="if(event.target===this)closeComplaintInbox()">
+  <div class="helm-modal-sheet wide helm-inbox-sheet" onclick="event.stopPropagation()">
+    <div class="helm-modal-header danger">
+      <h3>Complaint Inbox</h3>
+      <button class="close-x" onclick="closeComplaintInbox()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body helm-inbox-body">
+      <div class="inbox-list">
+        <div class="inbox-filter-strip" id="inboxFilterStrip"></div>
+        <div class="inbox-list-rows" id="inboxListRows"></div>
+      </div>
+      <div class="inbox-detail" id="inboxDetail">
+        <div class="inbox-detail-empty">Select a complaint from the list to view details</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── RESOLVE-CASE CONFIRM MODAL ──────────────────────────────────── -->
+<div class="helm-modal-backdrop" id="resolveModal" onclick="if(event.target===this)closeResolveModal()">
+  <div class="helm-modal-sheet narrow" onclick="event.stopPropagation()">
+    <div class="helm-modal-header">
+      <h3>Mark Case Resolved</h3>
+      <button class="close-x" onclick="closeResolveModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body">
+      <div style="font-size:13px;color:var(--gray-600);margin-bottom:14px;">Resolving the case for <strong id="resolveClient">—</strong>. Write a brief summary of how it was resolved — this is what shows in the case file going forward.</div>
+      <div class="cmp-field">
+        <label>Resolution notes *</label>
+        <textarea id="resolveNotes" placeholder="e.g. Spoke with client, will leave bin out by 6am next time. Driver was reminded of the address."></textarea>
+      </div>
+    </div>
+    <div class="helm-modal-footer">
+      <button class="btn-edit-sm" onclick="closeResolveModal()">Cancel</button>
+      <button class="btn-resolve" onclick="confirmResolveCase()" style="padding:7px 18px;">✓ Mark Resolved</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── IGNORE-COMPLAINT MODAL ──────────────────────────────────────── -->
+<div class="helm-modal-backdrop" id="ignoreModal" onclick="if(event.target===this)closeIgnoreModal()">
+  <div class="helm-modal-sheet narrow" onclick="event.stopPropagation()">
+    <div class="helm-modal-header">
+      <h3>Ignore Complaint</h3>
+      <button class="close-x" onclick="closeIgnoreModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body">
+      <div style="font-size:13px;color:var(--gray-600);margin-bottom:14px;">Ignoring the complaint about <strong id="ignoreClient">—</strong>. The complaint and your reason will stay in the inbox under the <em>Ignored</em> filter — nothing gets deleted. <strong>A reason is required</strong> so the audit trail is complete.</div>
+      <div class="cmp-field">
+        <label>Reason for ignoring *</label>
+        <textarea id="ignoreReason" placeholder="e.g. Duplicate of complaint #38 logged earlier today. / Client called back and rescinded — was their renter's mistake."></textarea>
+      </div>
+    </div>
+    <div class="helm-modal-footer">
+      <button class="btn-edit-sm" onclick="closeIgnoreModal()">Cancel</button>
+      <button class="btn-ignore" onclick="confirmIgnoreComplaint()" style="padding:7px 18px;">Ignore Complaint</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────
 const SUPABASE_URL   = 'https://iiqlhqtyyqctgupalrlc.supabase.co';
@@ -2706,9 +2980,11 @@ const ACTION_TYPES = [
   {value:'3X WK', label:'3X WK', needsDate:true, tag:'at-3xwk'},
   {value:'LPU', label:'LPU', needsDate:true, tag:'at-lpu'},
   {value:'Special Pickup', label:'Special Pickup', needsDate:true, tag:'at-special'},
-  {value:'Complaint', label:'Complaint', needsDate:true, tag:'at-complaint'},
   {value:'Misc', label:'Misc', needsDate:false, tag:'at-misc'},
 ];
+// NOTE: 'Complaint' was previously in this list. It moved to its own dedicated
+// flow (red Log Complaint button on the client card → modal → complaints table)
+// because complaints need triage / case management, not just a notes-stream entry.
 
 let clients = [], skips = [], clientNotes = [], selectedWeek = '', activeClient = null;
 let currentUser = null;
@@ -3127,6 +3403,9 @@ async function login() {
     document.getElementById('actionTabBtn').style.display='';
     document.getElementById('navGroup-routing').style.display='';
     document.getElementById('resiRoutesTabBtn').style.display='';
+    // Complaint inbox icon + badge poll (David only).
+    document.getElementById('complaintInboxBtn').style.display='';
+    startComplaintBadgePoll();
   }
   // Sharon: restricted view — only Client Lookup + Reports under Client
   // Management; hide Add Client, Roll-offs, and the entire Dispatch group.
@@ -3662,7 +3941,8 @@ async function showPanel(c){
     <div class="cli-inline-card">
       <div class="cli-inline-grid">
         <div class="cli-info-col">
-          <div class="cli-info-header">
+          <div class="cli-info-header" style="position:relative;">
+            <button class="btn-edit-top" onclick="editClient('${c.client_id}')" style="position:absolute;top:0;right:0;">Edit Client</button>
             <div class="cli-name-row">
               <h2>${esc(displayName)}</h2>
               ${co.name?`<span class="company-tag ${co.cls}">${co.name}</span>`:''}
@@ -3691,8 +3971,11 @@ async function showPanel(c){
 
           ${renderRatePanel(c)}
 
-          <div style="display:flex;justify-content:flex-end;margin-top:10px">
-            <button class="btn-edit-sm" onclick="editClient('${c.client_id}')">Edit Client</button>
+          <div style="display:flex;justify-content:flex-end;margin-top:14px">
+            <button class="btn-complaint" onclick="openComplaintModal('${c.client_id}')" title="Log a complaint about this client">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Log Complaint
+            </button>
           </div>
         </div>
 
@@ -3703,11 +3986,6 @@ async function showPanel(c){
               ${ACTION_TYPES.map(a=>`<option value="${a.value}">${a.label}</option>`).join('')}
             </select>
             <input type="date" id="noteActionDate" style="display:none"/>
-            <select id="noteComplaintType" style="display:none" title="Complaint type">
-              <option value="DRIVER">Driver</option>
-              <option value="BILLING">Billing</option>
-              <option value="OTHER">Other</option>
-            </select>
             <input type="text" id="noteText" placeholder="Add a note…" onkeydown="if(event.key==='Enter'){event.preventDefault();submitNote('${c.client_id}');}"/>
             <button class="btn-note-add" onclick="submitNote('${c.client_id}')">Add</button>
           </div>
@@ -3730,11 +4008,9 @@ async function showPanel(c){
 function toggleNoteDateField(){
   const sel=document.getElementById('noteAction');
   const dateIn=document.getElementById('noteActionDate');
-  const cType=document.getElementById('noteComplaintType');
-  if(!sel) return;
+  if(!sel||!dateIn) return;
   const action=ACTION_TYPES.find(a=>a.value===sel.value);
-  if(dateIn) dateIn.style.display=action&&action.needsDate?'':'none';
-  if(cType) cType.style.display=sel.value==='Complaint'?'':'none';
+  dateIn.style.display=action&&action.needsDate?'':'none';
 }
 
 function renderNotesTable(notes){
@@ -3774,24 +4050,15 @@ function renderNotesTable(notes){
 }
 
 async function submitNote(baseId){
-  const rawAction=document.getElementById('noteAction').value;
+  const action=document.getElementById('noteAction').value;
   const dateIn=document.getElementById('noteActionDate');
   const textIn=document.getElementById('noteText');
   const noteText=textIn.value.trim();
-  const actionType=ACTION_TYPES.find(a=>a.value===rawAction);
+  const actionType=ACTION_TYPES.find(a=>a.value===action);
   const actionDate=actionType&&actionType.needsDate?dateIn.value:null;
 
   if(actionType&&actionType.needsDate&&!actionDate){
     toast('Select a date for this action');return;
-  }
-
-  // Complaint subtype: store action as "Complaint - DRIVER|BILLING|OTHER" so we
-  // can later split the weekly Complaint Report by type without a schema change.
-  let action = rawAction;
-  if(rawAction==='Complaint'){
-    const cType = document.getElementById('noteComplaintType');
-    const sub = (cType && cType.value) ? cType.value : 'OTHER';
-    action = 'Complaint - ' + sub;
   }
 
   const {error}=await db.from('notes').insert({
@@ -5329,26 +5596,40 @@ async function generateComplaintReport(){
   const results = document.getElementById('complaintResults');
   results.innerHTML = '<div class="loading">Loading complaints…</div>';
 
-  // Mon 00:00 → following Mon 00:00 (exclusive) in local time, converted to UTC for created_at.
+  // Mon 00:00 → following Mon 00:00 (exclusive) in local time, converted to UTC for logged_at.
+  // Reads from the new `complaints` table (which carries client snapshots + status).
+  // Each row is normalized into the same shape the rest of the report code expects
+  // (action/user_id/note/created_at) so we don't have to rewrite the renderer.
   const startDt = new Date(start+'T00:00:00');
   const endDt   = new Date(start+'T00:00:00'); endDt.setDate(endDt.getDate()+7);
   const startISO = startDt.toISOString();
   const endISO   = endDt.toISOString();
-  const {data, error} = await db.from('notes')
+  const {data:cmpData, error} = await db.from('complaints')
     .select('*')
-    .ilike('action','Complaint%')
-    .gte('created_at', startISO).lt('created_at', endISO)
-    .order('created_at',{ascending:false});
+    .gte('logged_at', startISO).lt('logged_at', endISO)
+    .order('logged_at',{ascending:false});
   if(error){
     results.innerHTML = '<div class="empty-state" style="color:var(--err-text);text-align:left;line-height:1.5">Error: '+esc(error.message)+'</div>';
     return;
   }
   const weekLabel = `${fmtDate(start)} – ${fmtDate(complaintWeekEndStr(start))}`;
-  if(!data || !data.length){
+  if(!cmpData || !cmpData.length){
     results.innerHTML = '<div class="empty-state">No complaints logged for the week of '+weekLabel+'</div>';
     _complaintRawData = null;
     return;
   }
+  // Adapt complaints rows → notes-shaped rows so complaintType()/actionTagClass()
+  // and the existing renderer keep working without changes. The status field is
+  // preserved so the report can show resolved/ignored visually if we want later.
+  const data = cmpData.map(c => ({
+    id:         c.id,
+    client_id:  c.client_id,
+    user_id:    c.logged_by,
+    action:     'Complaint - '+c.type,
+    note:       c.notes,
+    created_at: c.logged_at,
+    _status:    c.status,
+  }));
 
   _complaintRawData = data;
   _complaintWeekStart = start;
@@ -5483,11 +5764,13 @@ async function printComplaintReport(start){
     const endDt   = new Date(start+'T00:00:00'); endDt.setDate(endDt.getDate()+7);
     const startISO = startDt.toISOString();
     const endISO   = endDt.toISOString();
-    const {data:fetched} = await db.from('notes').select('*')
-      .ilike('action','Complaint%')
-      .gte('created_at', startISO).lt('created_at', endISO)
-      .order('created_at',{ascending:false});
-    raw = fetched || [];
+    const {data:fetched} = await db.from('complaints').select('*')
+      .gte('logged_at', startISO).lt('logged_at', endISO)
+      .order('logged_at',{ascending:false});
+    raw = (fetched || []).map(c => ({
+      id: c.id, client_id: c.client_id, user_id: c.logged_by,
+      action: 'Complaint - '+c.type, note: c.notes, created_at: c.logged_at,
+    }));
   }
   const type = (document.getElementById('complaintFilterType')||{}).value || '';
   const user = (document.getElementById('complaintFilterUser')||{}).value || '';
@@ -5577,6 +5860,570 @@ ${sections}
 <div class="footer">
   <span>Reis Trucking — Nantucket, MA</span>
   <span>HELM — Confidential</span>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+  win.document.close();
+}
+
+// ── COMPLAINT PIPELINE ────────────────────────────────────────────────
+// New dedicated workflow (replaces the old "Complaint" note action). Flow:
+//   1. Any user clicks "Log Complaint" on a client card → modal opens with
+//      client snapshot, type picker (Driver/Billing/Missed Stop/Other), and
+//      a notes textarea that ONLY appears after type is chosen.
+//   2. On submit, a row lands in the `complaints` table with status='new' and
+//      a snapshot of the client (name/addr/phone/email/route/days).
+//   3. David's topbar shows an inbox icon with an iMessage-style red badge
+//      counting new (untriaged) complaints. Esme does not see the inbox.
+//   4. David opens the inbox (email-style master/detail). For each new
+//      complaint he either:
+//        - Opens a case (status→case_open, "opened" entry written to
+//          complaint_actions). Then he logs steps (Called Client / Spoke to
+//          Driver / Spoke to Rep / Note) and finally hits Mark Resolved.
+//        - Ignores the complaint (requires a reason text; saved to
+//          ignored_reason). Status flips to 'ignored' but the row stays so
+//          the audit trail is preserved.
+
+const COMPLAINT_TYPES = [
+  {value:'DRIVER',      label:'Driver'},
+  {value:'BILLING',     label:'Billing'},
+  {value:'MISSED_STOP', label:'Missed Stop'},
+  {value:'OTHER',       label:'Other'},
+];
+function complaintTypeLabel(v){
+  const t = COMPLAINT_TYPES.find(x=>x.value===v);
+  return t ? t.label : (v||'').replace(/_/g,' ');
+}
+
+const CASE_ACTION_TYPES = [
+  {value:'called_client',   label:'Called Client'},
+  {value:'spoke_to_driver', label:'Spoke to Driver'},
+  {value:'spoke_to_rep',    label:'Spoke to Rep'},
+  {value:'note',            label:'Note'},
+];
+function caseActionLabel(v){
+  if(v==='opened')   return 'Opened';
+  if(v==='resolved') return 'Resolved';
+  if(v==='reopened') return 'Reopened';
+  const t = CASE_ACTION_TYPES.find(x=>x.value===v);
+  return t ? t.label : (v||'').replace(/_/g,' ');
+}
+
+// ── LOG-COMPLAINT MODAL ───────────────────────────────────────────────
+function openComplaintModal(clientId){
+  const c = clients.find(x=>x.client_id===clientId);
+  if(!c){ toast('Client not found'); return; }
+  const days = c.service_day ? c.service_day.split(',').map(d=>d.trim()).filter(Boolean) : [];
+  document.getElementById('complaintModal').dataset.clientId = clientId;
+  document.getElementById('cmpName').textContent    = c.client_name || `Account ${c.client_id}`;
+  document.getElementById('cmpAcct').textContent    = c.client_id;
+  document.getElementById('cmpAddr').textContent    = c.address || '—';
+  document.getElementById('cmpPhone').textContent   = c.phone || 'No phone on file';
+  document.getElementById('cmpEmail').textContent   = c.email || 'No email on file';
+  document.getElementById('cmpRoute').textContent   = (c.route!=null && c.route!=='') ? ('Route '+c.route) : 'No route';
+  document.getElementById('cmpDays').textContent    = days.length ? days.join(', ') : 'No pickup days set';
+  document.getElementById('cmpTypeSelect').value    = '';
+  document.getElementById('cmpNotesField').classList.remove('show');
+  document.getElementById('cmpNotes').value         = '';
+  document.getElementById('complaintModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeComplaintModal(){
+  document.getElementById('complaintModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function onComplaintTypeChange(){
+  const sel = document.getElementById('cmpTypeSelect');
+  const field = document.getElementById('cmpNotesField');
+  if(sel.value){
+    field.classList.add('show');
+    setTimeout(()=>{ const t=document.getElementById('cmpNotes'); if(t) t.focus(); }, 50);
+  } else {
+    field.classList.remove('show');
+  }
+}
+async function submitComplaint(){
+  const clientId = document.getElementById('complaintModal').dataset.clientId;
+  const c = clients.find(x=>x.client_id===clientId);
+  if(!c){ toast('Client not found'); return; }
+  const type  = document.getElementById('cmpTypeSelect').value;
+  const notes = document.getElementById('cmpNotes').value.trim();
+  if(!type){ toast('Pick a complaint type'); return; }
+  if(!notes){ toast('Describe the complaint'); return; }
+  const loggedBy = currentUser ? (currentUser.display_name || currentUser.username) : '';
+  const {error} = await db.from('complaints').insert({
+    client_id:      c.client_id,
+    client_name:    c.client_name || null,
+    client_address: c.address || null,
+    client_phone:   c.phone || null,
+    client_email:   c.email || null,
+    client_route:   (c.route===''||c.route==null) ? null : c.route,
+    client_days:    c.service_day || null,
+    type:           type,
+    notes:          notes,
+    logged_by:      loggedBy,
+    status:         'new',
+  });
+  if(error){ toast('Error: '+error.message); return; }
+  closeComplaintModal();
+  toast('Complaint logged — sent to David\'s inbox', true);
+  logActivity('complaint_logged', `${c.client_id} ${type}`);
+  refreshComplaintBadge();
+}
+
+// ── INBOX BADGE (David only) ──────────────────────────────────────────
+let _complaintBadgePollTimer = null;
+async function refreshComplaintBadge(){
+  if(!userIsDavid()) return;
+  const {data, error} = await db.from('complaints').select('id', {count:'exact', head:true}).eq('status','new');
+  if(error) return;
+  // PostgREST returns count on the response — supabase-js exposes it via the
+  // response. Fall back to a length lookup if needed.
+  const badge = document.getElementById('complaintInboxBadge');
+  if(!badge) return;
+  let count = 0;
+  if(typeof data === 'object' && data !== null && 'count' in data) count = data.count;
+  // supabase-js v2: count via second call
+  const resp = await db.from('complaints').select('id').eq('status','new');
+  count = (resp.data || []).length;
+  if(count > 0){
+    badge.textContent = count > 99 ? '99+' : String(count);
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+function startComplaintBadgePoll(){
+  if(!userIsDavid()) return;
+  refreshComplaintBadge();
+  if(_complaintBadgePollTimer) clearInterval(_complaintBadgePollTimer);
+  _complaintBadgePollTimer = setInterval(refreshComplaintBadge, 60000);
+  // Also refresh when the tab regains focus.
+  window.addEventListener('focus', refreshComplaintBadge);
+}
+
+// ── INBOX MODAL (David only) ──────────────────────────────────────────
+let _inboxComplaints = [];
+let _inboxFilter = 'new';
+let _inboxSelectedId = null;
+
+async function openComplaintInbox(){
+  if(!userIsDavid()){ toast('David only'); return; }
+  document.getElementById('complaintInbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  _inboxFilter = 'new';
+  _inboxSelectedId = null;
+  await loadInboxComplaints();
+}
+function closeComplaintInbox(){
+  document.getElementById('complaintInbox').classList.remove('open');
+  document.body.style.overflow = '';
+  refreshComplaintBadge();
+}
+
+async function loadInboxComplaints(){
+  const {data, error} = await db.from('complaints').select('*').order('logged_at',{ascending:false});
+  if(error){ toast('Inbox error: '+error.message); return; }
+  _inboxComplaints = data || [];
+  renderInbox();
+}
+
+function renderInbox(){
+  // Filter chips with counts
+  const counts = {new:0, case_open:0, resolved:0, ignored:0, all:_inboxComplaints.length};
+  for(const c of _inboxComplaints){ if(counts.hasOwnProperty(c.status)) counts[c.status]++; }
+  const filters = [
+    {key:'new',       label:'New'},
+    {key:'case_open', label:'Open Cases'},
+    {key:'resolved',  label:'Resolved'},
+    {key:'ignored',   label:'Ignored'},
+    {key:'all',       label:'All'},
+  ];
+  const stripEl = document.getElementById('inboxFilterStrip');
+  if(stripEl){
+    stripEl.innerHTML = filters.map(f =>
+      `<button class="inbox-filter-chip ${f.key===_inboxFilter?'active':''}" onclick="setInboxFilter('${f.key}')">
+        ${f.label}<span class="chip-count">${counts[f.key]||0}</span>
+      </button>`
+    ).join('');
+  }
+
+  const filtered = _inboxFilter==='all'
+    ? _inboxComplaints
+    : _inboxComplaints.filter(c=>c.status===_inboxFilter);
+
+  const listEl = document.getElementById('inboxListRows');
+  if(filtered.length){
+    listEl.innerHTML = filtered.map(c => {
+      const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+      const preview = (c.notes||'').replace(/\s+/g,' ').slice(0,140);
+      const typeChip = `<span class="action-tag at-complaint" style="font-size:9px;padding:1px 5px;">${esc(complaintTypeLabel(c.type))}</span>`;
+      const statusChip = `<span class="status-pill-lg status-${c.status}" style="font-size:9px;padding:1px 6px;">${c.status==='case_open'?'CASE':c.status.toUpperCase()}</span>`;
+      return `<div class="inbox-row status-${c.status} ${c.id===_inboxSelectedId?'active':''}" onclick="selectInboxRow(${c.id})">
+        <div class="ir-top">
+          <div class="ir-name">${esc(c.client_name||'Account '+c.client_id)}</div>
+          <div class="ir-time">${esc(when)}</div>
+        </div>
+        <div class="ir-meta">${typeChip}${statusChip}<span style="font-size:10px;color:var(--gray-500);">by ${esc(c.logged_by||'—')}</span></div>
+        <div class="ir-preview">${esc(preview)}</div>
+      </div>`;
+    }).join('');
+  } else {
+    listEl.innerHTML = `<div style="padding:30px 14px;text-align:center;color:var(--gray-400);font-size:12px;font-style:italic;">No complaints in this filter.</div>`;
+  }
+
+  // Detail pane
+  const detail = _inboxSelectedId
+    ? _inboxComplaints.find(c=>c.id===_inboxSelectedId)
+    : null;
+  renderInboxDetail(detail);
+}
+
+function setInboxFilter(key){
+  _inboxFilter = key;
+  // If currently selected complaint isn't in this filter anymore, clear it.
+  if(_inboxSelectedId){
+    const s = _inboxComplaints.find(c=>c.id===_inboxSelectedId);
+    if(s && key!=='all' && s.status!==key) _inboxSelectedId = null;
+  }
+  renderInbox();
+}
+
+function selectInboxRow(id){
+  _inboxSelectedId = id;
+  renderInbox();
+}
+
+async function renderInboxDetail(c){
+  const wrap = document.getElementById('inboxDetail');
+  if(!wrap) return;
+  if(!c){
+    wrap.innerHTML = `<div class="inbox-detail-empty">Select a complaint from the list to view details</div>`;
+    return;
+  }
+  const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+
+  // Build snapshot grid
+  const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '—';
+  const route = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
+  const snapshot = `
+    <div class="inbox-snapshot-grid">
+      <div class="field"><label>Client</label><div class="val">${esc(c.client_name||'—')}</div></div>
+      <div class="field"><label>Acct #</label><div class="val">${esc(c.client_id)}</div></div>
+      <div class="field"><label>Address</label><div class="val">${esc(c.client_address||'—')}</div></div>
+      <div class="field"><label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div></div>
+      <div class="field"><label>Email</label><div class="val">${esc(c.client_email||'—')}</div></div>
+      <div class="field"><label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div></div>
+    </div>`;
+
+  // Action area depending on status
+  let actionArea = '';
+  if(c.status === 'new'){
+    actionArea = `
+      <div class="inbox-action-row">
+        <button class="btn-case-open" onclick="openCase(${c.id})">▸ Open Case</button>
+        <button class="btn-ignore" onclick="promptIgnoreComplaint(${c.id})">Ignore</button>
+      </div>`;
+  } else if(c.status === 'case_open'){
+    actionArea = await renderCaseActionLog(c);
+  } else if(c.status === 'resolved'){
+    const resBy = c.resolved_by || '—';
+    const resAt = c.resolved_at ? new Date(c.resolved_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    actionArea = `
+      <div class="inbox-section">
+        <div class="inbox-section-hdr">Resolution</div>
+        <div class="resolution-display">${c.resolution_notes?esc(c.resolution_notes):'<em>No resolution notes recorded.</em>'}<div style="margin-top:6px;font-size:11px;color:var(--gray-500);">Resolved by ${esc(resBy)} on ${esc(resAt)}</div></div>
+      </div>
+      ${await renderCaseActionLog(c, true)}`;
+  } else if(c.status === 'ignored'){
+    const ignBy = c.ignored_by || '—';
+    const ignAt = c.ignored_at ? new Date(c.ignored_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    actionArea = `
+      <div class="inbox-section">
+        <div class="inbox-section-hdr">Ignored</div>
+        <div class="ignored-display">${c.ignored_reason?esc(c.ignored_reason):'<em>No reason recorded.</em>'}<div style="margin-top:6px;font-size:11px;color:var(--gray-500);font-style:normal;">By ${esc(ignBy)} on ${esc(ignAt)}</div></div>
+      </div>`;
+  }
+
+  wrap.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px;">
+      <div>
+        <h2>${esc(c.client_name||'Account '+c.client_id)}</h2>
+        <div class="id-row">
+          <span class="acct">#${esc(c.client_id)}</span>
+          <span>·</span>
+          <span class="action-tag at-complaint">${esc(complaintTypeLabel(c.type))}</span>
+          <span class="status-pill-lg status-${c.status}">${c.status==='case_open'?'CASE OPEN':c.status.toUpperCase()}</span>
+        </div>
+        <div style="font-size:12px;color:var(--gray-500);">Logged by <strong>${esc(c.logged_by||'—')}</strong> on ${esc(when)}</div>
+      </div>
+      <button class="btn-edit-sm" onclick="printComplaintCase(${c.id})" style="white-space:nowrap;">Print</button>
+    </div>
+    ${snapshot}
+    <div class="inbox-section">
+      <div class="inbox-section-hdr">Original Complaint</div>
+      <div class="inbox-original-note">${esc(c.notes||'(no description)')}</div>
+    </div>
+    ${actionArea}
+  `;
+}
+
+async function renderCaseActionLog(c, readOnly){
+  const {data:actions} = await db.from('complaint_actions')
+    .select('*').eq('complaint_id', c.id).order('performed_at', {ascending:true});
+  const entries = (actions||[]).map(a => {
+    const ts = a.performed_at ? new Date(a.performed_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+    return `<div class="action-log-entry action-${a.action_type}">
+      <div class="ale-top">
+        <span class="ale-type">${esc(caseActionLabel(a.action_type))}</span>
+        <span class="ale-by">${esc(a.performed_by||'—')}</span>
+        <span>·</span>
+        <span>${esc(ts)}</span>
+      </div>
+      ${a.notes?`<div class="ale-notes">${esc(a.notes)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  const addForm = readOnly ? '' : `
+    <div id="addActionForm" class="add-action-form" style="display:none;">
+      <div class="row">
+        <select id="addActionType">
+          ${CASE_ACTION_TYPES.map(t=>`<option value="${t.value}">${t.label}</option>`).join('')}
+        </select>
+        <textarea id="addActionNotes" placeholder="What happened? (optional)"></textarea>
+      </div>
+      <div class="actions">
+        <button class="btn-add-cancel" onclick="hideAddActionForm()">Cancel</button>
+        <button class="btn-add-entry" onclick="submitCaseAction(${c.id})">Add Entry</button>
+      </div>
+    </div>`;
+
+  const controls = readOnly ? '' : `
+    <div class="inbox-action-row">
+      <button class="btn-case-open" onclick="showAddActionForm()" style="background:var(--teal);">+ Add Entry</button>
+      <button class="btn-resolve" onclick="promptResolveCase(${c.id})">✓ Mark Resolved</button>
+    </div>`;
+
+  return `
+    <div class="inbox-section">
+      <div class="inbox-section-hdr">Case Action Log</div>
+      <div class="action-log">${entries || '<div style="color:var(--gray-400);font-style:italic;font-size:12px;">No actions logged yet.</div>'}</div>
+      ${addForm}
+    </div>
+    ${controls}`;
+}
+
+function showAddActionForm(){
+  const f = document.getElementById('addActionForm');
+  if(f){ f.style.display = 'block'; setTimeout(()=>{ const t=document.getElementById('addActionNotes'); if(t) t.focus(); }, 50); }
+}
+function hideAddActionForm(){
+  const f = document.getElementById('addActionForm');
+  if(f) f.style.display = 'none';
+}
+
+async function openCase(complaintId){
+  if(!userIsDavid()){ toast('David only'); return; }
+  const by = currentUser ? (currentUser.display_name||currentUser.username) : '';
+  const now = new Date().toISOString();
+  const {error:e1} = await db.from('complaints')
+    .update({status:'case_open', case_opened_at:now, case_opened_by:by})
+    .eq('id', complaintId);
+  if(e1){ toast('Error: '+e1.message); return; }
+  await db.from('complaint_actions').insert({
+    complaint_id: complaintId, action_type:'opened', performed_by: by,
+  });
+  toast('Case opened', true);
+  logActivity('complaint_case_opened', String(complaintId));
+  // Refresh in-memory + re-render
+  const idx = _inboxComplaints.findIndex(c=>c.id===complaintId);
+  if(idx>=0){ _inboxComplaints[idx].status='case_open'; _inboxComplaints[idx].case_opened_at=now; _inboxComplaints[idx].case_opened_by=by; }
+  _inboxFilter = 'case_open';
+  _inboxSelectedId = complaintId;
+  renderInbox();
+}
+
+async function submitCaseAction(complaintId){
+  if(!userIsDavid()) return;
+  const type = document.getElementById('addActionType').value;
+  const notes = document.getElementById('addActionNotes').value.trim();
+  if(!type){ toast('Pick an action type'); return; }
+  const by = currentUser ? (currentUser.display_name||currentUser.username) : '';
+  const {error} = await db.from('complaint_actions').insert({
+    complaint_id: complaintId, action_type:type, notes:notes||null, performed_by:by,
+  });
+  if(error){ toast('Error: '+error.message); return; }
+  toast('Entry added', true);
+  // Re-render the detail pane (action log + reset form)
+  const c = _inboxComplaints.find(x=>x.id===complaintId);
+  if(c) renderInboxDetail(c);
+}
+
+function promptResolveCase(complaintId){
+  const c = _inboxComplaints.find(x=>x.id===complaintId);
+  if(!c) return;
+  document.getElementById('resolveModal').dataset.complaintId = complaintId;
+  document.getElementById('resolveClient').textContent = c.client_name || ('Account '+c.client_id);
+  document.getElementById('resolveNotes').value = '';
+  document.getElementById('resolveModal').classList.add('open');
+}
+function closeResolveModal(){
+  document.getElementById('resolveModal').classList.remove('open');
+}
+async function confirmResolveCase(){
+  const complaintId = Number(document.getElementById('resolveModal').dataset.complaintId);
+  const notes = document.getElementById('resolveNotes').value.trim();
+  if(!notes){ toast('Add resolution notes'); return; }
+  const by = currentUser ? (currentUser.display_name||currentUser.username) : '';
+  const now = new Date().toISOString();
+  const {error:e1} = await db.from('complaints')
+    .update({status:'resolved', resolved_at:now, resolved_by:by, resolution_notes:notes})
+    .eq('id', complaintId);
+  if(e1){ toast('Error: '+e1.message); return; }
+  await db.from('complaint_actions').insert({
+    complaint_id: complaintId, action_type:'resolved', notes:notes, performed_by:by,
+  });
+  closeResolveModal();
+  toast('Case resolved', true);
+  logActivity('complaint_resolved', String(complaintId));
+  const idx = _inboxComplaints.findIndex(c=>c.id===complaintId);
+  if(idx>=0){
+    _inboxComplaints[idx].status='resolved';
+    _inboxComplaints[idx].resolved_at=now;
+    _inboxComplaints[idx].resolved_by=by;
+    _inboxComplaints[idx].resolution_notes=notes;
+  }
+  _inboxFilter = 'resolved';
+  _inboxSelectedId = complaintId;
+  renderInbox();
+  refreshComplaintBadge();
+}
+
+function promptIgnoreComplaint(complaintId){
+  const c = _inboxComplaints.find(x=>x.id===complaintId);
+  if(!c) return;
+  document.getElementById('ignoreModal').dataset.complaintId = complaintId;
+  document.getElementById('ignoreClient').textContent = c.client_name || ('Account '+c.client_id);
+  document.getElementById('ignoreReason').value = '';
+  document.getElementById('ignoreModal').classList.add('open');
+}
+function closeIgnoreModal(){
+  document.getElementById('ignoreModal').classList.remove('open');
+}
+async function confirmIgnoreComplaint(){
+  const complaintId = Number(document.getElementById('ignoreModal').dataset.complaintId);
+  const reason = document.getElementById('ignoreReason').value.trim();
+  if(!reason){ toast('A reason is required to ignore a complaint'); return; }
+  const by = currentUser ? (currentUser.display_name||currentUser.username) : '';
+  const now = new Date().toISOString();
+  const {error} = await db.from('complaints')
+    .update({status:'ignored', ignored_at:now, ignored_by:by, ignored_reason:reason})
+    .eq('id', complaintId);
+  if(error){ toast('Error: '+error.message); return; }
+  closeIgnoreModal();
+  toast('Complaint ignored — saved with reason', true);
+  logActivity('complaint_ignored', String(complaintId));
+  const idx = _inboxComplaints.findIndex(c=>c.id===complaintId);
+  if(idx>=0){
+    _inboxComplaints[idx].status='ignored';
+    _inboxComplaints[idx].ignored_at=now;
+    _inboxComplaints[idx].ignored_by=by;
+    _inboxComplaints[idx].ignored_reason=reason;
+  }
+  _inboxFilter = 'ignored';
+  _inboxSelectedId = complaintId;
+  renderInbox();
+  refreshComplaintBadge();
+}
+
+// Print a single complaint case file (auditable record).
+async function printComplaintCase(complaintId){
+  const c = _inboxComplaints.find(x=>x.id===complaintId);
+  if(!c){ toast('Complaint not found'); return; }
+  const {data:actions} = await db.from('complaint_actions')
+    .select('*').eq('complaint_id', complaintId).order('performed_at',{ascending:true});
+  const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+  const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '—';
+  const route = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
+  let statusLine = '';
+  if(c.status==='resolved'){
+    const t = c.resolved_at ? new Date(c.resolved_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    statusLine = `<div class="status-line resolved">RESOLVED by ${esc(c.resolved_by||'—')} on ${esc(t)}</div>
+      <div class="block"><strong>Resolution:</strong> ${esc(c.resolution_notes||'(none)')}</div>`;
+  } else if(c.status==='ignored'){
+    const t = c.ignored_at ? new Date(c.ignored_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    statusLine = `<div class="status-line ignored">IGNORED by ${esc(c.ignored_by||'—')} on ${esc(t)}</div>
+      <div class="block"><strong>Reason for ignoring:</strong> ${esc(c.ignored_reason||'(none)')}</div>`;
+  } else if(c.status==='case_open'){
+    statusLine = `<div class="status-line case">CASE OPEN — opened by ${esc(c.case_opened_by||'—')}</div>`;
+  } else {
+    statusLine = `<div class="status-line new">NEW — awaiting triage</div>`;
+  }
+
+  const actionRows = (actions||[]).map(a=>{
+    const t = a.performed_at ? new Date(a.performed_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+    return `<tr>
+      <td style="white-space:nowrap;color:#555;">${esc(t)}</td>
+      <td style="font-weight:700;color:#0f1f3d;text-transform:uppercase;font-size:12px;">${esc(caseActionLabel(a.action_type))}</td>
+      <td style="color:#555;">${esc(a.performed_by||'—')}</td>
+      <td>${esc(a.notes||'')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:#999;font-style:italic;">No actions logged</td></tr>';
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/><title>HELM Complaint Case #${c.id}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:18px;}
+.header{border-bottom:2px solid #dc2626;padding-bottom:10px;margin-bottom:14px;}
+.header h1{font-size:20px;font-weight:700;color:#991b1b;}
+.header .sub{font-size:13px;color:#444;margin-top:4px;}
+.header .sub span{font-weight:700;color:#000;}
+.status-line{display:inline-block;padding:4px 10px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;}
+.status-line.new{background:#fee2e2;color:#991b1b;}
+.status-line.case{background:#fef3c7;color:#92400e;}
+.status-line.resolved{background:#dcfce7;color:#166534;}
+.status-line.ignored{background:#e5e7eb;color:#374151;}
+.section{margin-bottom:14px;}
+.section h2{background:#0f1f3d;color:white;padding:6px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.grid{display:grid;grid-template-columns:140px 1fr;gap:6px 14px;font-size:13px;padding:0 4px;}
+.grid label{color:#666;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding-top:2px;}
+.grid .val{color:#000;}
+.block{padding:8px 12px;background:#fef9e7;border-left:4px solid #f59e0b;border-radius:4px;font-size:13px;line-height:1.5;white-space:pre-wrap;}
+table{width:100%;border-collapse:collapse;margin-top:4px;}
+th{background:#0f1f3d;color:white;padding:6px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+td{padding:7px 8px;border-bottom:1px solid #d5d9e0;font-size:13px;line-height:1.35;}
+tr:nth-child(even) td{background:#fafbfd;}
+.footer{margin-top:18px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+@media print{body{padding:10px;font-size:13px;}@page{margin:0.6cm;}}
+</style></head><body>
+<div class="header">
+  <h1>HELM — Complaint Case #${c.id}</h1>
+  <div class="sub">Logged by <span>${esc(c.logged_by||'—')}</span> on <span>${esc(when)}</span> &nbsp;·&nbsp; Type: <span>${esc(complaintTypeLabel(c.type))}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
+</div>
+${statusLine}
+<div class="section"><h2>Client Snapshot (at time of complaint)</h2>
+  <div class="grid">
+    <label>Name</label><div class="val">${esc(c.client_name||'—')}</div>
+    <label>Acct #</label><div class="val">${esc(c.client_id)}</div>
+    <label>Address</label><div class="val">${esc(c.client_address||'—')}</div>
+    <label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div>
+    <label>Email</label><div class="val">${esc(c.client_email||'—')}</div>
+    <label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div>
+  </div>
+</div>
+<div class="section"><h2>Original Complaint</h2>
+  <div class="block">${esc(c.notes||'(no description)')}</div>
+</div>
+<div class="section"><h2>Case Action Log</h2>
+  <table><thead><tr><th style="width:130px">When</th><th style="width:140px">Action</th><th style="width:110px">By</th><th>Notes</th></tr></thead><tbody>
+    ${actionRows}
+  </tbody></table>
+</div>
+<div class="footer">
+  <span>Reis Trucking — Nantucket, MA</span>
+  <span>HELM Complaint Case File — Confidential</span>
 </div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`);
@@ -12319,6 +13166,9 @@ if(_saved && _saved !== '1'){
       document.getElementById('actionTabBtn').style.display='';
       document.getElementById('navGroup-routing').style.display='';
       document.getElementById('resiRoutesTabBtn').style.display='';
+      // Complaint inbox icon + badge poll (David only) — survives refresh too.
+      document.getElementById('complaintInboxBtn').style.display='';
+      startComplaintBadgePoll();
     }
     // Sharon: restricted view — only Client Lookup + Reports.
     if(currentUser.username==='sharon'){

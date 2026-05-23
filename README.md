@@ -145,6 +145,31 @@ Per-user themes live in `applyUserTheme()`:
 | completed_at | TIMESTAMPTZ | When the dispatcher checked it off |
 | completed_by | TEXT | Username of the dispatcher who closed it |
 
+**`complaints`** — Customer complaints with case-management lifecycle (David's inbox)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| client_id | TEXT | Client the complaint is about |
+| client_name / client_address / client_phone / client_email / client_route / client_days | snapshot fields | Frozen at time of logging so case files don't change if the client record changes later |
+| type | TEXT | `DRIVER` / `BILLING` / `MISSED_STOP` / `OTHER` |
+| notes | TEXT | Rep's free-text description of the complaint |
+| logged_by | TEXT | Display name of the rep who logged it |
+| logged_at | TIMESTAMPTZ | When it was logged |
+| status | TEXT | `new` (untriaged) / `case_open` / `resolved` / `ignored` |
+| ignored_reason / ignored_at / ignored_by | — | Required when status=ignored |
+| case_opened_at / case_opened_by | — | When David opened a case |
+| resolved_at / resolved_by / resolution_notes | — | When David closed the case |
+
+**`complaint_actions`** — Per-case timeline of standardized steps
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| complaint_id | BIGINT (FK) | References complaints.id, ON DELETE CASCADE |
+| action_type | TEXT | `opened` / `called_client` / `spoke_to_driver` / `spoke_to_rep` / `note` / `resolved` / `reopened` |
+| notes | TEXT | Free-text detail for this step |
+| performed_by | TEXT | Display name |
+| performed_at | TIMESTAMPTZ | Auto |
+
 **`users`** — Authentication
 | Column | Type | Notes |
 |---|---|---|
@@ -293,7 +318,8 @@ All tables RLS-enabled with open policies (HELM standard).
   - Rate Sheet and My Notes render side-by-side on desktop (collapse to stacked under 780px)
 - **Tokenized search** — "viola howard" matches "HOWARD, VIOLA" regardless of word order
 - Inline client card with name + company tag, Acct #, address, phone, **email** (clickable `mailto:` link in teal when set, "No email on file" placeholder when missing), pickup days, status, autopay, **route pill**, Edit button
-- Notes support 9 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, **Complaint**, Misc). When Complaint is selected, a sub-selector appears for the type (DRIVER / BILLING / OTHER); the saved `action` string becomes `Complaint - DRIVER` etc so downstream queries can filter by subtype without a schema change. Complaint notes are **hidden** from the Daily Action Report, Notes Added Today, and Everything Report (and their print versions) — they only surface on the **Complaint Report** card, which is visible to David and Esme only. Red chip + red border makes them visually distinct wherever they do appear (client card history, Complaint Report).
+- Notes support 8 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, Misc). Complaints are no longer a note category — they have their own dedicated flow (see Complaint Pipeline below).
+- **Edit Client** button sits on the top-right of the info column, in line with the address/email block (above the divider that precedes the Pickup Days tiles). **Log Complaint** is a red button at the bottom right of the info column where Edit Client used to be.
 - Inline Yes/No delete confirmation on notes
 
 ### Add Client (all users)
@@ -349,9 +375,44 @@ Five cards on the Reports tab (the fifth is gated to David + Esme):
    - Week navigator: ‹ / › arrows, Monday date picker, This Week / Last Week shortcuts
    - Summary strip with DRIVER / BILLING / OTHER counts (reflects the filtered set)
    - **Post-generation filter bar** — Type (DRIVER/BILLING/OTHER) / By (user) / Search (free text). Filters apply instantly; print honors them.
-   - Columns: # · Logged (date + time) · Type (DRIVER/BILLING/OTHER chip) · Acct · Client · Address · Complaint · By (staff who logged it)
+   - Columns: # · Logged (date + time) · Type (DRIVER/BILLING/OTHER/MISSED_STOP chip) · Acct · Client · Address · Complaint · By (staff who logged it)
    - Print button opens a red-themed Arial print sheet titled "HELM — Complaint Report"
-   - **Complaints are hidden from every other report** (Daily Action, Notes Added Today, Everything Report — both screen and print). The only places complaints surface in HELM are this report and the client card's Notes history.
+   - **Complaints are hidden from every other report** (Daily Action, Notes Added Today, Everything Report — both screen and print). The only places complaints surface in HELM are this report and the Complaint Pipeline.
+   - Now reads from the **`complaints` table** (not `notes`) so the weekly view includes all the case-management metadata even though Esme can't act on it.
+
+### Complaint Pipeline (logging = all users, inbox/case mgmt = David only)
+A dedicated workflow for tracking and resolving customer complaints. Complaints used to be a category in the notes form; they've been promoted to a first-class table because they need triage, case-management, and an audit trail of how each one was handled.
+
+**Logging a complaint (any user):**
+- Red **Log Complaint** button at the bottom-right of every client card opens a centered modal
+- Auto-fills the client snapshot (name / acct / address / phone / email / route / pickup days) — frozen at log-time so the case file doesn't drift if the client record changes later
+- **Complaint type picker** (required): `Driver` / `Billing` / `Missed Stop` / `Other`
+- Notes textarea is **hidden until a type is chosen** (prevents rep from typing without classifying first)
+- On Submit: row inserted into `complaints` with `status='new'`; David's inbox badge increments
+
+**David's Inbox (icon next to "David" in the topbar):**
+- iMessage-style red badge shows count of complaints with `status='new'` (those still needing triage)
+- Badge auto-refreshes on tab focus + every 60s; clears when complaints leave the `new` state
+- Clicking the icon opens an **email-style master/detail modal**:
+  - **Left list** — filter chips at top (New / Open Cases / Resolved / Ignored / All), each with a count. List rows show client name, type chip, status chip, who logged it, when, and a 2-line preview of the notes.
+  - **Right detail** — full client snapshot, original complaint, and a status-dependent action area:
+    - `new` → ▸ Open Case / Ignore buttons
+    - `case_open` → action log timeline + + Add Entry button + ✓ Mark Resolved button
+    - `resolved` → resolution banner + read-only action log
+    - `ignored` → ignore-reason banner
+  - **Print** button on the detail pane writes a printable case file (snapshot + original + every action log entry with timestamp + by-whom + notes)
+
+**Opening a case:**
+- Status flips to `case_open`; first `complaint_actions` entry written as `opened`
+- David adds entries using a small inline form: action type dropdown (Called Client / Spoke to Driver / Spoke to Rep / Note) + optional notes field. Each entry is timestamped with who added it.
+- "✓ Mark Resolved" opens a modal requiring resolution notes; status flips to `resolved`, a final `resolved` action entry is written
+
+**Ignoring a complaint:**
+- "Ignore" opens a small modal that **requires a reason** (no empty submit)
+- Status flips to `ignored`; reason + when + by-whom are saved on the complaint row
+- Stays visible under the Ignored filter — nothing is deleted; full audit trail preserved
+
+**Migration on rollout:** The SQL migration block (see Supabase Setup) moves every existing `Complaint - DRIVER` / `Complaint - BILLING` / `Complaint - OTHER` note from `notes` into the new `complaints` table as `status='new'`, then deletes the source notes so they don't get double-counted.
 
 ### Roll-offs (all users)
 - Editable spreadsheet with sortable columns, soft delete + undo, show/restore deleted
@@ -907,6 +968,74 @@ CREATE POLICY "ap_milestones_all"   ON helm_action_milestones   FOR ALL USING(tr
 CREATE POLICY "ap_tasks_all"        ON helm_action_tasks        FOR ALL USING(true) WITH CHECK(true);
 CREATE POLICY "ap_dependencies_all" ON helm_action_dependencies FOR ALL USING(true) WITH CHECK(true);
 CREATE POLICY "ap_activity_all"     ON helm_action_activity     FOR ALL USING(true) WITH CHECK(true);
+
+-- Complaint pipeline (case management — David's inbox)
+CREATE TABLE IF NOT EXISTS complaints (
+  id BIGSERIAL PRIMARY KEY,
+  client_id      TEXT NOT NULL,
+  client_name    TEXT,
+  client_address TEXT,
+  client_phone   TEXT,
+  client_email   TEXT,
+  client_route   SMALLINT,
+  client_days    TEXT,
+  type           TEXT NOT NULL,            -- 'DRIVER'|'BILLING'|'MISSED_STOP'|'OTHER'
+  notes          TEXT,
+  logged_by      TEXT NOT NULL,
+  logged_at      TIMESTAMPTZ DEFAULT NOW(),
+  status         TEXT NOT NULL DEFAULT 'new', -- 'new'|'case_open'|'resolved'|'ignored'
+  ignored_reason   TEXT,
+  ignored_at       TIMESTAMPTZ,
+  ignored_by       TEXT,
+  case_opened_at   TIMESTAMPTZ,
+  case_opened_by   TEXT,
+  resolved_at      TIMESTAMPTZ,
+  resolved_by      TEXT,
+  resolution_notes TEXT
+);
+CREATE INDEX IF NOT EXISTS complaints_status_idx    ON complaints(status);
+CREATE INDEX IF NOT EXISTS complaints_logged_at_idx ON complaints(logged_at DESC);
+CREATE INDEX IF NOT EXISTS complaints_client_idx    ON complaints(client_id);
+ALTER TABLE complaints ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "complaints_all" ON complaints FOR ALL USING(true) WITH CHECK(true);
+
+CREATE TABLE IF NOT EXISTS complaint_actions (
+  id BIGSERIAL PRIMARY KEY,
+  complaint_id  BIGINT NOT NULL REFERENCES complaints(id) ON DELETE CASCADE,
+  action_type   TEXT NOT NULL,             -- 'opened'|'called_client'|'spoke_to_driver'|'spoke_to_rep'|'note'|'resolved'|'reopened'
+  notes         TEXT,
+  performed_by  TEXT NOT NULL,
+  performed_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS complaint_actions_complaint_idx ON complaint_actions(complaint_id);
+ALTER TABLE complaint_actions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "complaint_actions_all" ON complaint_actions FOR ALL USING(true) WITH CHECK(true);
+
+-- One-time migration of legacy "Complaint - X" notes into the new complaints table.
+-- Each migrated complaint lands with status='new' so it shows up in David's inbox
+-- the first time he opens it after this SQL runs.
+INSERT INTO complaints (client_id, client_name, client_address, client_phone, client_email, client_route, client_days, type, notes, logged_by, logged_at, status)
+SELECT
+  n.client_id,
+  c.client_name, c.address, c.phone, c.email, c.route, c.service_day,
+  CASE
+    WHEN UPPER(n.action) LIKE '%DRIVER%'  THEN 'DRIVER'
+    WHEN UPPER(n.action) LIKE '%BILLING%' THEN 'BILLING'
+    WHEN UPPER(n.action) LIKE '%MISSED%'  THEN 'MISSED_STOP'
+    ELSE 'OTHER'
+  END,
+  COALESCE(NULLIF(n.note,''), 'Migrated from legacy Complaint note (no description)'),
+  COALESCE(NULLIF(n.user_id,''), 'Unknown'),
+  n.created_at,
+  'new'
+FROM notes n
+LEFT JOIN clients c ON c.client_id = n.client_id
+WHERE n.action LIKE 'Complaint%';
+
+-- Then remove the migrated complaint notes from the notes table so they don't
+-- appear in both places (the operational reports filter them anyway, but
+-- removing keeps the notes table clean).
+DELETE FROM notes WHERE action LIKE 'Complaint%';
 ```
 
 ### Storage buckets
@@ -952,8 +1081,9 @@ Older entries are intentionally terse — full detail lives in git history. The 
 
 ### May 18-21, 2026
 
+- **May 21** — Complaint pipeline v2 (case management). Complaints are now a first-class table (`complaints` + `complaint_actions`) instead of a note category. Red **Log Complaint** button on every client card opens a centered modal that auto-fills a client snapshot and forces type-before-notes (Driver / Billing / Missed Stop / Other). David gets a topbar inbox icon with an iMessage-style red badge counting `new` complaints; inbox modal is email-style master/detail with filter chips (New / Open Cases / Resolved / Ignored / All). For each complaint David either opens a case (action log timeline with standardized step types Called Client / Spoke to Driver / Spoke to Rep / Note → Mark Resolved with required notes) or ignores it (reason required). Each case prints as a complete audit-trail document. The old `Complaint` action in `ACTION_TYPES` is gone and the subtype selector was removed from the notes form. Legacy `Complaint - X` notes are auto-migrated to the new table via SQL — they show up in the inbox as `new` so nothing is lost. Edit Client moved to top-right of the client info column; Log Complaint took its old spot at the bottom.
 - **May 21** — Post-generation filter bar on Everything Report, Notes Added Today, and Complaint Report. Single-select dropdowns for Action / By / Route / Company + a free-text search (Complaint Report uses a smaller Type / By / Search set). Filters apply instantly client-side off stashed data — no re-query. Print buttons honor the active filter set and embed the filter description in the print header so the printout is self-explaining. Notes Added Today gained a `By` column on both screen and print to match Everything Report. The "N of M match" counter on the right end of each filter bar makes it obvious whether a filter is active.
-- **May 21** — Complaint pipeline:
+- **May 21** — Complaint pipeline v1 (now superseded by v2 above):
   - `Complaint` action type added to client Notes with a 3-option subtype selector (DRIVER / BILLING / OTHER) that appears when Complaint is chosen. Saved as `Complaint - DRIVER` etc in `notes.action` so subtype filtering needs no schema change.
   - Complaints are **hidden** from Daily Action Report, Notes Added Today, and Everything Report (screen + print) via `filterOutComplaints()` so they don't pollute the operational reports staff scan every day.
   - New **Complaint Report** card on the Reports tab — visible to David and Esme only. Week navigator (Mon–Sun), summary chips per type, print view in red theme. Closes the long-standing gap where complaints had no dedicated channel; now they have a private weekly review surface for the two people who actually act on them.
