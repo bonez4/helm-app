@@ -328,15 +328,17 @@ Five cards on the Reports tab (the fifth is gated to David + Esme):
 2. **Notes Added Today** — every note input on a specific date (filters by `notes.created_at`, not `action_date`, so future-dated notes still show)
    - Section per **For Date** (the date the note's action falls on); within each section, **sorted by Route** ascending (no-route last; ties broken by acct #)
    - Date section headers include the day of week ("For Wednesday, Apr 29")
-   - Columns: # / Route / Acct / Co (single-letter chip) / Action / Client / Address / Note / Time
-   - Summary strip of action-type counts at the top
+   - Columns: # / Route / Acct / Co (single-letter chip) / Action / Client / Address / Note / By / Time
+   - **Post-generation filter bar** — same shape as Everything Report (Action / By / Route / Company / Search). Single-select dropdowns populated from the fetched data; filters apply client-side; Clear button resets; print honors active filters.
+   - Summary strip of action-type counts at the top (reflects the filtered set)
    - Print version uses **enlarged date headers** (≈20px h2) so CSRs can scan from arm's length
 
 3. **Everything Report** — every note ever input, with author column
    - **Custom date range filter** on `created_at` (when the note was input). `Input from` + `Input to` pickers + `Last 7d / 30d / 90d / All time` quick presets. Either side may be left blank for an open-ended range.
+   - **Post-generation filter bar** (gray strip above the results) — single-select dropdowns for Action / By (user) / Route 1–14 + No Route / Company (REIS/SANTOS/Other) + a free-text search across acct # / name / address / note / user / action. Dropdown options are populated from the actual fetched data (so the user list only shows people who logged notes in this range). Filters apply instantly client-side — no re-query. A "Clear" button resets all filters; a "N of M match" label shows how many rows the active filter set yields.
    - Same layout as Notes Added Today (For Date sections, sorted by Route within), plus a **By** column showing which user logged each note
    - Header strip shows the chosen range and the For-date span across the result
-   - Print version uses the same enlarged date-header treatment
+   - Print version honors the active filters — what's on screen is what prints — and includes the filter description in the print header so the printout is self-explaining
 
 4. **Export Clients to Excel** — column-picker export
    - Toggleable columns: Account # / Company / Name / Address / Phone / Email / Pickup Days / Route / Status / Autopay / Date Added
@@ -345,7 +347,8 @@ Five cards on the Reports tab (the fifth is gated to David + Esme):
 
 5. **Complaint Report** *(David + Esme only)* — weekly view of every Complaint note logged on a client card
    - Week navigator: ‹ / › arrows, Monday date picker, This Week / Last Week shortcuts
-   - Summary strip with DRIVER / BILLING / OTHER counts
+   - Summary strip with DRIVER / BILLING / OTHER counts (reflects the filtered set)
+   - **Post-generation filter bar** — Type (DRIVER/BILLING/OTHER) / By (user) / Search (free text). Filters apply instantly; print honors them.
    - Columns: # · Logged (date + time) · Type (DRIVER/BILLING/OTHER chip) · Acct · Client · Address · Complaint · By (staff who logged it)
    - Print button opens a red-themed Arial print sheet titled "HELM — Complaint Report"
    - **Complaints are hidden from every other report** (Daily Action, Notes Added Today, Everything Report — both screen and print). The only places complaints surface in HELM are this report and the client card's Notes history.
@@ -949,6 +952,7 @@ Older entries are intentionally terse — full detail lives in git history. The 
 
 ### May 18-21, 2026
 
+- **May 21** — Post-generation filter bar on Everything Report, Notes Added Today, and Complaint Report. Single-select dropdowns for Action / By / Route / Company + a free-text search (Complaint Report uses a smaller Type / By / Search set). Filters apply instantly client-side off stashed data — no re-query. Print buttons honor the active filter set and embed the filter description in the print header so the printout is self-explaining. Notes Added Today gained a `By` column on both screen and print to match Everything Report. The "N of M match" counter on the right end of each filter bar makes it obvious whether a filter is active.
 - **May 21** — Complaint pipeline:
   - `Complaint` action type added to client Notes with a 3-option subtype selector (DRIVER / BILLING / OTHER) that appears when Complaint is chosen. Saved as `Complaint - DRIVER` etc in `notes.action` so subtype filtering needs no schema change.
   - Complaints are **hidden** from Daily Action Report, Notes Added Today, and Everything Report (screen + print) via `filterOutComplaints()` so they don't pollute the operational reports staff scan every day.

@@ -642,6 +642,24 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .action-tag.at-pause{background:var(--err-bg);color:var(--err-text);}
 
 /* ── REPORT ──────────────────────────────── */
+.report-filter-bar{
+  display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+  background:var(--gray-100);
+  padding:8px 10px;border-radius:6px;margin-bottom:10px;
+  font-size:12px;
+}
+.report-filter-bar .filter-label{font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--gray-500);}
+.report-filter-bar select,
+.report-filter-bar input[type=text]{
+  padding:4px 8px;font-size:12px;
+  border:1px solid var(--gray-200);
+  border-radius:4px;background:white;
+  font-family:inherit;color:var(--gray-800);
+}
+.report-filter-bar input[type=text]{min-width:160px;flex:1 1 160px;}
+.report-filter-bar select:focus,
+.report-filter-bar input[type=text]:focus{border-color:var(--teal);outline:none;}
+.report-filter-bar .filter-count{font-size:11px;color:var(--gray-500);margin-left:auto;font-style:italic;}
 .report-summary{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0.75rem;}
 .report-summary-pill{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;}
 .report-group{margin-bottom:0.75rem;}
@@ -4376,6 +4394,118 @@ function actionTagClass(action){
   return t ? t.tag : 'at-misc';
 }
 
+// ── REPORT FILTER HELPERS (Everything / Notes Added Today / Complaint) ─
+// Single-select filters that re-render the on-screen results without re-fetching.
+// Print buttons read the same filter state so "what you see is what prints".
+
+// Apply a filter spec to a raw notes array. Any field set to '' is ignored,
+// so an empty spec passes everything through.
+function applyReportFilters(notes, f){
+  if(!f) return notes || [];
+  const action  = f.action  || '';
+  const user    = f.user    || '';
+  const route   = (f.route == null || f.route === '') ? '' : String(f.route);
+  const company = f.company || '';
+  const q       = (f.search || '').trim().toLowerCase();
+  return (notes||[]).filter(n => {
+    if(action && n.action !== action) return false;
+    if(user && (n.user_id || '') !== user) return false;
+    if(route !== ''){
+      const c = findClient(n.client_id);
+      const r = resolveRoute(n.client_id, n.action_date || n.skip_week, c.route);
+      const rStr = (r != null && r !== '') ? String(r) : 'none';
+      if(rStr !== route) return false;
+    }
+    if(company){
+      const co = getCompany(n.client_id).name || '';
+      const bucket = (co === 'REIS' || co === 'SANTOS') ? co : 'Other';
+      if(bucket !== company) return false;
+    }
+    if(q){
+      const c = findClient(n.client_id);
+      const hay = [n.client_id, n.note, c.client_name, c.address, n.user_id, n.action]
+        .filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+// Build the filter-bar HTML. prefix → element-ID namespace (e.g. 'everything'),
+// onChange → name of the global re-render function (e.g. 'applyEverythingFilters'),
+// opts → which filters to expose. Action and By lists come from the rawData so
+// dropdowns only show values that actually exist in the result set.
+function buildReportFilterBar(prefix, rawData, opts, onChange){
+  opts = opts || {};
+  const actions = Array.from(new Set((rawData||[]).map(n=>n.action).filter(Boolean))).sort();
+  const users   = Array.from(new Set((rawData||[]).map(n=>n.user_id).filter(Boolean))).sort();
+  const call = onChange ? `${onChange}()` : '';
+
+  let html = `<div class="report-filter-bar"><span class="filter-label">Filter:</span>`;
+
+  if(opts.showAction !== false){
+    html += `<select id="${prefix}FilterAction" onchange="${call}" title="Action">
+      <option value="">All actions</option>
+      ${actions.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}
+    </select>`;
+  }
+  if(opts.showUser !== false){
+    html += `<select id="${prefix}FilterUser" onchange="${call}" title="Who logged it">
+      <option value="">All users</option>
+      ${users.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('')}
+    </select>`;
+  }
+  if(opts.showRoute !== false){
+    html += `<select id="${prefix}FilterRoute" onchange="${call}" title="Route">
+      <option value="">All routes</option>
+      ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}">Route ${n}</option>`).join('')}
+      <option value="none">No route</option>
+    </select>`;
+  }
+  if(opts.showCompany !== false){
+    html += `<select id="${prefix}FilterCompany" onchange="${call}" title="Company">
+      <option value="">All companies</option>
+      <option value="REIS">REIS</option>
+      <option value="SANTOS">SANTOS</option>
+      <option value="Other">Other</option>
+    </select>`;
+  }
+  if(opts.showSearch !== false){
+    html += `<input type="text" id="${prefix}FilterSearch" oninput="${call}" placeholder="Search name / address / note / acct…"/>`;
+  }
+  html += `<button type="button" onclick="clearReportFilters('${prefix}', ${onChange?`'${onChange}'`:'null'})" class="btn-edit-sm" style="font-size:11px;padding:3px 10px;">Clear</button>
+    <span id="${prefix}FilterCount" class="filter-count"></span>
+  </div>`;
+  return html;
+}
+
+function readReportFilters(prefix){
+  const v = (id) => { const e = document.getElementById(id); return e ? e.value : ''; };
+  return {
+    action:  v(`${prefix}FilterAction`),
+    user:    v(`${prefix}FilterUser`),
+    route:   v(`${prefix}FilterRoute`),
+    company: v(`${prefix}FilterCompany`),
+    search:  v(`${prefix}FilterSearch`),
+  };
+}
+
+function clearReportFilters(prefix, onChangeName){
+  for(const k of ['Action','User','Route','Company','Search']){
+    const e = document.getElementById(`${prefix}Filter${k}`);
+    if(e) e.value = '';
+  }
+  if(onChangeName && typeof window[onChangeName] === 'function') window[onChangeName]();
+}
+
+// Updates the "N of M match" label in a filter bar.
+function setFilterCountLabel(prefix, filteredLen, rawLen, filters){
+  const el = document.getElementById(`${prefix}FilterCount`);
+  if(!el) return;
+  const any = filters && (filters.action || filters.user || filters.route || filters.company || (filters.search && filters.search.trim()));
+  el.textContent = any ? `${filteredLen.toLocaleString()} of ${rawLen.toLocaleString()} match` : '';
+}
+
 function findClient(cid){
   return clients.find(x=>x.client_id===cid)||clients.find(x=>x.client_id===getBaseId(cid))||{};
 }
@@ -4604,6 +4734,55 @@ async function generateNotesAddedReport(){
   const data = filterOutComplaints(rawData);
   if(!data || !data.length){
     results.innerHTML = '<div class="empty-state">No notes input on '+fmtDate(date)+'</div>';
+    _notesAddedRawData = null;
+    return;
+  }
+
+  _notesAddedRawData = data;
+  _notesAddedDate = date;
+  _renderNotesAddedShell();
+  applyNotesAddedFilters();
+  logActivity('notes_added_report', date);
+}
+
+// Stash for client-side re-filtering.
+let _notesAddedRawData = null;
+let _notesAddedDate = null;
+
+function _renderNotesAddedShell(){
+  const raw = _notesAddedRawData || [];
+  const date = _notesAddedDate;
+  const filterBar = buildReportFilterBar('notesAdded', raw, {}, 'applyNotesAddedFilters');
+  const results = document.getElementById('notesAddedResults');
+  results.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)} — ${raw.length} note${raw.length!==1?'s':''} input</div>
+      <button class="btn-add" onclick="printNotesAddedReport('${date}')" style="white-space:nowrap">Print Report</button>
+    </div>
+    ${filterBar}
+    <div id="notesAddedSummaryStrip" style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:4px;"></div>
+    <div id="notesAddedTablesWrap"></div>
+  `;
+}
+
+function applyNotesAddedFilters(){
+  const raw = _notesAddedRawData || [];
+  const filters = readReportFilters('notesAdded');
+  const data = applyReportFilters(raw, filters);
+  setFilterCountLabel('notesAdded', data.length, raw.length, filters);
+
+  // Summary chips reflect filtered set.
+  const counts = {};
+  for(const n of data) counts[n.action] = (counts[n.action]||0)+1;
+  const summary = Object.entries(counts).sort((a,b)=>b[1]-a[1])
+    .map(([a,c])=>`<span class="action-tag ${actionTagClass(a)}" style="margin-right:4px;">${esc(a)} ${c}</span>`).join('');
+  const ss = document.getElementById('notesAddedSummaryStrip');
+  if(ss) ss.innerHTML = summary;
+
+  const wrap = document.getElementById('notesAddedTablesWrap');
+  if(!wrap) return;
+  if(!data.length){
+    wrap.innerHTML = '<div class="empty-state">No notes match the current filters</div>';
     return;
   }
 
@@ -4613,13 +4792,11 @@ async function generateNotesAddedReport(){
     const k = n.action_date || 'NODATE';
     (byForDate[k] = byForDate[k] || []).push(n);
   }
-  // Sort dates ascending; 'NODATE' goes last
   const dateKeys = Object.keys(byForDate).sort((a,b)=>{
     if(a==='NODATE') return 1;
     if(b==='NODATE') return -1;
     return a.localeCompare(b);
   });
-  // Within each date, sort by route asc (no route last), then by acct # for ties
   for(const k of dateKeys){
     byForDate[k].sort((a,b)=>{
       const ra = findClient(a.client_id).route;
@@ -4636,21 +4813,7 @@ async function generateNotesAddedReport(){
     });
   }
 
-  // Counts by action type for a quick summary strip
-  const actionCounts = {};
-  for(const n of data) actionCounts[n.action] = (actionCounts[n.action]||0)+1;
-  const summary = Object.entries(actionCounts)
-    .sort((a,b)=>b[1]-a[1])
-    .map(([a,c])=>`<span class="action-tag ${actionTagClass(a)}" style="margin-right:4px;">${esc(a)} ${c}</span>`)
-    .join('');
-
-  let html = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
-      <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)} — ${data.length} note${data.length!==1?'s':''} input</div>
-      <button class="btn-add" onclick="printNotesAddedReport('${date}')" style="white-space:nowrap">Print Report</button>
-    </div>
-    <div style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:4px;">${summary}</div>`;
-
+  let html = '';
   for(const k of dateKeys){
     const list = byForDate[k];
     const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + new Date(k+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
@@ -4669,6 +4832,7 @@ async function generateNotesAddedReport(){
           <th>Client</th>
           <th>Address</th>
           <th>Note</th>
+          <th style="width:90px">By</th>
           <th style="width:70px">Time</th>
         </tr></thead><tbody>`;
     list.forEach((n,i)=>{
@@ -4688,90 +4852,102 @@ async function generateNotesAddedReport(){
         <td class="rt-name">${esc(c.client_name||'—')}</td>
         <td class="rt-addr">${esc(c.address||'—')}${rn}</td>
         <td class="rt-note">${esc(n.note||'')}</td>
+        <td class="rt-id">${esc(n.user_id||'—')}</td>
         <td class="rt-id">${t}</td>
       </tr>`;
     });
     html+=`</tbody></table></div></div>`;
   }
-
-  results.innerHTML = html;
-  logActivity('notes_added_report', date);
+  wrap.innerHTML = html;
 }
 
-function printNotesAddedReport(date){
-  const startDt = new Date(date+'T00:00:00');
-  const endDt = new Date(date+'T00:00:00'); endDt.setDate(endDt.getDate()+1);
-  const startISO = startDt.toISOString();
-  const endISO = endDt.toISOString();
-  db.from('notes').select('*')
-    .gte('created_at', startISO).lt('created_at', endISO).order('created_at')
-    .then(({data:rawData, error})=>{
-      if(error){ toast(error.message); return; }
-      // Complaints surface only on the Complaint Report — hide them from this print view.
-      const data = filterOutComplaints(rawData);
-      if(!data.length){ toast('No notes to print'); return; }
-      // Group by For Date (action_date), then sort each group by route asc
-      const byForDate = {};
-      for(const n of data){
-        const k = n.action_date || 'NODATE';
-        (byForDate[k] = byForDate[k] || []).push(n);
-      }
-      const dateKeys = Object.keys(byForDate).sort((a,b)=>{
-        if(a==='NODATE') return 1;
-        if(b==='NODATE') return -1;
-        return a.localeCompare(b);
-      });
-      for(const k of dateKeys){
-        byForDate[k].sort((a,b)=>{
-          const ra = findClient(a.client_id).route;
-          const rb = findClient(b.client_id).route;
-          const aHas = ra !== null && ra !== undefined && ra !== '';
-          const bHas = rb !== null && rb !== undefined && rb !== '';
-          if(aHas && !bHas) return -1;
-          if(!aHas && bHas) return 1;
-          if(aHas && bHas){
-            const diff = parseInt(ra) - parseInt(rb);
-            if(diff !== 0) return diff;
-          }
-          return (a.client_id||'').localeCompare(b.client_id||'');
-        });
-      }
+async function printNotesAddedReport(date){
+  // Prefer the stashed data so active filters carry over to print.
+  let raw = _notesAddedRawData;
+  if(!raw){
+    const startDt = new Date(date+'T00:00:00');
+    const endDt = new Date(date+'T00:00:00'); endDt.setDate(endDt.getDate()+1);
+    const startISO = startDt.toISOString();
+    const endISO = endDt.toISOString();
+    const {data:rawData, error} = await db.from('notes').select('*')
+      .gte('created_at', startISO).lt('created_at', endISO).order('created_at');
+    if(error){ toast(error.message); return; }
+    raw = filterOutComplaints(rawData);
+  }
+  const filters = readReportFilters('notesAdded');
+  const filterBits = [];
+  if(filters.action)  filterBits.push('Action: '+filters.action);
+  if(filters.user)    filterBits.push('By: '+filters.user);
+  if(filters.route)   filterBits.push('Route: '+(filters.route==='none'?'No route':'R'+filters.route));
+  if(filters.company) filterBits.push('Co: '+filters.company);
+  if((filters.search||'').trim()) filterBits.push('Search: "'+filters.search.trim()+'"');
+  const filterStr = filterBits.length ? ' &nbsp;·&nbsp; Filters: <span>'+esc(filterBits.join(' · '))+'</span>' : '';
+  const data = applyReportFilters(raw, filters);
+  if(!data.length){ toast('No notes match the current filters'); return; }
 
-      let sections = '';
-      for(const k of dateKeys){
-        const list = byForDate[k];
-        const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + new Date(k+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
-        sections += `<h2>${dateLabel} (${list.length})</h2>
-          <table><thead><tr>
-            <th style="width:30px">#</th><th style="width:54px">Route</th><th style="width:64px">Acct</th>
-            <th style="width:60px">Co</th><th style="width:90px">Action</th>
-            <th style="width:160px">Client</th><th style="width:200px">Address</th><th>Note</th>
-            <th style="width:70px">Time</th>
-          </tr></thead><tbody>`;
-        list.forEach((n,i)=>{
-          const c = findClient(n.client_id);
-          const co = getCompany(n.client_id).name;
-          const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
-          const rResolved = resolveRoute(n.client_id, n.action_date || n.skip_week, c.route);
-          const route = (rResolved !== null && rResolved !== undefined && rResolved !== '') ? 'R'+rResolved : '—';
-          const rnText = resolveRouteNote(n.client_id, n.action_date || n.skip_week, c.route_note);
-          const rn = rnText ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(rnText)}</div>` : '';
-          sections += `<tr>
-            <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
-            <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${route}</td>
-            <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
-            <td style="font-size:12px;color:#555">${esc(co||'—')}</td>
-            <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
-            <td style="font-weight:600">${esc(c.client_name||'—')}</td>
-            <td style="font-size:13px;color:#444">${esc(c.address||'—')}${rn}</td>
-            <td style="font-style:italic;color:#444">${esc(n.note||'')}</td>
-            <td style="font-size:12px;color:#555">${t}</td>
-          </tr>`;
-        });
-        sections += `</tbody></table>`;
+  // Group by For Date (action_date), then sort each group by route asc.
+  const byForDate = {};
+  for(const n of data){
+    const k = n.action_date || 'NODATE';
+    (byForDate[k] = byForDate[k] || []).push(n);
+  }
+  const dateKeys = Object.keys(byForDate).sort((a,b)=>{
+    if(a==='NODATE') return 1;
+    if(b==='NODATE') return -1;
+    return a.localeCompare(b);
+  });
+  for(const k of dateKeys){
+    byForDate[k].sort((a,b)=>{
+      const ra = findClient(a.client_id).route;
+      const rb = findClient(b.client_id).route;
+      const aHas = ra !== null && ra !== undefined && ra !== '';
+      const bHas = rb !== null && rb !== undefined && rb !== '';
+      if(aHas && !bHas) return -1;
+      if(!aHas && bHas) return 1;
+      if(aHas && bHas){
+        const diff = parseInt(ra) - parseInt(rb);
+        if(diff !== 0) return diff;
       }
-      const win = window.open('','_blank');
-      win.document.write(`<!DOCTYPE html>
+      return (a.client_id||'').localeCompare(b.client_id||'');
+    });
+  }
+
+  let sections = '';
+  for(const k of dateKeys){
+    const list = byForDate[k];
+    const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + new Date(k+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+    sections += `<h2>${dateLabel} (${list.length})</h2>
+      <table><thead><tr>
+        <th style="width:30px">#</th><th style="width:54px">Route</th><th style="width:64px">Acct</th>
+        <th style="width:60px">Co</th><th style="width:90px">Action</th>
+        <th style="width:160px">Client</th><th style="width:200px">Address</th><th>Note</th>
+        <th style="width:90px">By</th><th style="width:70px">Time</th>
+      </tr></thead><tbody>`;
+    list.forEach((n,i)=>{
+      const c = findClient(n.client_id);
+      const co = getCompany(n.client_id).name;
+      const t = n.created_at ? new Date(n.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+      const rResolved = resolveRoute(n.client_id, n.action_date || n.skip_week, c.route);
+      const route = (rResolved !== null && rResolved !== undefined && rResolved !== '') ? 'R'+rResolved : '—';
+      const rnText = resolveRouteNote(n.client_id, n.action_date || n.skip_week, c.route_note);
+      const rn = rnText ? `<div style="font-size:11px;color:#1a9b8a;font-style:italic;margin-top:2px;line-height:1.25;">📋 ${esc(rnText)}</div>` : '';
+      sections += `<tr>
+        <td style="text-align:center;font-weight:700;color:#999">${i+1}</td>
+        <td style="font-size:13px;font-weight:700;color:#0f1f3d;">${route}</td>
+        <td style="font-size:13px;color:#555">${esc(n.client_id)}</td>
+        <td style="font-size:12px;color:#555">${esc(co||'—')}</td>
+        <td style="font-size:12px;font-weight:600;color:#0f1f3d;">${esc(n.action||'')}</td>
+        <td style="font-weight:600">${esc(c.client_name||'—')}</td>
+        <td style="font-size:13px;color:#444">${esc(c.address||'—')}${rn}</td>
+        <td style="font-style:italic;color:#444">${esc(n.note||'')}</td>
+        <td style="font-size:12px;color:#555">${esc(n.user_id||'—')}</td>
+        <td style="font-size:12px;color:#555">${t}</td>
+      </tr>`;
+    });
+    sections += `</tbody></table>`;
+  }
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"/>
 <title>HELM Notes Added — ${fmtDate(date)}</title>
 <style>
@@ -4791,7 +4967,7 @@ h2{background:#0f1f3d;color:white;padding:11px 14px;font-size:20px;margin:18px 0
 </style></head><body>
 <div class="header">
   <h1>HELM — Notes Added</h1>
-  <div class="sub">Input on: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} note${data.length!==1?'s':''}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
+  <div class="sub">Input on: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} note${data.length!==1?'s':''}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>${filterStr}</div>
 </div>
 ${sections}
 <div class="footer">
@@ -4800,8 +4976,7 @@ ${sections}
 </div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`);
-      win.document.close();
-    });
+  win.document.close();
 }
 
 // ── EVERYTHING REPORT (notes filtered by created_at range) ────────────
@@ -4878,6 +5053,9 @@ function _everythingGroupAndSort(data){
   return {byForDate, dateKeys};
 }
 
+// Stash for client-side re-filtering. Filter changes re-render off this without re-fetching.
+let _everythingRawData = null;
+
 async function generateEverythingReport(){
   const results = document.getElementById('everythingResults');
   const fromDate = document.getElementById('everythingFromDate')?.value || '';
@@ -4903,29 +5081,60 @@ async function generateEverythingReport(){
   }
   if(!data.length){
     results.innerHTML = '<div class="empty-state">No notes input '+esc(rangeStr.toLowerCase())+'</div>';
+    _everythingRawData = null;
+    return;
+  }
+
+  _everythingRawData = data;
+  window._everythingRange = {from: fromDate||null, to: toDate||null, str: rangeStr};
+  _renderEverythingShell();
+  applyEverythingFilters();
+  logActivity('everything_report', data.length+' notes');
+}
+
+// Build the outer structure: header + filter bar + placeholders. Called once
+// after a fresh fetch — preserves filter dropdown state across filter changes
+// because applyEverythingFilters() only re-fills the two inner placeholders.
+function _renderEverythingShell(){
+  const raw = _everythingRawData || [];
+  const range = window._everythingRange || {};
+  const rangeStr = range.str || 'All-time';
+  const filterBar = buildReportFilterBar('everything', raw, {}, 'applyEverythingFilters');
+  const results = document.getElementById('everythingResults');
+  results.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${esc(rangeStr)} — ${raw.length.toLocaleString()} note${raw.length!==1?'s':''} fetched</div>
+      <button class="btn-add" onclick="printEverythingReport()" style="white-space:nowrap">Print Report</button>
+    </div>
+    ${filterBar}
+    <div id="everythingSummaryStrip" style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:4px;"></div>
+    <div id="everythingTablesWrap"></div>
+  `;
+}
+
+function applyEverythingFilters(){
+  const raw = _everythingRawData || [];
+  const filters = readReportFilters('everything');
+  const data = applyReportFilters(raw, filters);
+  setFilterCountLabel('everything', data.length, raw.length, filters);
+
+  // Summary chips reflect filtered set.
+  const counts = {};
+  for(const n of data) counts[n.action] = (counts[n.action]||0)+1;
+  const summary = Object.entries(counts).sort((a,b)=>b[1]-a[1])
+    .map(([a,c])=>`<span class="action-tag ${actionTagClass(a)}" style="margin-right:4px;">${esc(a)} ${c}</span>`).join('');
+  const ss = document.getElementById('everythingSummaryStrip');
+  if(ss) ss.innerHTML = summary;
+
+  const wrap = document.getElementById('everythingTablesWrap');
+  if(!wrap) return;
+  if(!data.length){
+    wrap.innerHTML = '<div class="empty-state">No notes match the current filters</div>';
     return;
   }
 
   const {byForDate, dateKeys} = _everythingGroupAndSort(data);
-
-  const actionCounts = {};
-  for(const n of data) actionCounts[n.action] = (actionCounts[n.action]||0)+1;
-  const summary = Object.entries(actionCounts).sort((a,b)=>b[1]-a[1])
-    .map(([a,c])=>`<span class="action-tag ${actionTagClass(a)}" style="margin-right:4px;">${esc(a)} ${c}</span>`).join('');
-  const forDateRangeLabel = dateKeys.filter(k=>k!=='NODATE').length
-    ? `${fmtDate(dateKeys.filter(k=>k!=='NODATE')[0])} → ${fmtDate(dateKeys.filter(k=>k!=='NODATE').slice(-1)[0])}`
-    : '';
-
-  // Stash range so the Print button uses the same window
-  window._everythingRange = {from: fromDate||null, to: toDate||null};
-
-  let html = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
-      <div style="font-size:14px;font-weight:700;color:var(--navy)">${esc(rangeStr)} — ${data.length.toLocaleString()} note${data.length!==1?'s':''}${forDateRangeLabel?` · For dates: ${forDateRangeLabel}`:''}</div>
-      <button class="btn-add" onclick="printEverythingReport()" style="white-space:nowrap">Print Report</button>
-    </div>
-    <div style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:4px;">${summary}</div>`;
-
+  let html = '';
   for(const k of dateKeys){
     const list = byForDate[k];
     const dateLabel = k === 'NODATE' ? 'No Date Set' : 'For ' + new Date(k+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});
@@ -4970,23 +5179,34 @@ async function generateEverythingReport(){
     });
     html+=`</tbody></table></div></div>`;
   }
-
-  results.innerHTML = html;
-  logActivity('everything_report', data.length+' notes');
+  wrap.innerHTML = html;
 }
 
 async function printEverythingReport(){
-  const results = document.getElementById('everythingResults');
   const range = window._everythingRange || {from:null, to:null};
   const rangeStr = (range.from||range.to)
     ? (range.from && range.to ? `${fmtDate(range.from)} → ${fmtDate(range.to)}`
        : range.from ? `from ${fmtDate(range.from)}`
        : `through ${fmtDate(range.to)}`)
     : 'All-time';
-  let data;
-  try { data = await apFetchAllNotes(range.from, range.to); }
-  catch(err){ toast('Error: '+(err.message||String(err))); return; }
-  if(!data.length){ toast('No notes to print'); return; }
+  // Print whatever's on screen — read stashed data + current filter state.
+  // Refetch only if the user hasn't generated anything yet this session.
+  let raw = _everythingRawData;
+  if(!raw){
+    try { raw = await apFetchAllNotes(range.from, range.to); }
+    catch(err){ toast('Error: '+(err.message||String(err))); return; }
+  }
+  const filters = readReportFilters('everything');
+  const data = applyReportFilters(raw, filters);
+  if(!data.length){ toast('No notes match the current filters'); return; }
+  // Describe active filters in the print header so the printout is self-explaining.
+  const filterBits = [];
+  if(filters.action)  filterBits.push('Action: '+filters.action);
+  if(filters.user)    filterBits.push('By: '+filters.user);
+  if(filters.route)   filterBits.push('Route: '+(filters.route==='none'?'No route':'R'+filters.route));
+  if(filters.company) filterBits.push('Co: '+filters.company);
+  if((filters.search||'').trim()) filterBits.push('Search: "'+filters.search.trim()+'"');
+  const filterStr = filterBits.length ? ' &nbsp;·&nbsp; Filters: <span>'+esc(filterBits.join(' · '))+'</span>' : '';
   const {byForDate, dateKeys} = _everythingGroupAndSort(data);
 
   let sections = '';
@@ -5045,7 +5265,7 @@ h2{background:#0f1f3d;color:white;padding:11px 14px;font-size:20px;margin:18px 0
 </style></head><body>
 <div class="header">
   <h1>HELM — Everything Report</h1>
-  <div class="sub">Input ${esc(rangeStr)} &nbsp;·&nbsp; Total: <span>${data.length.toLocaleString()} note${data.length!==1?'s':''}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span></div>
+  <div class="sub">Input ${esc(rangeStr)} &nbsp;·&nbsp; Total: <span>${data.length.toLocaleString()} note${data.length!==1?'s':''}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>${filterStr}</div>
 </div>
 ${sections}
 <div class="footer">
@@ -5099,6 +5319,9 @@ function complaintWeekEndStr(monIso){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
+let _complaintRawData = null;
+let _complaintWeekStart = null;
+
 async function generateComplaintReport(){
   if(!userCanSeeComplaints()){ toast('Access denied'); return; }
   const start = document.getElementById('complaintWeekStart').value;
@@ -5123,7 +5346,81 @@ async function generateComplaintReport(){
   const weekLabel = `${fmtDate(start)} – ${fmtDate(complaintWeekEndStr(start))}`;
   if(!data || !data.length){
     results.innerHTML = '<div class="empty-state">No complaints logged for the week of '+weekLabel+'</div>';
+    _complaintRawData = null;
     return;
+  }
+
+  _complaintRawData = data;
+  _complaintWeekStart = start;
+  _renderComplaintShell();
+  applyComplaintFilters();
+  logActivity('complaint_report', start);
+}
+
+// Build the type+by filter bar separately — the Complaint Report doesn't need
+// Route/Company/Search since it's already a focused 7-day view.
+function _buildComplaintFilterBar(raw){
+  const users = Array.from(new Set((raw||[]).map(n=>n.user_id).filter(Boolean))).sort();
+  return `<div class="report-filter-bar"><span class="filter-label">Filter:</span>
+    <select id="complaintFilterType" onchange="applyComplaintFilters()" title="Complaint type">
+      <option value="">All types</option>
+      <option value="DRIVER">DRIVER</option>
+      <option value="BILLING">BILLING</option>
+      <option value="OTHER">OTHER</option>
+    </select>
+    <select id="complaintFilterUser" onchange="applyComplaintFilters()" title="Who logged it">
+      <option value="">All users</option>
+      ${users.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('')}
+    </select>
+    <input type="text" id="complaintFilterSearch" oninput="applyComplaintFilters()" placeholder="Search name / address / complaint…"/>
+    <button type="button" onclick="clearComplaintFilters()" class="btn-edit-sm" style="font-size:11px;padding:3px 10px;">Clear</button>
+    <span id="complaintFilterCount" class="filter-count"></span>
+  </div>`;
+}
+
+function clearComplaintFilters(){
+  for(const id of ['complaintFilterType','complaintFilterUser','complaintFilterSearch']){
+    const e = document.getElementById(id); if(e) e.value = '';
+  }
+  applyComplaintFilters();
+}
+
+function _renderComplaintShell(){
+  const raw = _complaintRawData || [];
+  const start = _complaintWeekStart;
+  const weekLabel = `${fmtDate(start)} – ${fmtDate(complaintWeekEndStr(start))}`;
+  const results = document.getElementById('complaintResults');
+  results.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${weekLabel} — ${raw.length} complaint${raw.length===1?'':'s'} logged</div>
+      <button class="btn-add" onclick="printComplaintReport('${start}')" style="white-space:nowrap">Print Report</button>
+    </div>
+    ${_buildComplaintFilterBar(raw)}
+    <div id="complaintSummaryStrip" style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:6px;"></div>
+    <div id="complaintTablesWrap"></div>
+  `;
+}
+
+function applyComplaintFilters(){
+  const raw = _complaintRawData || [];
+  const type = (document.getElementById('complaintFilterType')||{}).value || '';
+  const user = (document.getElementById('complaintFilterUser')||{}).value || '';
+  const q    = ((document.getElementById('complaintFilterSearch')||{}).value || '').trim().toLowerCase();
+  const data = raw.filter(n => {
+    if(type && complaintType(n.action) !== type) return false;
+    if(user && (n.user_id||'') !== user) return false;
+    if(q){
+      const c = findClient(n.client_id);
+      const hay = [n.client_id, n.note, c.client_name, c.address, n.user_id, n.action]
+        .filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const fc = document.getElementById('complaintFilterCount');
+  if(fc){
+    const any = type || user || q;
+    fc.textContent = any ? `${data.length} of ${raw.length} match` : '';
   }
 
   const counts = {DRIVER:0, BILLING:0, OTHER:0};
@@ -5131,28 +5428,30 @@ async function generateComplaintReport(){
     const t = complaintType(n.action);
     if(counts.hasOwnProperty(t)) counts[t]++; else counts.OTHER++;
   });
+  const ss = document.getElementById('complaintSummaryStrip');
+  if(ss) ss.innerHTML = `
+    <span class="action-tag at-complaint">DRIVER ${counts.DRIVER}</span>
+    <span class="action-tag at-complaint">BILLING ${counts.BILLING}</span>
+    <span class="action-tag at-complaint">OTHER ${counts.OTHER}</span>`;
 
-  let html = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
-      <div style="font-size:14px;font-weight:700;color:var(--navy)">${weekLabel} — ${data.length} complaint${data.length===1?'':'s'}</div>
-      <button class="btn-add" onclick="printComplaintReport('${start}')" style="white-space:nowrap">Print Report</button>
-    </div>
-    <div style="margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:6px;">
-      <span class="action-tag at-complaint">DRIVER ${counts.DRIVER}</span>
-      <span class="action-tag at-complaint">BILLING ${counts.BILLING}</span>
-      <span class="action-tag at-complaint">OTHER ${counts.OTHER}</span>
-    </div>
-    <div class="report-group">
-      <table class="report-table"><thead><tr>
-        <th style="width:28px">#</th>
-        <th style="width:110px">Logged</th>
-        <th style="width:80px">Type</th>
-        <th style="width:64px">Acct</th>
-        <th>Client</th>
-        <th>Address</th>
-        <th>Complaint</th>
-        <th style="width:90px">By</th>
-      </tr></thead><tbody>`;
+  const wrap = document.getElementById('complaintTablesWrap');
+  if(!wrap) return;
+  if(!data.length){
+    wrap.innerHTML = '<div class="empty-state">No complaints match the current filters</div>';
+    return;
+  }
+
+  let html = `<div class="report-group">
+    <table class="report-table"><thead><tr>
+      <th style="width:28px">#</th>
+      <th style="width:110px">Logged</th>
+      <th style="width:80px">Type</th>
+      <th style="width:64px">Acct</th>
+      <th>Client</th>
+      <th>Address</th>
+      <th>Complaint</th>
+      <th style="width:90px">By</th>
+    </tr></thead><tbody>`;
   data.forEach((n,i) => {
     const c = findClient(n.client_id);
     const t = complaintType(n.action);
@@ -5172,21 +5471,45 @@ async function generateComplaintReport(){
     </tr>`;
   });
   html += `</tbody></table></div>`;
-  results.innerHTML = html;
-  logActivity('complaint_report', start);
+  wrap.innerHTML = html;
 }
 
 async function printComplaintReport(start){
   if(!userCanSeeComplaints()) return;
-  const startDt = new Date(start+'T00:00:00');
-  const endDt   = new Date(start+'T00:00:00'); endDt.setDate(endDt.getDate()+7);
-  const startISO = startDt.toISOString();
-  const endISO   = endDt.toISOString();
-  const {data} = await db.from('notes').select('*')
-    .ilike('action','Complaint%')
-    .gte('created_at', startISO).lt('created_at', endISO)
-    .order('created_at',{ascending:false});
-  if(!data || !data.length){ toast('No complaints to print'); return; }
+  // Prefer the stashed data so any active filters carry over to print.
+  let raw = _complaintRawData;
+  if(!raw){
+    const startDt = new Date(start+'T00:00:00');
+    const endDt   = new Date(start+'T00:00:00'); endDt.setDate(endDt.getDate()+7);
+    const startISO = startDt.toISOString();
+    const endISO   = endDt.toISOString();
+    const {data:fetched} = await db.from('notes').select('*')
+      .ilike('action','Complaint%')
+      .gte('created_at', startISO).lt('created_at', endISO)
+      .order('created_at',{ascending:false});
+    raw = fetched || [];
+  }
+  const type = (document.getElementById('complaintFilterType')||{}).value || '';
+  const user = (document.getElementById('complaintFilterUser')||{}).value || '';
+  const q    = ((document.getElementById('complaintFilterSearch')||{}).value || '').trim().toLowerCase();
+  const data = raw.filter(n => {
+    if(type && complaintType(n.action) !== type) return false;
+    if(user && (n.user_id||'') !== user) return false;
+    if(q){
+      const c = findClient(n.client_id);
+      const hay = [n.client_id, n.note, c.client_name, c.address, n.user_id, n.action]
+        .filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if(!data.length){ toast('No complaints match the current filters'); return; }
+
+  const filterBits = [];
+  if(type) filterBits.push('Type: '+type);
+  if(user) filterBits.push('By: '+user);
+  if(q)    filterBits.push('Search: "'+q+'"');
+  const filterStr = filterBits.length ? ' &nbsp;·&nbsp; Filters: <span>'+esc(filterBits.join(' · '))+'</span>' : '';
 
   const weekLabel = `${fmtDate(start)} – ${fmtDate(complaintWeekEndStr(start))}`;
   const counts = {DRIVER:0, BILLING:0, OTHER:0};
@@ -5247,7 +5570,7 @@ tr:nth-child(even) td{background:#fdf4f4;}
 </style></head><body>
 <div class="header">
   <h1>HELM — Complaint Report</h1>
-  <div class="sub">Week of <span>${weekLabel}</span> &nbsp;·&nbsp; Total: <span>${data.length} complaint${data.length===1?'':'s'}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
+  <div class="sub">Week of <span>${weekLabel}</span> &nbsp;·&nbsp; Total: <span>${data.length} complaint${data.length===1?'':'s'}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span>${filterStr}</div>
 </div>
 <div class="summary"><span>DRIVER ${counts.DRIVER}</span><span>BILLING ${counts.BILLING}</span><span>OTHER ${counts.OTHER}</span></div>
 ${sections}
