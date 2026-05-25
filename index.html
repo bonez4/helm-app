@@ -4123,18 +4123,19 @@ function renderNoteHistoryRow(n){
 
 function renderComplaintHistoryRow(c){
   const statusLabel = c.status==='case_open' ? 'CASE OPEN' : (c.status||'').toUpperCase();
+  // Rep-facing footer: don't expose internal handling details (who, time-of-day,
+  // resolution/ignore reason). Just a one-liner so the rep knows where it
+  // landed. The full audit trail stays in David's inbox.
+  const shortDate = (iso) => iso
+    ? new Date(iso).toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'2-digit'})
+    : '';
   let outcome = '';
   if(c.status === 'resolved'){
-    const by = c.resolved_by || '—';
-    const when = c.resolved_at ? fmtTimestamp(c.resolved_at) : '';
-    outcome = `<div class="note-row-resolution">✓ Resolved by ${esc(by)}${when?` · ${esc(when)}`:''} — ${esc(c.resolution_notes || '(no resolution notes)')}</div>`;
+    outcome = `<div class="note-row-resolution">✓ Complaint addressed · ${esc(shortDate(c.resolved_at))}</div>`;
   } else if(c.status === 'ignored'){
-    const by = c.ignored_by || '—';
-    const when = c.ignored_at ? fmtTimestamp(c.ignored_at) : '';
-    outcome = `<div class="note-row-ignored">Ignored by ${esc(by)}${when?` · ${esc(when)}`:''} — ${esc(c.ignored_reason || '(no reason)')}</div>`;
+    outcome = `<div class="note-row-ignored">Complaint closed · ${esc(shortDate(c.ignored_at))}</div>`;
   } else if(c.status === 'case_open'){
-    const by = c.case_opened_by || '—';
-    outcome = `<div class="note-row-ignored" style="color:#92400e;background:#fef3c7;border-left-color:#d97706;font-style:normal;">Case opened by ${esc(by)} — investigation in progress.</div>`;
+    outcome = `<div class="note-row-ignored" style="color:#92400e;background:#fef3c7;border-left-color:#d97706;font-style:normal;">Under review</div>`;
   }
   const typeUpper = String(complaintTypeLabel(c.type)).toUpperCase();
   const driverChip = (c.type === 'DRIVER' && c.driver_name)
