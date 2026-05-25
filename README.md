@@ -152,7 +152,7 @@ Per-user themes live in `applyUserTheme()`:
 | client_id | TEXT | Client the complaint is about |
 | client_name / client_address / client_phone / client_email / client_route / client_days | snapshot fields | Frozen at time of logging so case files don't change if the client record changes later |
 | type | TEXT | `DRIVER` / `BILLING` / `MISSED_STOP` / `OTHER` |
-| driver_name | TEXT | Required for `DRIVER` complaints; autosuggests from `bla_staff` drivers. Powers the Monthly Complaint Summary's driver sub-grouping. |
+| driver_name | TEXT | Required for `DRIVER` complaints; plain text input (no autosuggest). Powers the Monthly Complaint Summary's driver sub-grouping. |
 | notes | TEXT | Rep's free-text description of the complaint |
 | logged_by | TEXT | Display name of the rep who logged it |
 | logged_at | TIMESTAMPTZ | When it was logged |

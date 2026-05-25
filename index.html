@@ -2930,9 +2930,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       </div>
       <div class="cmp-field" id="cmpDriverField" style="display:none">
         <label>Driver involved *</label>
-        <input type="text" id="cmpDriver" list="cmpDriverList" autocomplete="off" placeholder="Driver's name — start typing for suggestions"/>
-        <datalist id="cmpDriverList"></datalist>
-        <div style="font-size:11px;color:var(--gray-500);margin-top:4px;font-style:italic;">Names autosuggest from the active driver roster. Type a new name if the driver isn't listed.</div>
+        <input type="text" id="cmpDriver" autocomplete="off" placeholder="Driver's name"/>
       </div>
       <div class="cmp-field cmp-field-notes" id="cmpNotesField">
         <label>Describe the complaint *</label>
@@ -6036,24 +6034,6 @@ function caseActionLabel(v){
 }
 
 // ── LOG-COMPLAINT MODAL ───────────────────────────────────────────────
-// Cached list of driver names for the autocomplete datalist. Pulls from
-// bla_staff (active drivers) + any historical driver_name values already
-// in complaints, so the dropdown stays useful even if a driver isn't on
-// the formal roster yet.
-let _complaintDriverList = null;
-async function loadComplaintDriverList(force){
-  if(_complaintDriverList && !force) return _complaintDriverList;
-  const [staff, past] = await Promise.all([
-    db.from('bla_staff').select('name').eq('role','driver').eq('active',true).order('name'),
-    db.from('complaints').select('driver_name').not('driver_name','is',null),
-  ]);
-  const roster   = (staff.data||[]).map(d=>d.name).filter(Boolean);
-  const historic = Array.from(new Set((past.data||[]).map(p=>p.driver_name).filter(Boolean)));
-  const merged   = Array.from(new Set([...roster, ...historic])).sort((a,b)=>a.localeCompare(b));
-  _complaintDriverList = merged;
-  return merged;
-}
-
 function openComplaintModal(clientId){
   const c = clients.find(x=>x.client_id===clientId);
   if(!c){ toast('Client not found'); return; }
@@ -6090,15 +6070,13 @@ function onComplaintTypeChange(){
   } else {
     notesField.classList.remove('show');
   }
-  // Driver field is required for Driver complaints — show it and populate the
-  // autocomplete datalist on first open. Hide + clear for any other type so
-  // a stale driver name can't accidentally piggyback.
+  // Driver field is required for Driver complaints — show it for that type
+  // and hide+clear it for any other type so a stale name can't piggyback.
+  // Plain text input, no autosuggest (deliberate: the bla_staff roster only
+  // covers some drivers and would mislead reps).
   if(sel.value === 'DRIVER'){
     driverField.style.display = '';
-    loadComplaintDriverList().then(list => {
-      const dl = document.getElementById('cmpDriverList');
-      if(dl) dl.innerHTML = list.map(n => `<option value="${esc(n)}"/>`).join('');
-    });
+    setTimeout(()=>{ if(driverInp) driverInp.focus(); }, 50);
   } else {
     driverField.style.display = 'none';
     if(driverInp) driverInp.value = '';
@@ -6119,8 +6097,6 @@ async function submitComplaint(){
   if(type === 'DRIVER'){
     driverName = (document.getElementById('cmpDriver').value || '').trim();
     if(!driverName){ toast('Enter the driver\'s name'); return; }
-    // Invalidate the cached list so the next modal open sees the new driver.
-    _complaintDriverList = null;
   }
   const loggedBy = currentUser ? (currentUser.display_name || currentUser.username) : '';
   const {error} = await db.from('complaints').insert({
