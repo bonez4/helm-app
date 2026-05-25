@@ -152,6 +152,7 @@ Per-user themes live in `applyUserTheme()`:
 | client_id | TEXT | Client the complaint is about |
 | client_name / client_address / client_phone / client_email / client_route / client_days | snapshot fields | Frozen at time of logging so case files don't change if the client record changes later |
 | type | TEXT | `DRIVER` / `BILLING` / `MISSED_STOP` / `OTHER` |
+| driver_name | TEXT | Required for `DRIVER` complaints; autosuggests from `bla_staff` drivers. Powers the Monthly Complaint Summary's driver sub-grouping. |
 | notes | TEXT | Rep's free-text description of the complaint |
 | logged_by | TEXT | Display name of the rep who logged it |
 | logged_at | TIMESTAMPTZ | When it was logged |
@@ -372,7 +373,14 @@ Five cards on the Reports tab (the fifth is gated to David + Esme):
    - Filters: Company (REIS / SANTOS), Status (Active / Paused), Email (with / without — useful for gap-hunting), Route (1-14 or "no route")
    - Downloads as `HELM_Clients_YYYYMMDD.xls`
 
-5. **Complaint Report** *(David + Esme only)* — weekly view of every Complaint note logged on a client card
+5. **Monthly Complaint Summary** *(David + Esme only)* — calendar-month rollup
+   - Month dropdown (current + 23 prior months); defaults to **previous month**
+   - Status mix strip at the top (NEW / CASE OPEN / RESOLVED / IGNORED counts)
+   - One section per type (DRIVER / BILLING / MISSED STOP / OTHER) with a count header
+   - **Driver section sub-groups by `driver_name`** — each driver gets their own orange-tinted block showing total count, status mix, and the individual complaints. Drivers sorted by complaint count descending so the noisiest driver tops the list. Complaints without a driver name fall into a "(No driver named)" bucket.
+   - Each complaint row shows date · acct · client · status pill · who logged it · the notes, plus a green resolution footer if resolved or a gray ignore-reason footer if ignored
+   - Print button generates a clean printable monthly archive with the same structure
+6. **Complaint Report** *(David + Esme only)* — weekly view of every Complaint note logged on a client card
    - Week navigator: ‹ / › arrows, Monday date picker, This Week / Last Week shortcuts
    - Summary strip with DRIVER / BILLING / OTHER counts (reflects the filtered set)
    - **Post-generation filter bar** — Type (DRIVER/BILLING/OTHER) / By (user) / Search (free text). Filters apply instantly; print honors them.
@@ -388,6 +396,7 @@ A dedicated workflow for tracking and resolving customer complaints. Complaints 
 - Red **Log Complaint** button at the bottom-right of every client card opens a centered modal
 - Auto-fills the client snapshot (name / acct / address / phone / email / route / pickup days) — frozen at log-time so the case file doesn't drift if the client record changes later
 - **Complaint type picker** (required): `Driver` / `Billing` / `Missed Stop` / `Other`
+- When type = **Driver**, a `Driver involved` text input appears (required). Autosuggests from active drivers in `bla_staff` and from any historical `driver_name` values already in `complaints`, so spellings stay consistent. Type a new name if the driver isn't on the roster yet.
 - Notes textarea is **hidden until a type is chosen** (prevents rep from typing without classifying first)
 - On Submit: row inserted into `complaints` with `status='new'`; David's inbox badge increments
 

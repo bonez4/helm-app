@@ -2928,6 +2928,12 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
           <option value="OTHER">Other</option>
         </select>
       </div>
+      <div class="cmp-field" id="cmpDriverField" style="display:none">
+        <label>Driver involved *</label>
+        <input type="text" id="cmpDriver" list="cmpDriverList" autocomplete="off" placeholder="Driver's name — start typing for suggestions"/>
+        <datalist id="cmpDriverList"></datalist>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:4px;font-style:italic;">Names autosuggest from the active driver roster. Type a new name if the driver isn't listed.</div>
+      </div>
       <div class="cmp-field cmp-field-notes" id="cmpNotesField">
         <label>Describe the complaint *</label>
         <textarea id="cmpNotes" placeholder="What did the client say? Be specific."></textarea>
@@ -4133,12 +4139,16 @@ function renderComplaintHistoryRow(c){
     outcome = `<div class="note-row-ignored" style="color:#92400e;background:#fef3c7;border-left-color:#d97706;font-style:normal;">Case opened by ${esc(by)} — investigation in progress.</div>`;
   }
   const typeUpper = String(complaintTypeLabel(c.type)).toUpperCase();
+  const driverChip = (c.type === 'DRIVER' && c.driver_name)
+    ? `<span class="status-pill-sm" style="background:#fff7ed;color:#9a3412;border:1px solid #ea580c;">Driver: ${esc(c.driver_name)}</span>`
+    : '';
   return `<div class="note-row note-row-complaint">
     <div class="note-row-header">
       <span class="note-meta">${fmtTimestamp(c.logged_at)}</span>
       <span class="note-user">${esc(c.logged_by)||''}</span>
       <span class="action-tag at-complaint">COMPLAINT — ${esc(typeUpper)}</span>
       <span class="status-pill-sm status-${c.status}">${esc(statusLabel)}</span>
+      ${driverChip}
     </div>
     ${c.notes?`<div class="note-row-body">${esc(c.notes)}</div>`:''}
     ${outcome}
@@ -4626,6 +4636,26 @@ function renderReport(){
         <button class="btn-add" onclick="generateComplaintReport()">Generate Report</button>
       </div>
       <div id="complaintResults"></div>
+    </div>
+
+    <div class="form-card" style="margin-bottom:1rem;border-left:4px solid #dc2626;">
+      <h2 style="display:flex;align-items:center;gap:8px;">
+        <span>Monthly Complaint Summary</span>
+        <span style="background:#fecaca;color:#991b1b;border:1px solid #dc2626;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.06em;text-transform:uppercase;">Restricted</span>
+      </h2>
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:0.75rem">
+        Calendar-month rollup of every complaint logged in HELM, grouped by category. Driver complaints are further grouped by the driver involved so you can see at a glance which driver is generating which complaints. David and Esme only.
+      </p>
+      <div style="display:flex;gap:8px;align-items:end;margin-bottom:0.75rem;flex-wrap:wrap">
+        <div class="form-group" style="margin-bottom:0;flex:0 0 auto">
+          <label>Month</label>
+          <select id="monthlyCmpMonth" style="width:200px;padding:6px 8px;border:1px solid var(--gray-200);border-radius:4px;font-size:12px;background:white;">
+            ${buildMonthlyCmpOptions()}
+          </select>
+        </div>
+        <button class="btn-add" onclick="generateMonthlySummary()">Generate Report</button>
+      </div>
+      <div id="monthlyCmpResults"></div>
     </div>
     ` : ''}
 
@@ -6006,6 +6036,24 @@ function caseActionLabel(v){
 }
 
 // ── LOG-COMPLAINT MODAL ───────────────────────────────────────────────
+// Cached list of driver names for the autocomplete datalist. Pulls from
+// bla_staff (active drivers) + any historical driver_name values already
+// in complaints, so the dropdown stays useful even if a driver isn't on
+// the formal roster yet.
+let _complaintDriverList = null;
+async function loadComplaintDriverList(force){
+  if(_complaintDriverList && !force) return _complaintDriverList;
+  const [staff, past] = await Promise.all([
+    db.from('bla_staff').select('name').eq('role','driver').eq('active',true).order('name'),
+    db.from('complaints').select('driver_name').not('driver_name','is',null),
+  ]);
+  const roster   = (staff.data||[]).map(d=>d.name).filter(Boolean);
+  const historic = Array.from(new Set((past.data||[]).map(p=>p.driver_name).filter(Boolean)));
+  const merged   = Array.from(new Set([...roster, ...historic])).sort((a,b)=>a.localeCompare(b));
+  _complaintDriverList = merged;
+  return merged;
+}
+
 function openComplaintModal(clientId){
   const c = clients.find(x=>x.client_id===clientId);
   if(!c){ toast('Client not found'); return; }
@@ -6021,6 +6069,8 @@ function openComplaintModal(clientId){
   document.getElementById('cmpTypeSelect').value    = '';
   document.getElementById('cmpNotesField').classList.remove('show');
   document.getElementById('cmpNotes').value         = '';
+  document.getElementById('cmpDriverField').style.display = 'none';
+  document.getElementById('cmpDriver').value        = '';
   document.getElementById('complaintModal').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -6030,12 +6080,28 @@ function closeComplaintModal(){
 }
 function onComplaintTypeChange(){
   const sel = document.getElementById('cmpTypeSelect');
-  const field = document.getElementById('cmpNotesField');
+  const notesField  = document.getElementById('cmpNotesField');
+  const driverField = document.getElementById('cmpDriverField');
+  const driverInp   = document.getElementById('cmpDriver');
+  // Notes field reveals as soon as any type is picked (rule: no typing without classifying first).
   if(sel.value){
-    field.classList.add('show');
+    notesField.classList.add('show');
     setTimeout(()=>{ const t=document.getElementById('cmpNotes'); if(t) t.focus(); }, 50);
   } else {
-    field.classList.remove('show');
+    notesField.classList.remove('show');
+  }
+  // Driver field is required for Driver complaints — show it and populate the
+  // autocomplete datalist on first open. Hide + clear for any other type so
+  // a stale driver name can't accidentally piggyback.
+  if(sel.value === 'DRIVER'){
+    driverField.style.display = '';
+    loadComplaintDriverList().then(list => {
+      const dl = document.getElementById('cmpDriverList');
+      if(dl) dl.innerHTML = list.map(n => `<option value="${esc(n)}"/>`).join('');
+    });
+  } else {
+    driverField.style.display = 'none';
+    if(driverInp) driverInp.value = '';
   }
 }
 async function submitComplaint(){
@@ -6046,6 +6112,16 @@ async function submitComplaint(){
   const notes = document.getElementById('cmpNotes').value.trim();
   if(!type){ toast('Pick a complaint type'); return; }
   if(!notes){ toast('Describe the complaint'); return; }
+  // Driver complaints require a driver name — this is the single most useful
+  // structured field for the monthly report (which groups Driver complaints
+  // by driver_name) so we don't let it through empty.
+  let driverName = null;
+  if(type === 'DRIVER'){
+    driverName = (document.getElementById('cmpDriver').value || '').trim();
+    if(!driverName){ toast('Enter the driver\'s name'); return; }
+    // Invalidate the cached list so the next modal open sees the new driver.
+    _complaintDriverList = null;
+  }
   const loggedBy = currentUser ? (currentUser.display_name || currentUser.username) : '';
   const {error} = await db.from('complaints').insert({
     client_id:      c.client_id,
@@ -6056,6 +6132,7 @@ async function submitComplaint(){
     client_route:   (c.route===''||c.route==null) ? null : c.route,
     client_days:    c.service_day || null,
     type:           type,
+    driver_name:    driverName,
     notes:          notes,
     logged_by:      loggedBy,
     status:         'new',
@@ -6276,8 +6353,12 @@ async function renderInboxDetail(c){
   // Build snapshot grid
   const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '—';
   const route = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
+  const driverRow = (c.type === 'DRIVER' && c.driver_name)
+    ? `<div class="field" style="grid-column:1 / span 2;"><label>Driver involved</label><div class="val" style="color:#991b1b;font-weight:700;font-size:14px;">${esc(c.driver_name)}</div></div>`
+    : '';
   const snapshot = `
     <div class="inbox-snapshot-grid">
+      ${driverRow}
       <div class="field"><label>Client</label><div class="val">${esc(c.client_name||'—')}</div></div>
       <div class="field"><label>Acct #</label><div class="val">${esc(c.client_id)}</div></div>
       <div class="field"><label>Address</label><div class="val">${esc(c.client_address||'—')}</div></div>
@@ -6582,6 +6663,7 @@ async function printComplaintWeek(){
         <label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div>
         <label>Email</label><div class="val">${esc(c.client_email||'—')}</div>
         <label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div>
+        ${(c.type==='DRIVER' && c.driver_name) ? `<label>Driver Involved</label><div class="val" style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</div>` : ''}
       </div>
     </div>
     <div class="section"><h3>Original Complaint</h3>
@@ -6741,6 +6823,7 @@ ${statusLine}
     <label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div>
     <label>Email</label><div class="val">${esc(c.client_email||'—')}</div>
     <label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div>
+    ${(c.type==='DRIVER' && c.driver_name) ? `<label>Driver Involved</label><div class="val" style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</div>` : ''}
   </div>
 </div>
 <div class="section"><h2>Original Complaint</h2>
@@ -6754,6 +6837,294 @@ ${statusLine}
 <div class="footer">
   <span>Reis Trucking — Nantucket, MA</span>
   <span>HELM Complaint Case File — Confidential</span>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+  win.document.close();
+}
+
+// ── MONTHLY COMPLAINT SUMMARY (David + Esme) ──────────────────────────
+// Calendar-month rollup of all complaints grouped by category, with Driver
+// further grouped by driver_name so it's obvious which driver is generating
+// which complaints. Lives as a card on the Reports tab.
+
+// 24-month dropdown — current month + 23 prior. Default selection is the
+// previous month (most useful for "review what just happened last month").
+function buildMonthlyCmpOptions(){
+  const now = new Date();
+  const opts = [];
+  for(let i = 0; i < 24; i++){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ym = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const label = d.toLocaleString('en-US', {month:'long', year:'numeric'});
+    opts.push({ym, label, current: i===0});
+  }
+  // Default-selected = previous month (index 1) so the report defaults to a
+  // completed window. User can flip to current month for an in-progress view.
+  return opts.map((o,i) =>
+    `<option value="${o.ym}" ${i===1?'selected':''}>${esc(o.label)}${o.current?' (current)':''}</option>`
+  ).join('');
+}
+
+// Stash for re-render + print.
+let _monthlyCmpData = null;
+let _monthlyCmpMonth = null;
+
+function _monthRange(ym){
+  const [y, m] = ym.split('-').map(Number);
+  const start = new Date(y, m-1, 1);
+  const end   = new Date(y, m, 1);  // exclusive
+  return {startISO: start.toISOString(), endISO: end.toISOString(), label: start.toLocaleString('en-US',{month:'long',year:'numeric'})};
+}
+
+async function generateMonthlySummary(){
+  if(!userCanSeeComplaints()){ toast('Access denied'); return; }
+  const ym = document.getElementById('monthlyCmpMonth').value;
+  if(!ym){ toast('Pick a month'); return; }
+  const range = _monthRange(ym);
+  const results = document.getElementById('monthlyCmpResults');
+  results.innerHTML = '<div class="loading">Loading complaints for '+esc(range.label)+'…</div>';
+  const {data, error} = await db.from('complaints').select('*')
+    .gte('logged_at', range.startISO).lt('logged_at', range.endISO)
+    .order('logged_at', {ascending:true});
+  if(error){
+    results.innerHTML = '<div class="empty-state" style="color:var(--err-text)">Error: '+esc(error.message)+'</div>';
+    return;
+  }
+  _monthlyCmpData = data || [];
+  _monthlyCmpMonth = ym;
+  renderMonthlySummary();
+  logActivity('complaint_monthly', ym+' '+(_monthlyCmpData.length));
+}
+
+function renderMonthlySummary(){
+  const data = _monthlyCmpData || [];
+  const ym = _monthlyCmpMonth;
+  const range = _monthRange(ym);
+  const results = document.getElementById('monthlyCmpResults');
+  if(!data.length){
+    results.innerHTML = '<div class="empty-state">No complaints logged in '+esc(range.label)+'</div>';
+    return;
+  }
+  // Status mix + type mix across the whole month
+  const statusCounts = {new:0, case_open:0, resolved:0, ignored:0};
+  data.forEach(c => { if(statusCounts.hasOwnProperty(c.status)) statusCounts[c.status]++; });
+  const byType = {DRIVER:[], BILLING:[], MISSED_STOP:[], OTHER:[]};
+  data.forEach(c => { (byType[c.type] || byType.OTHER).push(c); });
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${esc(range.label)} — ${data.length} complaint${data.length===1?'':'s'}</div>
+      <button class="btn-add" onclick="printMonthlySummary()" style="white-space:nowrap">Print Report</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+      <span class="status-pill-sm status-new">NEW ${statusCounts.new}</span>
+      <span class="status-pill-sm status-case_open">CASE OPEN ${statusCounts.case_open}</span>
+      <span class="status-pill-sm status-resolved">RESOLVED ${statusCounts.resolved}</span>
+      <span class="status-pill-sm status-ignored">IGNORED ${statusCounts.ignored}</span>
+    </div>`;
+
+  const order = ['DRIVER','BILLING','MISSED_STOP','OTHER'];
+  for(const type of order){
+    const rows = byType[type] || [];
+    html += renderMonthlySection(type, rows);
+  }
+  results.innerHTML = html;
+}
+
+function renderMonthlySection(type, rows){
+  if(!rows.length) return `
+    <div style="margin-bottom:12px;">
+      <div style="background:var(--gray-100);padding:7px 12px;border-radius:4px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-500);">${esc(complaintTypeLabel(type).toUpperCase())} — 0</div>
+    </div>`;
+
+  // For DRIVER type, sub-group by driver_name. Other types stay flat.
+  let body = '';
+  if(type === 'DRIVER'){
+    const byDriver = {};
+    rows.forEach(c => {
+      const k = (c.driver_name||'').trim() || '(No driver named)';
+      (byDriver[k] = byDriver[k] || []).push(c);
+    });
+    // Sort drivers by complaint count desc, then name asc
+    const drivers = Object.keys(byDriver).sort((a,b) => {
+      const d = byDriver[b].length - byDriver[a].length;
+      if(d !== 0) return d;
+      return a.localeCompare(b);
+    });
+    body = drivers.map(driver => {
+      const list = byDriver[driver];
+      const driverStatusCounts = {new:0, case_open:0, resolved:0, ignored:0};
+      list.forEach(c => { if(driverStatusCounts.hasOwnProperty(c.status)) driverStatusCounts[c.status]++; });
+      const driverChips = Object.entries(driverStatusCounts)
+        .filter(([_,v])=>v>0)
+        .map(([k,v]) => `<span class="status-pill-sm status-${k}" style="font-size:9px;">${k==='case_open'?'CASE':k.toUpperCase()} ${v}</span>`)
+        .join(' ');
+      return `
+        <div style="background:#fff7ed;border-left:3px solid #ea580c;padding:8px 12px;margin-bottom:8px;border-radius:0 4px 4px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;flex-wrap:wrap;">
+            <div style="font-weight:700;color:#9a3412;font-size:13px;">${esc(driver)}</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">${driverChips}<span style="font-size:11px;color:var(--gray-600);">· ${list.length} complaint${list.length===1?'':'s'}</span></div>
+          </div>
+          ${list.map(c => renderMonthlyComplaintRow(c)).join('')}
+        </div>`;
+    }).join('');
+  } else {
+    body = rows.map(c => renderMonthlyComplaintRow(c)).join('');
+  }
+
+  return `
+    <div style="margin-bottom:18px;">
+      <div class="report-group-header" style="background:#991b1b;color:white;padding:8px 12px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">${esc(complaintTypeLabel(type).toUpperCase())}</span>
+        <span style="font-size:12px;font-weight:600;">${rows.length} complaint${rows.length===1?'':'s'}</span>
+      </div>
+      <div style="background:white;border:1px solid var(--gray-100);border-top:none;padding:10px;">
+        ${body}
+      </div>
+    </div>`;
+}
+
+function renderMonthlyComplaintRow(c){
+  const when = c.logged_at ? new Date(c.logged_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+  const statusLabel = c.status==='case_open' ? 'CASE OPEN' : (c.status||'').toUpperCase();
+  let outcome = '';
+  if(c.status === 'resolved' && c.resolution_notes){
+    outcome = `<div style="font-size:11px;color:#166534;background:#f0fdf4;padding:3px 8px;border-radius:3px;margin-top:4px;border-left:2px solid #16a34a;font-style:italic;">✓ ${esc(c.resolution_notes)}</div>`;
+  } else if(c.status === 'ignored' && c.ignored_reason){
+    outcome = `<div style="font-size:11px;color:var(--gray-600);background:var(--gray-100);padding:3px 8px;border-radius:3px;margin-top:4px;border-left:2px solid var(--gray-400);font-style:italic;">Ignored: ${esc(c.ignored_reason)}</div>`;
+  }
+  return `
+    <div style="padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:12px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span style="color:var(--gray-500);min-width:50px;font-weight:600;">${esc(when)}</span>
+        <span style="color:var(--gray-500);font-family:monospace;">${esc(c.client_id)}</span>
+        <span style="font-weight:600;color:var(--gray-800);">${esc(c.client_name||'—')}</span>
+        <span class="status-pill-sm status-${c.status}" style="font-size:9px;">${esc(statusLabel)}</span>
+        <span style="color:var(--gray-400);font-size:11px;margin-left:auto;">by ${esc(c.logged_by||'—')}</span>
+      </div>
+      ${c.notes?`<div style="font-size:12px;color:var(--gray-700);margin-top:3px;padding-left:58px;line-height:1.4;">${esc(c.notes)}</div>`:''}
+      ${outcome ? `<div style="padding-left:58px;">${outcome}</div>` : ''}
+    </div>`;
+}
+
+async function printMonthlySummary(){
+  if(!userCanSeeComplaints()) return;
+  if(!_monthlyCmpData || !_monthlyCmpData.length){ toast('Generate the report first'); return; }
+  const data = _monthlyCmpData;
+  const range = _monthRange(_monthlyCmpMonth);
+  const statusCounts = {new:0, case_open:0, resolved:0, ignored:0};
+  data.forEach(c => { if(statusCounts.hasOwnProperty(c.status)) statusCounts[c.status]++; });
+  const byType = {DRIVER:[], BILLING:[], MISSED_STOP:[], OTHER:[]};
+  data.forEach(c => { (byType[c.type] || byType.OTHER).push(c); });
+
+  const sectionHTML = (type) => {
+    const rows = byType[type] || [];
+    if(!rows.length){
+      return `<h2>${esc(complaintTypeLabel(type).toUpperCase())} (0)</h2><p class="empty">No complaints in this category this month.</p>`;
+    }
+    if(type === 'DRIVER'){
+      const byDriver = {};
+      rows.forEach(c => { const k = (c.driver_name||'').trim() || '(No driver named)'; (byDriver[k]=byDriver[k]||[]).push(c); });
+      const drivers = Object.keys(byDriver).sort((a,b) => (byDriver[b].length-byDriver[a].length) || a.localeCompare(b));
+      return `<h2>${esc(complaintTypeLabel(type).toUpperCase())} (${rows.length})</h2>` +
+        drivers.map(d => {
+          const list = byDriver[d];
+          return `
+            <div class="driver-block">
+              <div class="driver-hdr">${esc(d)} — ${list.length} complaint${list.length===1?'':'s'}</div>
+              ${list.map(rowHTML).join('')}
+            </div>`;
+        }).join('');
+    }
+    return `<h2>${esc(complaintTypeLabel(type).toUpperCase())} (${rows.length})</h2>` + rows.map(rowHTML).join('');
+  };
+
+  const rowHTML = (c) => {
+    const when = c.logged_at ? new Date(c.logged_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    const statusLabel = c.status==='case_open' ? 'CASE OPEN' : (c.status||'').toUpperCase();
+    let outcome = '';
+    if(c.status === 'resolved' && c.resolution_notes){
+      outcome = `<div class="outcome resolved">✓ ${esc(c.resolution_notes)}</div>`;
+    } else if(c.status === 'ignored' && c.ignored_reason){
+      outcome = `<div class="outcome ignored">Ignored: ${esc(c.ignored_reason)}</div>`;
+    }
+    return `
+      <div class="entry">
+        <div class="entry-top">
+          <span class="date">${esc(when)}</span>
+          <span class="acct">${esc(c.client_id)}</span>
+          <span class="name">${esc(c.client_name||'—')}</span>
+          <span class="status-${c.status}">${esc(statusLabel)}</span>
+          <span class="by">by ${esc(c.logged_by||'—')}</span>
+        </div>
+        ${c.notes?`<div class="notes">${esc(c.notes)}</div>`:''}
+        ${outcome}
+      </div>`;
+  };
+
+  const sections = ['DRIVER','BILLING','MISSED_STOP','OTHER'].map(sectionHTML).join('');
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/><title>HELM Monthly Complaint Summary — ${range.label}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#000;padding:18px;}
+.header{border-bottom:2px solid #dc2626;padding-bottom:10px;margin-bottom:14px;}
+.header h1{font-size:22px;font-weight:700;color:#991b1b;}
+.header .sub{font-size:13px;color:#444;margin-top:4px;}
+.header .sub span{font-weight:700;color:#000;}
+.totals{margin-bottom:18px;display:flex;gap:18px;flex-wrap:wrap;font-size:12px;}
+.totals .col h3{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#666;margin-bottom:4px;}
+.totals .col ul{list-style:none;padding:0;}
+.totals .col li{padding:1px 0;}
+.totals .col li strong{color:#000;display:inline-block;min-width:28px;text-align:right;margin-right:6px;}
+h2{background:#991b1b;color:white;padding:6px 12px;font-size:14px;text-transform:uppercase;letter-spacing:.05em;margin-top:16px;margin-bottom:6px;page-break-after:avoid;}
+.driver-block{margin-bottom:10px;border-left:3px solid #ea580c;padding:6px 10px;background:#fff7ed;page-break-inside:avoid;}
+.driver-hdr{font-weight:700;color:#9a3412;font-size:12px;margin-bottom:6px;}
+.entry{padding:5px 0;border-bottom:1px solid #e5e7eb;page-break-inside:avoid;}
+.entry:last-child{border-bottom:none;}
+.entry-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;}
+.entry-top .date{font-weight:700;color:#444;min-width:46px;}
+.entry-top .acct{color:#666;font-family:monospace;font-size:11px;}
+.entry-top .name{font-weight:700;color:#000;}
+.entry-top span[class^="status-"]{padding:1px 7px;border-radius:8px;font-size:9px;font-weight:700;letter-spacing:.05em;}
+.status-new{background:#fee2e2;color:#991b1b;}
+.status-case_open{background:#fef3c7;color:#92400e;}
+.status-resolved{background:#dcfce7;color:#166534;}
+.status-ignored{background:#e5e7eb;color:#374151;}
+.entry-top .by{color:#888;font-size:11px;margin-left:auto;}
+.entry .notes{font-size:12px;color:#333;margin-top:3px;padding-left:54px;line-height:1.4;}
+.outcome{font-size:11px;padding:3px 8px;border-radius:3px;margin:3px 0 0 54px;font-style:italic;line-height:1.35;}
+.outcome.resolved{background:#f0fdf4;color:#166534;border-left:3px solid #16a34a;}
+.outcome.ignored{background:#f3f4f6;color:#4b5563;border-left:3px solid #9ca3af;}
+.empty{font-size:12px;color:#999;font-style:italic;padding:6px 12px;}
+.footer{margin-top:18px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+@media print{body{padding:10px;font-size:12px;}@page{margin:0.6cm;}}
+</style></head><body>
+<div class="header">
+  <h1>HELM — Monthly Complaint Summary</h1>
+  <div class="sub">Month: <span>${esc(range.label)}</span> &nbsp;·&nbsp; Total: <span>${data.length} complaint${data.length===1?'':'s'}</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
+</div>
+<div class="totals">
+  <div class="col"><h3>By Status</h3><ul>
+    <li><strong>${statusCounts.new}</strong> New</li>
+    <li><strong>${statusCounts.case_open}</strong> Case Open</li>
+    <li><strong>${statusCounts.resolved}</strong> Resolved</li>
+    <li><strong>${statusCounts.ignored}</strong> Ignored</li>
+  </ul></div>
+  <div class="col"><h3>By Type</h3><ul>
+    <li><strong>${(byType.DRIVER||[]).length}</strong> Driver</li>
+    <li><strong>${(byType.BILLING||[]).length}</strong> Billing</li>
+    <li><strong>${(byType.MISSED_STOP||[]).length}</strong> Missed Stop</li>
+    <li><strong>${(byType.OTHER||[]).length}</strong> Other</li>
+  </ul></div>
+</div>
+${sections}
+<div class="footer">
+  <span>Reis Trucking — Nantucket, MA</span>
+  <span>HELM Monthly Complaint Summary — Confidential</span>
 </div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`);
