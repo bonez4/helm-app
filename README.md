@@ -319,7 +319,8 @@ All tables RLS-enabled with open policies (HELM standard).
   - Rate Sheet and My Notes render side-by-side on desktop (collapse to stacked under 780px)
 - **Tokenized search** — "viola howard" matches "HOWARD, VIOLA" regardless of word order
 - Inline client card with name + company tag, Acct #, address, phone, **email** (clickable `mailto:` link in teal when set, "No email on file" placeholder when missing), pickup days, status, autopay, **route pill**, Edit button
-- Notes support 8 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, Misc). Complaints are no longer a note category — they have their own dedicated flow (see Complaint Pipeline below).
+- Notes support 9 categories (Skip Day, 1XER, 1X WK, 2X WK, 3X WK, LPU, Special Pickup, **Driver Comment**, Misc). Complaints are no longer a note category — they have their own dedicated flow (see Complaint Pipeline below).
+- **Driver Comment** is the category for things drivers call in about during their route ("bin was blocked", "client put extra trash out", etc). Reps log them on the relevant client card as they come in, then run the Driver Comments Report (see Reports tab) in the afternoon to roll through them and follow up with affected clients. Orange chip + orange border to visually distinguish from other note types.
 - **Edit Client** button sits on the top-right of the info column, in line with the address/email block (above the divider that precedes the Pickup Days tiles). **Log Complaint** is a red button at the bottom right of the info column where Edit Client used to be.
 - **Complaint entries appear in the Notes history alongside regular notes** — same chronological timeline. They render with a red left border + pink background tint, a `COMPLAINT — TYPE` chip, and a small status pill (NEW / CASE OPEN / RESOLVED / IGNORED). If the case was resolved, a green resolution footer shows who resolved it and the resolution notes; if ignored, a gray footer shows the ignore reason. Complaint entries are read-only in this view (no × delete button) — reps can see them but can't modify them. Gives reps a single "what's happened with this client" view when the client calls in.
 - Inline Yes/No delete confirmation on notes
@@ -344,7 +345,7 @@ All tables RLS-enabled with open policies (HELM standard).
 - **Rate Schedule (per-pickup)** — five inputs covering R1 trash pickup, R2 extra bag, R3 recycle bag, R4 intermittent pickup (rarely used), R5 cardboard armload. Stored as `clients.rate1` … `rate5`. Surfaced on the Lookup card as a 5-cell strip with running Total below the info-tiles. Mirrors the legacy NetWork software's R1-R5 view. Rates vary per address — they are not uniform across clients. *(Was David-only when first shipped on 2026-05-05; rolled out to all users on 2026-05-14 alongside the per-day routes rollout.)*
 
 ### Reports (all users)
-Five cards on the Reports tab (the fifth is gated to David + Esme):
+Seven cards on the Reports tab (the last two are gated to David + Esme):
 
 1. **Daily Action Report** — actionable notes for a specific date
    - Split by REIS / SANTOS / Other (first-digit classification)
@@ -361,26 +362,32 @@ Five cards on the Reports tab (the fifth is gated to David + Esme):
    - Summary strip of action-type counts at the top (reflects the filtered set)
    - Print version uses **enlarged date headers** (≈20px h2) so CSRs can scan from arm's length
 
-3. **Everything Report** — every note ever input, with author column
+3. **Driver Comments Report** — every Driver Comment note logged on the selected day, chronologically ordered (oldest first so reps work through them in input order)
+   - Columns: # · Time · Acct · Client · **Phone (large, monospace, click-to-call)** · Address · Comment · By
+   - Date picker defaults to today
+   - Print button generates an Arial print sheet with the orange "Driver Comments" branding — phone number is rendered in 14px monospace so it's easy to read while dialing
+   - Workflow: drivers call in during the morning route, reps log Driver Comment notes on the relevant client cards, then run this around 2pm to follow up with each affected client. Replaces the previous "scan Notes Added Today and filter to Driver Comment" workflow with a dedicated, dial-ready report.
+
+4. **Everything Report** — every note ever input, with author column
    - **Custom date range filter** on `created_at` (when the note was input). `Input from` + `Input to` pickers + `Last 7d / 30d / 90d / All time` quick presets. Either side may be left blank for an open-ended range.
    - **Post-generation filter bar** (gray strip above the results) — single-select dropdowns for Action / By (user) / Route 1–14 + No Route / Company (REIS/SANTOS/Other) + a free-text search across acct # / name / address / note / user / action. Dropdown options are populated from the actual fetched data (so the user list only shows people who logged notes in this range). Filters apply instantly client-side — no re-query. A "Clear" button resets all filters; a "N of M match" label shows how many rows the active filter set yields.
    - Same layout as Notes Added Today (For Date sections, sorted by Route within), plus a **By** column showing which user logged each note
    - Header strip shows the chosen range and the For-date span across the result
    - Print version honors the active filters — what's on screen is what prints — and includes the filter description in the print header so the printout is self-explaining
 
-4. **Export Clients to Excel** — column-picker export
+5. **Export Clients to Excel** — column-picker export
    - Toggleable columns: Account # / Company / Name / Address / Phone / Email / Pickup Days / Route / Status / Autopay / Date Added
    - Filters: Company (REIS / SANTOS), Status (Active / Paused), Email (with / without — useful for gap-hunting), Route (1-14 or "no route")
    - Downloads as `HELM_Clients_YYYYMMDD.xls`
 
-5. **Monthly Complaint Summary** *(David + Esme only)* — calendar-month rollup
+6. **Monthly Complaint Summary** *(David + Esme only)* — calendar-month rollup
    - Month dropdown (current + 23 prior months); defaults to **previous month**
    - Status mix strip at the top (NEW / CASE OPEN / RESOLVED / IGNORED counts)
    - One section per type (DRIVER / BILLING / MISSED STOP / OTHER) with a count header
    - **Driver section sub-groups by `driver_name`** — each driver gets their own orange-tinted block showing total count, status mix, and the individual complaints. Drivers sorted by complaint count descending so the noisiest driver tops the list. Complaints without a driver name fall into a "(No driver named)" bucket.
    - Each complaint row shows date · acct · client · status pill · who logged it · the notes, plus a green resolution footer if resolved or a gray ignore-reason footer if ignored
    - Print button generates a clean printable monthly archive with the same structure
-6. **Complaint Report** *(David + Esme only)* — weekly view of every Complaint note logged on a client card
+7. **Complaint Report** *(David + Esme only)* — weekly view of every Complaint note logged on a client card
    - Week navigator: ‹ / › arrows, Monday date picker, This Week / Last Week shortcuts
    - Summary strip with DRIVER / BILLING / OTHER counts (reflects the filtered set)
    - **Post-generation filter bar** — Type (DRIVER/BILLING/OTHER) / By (user) / Search (free text). Filters apply instantly; print honors them.
