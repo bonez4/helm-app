@@ -40,6 +40,99 @@ def fetch_clients_by_ids(ids):
     return {r["client_id"]: r for r in rows}
 
 
+def add_comparison_summary(wb):
+    """Insert a compact status-count summary at the top of the Comparison sheet
+    so the breakdown is visible without scrolling to row 565+."""
+    ws = wb["Comparison"]
+
+    # Read every status from the Reis (col D) and Santos (col I) status columns.
+    # Original header is on row 4, data starts row 5.
+    reis_counts = {}
+    santos_counts = {}
+    for r in range(5, ws.max_row + 1):
+        rs = ws.cell(r, 4).value
+        ss = ws.cell(r, 9).value
+        if rs: reis_counts[rs]   = reis_counts.get(rs, 0)   + 1
+        if ss: santos_counts[ss] = santos_counts.get(ss, 0) + 1
+
+    # Stable ordering — known statuses first, then anything else alphabetically.
+    preferred = ["Retained", "New", "Dropped"]
+    all_statuses = set(reis_counts) | set(santos_counts)
+    ordered = [s for s in preferred if s in all_statuses] + sorted(s for s in all_statuses if s not in preferred)
+
+    # Build the rows we want to insert at the top (between the existing title
+    # rows and the original header). 1 hdr + N status + 1 total + 1 blank.
+    insert_count = 2 + len(ordered) + 1  # title row + col header + statuses + blank
+    ws.insert_rows(idx=4, amount=insert_count)
+
+    # Re-shift any merged-cell ranges that previously spanned row 1 and 2 —
+    # insert_rows doesn't always extend merges that started above the insert
+    # point but spanned past it; the title rows are above so they should be ok.
+
+    # Styles
+    navy_fill = PatternFill("solid", fgColor="0e2a4f")
+    light_fill = PatternFill("solid", fgColor="f3f6fa")
+    bold_white = Font(bold=True, color="ffffff", size=11)
+    bold_navy  = Font(bold=True, color="0e2a4f", size=11)
+    thin = Side(style="thin", color="d5d9e0")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    right_align = Alignment(horizontal="right", vertical="center")
+    left_align  = Alignment(horizontal="left",  vertical="center")
+    center_align= Alignment(horizontal="center",vertical="center")
+
+    # Title row (row 4)
+    title = ws.cell(row=4, column=1, value="Status Breakdown")
+    title.font = bold_white
+    title.fill = navy_fill
+    title.alignment = left_align
+    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=4)
+
+    # Column header (row 5)
+    headers = ["Status", "Reis", "Santos", "Total"]
+    for i, h in enumerate(headers, start=1):
+        cell = ws.cell(row=5, column=i, value=h)
+        cell.font = bold_white
+        cell.fill = navy_fill
+        cell.alignment = center_align if i > 1 else left_align
+        cell.border = border
+
+    # Status data rows (rows 6 .. 6+len(ordered)-1)
+    for i, status in enumerate(ordered):
+        r = 6 + i
+        r_count = reis_counts.get(status, 0)
+        s_count = santos_counts.get(status, 0)
+        ws.cell(row=r, column=1, value=status).alignment = left_align
+        c_reis   = ws.cell(row=r, column=2, value=r_count)
+        c_santos = ws.cell(row=r, column=3, value=s_count)
+        c_total  = ws.cell(row=r, column=4, value=r_count + s_count)
+        c_reis.alignment = right_align
+        c_santos.alignment = right_align
+        c_total.alignment = right_align
+        for col in range(1, 5):
+            ws.cell(row=r, column=col).border = border
+
+    # Total row
+    total_r = 6 + len(ordered)
+    total_reis   = sum(reis_counts.get(s, 0)   for s in ordered)
+    total_santos = sum(santos_counts.get(s, 0) for s in ordered)
+    ws.cell(row=total_r, column=1, value="Total accounts").font = bold_navy
+    ws.cell(row=total_r, column=1).alignment = left_align
+    ws.cell(row=total_r, column=2, value=total_reis).font   = bold_navy
+    ws.cell(row=total_r, column=3, value=total_santos).font = bold_navy
+    ws.cell(row=total_r, column=4, value=total_reis + total_santos).font = bold_navy
+    for col in range(1, 5):
+        c = ws.cell(row=total_r, column=col)
+        c.fill = light_fill
+        c.border = border
+        if col > 1: c.alignment = right_align
+
+    # Column widths
+    ws.column_dimensions['A'].width = max(ws.column_dimensions['A'].width or 0, 26)
+    for letter in ('B', 'C', 'D'):
+        if (ws.column_dimensions[letter].width or 0) < 10:
+            ws.column_dimensions[letter].width = 10
+
+
 def enrich():
     wb = load_workbook(IN_PATH)
     ws = wb["Not Yet Activated"]
@@ -124,8 +217,21 @@ def enrich():
         for m in missing:
             print(f"  - {m}")
 
-    wb.save(OUT_PATH)
-    print(f"\nWrote {OUT_PATH}")
+    # Add the compact status summary at the top of the Comparison sheet.
+    add_comparison_summary(wb)
+
+    # If the primary output is locked (file open in Excel), fall back to a
+    # versioned name so the script always completes.
+    save_path = OUT_PATH
+    try:
+        wb.save(save_path)
+    except PermissionError:
+        from datetime import datetime
+        ts = datetime.now().strftime("%H%M%S")
+        save_path = OUT_PATH.replace(".xlsx", f"_v{ts}.xlsx")
+        wb.save(save_path)
+        print(f"\n  (primary output was open in Excel — wrote a fresh copy)")
+    print(f"\nWrote {save_path}")
 
 
 if __name__ == "__main__":
