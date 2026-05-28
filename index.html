@@ -95,16 +95,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray
 #appScreen{display:none;min-height:100vh;flex-direction:column;}
 
 .topbar{
-  background:var(--navy);height:44px;
+  background:var(--navy);
   display:flex;align-items:center;justify-content:space-between;
   padding:0 1rem;position:fixed;top:0;left:0;right:0;z-index:100;
   border-bottom:1px solid rgba(255,255,255,0.06);
   box-sizing:border-box;
+  /* iPhone PWA / notch awareness: push the topbar content below the status
+     bar, and pad the sides so it doesn't slip under the rounded corners /
+     Dynamic Island. The status-bar inset is 0 on desktop browsers, so this
+     is a no-op there. */
+  padding-top: env(safe-area-inset-top);
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  height: calc(44px + env(safe-area-inset-top));
 }
 /* Topbar is fixed (out of flow) — push everything else below it.
    Use margin-top on the first flow children so there is no extra
    gap or scrollbar quirk from padding on #appScreen. */
-.tab-nav{margin-top:44px;}
+.tab-nav{margin-top: calc(44px + env(safe-area-inset-top));}
 /* Global caret suppression: only real input fields show a cursor.
    Stops stray flashing-caret on background clicks across every page. */
 body{caret-color:transparent;}
@@ -2028,11 +2036,14 @@ body.on-action-tab [contenteditable=true],body.on-action-tab [contenteditable=""
 
 /* === SIDE-NAV LAYOUT: vertical left nav + full-width content (all users) === */
 body.layout-side .tab-nav{
-  position:fixed; top:44px; left:0; bottom:0; width:220px;
+  position:fixed;
+  top: calc(44px + env(safe-area-inset-top));
+  left:0; bottom:0; width:220px;
   flex-direction:column; align-items:stretch; gap:1px;
   background:#0a0e1a; border-right:1px solid rgba(255,255,255,0.08);
   border-bottom:none; padding:14px 10px; overflow-y:auto;
   z-index:50; box-shadow:1px 0 0 rgba(255,255,255,0.02);
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
 }
 body.layout-side .tab-nav::-webkit-scrollbar{display:initial;width:6px;}
 body.layout-side .tab-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px;}
@@ -2075,8 +2086,28 @@ body.layout-side .tab-nav{margin-top:0;}  /* fixed-positioned, no flow margin */
 .nav-toggle-btn{
   background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
   color:rgba(255,255,255,0.85); border-radius:5px; cursor:pointer;
-  width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center;
-  font-size:18px; line-height:1; transition:all 0.12s; font-family:inherit;
+  width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center;
+  font-size:20px; line-height:1; transition:all 0.12s; font-family:inherit;
+  flex-shrink:0;
+}
+/* On phone, the nav-toggle is the PRIMARY way to open the sidebar — make it
+   thumb-friendly (≥40px hit area per iOS guidelines) so it's not a tiny target
+   under the notch. */
+@media (max-width: 768px){
+  .nav-toggle-btn{ width:40px; height:40px; font-size:22px; }
+}
+
+/* Backdrop that dims the content behind the sidebar drawer on phone.
+   Hidden everywhere except phone-width-and-drawer-open. */
+.nav-backdrop{
+  display:none;
+  position:fixed; left:0; right:0; bottom:0;
+  top: calc(44px + env(safe-area-inset-top));
+  background: rgba(0,0,0,0.45);
+  z-index:49;
+}
+@media (max-width: 768px){
+  body.layout-side:not(.nav-collapsed) .nav-backdrop{ display:block; }
 }
 .nav-toggle-btn:hover{ background:rgba(255,255,255,0.12); color:white; border-color:rgba(255,255,255,0.22); }
 .nav-toggle-btn #navToggleIcon{ display:block; transition:transform 0.18s; transform-origin:center; }
@@ -2086,8 +2117,58 @@ body.layout-side.nav-collapsed .tab-nav{ display:none; }
 body.layout-side.nav-collapsed .main{ margin-left:0; width:100%; }
 /* Flip the chevron when collapsed so it points right (i.e. "open me"). */
 body.nav-collapsed .nav-toggle-btn #navToggleIcon{ transform:rotate(180deg); }
+
+/* ── PHONE LAYOUT ───────────────────────────────────────────────────
+   On narrow viewports the sidebar becomes a slide-in drawer instead of
+   a fixed rail. It's always rendered (no display:none) and animates in
+   from the left. Content area always takes the full width — the drawer
+   floats over it. */
+@media (max-width: 768px){
+  body.layout-side .tab-nav{
+    display: flex !important;             /* override desktop's nav-collapsed:none */
+    width: 280px;                          /* slightly wider for tap comfort */
+    transform: translateX(0);
+    transition: transform 0.22s ease-out;
+    z-index: 60;                           /* above the backdrop */
+    box-shadow: 4px 0 18px rgba(0,0,0,0.4);
+  }
+  body.layout-side.nav-collapsed .tab-nav{
+    transform: translateX(-100%);
+  }
+  /* Content reclaims full width whether the drawer is open or not — the
+     drawer overlays, not pushes. */
+  body.layout-side .main{
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 0.5rem 0.75rem;
+  }
+  /* Bigger tap targets in the nav list */
+  body.layout-side .tab-nav button{
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  body.layout-side .nav-group-hdr{
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+  /* Hide low-priority topbar items on phone so the row doesn't get crowded.
+     The Sticky + Contacts panels are draggable-window features that don't
+     work well on phone anyway. */
+  #stickyBtn, #contactsBtn{ display:none !important; }
+  .live-dot{ display:none; }
+  .live-label{ font-size:11px; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* FAB clears the home indicator + side safe areas */
+  .bulky-fab{
+    bottom: max(22px, calc(env(safe-area-inset-bottom) + 14px));
+    right:  max(22px, calc(env(safe-area-inset-right)  + 14px));
+  }
+  /* Give the Bulky tab body breathing room below the FAB so the last card
+     isn't covered when scrolled to the bottom. */
+  #tab-bulky{ padding-bottom: 100px; }
+}
 body.layout-side .main{
-  margin-left:220px; margin-top:44px; max-width:none; width:calc(100% - 220px);
+  margin-left:220px; margin-top: calc(44px + env(safe-area-inset-top));
+  max-width:none; width:calc(100% - 220px);
   padding:0.75rem 1.25rem;
 }
 /* Workflow + Command tabs: kill main padding so canvas goes edge-to-edge */
@@ -3026,6 +3107,11 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <button id="importTabBtn" class="nav-solo" style="display:none" onclick="switchTab('import',this)">Import</button>
   </div>
 
+  <!-- Tap-target backdrop for the sidebar drawer on phone. CSS keeps it
+       hidden on desktop and only visible when the drawer is open at phone
+       width. Tap it to close the drawer. -->
+  <div class="nav-backdrop" onclick="closeNavOnPhone()"></div>
+
   <div class="main">
     <div id="tab-lookup"></div>
     <div id="tab-add"    style="display:none"></div>
@@ -3961,19 +4047,43 @@ function toggleNavGroup(id){
   state[id] = el.classList.contains('collapsed');
   localStorage.setItem('helm_nav_groups', JSON.stringify(state));
 }
-// Collapse / expand the entire left nav rail. State persists per-browser.
+// Phone-width detection so the sidebar treats narrow viewports differently:
+// rail is a slide-in drawer that always defaults to closed; tapping outside
+// or any nav button closes it. Desktop behavior (persistent rail with
+// localStorage memory) is unchanged.
+function isPhoneViewport(){
+  return window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+}
+
+// Collapse / expand the entire left nav rail.
+// Desktop: state persists per-browser via localStorage.
+// Phone:   state doesn't persist — drawer always defaults to closed on load.
 function toggleNavRail(){
   document.body.classList.toggle('nav-collapsed');
   const isCollapsed = document.body.classList.contains('nav-collapsed');
-  localStorage.setItem('helm_nav_collapsed', isCollapsed ? '1' : '0');
+  if(!isPhoneViewport()){
+    localStorage.setItem('helm_nav_collapsed', isCollapsed ? '1' : '0');
+  }
   const btn = document.getElementById('navToggleBtn');
   if(btn) btn.title = isCollapsed ? 'Expand menu' : 'Collapse menu';
 }
+
 function applyNavRailState(){
-  if(localStorage.getItem('helm_nav_collapsed') === '1'){
+  // On phone we always start with the drawer closed regardless of saved
+  // desktop preference — opening a fresh page on phone shouldn't dump the
+  // whole rail into your face.
+  const shouldCollapse = isPhoneViewport() || localStorage.getItem('helm_nav_collapsed') === '1';
+  if(shouldCollapse){
     document.body.classList.add('nav-collapsed');
     const btn = document.getElementById('navToggleBtn');
     if(btn) btn.title = 'Expand menu';
+  }
+}
+
+// Tap on the backdrop closes the drawer on phone.
+function closeNavOnPhone(){
+  if(isPhoneViewport()){
+    document.body.classList.add('nav-collapsed');
   }
 }
 function applyNavGroupState(){
@@ -4027,6 +4137,9 @@ function switchTab(name,btn){
   if(name==='action') { apInit(); }
   if(name==='bulky')  renderBulkyTab();
   if(name==='import') renderImport();
+  // On phone, tapping a nav button should also close the drawer so the user
+  // sees the page they navigated to (not the menu they just used).
+  if(isPhoneViewport()) document.body.classList.add('nav-collapsed');
 }
 
 // ── LOOKUP ────────────────────────────────────────────────────────────
