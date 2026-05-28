@@ -171,6 +171,22 @@ Per-user themes live in `applyUserTheme()`:
 | performed_by | TEXT | Display name |
 | performed_at | TIMESTAMPTZ | Auto |
 
+**`bulky_pickups`** — Bulky / prohibited items left behind on a residential route (David + admin only)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| client_id | TEXT | Nullable — not every address is a HELM client |
+| address | TEXT | Snapshot of the street address at log time |
+| client_name | TEXT | Snapshot (when client_id is set) |
+| reporting_driver | TEXT | Free text — which driver flagged it |
+| notes | TEXT | What was left out (e.g. "3 mattresses + a fridge") |
+| photos | JSONB | Array of `{path, uploaded_at, uploaded_by}` pointing into the `helm-files` Supabase Storage bucket under `bulky/YYYY-MM/...` |
+| received_at | DATE | Date the driver originally reported it. Drives the calendar view; back-datable so David can catch up on a backlog. |
+| logged_at | TIMESTAMPTZ | When the record was created in HELM |
+| logged_by | TEXT | Display name of whoever logged it |
+| status | TEXT | `pending` or `completed` |
+| picked_up_at / picked_up_by | — | Set when Mark Picked Up is clicked |
+
 **`users`** — Authentication
 | Column | Type | Notes |
 |---|---|---|
@@ -547,6 +563,19 @@ Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fide
 - **Weekly grid** with prev/next + date picker — Inbound / Outbound / Net / End-of-day balance rows × Mon–Sat + WTD + MTD + YTD columns
 - **Running balance line chart** (Chart.js) — full history, walking forward + backward from the seed; capacity target shown as dashed red line
 - **Capacity** input field — personal target (localStorage, not shared) for % over calculations on date cells
+
+### Bulky Pickups (David + admin only) — new solo nav tab
+Tracks bulky / prohibited items drivers leave behind on residential routes (mattresses, appliances, freon items, construction scrap mixed into household trash). Workflow today: a driver texts David a photo + address; David logs it here. When the pending queue hits a threshold (default 15), David sends a driver out specifically to clear the pile.
+
+- **Mobile-first** — designed for David's iPhone. Cards stack 1-up on small screens; FAB (+) bottom-right; uses `<input type="file" accept="image/*" multiple>` so iOS opens the native Photos sheet for picking from the camera roll.
+- **PWA-installable** — `manifest.webmanifest` + iOS meta tags + apple-touch-icon. On iPhone: open HELM in Safari → Share → Add to Home Screen → opens full-screen with no browser chrome, indistinguishable from a native app for this workflow.
+- **Three sub-views** at the top of the tab:
+  - **Queue** (default) — pending records sorted oldest-first. Banner at the top: `N of THRESHOLD pending — accumulating` (blue) flips to `READY TO DISPATCH` (amber) when the count hits threshold. Threshold is configurable inline (persisted to localStorage). Each card shows up to 3 photo thumbs + `+N` overflow, the address, client name + acct # if matched, days-since-received age pill (green/amber/red).
+  - **Calendar** — month grid; cells with received records get a red count badge. Click a day → drill into the records received that date below the grid. Today is bordered teal.
+  - **History** — completed pickups grouped by month, newest month first.
+- **Logging flow (+ FAB)**: Date received (default today, back-datable) → Address with client autosuggest (auto-fills name + acct # on match, otherwise saves as free-text address) → Reporting driver (free text, optional) → Notes → Photo picker. Photos are client-side resized to 1600px max dim + 85% JPEG quality before upload (iPhone photos go from ~4 MB → ~400 KB) and uploaded to `helm-files/bulky/YYYY-MM/...`. Save inserts one row with the photo paths embedded in the `photos` JSONB column.
+- **Detail view (tap any card)**: photo carousel (‹ / ›), client snapshot, date + driver + notes. Pending cards have a green **✓ Mark Picked Up** button; clicking flips status to `completed` and stamps `picked_up_at` + `picked_up_by`. Both pending and completed have a Delete button that also removes the photos from Storage.
+- **Threshold logic**: just a visual nudge — no auto-dispatch action. David sees the banner, decides to send a run, then opens each card and marks them picked up. The v1 scope deliberately skips a "Schedule Run" action; that's a future enhancement if useful.
 
 ### Files (David + admins)
 - Two sub-views: Shared / My Files

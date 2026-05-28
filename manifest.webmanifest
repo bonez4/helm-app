@@ -1,0 +1,11 @@
+{
+  "name": "HELM — Reis Trucking",
+  "short_name": "HELM",
+  "description": "Reis Trucking operations dashboard",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0e2a4f",
+  "background_color": "#0e2a4f"
+}

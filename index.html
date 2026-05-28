@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>HELM — Reis Trucking</title>
+<!-- PWA: Add to Home Screen support so HELM behaves like an app on iPhone -->
+<link rel="manifest" href="manifest.webmanifest"/>
+<meta name="theme-color" content="#0e2a4f"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="HELM"/>
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20180%20180%27%3E%3Crect%20width%3D%27180%27%20height%3D%27180%27%20rx%3D%2740%27%20fill%3D%27%230e2a4f%27%2F%3E%3Ctext%20x%3D%2790%27%20y%3D%27122%27%20font-family%3D%27DM%20Sans%2CArial%27%20font-size%3D%27100%27%20font-weight%3D%27800%27%20fill%3D%27%23ffffff%27%20text-anchor%3D%27middle%27%3EH%3C%2Ftext%3E%3C%2Fsvg%3E"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&family=Inter:wght@100;200;300&family=Pacifico&family=Playfair+Display:ital,wght@1,400;1,500&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -672,6 +679,194 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 }
 .action-tag.at-misc{background:var(--gray-100);color:var(--gray-500);}
 .action-tag.at-pause{background:var(--err-bg);color:var(--err-text);}
+
+/* ── BULKY PICKUPS (David + admin only) ─────────────────────────────── */
+/* Mobile-first: cards stack vertically on small screens, grid on desktop.
+   Uses the existing helm-modal-* primitives for the New Pickup + Detail
+   modals so it inherits the same look as Complaint and Inbox dialogs. */
+.bulky-wrap{max-width:1100px;margin:0 auto;padding:0 8px;}
+.bulky-tab-strip{
+  display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;
+  background:#fff;padding:4px;border-radius:8px;border:1px solid var(--gray-100);
+  position:sticky;top:0;z-index:5;
+}
+.bulky-tab-btn{
+  padding:8px 16px;border-radius:5px;border:1px solid transparent;
+  background:transparent;color:var(--gray-600);
+  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.bulky-tab-btn:hover{background:var(--gray-100);color:var(--gray-800);}
+.bulky-tab-btn.active{background:var(--navy);color:white;}
+.bulky-tab-btn .chip-count{
+  background:rgba(255,255,255,0.25);padding:0 7px;border-radius:8px;
+  font-size:10px;font-weight:700;min-width:18px;text-align:center;
+}
+.bulky-tab-btn:not(.active) .chip-count{background:rgba(15,31,61,0.08);color:inherit;}
+
+/* Threshold banner sitting above the Queue view */
+.bulky-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  padding:11px 16px;border-radius:8px;margin-bottom:14px;font-size:13px;
+}
+.bulky-banner.accumulating{background:#e8f0fe;border:1px solid #4285f4;color:#1a56db;}
+.bulky-banner.ready{background:#fef3c7;border:1px solid #d97706;color:#92400e;font-weight:700;}
+.bulky-banner-count{font-size:18px;font-weight:800;letter-spacing:-.01em;}
+.bulky-threshold-control{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;}
+.bulky-threshold-control input{
+  width:52px;padding:3px 6px;font-size:13px;font-weight:700;text-align:center;
+  border:1px solid var(--gray-200);border-radius:4px;background:white;font-family:inherit;
+}
+
+/* Queue card grid */
+.bulky-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+@media (max-width:640px){
+  .bulky-grid{grid-template-columns:1fr;gap:10px;}
+  .bulky-wrap{padding:0 4px;}
+}
+.bulky-card{
+  background:white;border:1px solid var(--gray-100);border-radius:8px;overflow:hidden;
+  cursor:pointer;transition:box-shadow .15s,transform .1s;
+  display:flex;flex-direction:column;
+}
+.bulky-card:hover{box-shadow:0 4px 14px rgba(15,31,61,0.12);transform:translateY(-1px);}
+.bulky-card.status-completed{opacity:.7;}
+.bulky-card-photo-strip{
+  display:flex;gap:0;background:var(--gray-100);
+  height:140px;overflow:hidden;flex-shrink:0;
+}
+.bulky-card-photo-strip img{
+  flex:1;min-width:0;object-fit:cover;height:100%;background:#000;
+}
+.bulky-card-photo-strip .more-photos{
+  flex:0 0 60px;display:flex;align-items:center;justify-content:center;
+  background:rgba(15,31,61,0.65);color:white;font-size:14px;font-weight:700;
+}
+.bulky-card-no-photo{
+  display:flex;align-items:center;justify-content:center;height:140px;
+  background:var(--gray-100);color:var(--gray-400);font-size:12px;font-style:italic;
+}
+.bulky-card-body{padding:12px 14px;flex:1;}
+.bulky-card-addr{font-weight:700;color:var(--navy);font-size:14px;line-height:1.3;margin-bottom:4px;}
+.bulky-card-name{font-size:12px;color:var(--gray-600);margin-bottom:6px;}
+.bulky-card-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--gray-500);}
+.bulky-card-notes{font-size:12px;color:var(--gray-700);line-height:1.35;margin-top:6px;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.bulky-card-footer{
+  padding:8px 14px;border-top:1px solid var(--gray-100);background:#fafbfd;
+  display:flex;justify-content:space-between;align-items:center;font-size:11px;
+}
+.bulky-age-pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.bulky-age-pill.age-new{background:#dcfce7;color:#166534;}
+.bulky-age-pill.age-aging{background:#fef3c7;color:#92400e;}
+.bulky-age-pill.age-stale{background:#fee2e2;color:#991b1b;}
+
+/* Floating new-pickup FAB */
+.bulky-fab{
+  position:fixed;bottom:22px;right:22px;z-index:50;
+  width:60px;height:60px;border-radius:50%;
+  background:var(--navy);color:white;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 20px rgba(15,31,61,0.35);
+  font-size:30px;line-height:1;font-family:inherit;
+  transition:transform .15s,background .15s;
+}
+.bulky-fab:hover{background:#1f4e79;transform:scale(1.05);}
+.bulky-fab svg{width:28px;height:28px;}
+
+/* Calendar grid (mobile-friendly month view) */
+.bulky-cal-strip{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 4px;margin-bottom:10px;
+}
+.bulky-cal-strip .nav{
+  background:white;border:1px solid var(--gray-200);
+  padding:6px 12px;border-radius:5px;cursor:pointer;font-size:14px;
+  font-family:inherit;color:var(--gray-700);font-weight:600;
+}
+.bulky-cal-strip .month-label{font-size:15px;font-weight:700;color:var(--navy);}
+.bulky-cal-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:4px;
+  background:var(--gray-100);padding:4px;border-radius:8px;
+}
+.bulky-cal-day-hdr{
+  text-align:center;font-size:10px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--gray-500);padding:6px 0;
+}
+.bulky-cal-cell{
+  background:white;border-radius:5px;min-height:64px;padding:6px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  transition:background .15s;
+  font-family:inherit;
+}
+.bulky-cal-cell:hover{background:var(--gray-100);}
+.bulky-cal-cell.other-month{opacity:.3;}
+.bulky-cal-cell.today{border:2px solid var(--teal);}
+.bulky-cal-cell.has-count{background:#fff7ed;border:1px solid #fed7aa;}
+.bulky-cal-cell.has-count:hover{background:#ffedd5;}
+.bulky-cal-cell .day-num{font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:2px;}
+.bulky-cal-cell .day-count{
+  background:#dc2626;color:white;font-size:11px;font-weight:800;
+  min-width:22px;padding:2px 6px;border-radius:11px;line-height:1;
+}
+
+/* New Pickup modal — photo previews */
+.bulky-photo-input-row{
+  display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;
+}
+.bulky-photo-input-row input[type=file]{display:none;}
+.bulky-photo-pick-btn{
+  background:var(--teal);color:white;border:none;
+  padding:10px 18px;border-radius:6px;cursor:pointer;
+  font-family:inherit;font-size:13px;font-weight:600;
+  display:inline-flex;align-items:center;gap:8px;
+}
+.bulky-photo-pick-btn:hover{background:var(--teal-dim);}
+.bulky-photo-pick-btn svg{width:16px;height:16px;}
+.bulky-photo-pick-hint{font-size:11px;color:var(--gray-500);}
+.bulky-photo-previews{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;
+  margin-bottom:10px;
+}
+.bulky-photo-preview{
+  position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#000;
+  border:1px solid var(--gray-200);
+}
+.bulky-photo-preview img{width:100%;height:100%;object-fit:cover;}
+.bulky-photo-preview .remove{
+  position:absolute;top:4px;right:4px;width:22px;height:22px;
+  background:rgba(0,0,0,0.7);color:white;border:none;border-radius:50%;
+  cursor:pointer;font-size:14px;line-height:1;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;
+}
+.bulky-photo-preview .remove:hover{background:#dc2626;}
+
+/* Detail modal carousel */
+.bulky-carousel{
+  position:relative;background:#000;border-radius:6px;overflow:hidden;margin-bottom:14px;
+  aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;
+}
+.bulky-carousel img{
+  max-width:100%;max-height:100%;object-fit:contain;
+}
+.bulky-carousel .nav-btn{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:38px;height:38px;border-radius:50%;
+  background:rgba(0,0,0,0.55);color:white;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;line-height:1;font-family:inherit;
+}
+.bulky-carousel .nav-btn:hover{background:rgba(0,0,0,0.8);}
+.bulky-carousel .nav-btn.prev{left:8px;} .bulky-carousel .nav-btn.next{right:8px;}
+.bulky-carousel .counter{
+  position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.65);color:white;padding:3px 10px;border-radius:10px;
+  font-size:11px;font-weight:600;
+}
+.bulky-detail-info{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:13px;margin-bottom:14px;}
+.bulky-detail-info .field label{display:block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);margin-bottom:2px;}
+.bulky-detail-info .field .val{color:var(--gray-800);font-weight:500;}
+@media (max-width:520px){.bulky-detail-info{grid-template-columns:1fr;}}
 
 /* ── COMPLAINT PIPELINE ─────────────────────────────────────────────── */
 /* Topbar inbox button + iMessage-style badge */
@@ -2825,6 +3020,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       </div>
     </div>
     <button id="rolloffsSolo" class="nav-solo" onclick="switchTab('rolloffs',this)">Roll-offs</button>
+    <button id="bulkyTabBtn"  class="nav-solo" style="display:none" onclick="switchTab('bulky',this)">Bulky Pickups</button>
     <button id="filesTabBtn"  class="nav-solo" style="display:none" onclick="switchTab('files',this)">Files</button>
     <button id="actionTabBtn" class="nav-solo" style="display:none" onclick="switchTab('action',this)">Workflow</button>
     <button id="importTabBtn" class="nav-solo" style="display:none" onclick="switchTab('import',this)">Import</button>
@@ -2849,6 +3045,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <div id="tab-files"  style="display:none"></div>
     <div id="tab-cmd"    style="display:none"></div>
     <div id="tab-action" style="display:none"></div>
+    <div id="tab-bulky"  style="display:none"></div>
     <div id="tab-import" style="display:none"></div>
   </div>
 </div>
@@ -3004,6 +3201,65 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       <button class="btn-edit-sm" onclick="closeIgnoreModal()">Cancel</button>
       <button class="btn-ignore" onclick="confirmIgnoreComplaint()" style="padding:7px 18px;">Ignore Complaint</button>
     </div>
+  </div>
+</div>
+
+<!-- ── NEW BULKY PICKUP MODAL ──────────────────────────────────────── -->
+<div class="helm-modal-backdrop" id="newPickupModal" onclick="if(event.target===this)closeNewPickupModal()">
+  <div class="helm-modal-sheet" onclick="event.stopPropagation()">
+    <div class="helm-modal-header">
+      <h3>New Bulky Pickup</h3>
+      <button class="close-x" onclick="closeNewPickupModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body">
+      <div class="cmp-field">
+        <label>Date received *</label>
+        <input type="date" id="bpDate" style="width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius:5px;font-size:13px;font-family:inherit;background:white;box-sizing:border-box;"/>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:4px;font-style:italic;">When the driver originally texted you about it. Defaults to today; back-date if you're catching up.</div>
+      </div>
+      <div class="cmp-field">
+        <label>Address *</label>
+        <input type="text" id="bpAddress" list="bpAddressList" autocomplete="off" placeholder="Start typing an address or account #"/>
+        <datalist id="bpAddressList"></datalist>
+        <div id="bpClientChip" style="font-size:11px;margin-top:4px;color:var(--gray-500);font-style:italic;">No client match — will be saved as a free-text address.</div>
+      </div>
+      <div class="cmp-field">
+        <label>Reporting driver</label>
+        <input type="text" id="bpDriver" autocomplete="off" placeholder="Which driver flagged it (optional)"/>
+      </div>
+      <div class="cmp-field">
+        <label>Notes</label>
+        <textarea id="bpNotes" placeholder="What's been left out? e.g. '3 mattresses + an old TV'" style="min-height:70px;"></textarea>
+      </div>
+      <div class="cmp-field">
+        <label>Photos</label>
+        <div class="bulky-photo-input-row">
+          <label class="bulky-photo-pick-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Pick photos from camera roll
+            <input type="file" id="bpPhotos" accept="image/*" multiple onchange="onBulkyPhotosChosen(event)"/>
+          </label>
+          <span class="bulky-photo-pick-hint" id="bpPhotoHint">No photos selected</span>
+        </div>
+        <div class="bulky-photo-previews" id="bpPhotoPreviews"></div>
+      </div>
+    </div>
+    <div class="helm-modal-footer">
+      <button class="btn-edit-sm" onclick="closeNewPickupModal()">Cancel</button>
+      <button class="btn-add" onclick="submitNewPickup()" id="bpSubmitBtn">Save Pickup</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BULKY PICKUP DETAIL MODAL ──────────────────────────────────── -->
+<div class="helm-modal-backdrop" id="pickupDetailModal" onclick="if(event.target===this)closePickupDetail()">
+  <div class="helm-modal-sheet" onclick="event.stopPropagation()">
+    <div class="helm-modal-header">
+      <h3 id="pickupDetailTitle">Bulky Pickup</h3>
+      <button class="close-x" onclick="closePickupDetail()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body" id="pickupDetailBody"></div>
+    <div class="helm-modal-footer" id="pickupDetailFooter"></div>
   </div>
 </div>
 
@@ -3467,6 +3723,10 @@ async function login() {
     document.getElementById('complaintInboxBtn').style.display='';
     startComplaintBadgePoll();
   }
+  // Bulky Pickups nav button — David + admin role only.
+  if(data.username==='david' || data.role==='admin'){
+    document.getElementById('bulkyTabBtn').style.display='';
+  }
   // Sharon: restricted view — only Client Lookup + Reports under Client
   // Management; hide Add Client, Roll-offs, and the entire Dispatch group.
   if(data.username==='sharon'){
@@ -3736,7 +3996,7 @@ function expandNavGroupFor(tabName){
 }
 function switchTab(name,btn){
   expandNavGroupFor(name);
-  ['lookup','add','report','rolloffs','dailyscale','icr','crc','kpis','rvisual','xfer','bla','resiroutes','dispatch','rolloffqueue','history','files','cmd','action','import'].forEach(t=>{
+  ['lookup','add','report','rolloffs','dailyscale','icr','crc','kpis','rvisual','xfer','bla','resiroutes','dispatch','rolloffqueue','history','files','cmd','action','bulky','import'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
   });
   document.querySelectorAll('.tab-nav button').forEach(b=>b.classList.remove('active'));
@@ -3765,6 +4025,7 @@ function switchTab(name,btn){
   if(name==='files')  renderFiles();
   if(name==='cmd')    { if(!cmdUnlocked){promptCmdPin();return;} renderCmd(); }
   if(name==='action') { apInit(); }
+  if(name==='bulky')  renderBulkyTab();
   if(name==='import') renderImport();
 }
 
@@ -6978,6 +7239,599 @@ ${statusLine}
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`);
   win.document.close();
+}
+
+// ── BULKY PICKUPS (David + admin) ─────────────────────────────────────
+// Drivers leave behind prohibited/bulky items during residential pickup.
+// Today they text David a photo + address; this tab is the system of record.
+// Mobile-first since David runs this from his phone (PWA-installed).
+//
+// Data model:
+//   bulky_pickups (one row per address visit)
+//     - photos: JSONB array of {path, uploaded_at, uploaded_by}
+//     - status: 'pending' | 'completed'
+//     - received_at: DATE the driver originally reported (back-datable)
+// Photos: helm-files private bucket, prefixed bulky/YYYY-MM/<ts>-<rand>.jpg
+
+function userCanSeeBulky(){
+  if(!currentUser) return false;
+  return currentUser.username === 'david' || currentUser.role === 'admin';
+}
+
+let _bulkyRecords    = [];          // all rows from bulky_pickups, sorted newest received_at first
+let _bulkyView       = 'queue';     // 'queue' | 'calendar' | 'history'
+let _bulkyCalMonth   = null;        // 'YYYY-MM' for calendar nav
+let _bulkySignedUrls = {};          // path → {url, expires_at} cache for photo display
+let _bulkyPendingPhotos = [];       // staged File objects + previews for the new-pickup modal
+let _bulkyDetailId   = null;        // currently-open detail record id
+let _bulkyDetailIdx  = 0;           // photo carousel index
+
+function bulkyThreshold(){
+  const v = parseInt(localStorage.getItem('helm_bulky_threshold')||'15', 10);
+  return (isFinite(v) && v > 0) ? v : 15;
+}
+function setBulkyThreshold(v){
+  const n = parseInt(v, 10);
+  if(!isFinite(n) || n < 1) return;
+  localStorage.setItem('helm_bulky_threshold', String(n));
+}
+
+// Today's YYYY-MM-DD in local time (avoid timezone-shifted "today")
+function bulkyTodayISO(){
+  const d = new Date(); d.setHours(0,0,0,0);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+async function bulkyFetchAll(){
+  const {data, error} = await db.from('bulky_pickups').select('*').order('received_at',{ascending:false});
+  if(error){ toast('Error: '+error.message); return; }
+  _bulkyRecords = data || [];
+}
+
+async function renderBulkyTab(){
+  if(!userCanSeeBulky()){
+    document.getElementById('tab-bulky').innerHTML = '<div class="empty-state">Access restricted.</div>';
+    return;
+  }
+  const wrap = document.getElementById('tab-bulky');
+  wrap.innerHTML = '<div class="loading">Loading bulky pickups…</div>';
+  await bulkyFetchAll();
+  _renderBulkyShell();
+}
+
+function _renderBulkyShell(){
+  const pending   = _bulkyRecords.filter(r => r.status === 'pending');
+  const completed = _bulkyRecords.filter(r => r.status === 'completed');
+  const wrap = document.getElementById('tab-bulky');
+  wrap.innerHTML = `
+    <div class="bulky-wrap">
+      <div class="bulky-tab-strip">
+        <button class="bulky-tab-btn ${_bulkyView==='queue'?'active':''}"    onclick="setBulkyView('queue')">Queue<span class="chip-count">${pending.length}</span></button>
+        <button class="bulky-tab-btn ${_bulkyView==='calendar'?'active':''}" onclick="setBulkyView('calendar')">Calendar</button>
+        <button class="bulky-tab-btn ${_bulkyView==='history'?'active':''}"  onclick="setBulkyView('history')">History<span class="chip-count">${completed.length}</span></button>
+      </div>
+      <div id="bulkyViewBody"></div>
+    </div>
+    <button class="bulky-fab" onclick="openNewPickupModal()" title="Log a new bulky pickup">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  `;
+  _renderBulkyView();
+}
+
+function setBulkyView(v){
+  _bulkyView = v;
+  _renderBulkyShell();
+}
+
+function _renderBulkyView(){
+  if(_bulkyView === 'queue')    return _renderBulkyQueue();
+  if(_bulkyView === 'calendar') return _renderBulkyCalendar();
+  if(_bulkyView === 'history')  return _renderBulkyHistory();
+}
+
+// ── Queue view ────────────────────────────────────────────────────────
+function _renderBulkyQueue(){
+  const pending = _bulkyRecords.filter(r => r.status === 'pending');
+  const threshold = bulkyThreshold();
+  const isReady = pending.length >= threshold;
+  const banner = `
+    <div class="bulky-banner ${isReady?'ready':'accumulating'}">
+      <div>
+        <span class="bulky-banner-count">${pending.length}</span> of <span style="font-weight:700">${threshold}</span> pending
+        ${isReady
+          ? ' — <strong>Ready to dispatch.</strong> Send a driver out to clear these.'
+          : ` — Accumulating. ${threshold - pending.length} more before dispatch.`}
+      </div>
+      <div class="bulky-threshold-control">
+        Threshold:
+        <input type="number" min="1" max="999" value="${threshold}" onchange="setBulkyThreshold(this.value); _renderBulkyView();"/>
+      </div>
+    </div>
+  `;
+
+  const body = document.getElementById('bulkyViewBody');
+  if(!pending.length){
+    body.innerHTML = banner + `
+      <div class="empty-state" style="text-align:center;padding:40px 20px;color:var(--gray-400);">
+        Queue is empty. Tap the + button to log the first bulky pickup of the next batch.
+      </div>`;
+    return;
+  }
+  // Sort oldest-first within the queue so the oldest pending sites get attention.
+  const sortedPending = [...pending].sort((a,b) => (a.received_at||'').localeCompare(b.received_at||''));
+  body.innerHTML = banner + `<div class="bulky-grid">${sortedPending.map(_bulkyCardHTML).join('')}</div>`;
+  _hydrateBulkyCardPhotos();
+}
+
+function _bulkyCardHTML(r){
+  const photos = Array.isArray(r.photos) ? r.photos : [];
+  const ageDays = r.received_at ? Math.floor((Date.now() - new Date(r.received_at+'T00:00:00').getTime()) / 86400000) : 0;
+  const ageClass = ageDays >= 14 ? 'age-stale' : ageDays >= 7 ? 'age-aging' : 'age-new';
+  const ageLabel = ageDays === 0 ? 'TODAY' : ageDays === 1 ? '1 DAY' : ageDays+' DAYS';
+  // Photo strip — first up to 3 photos, then a +N tile
+  let stripHtml = '';
+  if(photos.length){
+    const shown = photos.slice(0, 3);
+    stripHtml = '<div class="bulky-card-photo-strip">' +
+      shown.map((p,i) => `<img data-photo-path="${esc(p.path)}" alt="" loading="lazy"/>`).join('') +
+      (photos.length > 3 ? `<div class="more-photos">+${photos.length - 3}</div>` : '') +
+      '</div>';
+  } else {
+    stripHtml = '<div class="bulky-card-no-photo">No photo</div>';
+  }
+  const dateStr = r.received_at ? new Date(r.received_at+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+  return `
+    <div class="bulky-card status-${r.status}" onclick="openPickupDetail(${r.id})">
+      ${stripHtml}
+      <div class="bulky-card-body">
+        <div class="bulky-card-addr">${esc(r.address || '—')}</div>
+        ${r.client_name ? `<div class="bulky-card-name">${esc(r.client_name)}${r.client_id?` · #${esc(r.client_id)}`:''}</div>` : ''}
+        <div class="bulky-card-meta">
+          <span>📅 ${esc(dateStr)}</span>
+          ${r.reporting_driver?`<span>🚛 ${esc(r.reporting_driver)}</span>`:''}
+          <span>📷 ${photos.length}</span>
+        </div>
+        ${r.notes?`<div class="bulky-card-notes">${esc(r.notes)}</div>`:''}
+      </div>
+      <div class="bulky-card-footer">
+        <span class="bulky-age-pill ${ageClass}">${ageLabel}</span>
+      </div>
+    </div>`;
+}
+
+// Walk every <img data-photo-path> in the current view and replace its src
+// with a signed URL. Used by both Queue and History card grids.
+async function _hydrateBulkyCardPhotos(){
+  const imgs = document.querySelectorAll('[data-photo-path]');
+  const paths = Array.from(new Set([...imgs].map(i => i.getAttribute('data-photo-path'))));
+  for(const p of paths){
+    const url = await bulkyGetSignedUrl(p);
+    document.querySelectorAll(`[data-photo-path="${CSS.escape(p)}"]`).forEach(img => { img.src = url; });
+  }
+}
+
+async function bulkyGetSignedUrl(path){
+  const cached = _bulkySignedUrls[path];
+  const nowMs = Date.now();
+  if(cached && cached.expires_at > nowMs + 30_000) return cached.url;
+  const {data, error} = await db.storage.from('helm-files').createSignedUrl(path, 300);
+  if(error || !data){ return ''; }
+  _bulkySignedUrls[path] = {url: data.signedUrl, expires_at: nowMs + 290_000};
+  return data.signedUrl;
+}
+
+// ── Calendar view ─────────────────────────────────────────────────────
+function _renderBulkyCalendar(){
+  if(!_bulkyCalMonth){
+    const d = new Date();
+    _bulkyCalMonth = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  }
+  const [y, m] = _bulkyCalMonth.split('-').map(Number);
+  const monthLabel = new Date(y, m-1, 1).toLocaleString('en-US',{month:'long',year:'numeric'});
+
+  // Count records per local-date in this month.
+  const counts = {};
+  _bulkyRecords.forEach(r => {
+    if(!r.received_at) return;
+    counts[r.received_at] = (counts[r.received_at] || 0) + 1;
+  });
+
+  // Build the cells. First day = first Sunday on/before the 1st.
+  const first = new Date(y, m-1, 1);
+  const startDow = first.getDay();
+  const start = new Date(y, m-1, 1 - startDow);
+  const todayISO = bulkyTodayISO();
+  const cells = [];
+  for(let i=0;i<42;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const inMonth = d.getMonth() === m-1;
+    const cnt = counts[iso] || 0;
+    const isToday = iso === todayISO;
+    cells.push(`
+      <button class="bulky-cal-cell ${inMonth?'':'other-month'} ${isToday?'today':''} ${cnt?'has-count':''}" onclick="_bulkyDrillDate('${iso}')">
+        <div class="day-num">${d.getDate()}</div>
+        ${cnt ? `<div class="day-count">${cnt}</div>` : ''}
+      </button>`);
+  }
+  const dayHdrs = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+    .map(d => `<div class="bulky-cal-day-hdr">${d}</div>`).join('');
+
+  const body = document.getElementById('bulkyViewBody');
+  body.innerHTML = `
+    <div class="bulky-cal-strip">
+      <button class="nav" onclick="_shiftBulkyMonth(-1)">‹ Prev</button>
+      <div class="month-label">${esc(monthLabel)}</div>
+      <button class="nav" onclick="_shiftBulkyMonth(1)">Next ›</button>
+    </div>
+    <div class="bulky-cal-grid">${dayHdrs}${cells.join('')}</div>
+    <div id="bulkyCalDrillBody" style="margin-top:14px;"></div>
+  `;
+}
+function _shiftBulkyMonth(dir){
+  const [y, m] = _bulkyCalMonth.split('-').map(Number);
+  const d = new Date(y, m-1 + dir, 1);
+  _bulkyCalMonth = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  _renderBulkyView();
+}
+function _bulkyDrillDate(iso){
+  const matches = _bulkyRecords.filter(r => r.received_at === iso);
+  const body = document.getElementById('bulkyCalDrillBody');
+  if(!matches.length){
+    body.innerHTML = `<div class="empty-state">No records received on ${esc(new Date(iso+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}))}</div>`;
+    return;
+  }
+  body.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">
+      ${esc(new Date(iso+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}))} — ${matches.length} record${matches.length===1?'':'s'}
+    </div>
+    <div class="bulky-grid">${matches.map(_bulkyCardHTML).join('')}</div>`;
+  _hydrateBulkyCardPhotos();
+}
+
+// ── History view ──────────────────────────────────────────────────────
+function _renderBulkyHistory(){
+  const completed = _bulkyRecords.filter(r => r.status === 'completed');
+  const body = document.getElementById('bulkyViewBody');
+  if(!completed.length){
+    body.innerHTML = '<div class="empty-state">No completed pickups yet.</div>';
+    return;
+  }
+  // Group by month for browseability.
+  const groups = {};
+  completed.forEach(r => {
+    const ym = (r.picked_up_at || r.received_at || '').slice(0,7);
+    (groups[ym] = groups[ym] || []).push(r);
+  });
+  const keys = Object.keys(groups).sort((a,b) => b.localeCompare(a));
+  body.innerHTML = keys.map(ym => {
+    const monthLabel = ym ? new Date(ym+'-01T00:00:00').toLocaleString('en-US',{month:'long',year:'numeric'}) : 'Undated';
+    return `
+      <div style="margin-bottom:18px;">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">${esc(monthLabel)} — ${groups[ym].length}</div>
+        <div class="bulky-grid">${groups[ym].map(_bulkyCardHTML).join('')}</div>
+      </div>`;
+  }).join('');
+  _hydrateBulkyCardPhotos();
+}
+
+// ── New Pickup modal ──────────────────────────────────────────────────
+function openNewPickupModal(){
+  if(!userCanSeeBulky()){ toast('Access restricted'); return; }
+  // Reset state
+  _bulkyPendingPhotos = [];
+  document.getElementById('bpDate').value = bulkyTodayISO();
+  document.getElementById('bpAddress').value = '';
+  document.getElementById('bpDriver').value = '';
+  document.getElementById('bpNotes').value = '';
+  document.getElementById('bpPhotos').value = '';
+  document.getElementById('bpPhotoPreviews').innerHTML = '';
+  document.getElementById('bpPhotoHint').textContent = 'No photos selected';
+  document.getElementById('bpClientChip').textContent = 'No client match — will be saved as a free-text address.';
+  document.getElementById('bpClientChip').dataset.clientId = '';
+  document.getElementById('bpClientChip').dataset.clientName = '';
+  // Populate datalist with addresses + acct # entries (limited for perf).
+  const dl = document.getElementById('bpAddressList');
+  dl.innerHTML = clients.slice(0, 2000).map(c => {
+    const label = `${c.address || ''}${c.client_name?` — ${c.client_name}`:''}${c.client_id?` (#${c.client_id})`:''}`;
+    return `<option value="${esc(label)}"/>`;
+  }).join('');
+  document.getElementById('bpSubmitBtn').disabled = false;
+  document.getElementById('bpSubmitBtn').textContent = 'Save Pickup';
+  document.getElementById('newPickupModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Wire address change → client lookup
+  const addr = document.getElementById('bpAddress');
+  addr.oninput = onBulkyAddressInput;
+  setTimeout(()=>{ addr.focus(); }, 50);
+}
+function closeNewPickupModal(){
+  document.getElementById('newPickupModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _bulkyPendingPhotos = [];
+}
+
+// Match what the user typed to the clients array; auto-fill client_id/name
+// when an exact address (or "Name (#acct)" datalist pick) matches.
+function onBulkyAddressInput(){
+  const v = (document.getElementById('bpAddress').value || '').trim();
+  if(!v){
+    _bulkySetClientChip(null);
+    return;
+  }
+  // Datalist value format: "ADDRESS — NAME (#acct)" — parse out the acct if present.
+  const acctM = v.match(/\(#(\d+)\)$/);
+  let match = null;
+  if(acctM){
+    match = clients.find(c => c.client_id === acctM[1]);
+  } else {
+    // Plain address typed — find by exact address match (case-insensitive)
+    const lc = v.toLowerCase();
+    match = clients.find(c => (c.address||'').toLowerCase() === lc);
+  }
+  if(match){
+    _bulkySetClientChip(match);
+  } else {
+    _bulkySetClientChip(null);
+  }
+}
+function _bulkySetClientChip(c){
+  const el = document.getElementById('bpClientChip');
+  if(c){
+    el.textContent = `✓ Matched to #${c.client_id} — ${c.client_name || '(no name on file)'}`;
+    el.style.color = 'var(--ok-text)';
+    el.dataset.clientId = c.client_id;
+    el.dataset.clientName = c.client_name || '';
+  } else {
+    el.textContent = 'No client match — will be saved as a free-text address.';
+    el.style.color = 'var(--gray-500)';
+    el.dataset.clientId = '';
+    el.dataset.clientName = '';
+  }
+}
+
+// Photo intake: resize each picked file to ~1600px max dim and ~85% JPEG quality
+// so iPhone-camera-sized photos (3-5 MB) shrink to ~300-600 KB before upload.
+async function onBulkyPhotosChosen(evt){
+  const files = Array.from(evt.target.files || []);
+  for(const f of files){
+    try {
+      const resized = await resizeImage(f, 1600, 0.85);
+      const url = URL.createObjectURL(resized);
+      _bulkyPendingPhotos.push({file: resized, previewUrl: url, originalName: f.name});
+    } catch(err){
+      console.error('Photo resize failed:', err);
+      _bulkyPendingPhotos.push({file: f, previewUrl: URL.createObjectURL(f), originalName: f.name});
+    }
+  }
+  _renderBulkyPhotoPreviews();
+}
+function _renderBulkyPhotoPreviews(){
+  const wrap = document.getElementById('bpPhotoPreviews');
+  if(!_bulkyPendingPhotos.length){
+    wrap.innerHTML = '';
+    document.getElementById('bpPhotoHint').textContent = 'No photos selected';
+    return;
+  }
+  wrap.innerHTML = _bulkyPendingPhotos.map((p,i) => `
+    <div class="bulky-photo-preview">
+      <img src="${p.previewUrl}" alt=""/>
+      <button class="remove" onclick="_removeBulkyPhoto(${i})" title="Remove">×</button>
+    </div>`).join('');
+  document.getElementById('bpPhotoHint').textContent = `${_bulkyPendingPhotos.length} photo${_bulkyPendingPhotos.length===1?'':'s'} ready`;
+}
+function _removeBulkyPhoto(i){
+  const p = _bulkyPendingPhotos[i];
+  if(p && p.previewUrl){ URL.revokeObjectURL(p.previewUrl); }
+  _bulkyPendingPhotos.splice(i, 1);
+  _renderBulkyPhotoPreviews();
+}
+
+// Canvas-based resize. Returns a Blob (image/jpeg).
+function resizeImage(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if(w > maxDim || h > maxDim){
+        if(w > h){ h = Math.round(h * (maxDim / w)); w = maxDim; }
+        else     { w = Math.round(w * (maxDim / h)); h = maxDim; }
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', quality);
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
+async function submitNewPickup(){
+  if(!userCanSeeBulky()){ toast('Access restricted'); return; }
+  const date    = (document.getElementById('bpDate').value || '').trim();
+  const addr    = (document.getElementById('bpAddress').value || '').trim();
+  const driver  = (document.getElementById('bpDriver').value || '').trim();
+  const notes   = (document.getElementById('bpNotes').value || '').trim();
+  if(!date){  toast('Pick a date'); return; }
+  if(!addr){  toast('Enter an address'); return; }
+
+  // Strip the "— Name (#acct)" suffix if it's a datalist pick so the stored
+  // address is just the street address.
+  let storedAddr = addr;
+  const sepIdx = addr.indexOf(' — ');
+  if(sepIdx > 0) storedAddr = addr.slice(0, sepIdx).trim();
+
+  const chip = document.getElementById('bpClientChip');
+  const clientId   = chip.dataset.clientId || null;
+  const clientName = chip.dataset.clientName || null;
+  const loggedBy   = currentUser ? (currentUser.display_name || currentUser.username) : '';
+
+  const btn = document.getElementById('bpSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+
+  // Upload photos first so we have all paths to embed in the row.
+  const photoEntries = [];
+  for(let i = 0; i < _bulkyPendingPhotos.length; i++){
+    const p = _bulkyPendingPhotos[i];
+    const ts = Date.now();
+    const rand = Math.random().toString(36).slice(2, 8);
+    const ym = date.slice(0, 7);
+    const path = `bulky/${ym}/${ts}-${rand}-${i}.jpg`;
+    btn.textContent = `Uploading ${i+1}/${_bulkyPendingPhotos.length}…`;
+    const {error} = await db.storage.from('helm-files').upload(path, p.file, {
+      contentType: 'image/jpeg', upsert: false,
+    });
+    if(error){
+      toast('Photo upload failed: '+error.message);
+      btn.disabled = false; btn.textContent = 'Save Pickup';
+      return;
+    }
+    photoEntries.push({path, uploaded_at: new Date().toISOString(), uploaded_by: loggedBy});
+  }
+
+  btn.textContent = 'Saving…';
+  const {error: insErr} = await db.from('bulky_pickups').insert({
+    client_id:        clientId,
+    address:          storedAddr,
+    client_name:      clientName,
+    reporting_driver: driver || null,
+    notes:            notes  || null,
+    photos:           photoEntries,
+    received_at:      date,
+    logged_by:        loggedBy,
+    status:           'pending',
+  });
+  if(insErr){
+    toast('Save failed: '+insErr.message);
+    btn.disabled = false; btn.textContent = 'Save Pickup';
+    return;
+  }
+
+  toast('Pickup logged', true);
+  logActivity('bulky_logged', `${storedAddr} (${photoEntries.length} photos)`);
+  closeNewPickupModal();
+  // Re-pull list + re-render.
+  await bulkyFetchAll();
+  _renderBulkyShell();
+}
+
+// ── Detail modal ──────────────────────────────────────────────────────
+async function openPickupDetail(id){
+  const r = _bulkyRecords.find(x => x.id === id);
+  if(!r){ toast('Record not found'); return; }
+  _bulkyDetailId  = id;
+  _bulkyDetailIdx = 0;
+  document.getElementById('pickupDetailTitle').textContent = r.address || 'Bulky Pickup';
+  document.getElementById('pickupDetailModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  await _renderPickupDetailBody();
+}
+function closePickupDetail(){
+  document.getElementById('pickupDetailModal').classList.remove('open');
+  document.body.style.overflow = '';
+  _bulkyDetailId = null;
+}
+
+async function _renderPickupDetailBody(){
+  const r = _bulkyRecords.find(x => x.id === _bulkyDetailId);
+  if(!r) return;
+  const photos = Array.isArray(r.photos) ? r.photos : [];
+  const idx = Math.min(_bulkyDetailIdx, Math.max(0, photos.length - 1));
+  const dateStr = r.received_at ? new Date(r.received_at+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) : '—';
+  const completedStr = r.picked_up_at ? new Date(r.picked_up_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+
+  let carousel = '';
+  if(photos.length){
+    const url = await bulkyGetSignedUrl(photos[idx].path);
+    carousel = `
+      <div class="bulky-carousel">
+        <img src="${url}" alt=""/>
+        ${photos.length > 1 ? `
+          <button class="nav-btn prev" onclick="_carouselStep(-1)" aria-label="Previous">‹</button>
+          <button class="nav-btn next" onclick="_carouselStep(1)" aria-label="Next">›</button>
+          <div class="counter">${idx+1} / ${photos.length}</div>
+        ` : ''}
+      </div>`;
+  } else {
+    carousel = '<div class="bulky-carousel" style="aspect-ratio:auto;padding:40px;color:#666;font-style:italic;">No photos</div>';
+  }
+
+  document.getElementById('pickupDetailBody').innerHTML = `
+    ${carousel}
+    <div class="bulky-detail-info">
+      <div class="field"><label>Address</label><div class="val">${esc(r.address || '—')}</div></div>
+      <div class="field"><label>Client</label><div class="val">${r.client_name ? esc(r.client_name) + (r.client_id?` (#${esc(r.client_id)})`:'') : '<em style="color:var(--gray-400);">Not a HELM client</em>'}</div></div>
+      <div class="field"><label>Date received</label><div class="val">${esc(dateStr)}</div></div>
+      <div class="field"><label>Reporting driver</label><div class="val">${esc(r.reporting_driver || '—')}</div></div>
+      <div class="field" style="grid-column:1 / -1;"><label>Notes</label><div class="val">${r.notes ? esc(r.notes) : '<em style="color:var(--gray-400);">No notes</em>'}</div></div>
+      ${r.status === 'completed' ? `<div class="field" style="grid-column:1 / -1;"><label>Picked up</label><div class="val" style="color:#166534;font-weight:700;">✓ ${esc(completedStr)}${r.picked_up_by?` by ${esc(r.picked_up_by)}`:''}</div></div>` : ''}
+    </div>
+  `;
+  // Footer buttons depend on status
+  document.getElementById('pickupDetailFooter').innerHTML = r.status === 'pending'
+    ? `
+      <button class="btn-edit-sm" onclick="confirmDeletePickup(${r.id})" style="color:#991b1b;border-color:#fee2e2;">Delete</button>
+      <button class="btn-edit-sm" onclick="closePickupDetail()">Close</button>
+      <button class="btn-add" onclick="markPickedUp(${r.id})" style="background:#16a34a;">✓ Mark Picked Up</button>
+    `
+    : `
+      <button class="btn-edit-sm" onclick="confirmDeletePickup(${r.id})" style="color:#991b1b;border-color:#fee2e2;">Delete</button>
+      <button class="btn-edit-sm" onclick="closePickupDetail()">Close</button>
+    `;
+}
+
+function _carouselStep(dir){
+  const r = _bulkyRecords.find(x => x.id === _bulkyDetailId);
+  if(!r) return;
+  const photos = Array.isArray(r.photos) ? r.photos : [];
+  if(photos.length < 2) return;
+  _bulkyDetailIdx = (_bulkyDetailIdx + dir + photos.length) % photos.length;
+  _renderPickupDetailBody();
+}
+
+async function markPickedUp(id){
+  if(!userCanSeeBulky()) return;
+  const by  = currentUser ? (currentUser.display_name || currentUser.username) : '';
+  const now = new Date().toISOString();
+  const {error} = await db.from('bulky_pickups')
+    .update({status:'completed', picked_up_at: now, picked_up_by: by})
+    .eq('id', id);
+  if(error){ toast('Error: '+error.message); return; }
+  toast('Marked picked up', true);
+  logActivity('bulky_picked_up', String(id));
+  // Update in-memory + re-render both detail and shell
+  const r = _bulkyRecords.find(x => x.id === id);
+  if(r){ r.status = 'completed'; r.picked_up_at = now; r.picked_up_by = by; }
+  await _renderPickupDetailBody();
+  _renderBulkyShell();
+}
+
+function confirmDeletePickup(id){
+  if(!confirm('Delete this pickup record? The photos will also be removed.')) return;
+  _deletePickup(id);
+}
+async function _deletePickup(id){
+  if(!userCanSeeBulky()) return;
+  const r = _bulkyRecords.find(x => x.id === id);
+  if(!r){ toast('Not found'); return; }
+  // Remove any uploaded photos from Storage first (best-effort).
+  const paths = (r.photos || []).map(p => p.path).filter(Boolean);
+  if(paths.length){
+    await db.storage.from('helm-files').remove(paths);
+  }
+  const {error} = await db.from('bulky_pickups').delete().eq('id', id);
+  if(error){ toast('Error: '+error.message); return; }
+  toast('Deleted', true);
+  logActivity('bulky_deleted', String(id));
+  closePickupDetail();
+  _bulkyRecords = _bulkyRecords.filter(x => x.id !== id);
+  _renderBulkyShell();
 }
 
 // ── MONTHLY COMPLAINT SUMMARY (David + Esme) ──────────────────────────
@@ -14007,6 +14861,10 @@ if(_saved && _saved !== '1'){
       // Complaint inbox icon + badge poll (David only) — survives refresh too.
       document.getElementById('complaintInboxBtn').style.display='';
       startComplaintBadgePoll();
+    }
+    // Bulky Pickups nav button — David + admin role only (survives refresh).
+    if(currentUser.username==='david' || currentUser.role==='admin'){
+      document.getElementById('bulkyTabBtn').style.display='';
     }
     // Sharon: restricted view — only Client Lookup + Reports.
     if(currentUser.username==='sharon'){
