@@ -5,15 +5,18 @@
 
 ## What This Is
 
-HELM is a single-file web application (`index.html`) that started as a route management system for residential garbage pickup and has grown into a comprehensive operations platform for Reis Trucking and its sister companies. It now handles client management, daily scale reports, intercompany reporting, financial projections, file storage, a transfer-station C&D balance tracker, and a private executive command center.
+HELM is a single-file web application (`index.html`) that started as a route management system for residential garbage pickup and has grown into a comprehensive operations platform for Reis Trucking and its sister companies. It now handles client management, daily scale reports, intercompany reporting, financial projections, file storage, a transfer-station C&D balance tracker, a complaint case-management pipeline, a bulky-pickup queue, and a private executive command center.
 
-The app is hosted on GitHub Pages (free) and uses Supabase (paid, upgraded) as its database backend.
+**BEACON** is a sister app at `/beacon/` — a separate retention/sales/outreach CRM for tracking new business + lost business + winback efforts. Standalone HTML in the same repo, shares HELM's Supabase project + session, distinct light-mode amber-accent visual identity. Gated to David / Chris / admin / Jarrett.
+
+Both apps are hosted on GitHub Pages (free) and use Supabase (paid) as the shared database backend. Both are PWA-installable to iPhone home screen with their own icons.
 
 ---
 
 ## Live App
 
-**URL:** https://bonez4.github.io/helm-app/
+**HELM URL:** https://bonez4.github.io/helm-app/
+**BEACON URL:** https://bonez4.github.io/helm-app/beacon/
 **Office Password:** nantucket (shared gate password)
 **Per-user logins:** See `users` table in Supabase
 
@@ -48,7 +51,7 @@ No build step. No npm. No framework. One file.
 
 ## Users & Access Control
 
-**Current users:** admin, david, chris, jackie, esme, hannah, kobie, maria, tom, jaime, jack
+**Current users:** admin, david, chris, jackie, esme, hannah, kobie, maria, tom, jaime, jack, sharon, jarrett
 
 **Access control:**
 - **All users** see: Client Lookup, Add Client, Reports, Roll-offs, **Dispatch group → Dispatch Input + History**
@@ -57,8 +60,13 @@ No build step. No npm. No framework. One file.
 - **David / Jack / admins**: Files
 - **David / Chris / Jack / admins**: every Analysis tab — Daily Scale Report, Intercompany Rolloff, Consolidated Rolloff, Scale KPIs, Rolloff Visual, Xfer Station, Business Line Analysis
 - **David / Chris / admin**: **Dispatch group → Rolloff Queue** (the dispatcher view)
+- **David + admin**: **Bulky Pickups** tab (new solo nav item) + the topbar complaint inbox icon
+- **David + Esme**: Complaint Report card + Monthly Complaint Summary card on the Reports tab
+- **David / Chris / admin / Jarrett**: **BEACON** sister app launch button in the topbar (goes to `/beacon/`)
 - **David only**: Workflow tab (Action Items / project management) **and Routing group → Residential Routing tab**
 - **David + Chris + admin (per-user nav variant):** Roll-offs tab moves *into* the Client Management group (rather than sitting standalone). Other users still see Roll-offs as a top-level item.
+- **Sharon**: restricted view — only Client Lookup + Reports (Add Client, Roll-offs, Dispatch group all hidden)
+- **Jarrett**: regular staff access in HELM (Client Lookup, Add Client, Reports, Roll-offs, Dispatch input/history) + BEACON access
 
 **Nav grouping:** the side rail uses two collapsible groups — **Client Management** (Client Lookup / Add Client / Reports, plus Roll-offs for David/Chris/admin) and **Analysis** (the seven analysis tabs above). Standalone tabs sit beneath the groups: Roll-offs (for non-D/C/admin users), Files, Workflow, Import. Group state persists in localStorage (`helm_nav_groups`) and the entire side rail can be collapsed via the chevron toggle in the topbar (state persisted as `helm_nav_collapsed`).
 
@@ -1146,7 +1154,7 @@ DELETE FROM notes WHERE action LIKE 'Complaint%';
 
 - **Authentication** is shared password + per-user login. Fine for small internal team (~9 users).
 - **No real-time sync** — users must refresh to see others' changes.
-- **Single file** — all HTML, CSS, and JS in `index.html` (~13,000 lines as of May 2026). Intentional simplicity.
+- **Single file** — HELM is all HTML, CSS, and JS in `index.html` (~17,500 lines as of late May 2026). BEACON is a separate single-file app at `/beacon/index.html` (~1,000 lines). Intentional simplicity.
 - **Autopay** is informational only — billing is external.
 - **Driver hours** only captured for Island Rubbish on the Daily Scale Report path (entered HH:MM in the post-upload prompt). Reis hours can be entered manually via the Driver Hours Entry form on the Scale KPIs tab; East End hours are not yet tracked.
 - **Walk-in revenue** pre-imports (before walk-in revenue tracking was added) show $0. Recent re-imports fixed this.
@@ -1158,19 +1166,45 @@ DELETE FROM notes WHERE action LIKE 'Complaint%';
 
 ```
 helm-app/
-├── index.html                                    ← The entire application
-├── master_list_extract.py                        ← Master List import: PDF extractor + dry-run diff (paused mid-flight, see Recent Major Changes May 5)
+├── index.html                                    ← HELM (the main app)
+├── manifest.webmanifest                          ← PWA manifest — Add to Home Screen support for HELM
+├── beacon/
+│   ├── index.html                                ← BEACON (sister retention/sales/outreach CRM)
+│   └── manifest.webmanifest                      ← BEACON's own PWA manifest (separate home-screen install)
+├── master_list_extract.py                        ← Master List PDF extractor (completed; import done May 6/18 — see changelog)
 ├── helm_delta_audit.py                           ← HELM ↔ Delta cross-reference audit; outputs HELM_Delta_Audit.xlsx
 ├── import_rates.py                               ← Fills clients.rate1-5 from the Delta PDF (1,292 accts done)
 ├── import_routes.py                              ← Upserts route_assignments from the Delta PDF (1,999 rows done)
-├── .gitignore                                    ← Excludes PII-bearing extract artifacts (master_extract*.{json,csv}, dryrun_*.csv, audit_*.csv, import_*_*.csv, HELM_Delta_Audit.xlsx, peek_*.py)
+├── bulk_import_missing_accts.py                  ← Creates sub-accounts surfaced by find_missing_accts.py
+├── find_missing_accts.py                         ← Parses day-route master-list PDFs + diffs vs HELM
+├── import_route_notes_xlsx.py                    ← Bulk-loads driver route notes from STOPS WITH RT NOTES.xlsx
+├── sync_client_route_fallback.py                 ← Copies first-day route_assignment down to clients.route fallback
+├── check_subaccts_coverage.py                    ← One-off audit of sub-account coverage
+├── min_tonnage_analysis.py                       ← Walk-in C&D minimum-tonnage Excel modeling tool (Jan-Dec 2025)
+├── enrich_not_yet_activated.py                   ← Adds Name + Service Address + status-summary block to CommAnalysis xlsx
+├── beacon_import_match.py                        ← BEACON ↔ HELM cross-reference for July 2025 commercial accts
+├── .gitignore                                    ← Excludes PII-bearing extract artifacts + the raw scale export + tonnage output
 ├── IRR_DailyScaleReport.gs                       ← Legacy Google Apps Script (not used)
 ├── irr-daily-report.html                         ← Standalone daily report tool (legacy)
 ├── sample_clients.csv                            ← Client CSV import template
 ├── rolloffs_clean.csv                            ← Sample rolloff data
-├── 1776188206521-JAN12025TOAPR132026.xls         ← Historical scale export (Jan 1 2025 → Apr 13 2026)
 ├── README.md                                     ← This file
 ```
+
+Gitignored (local-only, contains PII):
+- `1776188206521-JAN12025TOAPR132026.xls` — historical scale export
+- `Tonnage_Analysis_*.xlsx` — min_tonnage_analysis.py output
+- `master list pdfs/`, `delta export retry*.pdf` — master-list / delta export PDFs
+- `__pycache__/` — Python compile cache
+
+---
+
+## Deferred Backlog
+
+Open items deliberately on hold. Pick these back up when relevant — listed in the order they were paused.
+
+- **143 commercial accounts from the July 2025 BeaconImportData snapshot don't match HELM today** (104 Reis + 39 Santos). They're a mix of genuine lost-business candidates and multi-location sub-accounts where HELM uses a different parent ID (NANT COTTAGE HOSPITAL has 3 entries with different acct #s, MARINE HOME CENTER multiple, NANTUCKET GOLF CLUB 3, NANTUCKET BOYS CLUB 4, etc.). User flagged 2026-05-28: skip for now, revisit later. Source: `C:\Users\theco\Downloads\BeaconImportData.xlsx`. Re-run `beacon_import_match.py` to regenerate the gap list at any time. Two paths if revisited: (a) bulk-import all 143 into BEACON as `event_type='lost'` with `pipeline_stage='new_loss'` seeded from the spreadsheet — fastest, but pollutes the exit pipeline with sub-account duplicates; (b) manual triage via a CSV review pass first to weed out the sub-account renumbers, then import the survivors as lost business.
+- **Securing HELM** — diagnosis written up in chat 2026-05-25: every table has `USING(true) WITH CHECK(true)` RLS, so the public anon key (already exposed in HTML, by design) can read/write everything. Plaintext passwords in `users` table. Path: adopt Supabase Auth (`signInWithPassword`), tighten all RLS to `auth.role() = 'authenticated'`, hash passwords via Auth, retire `OFFICE_PW`. ~half-day of work. No `service_role` key has leaked anywhere in the repo (confirmed). Acceptable risk for now given small internal team, but should be done before any wider deployment.
 
 ---
 
@@ -1178,14 +1212,22 @@ helm-app/
 
 Older entries are intentionally terse — full detail lives in git history. The most recent week is given fuller context.
 
-### May 18-21, 2026
+### May 21-28, 2026
 
-- **May 21** — Complaint pipeline v2 (case management). Complaints are now a first-class table (`complaints` + `complaint_actions`) instead of a note category. Red **Log Complaint** button on every client card opens a centered modal that auto-fills a client snapshot and forces type-before-notes (Driver / Billing / Missed Stop / Other). David gets a topbar inbox icon with an iMessage-style red badge counting `new` complaints; inbox modal is email-style master/detail with filter chips (New / Open Cases / Resolved / Ignored / All). For each complaint David either opens a case (action log timeline with standardized step types Called Client / Spoke to Driver / Spoke to Rep / Note → Mark Resolved with required notes) or ignores it (reason required). Each case prints as a complete audit-trail document. The old `Complaint` action in `ACTION_TYPES` is gone and the subtype selector was removed from the notes form. Legacy `Complaint - X` notes are auto-migrated to the new table via SQL — they show up in the inbox as `new` so nothing is lost. Edit Client moved to top-right of the client info column; Log Complaint took its old spot at the bottom.
-- **May 21** — Post-generation filter bar on Everything Report, Notes Added Today, and Complaint Report. Single-select dropdowns for Action / By / Route / Company + a free-text search (Complaint Report uses a smaller Type / By / Search set). Filters apply instantly client-side off stashed data — no re-query. Print buttons honor the active filter set and embed the filter description in the print header so the printout is self-explaining. Notes Added Today gained a `By` column on both screen and print to match Everything Report. The "N of M match" counter on the right end of each filter bar makes it obvious whether a filter is active.
-- **May 21** — Complaint pipeline v1 (now superseded by v2 above):
-  - `Complaint` action type added to client Notes with a 3-option subtype selector (DRIVER / BILLING / OTHER) that appears when Complaint is chosen. Saved as `Complaint - DRIVER` etc in `notes.action` so subtype filtering needs no schema change.
-  - Complaints are **hidden** from Daily Action Report, Notes Added Today, and Everything Report (screen + print) via `filterOutComplaints()` so they don't pollute the operational reports staff scan every day.
-  - New **Complaint Report** card on the Reports tab — visible to David and Esme only. Week navigator (Mon–Sun), summary chips per type, print view in red theme. Closes the long-standing gap where complaints had no dedicated channel; now they have a private weekly review surface for the two people who actually act on them.
+- **May 28** — BEACON ↔ HELM cross-reference: `beacon_import_match.py` matched 449/592 (75.8%) of the July 2025 commercial accts (`BeaconImportData.xlsx`) against the live HELM `clients` table. 143 unmatched moved to the Deferred Backlog above.
+- **May 28** — BEACON theme switched from dark to clean light per user request. Warm off-white bg (`#f7f7f5`), white surfaces, near-black text, darker amber accent (`#d97706`) for contrast. Lighthouse logo wrapped in a small dark `.brand-badge` so the white body stays readable. Dashboard "At a Glance" section header dropped — KPI cards stand on their own.
+- **May 27-28** — **BEACON sister app shipped** at `/beacon/`. Standalone retention/sales/outreach CRM in the same repo, sharing HELM's Supabase project + sessionStorage auth but with zero CSS/JS leakage. Four tabs: Dashboard (KPI cards: new this month, lost this month, net $, in pipeline, won back, recovery rate) / Accounts (filterable, tokenized search) / Exit Pipeline (kanban-style board with auto-stage-advance from outreach outcomes) / Reports (by sales rep, by line of business, top loss reasons). Add Account modal includes the field set the boss asked for (acct # / name / start date / contact / sales rep / new vs lost / line of business / effective date / monthly $ / reason) plus creative-liberty additions (competitor, notes, next review). Business-name field doubles as a homepage-style tokenized HELM client search → auto-fills acct + phone. Outreach modal auto-advances `pipeline_stage` based on outcome (`interested → engaged`, `declined → permanent`, `won_back` flips event_type back to `new` + stage to `won_back`). Topbar BEACON button in HELM (gated to David / Chris / admin / Jarrett) with "Are you sure?" launch confirmation. Jarrett added as a HELM staff user (pw `ciccio`). PWA-installable as its own home-screen app. New tables: `beacon_accounts` + `beacon_outreach` (SQL block in Supabase Setup).
+- **May 26-27** — **Bulky Pickups tab** (David + admin only, top-level solo nav). Tracks bulky/prohibited items drivers leave behind on residential routes. Mobile-first responsive cards; three sub-views (Queue / Calendar / History); FAB-driven new-pickup modal with HELM-client autosuggest (homepage-style tokenized search), camera-roll multi-photo picker, client-side image resize to 1600px max / 85% JPEG quality before upload (≈4 MB iPhone shot → ~400 KB) to `helm-files/bulky/YYYY-MM/...`. Detail modal with photo carousel + Mark Picked Up. Configurable threshold (default 15) flips the queue banner from blue ("accumulating") to amber ("READY TO DISPATCH") when count ≥ threshold. New `bulky_pickups` table with photos JSONB column.
+- **May 26-27** — **PWA wrapper for HELM** — `manifest.webmanifest` + iOS meta tags + apple-touch-icon (data URL SVG: navy square with white "H"). Add-to-Home-Screen on iPhone makes HELM open full-screen with no Safari chrome. **iPhone usability pass**: every fixed-position element gets `env(safe-area-inset-*)` padding so chrome no longer sits under the notch / Dynamic Island. At phone widths (≤768px), the sidebar becomes a slide-in drawer with backdrop and bigger tap targets (nav-toggle 24×24 → 40×40); defaults closed on phone regardless of desktop preference; auto-closes when a nav item is tapped. Topbar declutters on phone (Sticky / Contacts / live-dot hidden). Desktop view is byte-identical to before the mobile pass — only `env()` (which is 0 on desktop) and `@media (max-width: 768px)` rules touched.
+- **May 25** — Security diagnosis (no changes, added to Deferred Backlog above).
+- **May 23-24** — **Driver Comment** note action + dedicated daily Driver Comments Report card. New action category for things drivers call in about during routes ("bin blocked", "extra trash out", etc); orange chip + orange border to visually distinguish. Report card on Reports tab (all users) with date picker (default today), chronological list, click-to-call phone column, print view rendering phone in 14px bold monospace for dialing while looking at the sheet.
+- **May 22-23** — **Monthly Complaint Summary** card (David + Esme only). Calendar-month rollup grouped by complaint type; Driver complaints further sub-grouped by `driver_name`. Status mix + by-type counts at top; printable archive output. Added `driver_name` column to `complaints` (required when type=Driver, plain text input — no autosuggest per user feedback). **Inbox week filter + bulk print** added to the Complaint Inbox sidebar (David) — week navigator scopes the list to a Mon-Sun window; 🖨 Print Week button generates a single document with every complaint that week as its own page-broken case file plus a cover sheet with by-type + by-status totals.
+- **May 22** — **Complaints woven into client-card notes timeline**. Reps now see complaint entries chronologically interleaved with regular notes when a client calls in. Red-bordered row variant with status pill + type chip; simplified rep-facing footer ("✓ Complaint addressed · MM/DD/YY") — internal handler / time / resolution notes / ignore reason stay in David's inbox, never leak to reps. Complaint history is read-only in this view (no × delete button).
+- **May 21** — **Complaint pipeline v2** (case management). Complaints became a first-class table (`complaints` + `complaint_actions`) replacing the note-category approach. Red Log Complaint button on every client card → centered modal with client snapshot + type picker (DRIVER / BILLING / MISSED STOP / OTHER) + notes hidden until type chosen. David's topbar inbox icon with iMessage-style red badge counting `new`. Email-style master/detail inbox modal with filter chips; Open Case → action log timeline (Called Client / Spoke to Driver / Spoke to Rep / Note → Mark Resolved with required notes), or Ignore (reason required). Each case prints as a complete audit-trail document. Legacy `Complaint - X` notes auto-migrated via SQL on first load. Edit Client moved to top-right of the client info column; Log Complaint took its old spot at the bottom.
+- **May 21** — Reports filter bar on Everything Report, Notes Added Today, and Complaint Report. Tokenized post-generation filters (Action / By / Route / Company + free-text search; Complaint Report uses a smaller Type / By / Search set). Filters apply instantly client-side off stashed data; print honors the active filter set and embeds the filter description in the print header. Notes Added Today gained a `By` column on screen + print to match Everything Report.
+
+### May 18-20, 2026
+
 - **May 20** — `sharon` staff user added with restricted view (Client Lookup + Reports only — Add Client / Roll-offs / Dispatch nav group hidden via username gate in both auth paths).
 - **May 19** — Bulk-loaded route notes from `STOPS WITH RT NOTES.xlsx` into `route_assignments` (7,519 upserts, 5,881 with notes). Destructive note-blanks neutralized via two-batch upsert (preserve-existing branch omits `route_note` from payload so PostgREST leaves it untouched on conflict). Then `sync_client_route_fallback.py` copied each client's first-day route + note down to `clients.route` / `clients.route_note` (3,444 PATCHes) so the lookup-card pill matches. Lookup card now renders `📋 route_note` as italic teal line under the address (same look as reports).
 - **May 18** — `find_missing_accts.py` parses all 6 day-route master-list PDFs and diffs vs HELM; `bulk_import_missing_accts.py` creates the surfaced sub-accounts (160 clients + 274 route_assignments inserted, names + addresses enriched from the broader delta export where available). All 176 sub-accts now in HELM. Per-day Routes section added to Add Client (mirrors Edit Client editor).
