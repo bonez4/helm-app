@@ -849,6 +849,31 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 }
 .bulky-photo-preview .remove:hover{background:#dc2626;}
 
+/* Live client-search dropdown beneath the address input in New Pickup modal.
+   Mirrors the lookup tab's search behavior — tokenized match across acct #,
+   name, address, phone. Tap a row to fill the field + lock the client. */
+.bp-search-results{
+  position:absolute; top:100%; left:0; right:0; margin-top:3px;
+  background:white; border:1px solid var(--gray-200); border-radius:6px;
+  max-height:300px; overflow-y:auto; z-index:20;
+  box-shadow:0 8px 24px rgba(15,31,61,0.15);
+}
+.bp-search-result{
+  padding:9px 12px; cursor:pointer; border-bottom:1px solid var(--gray-100);
+  display:flex; flex-direction:column; gap:2px;
+}
+.bp-search-result:last-child{ border-bottom:none; }
+.bp-search-result:hover, .bp-search-result.active{
+  background:var(--gray-100);
+}
+.bp-search-result .name{ font-weight:700; color:var(--navy); font-size:13px; }
+.bp-search-result .addr{ color:var(--gray-700); font-size:12px; }
+.bp-search-result .meta{ color:var(--gray-500); font-size:11px; font-family:'DM Mono','Courier New',monospace; }
+.bp-search-result .meta .acct{ font-weight:700; color:var(--gray-700); }
+.bp-search-empty{
+  padding:14px; color:var(--gray-500); font-size:12px; font-style:italic; text-align:center;
+}
+
 /* Detail modal carousel */
 .bulky-carousel{
   position:relative;background:#000;border-radius:6px;overflow:hidden;margin-bottom:14px;
@@ -2082,13 +2107,14 @@ body.layout-side .nav-group-children{display:flex;flex-direction:column;gap:1px;
 body.layout-side .nav-group-children button.nav-child{padding-left:14px;}
 body.layout-side .tab-nav{margin-top:0;}  /* fixed-positioned, no flow margin */
 
-/* Collapse toggle button (lives in topbar-left, always visible) */
+/* Collapse toggle button (lives in topbar-left, always visible).
+   Desktop dimensions match the original; the phone media query below
+   bumps it to a thumb-friendly 40px to hit iOS tap-target guidelines. */
 .nav-toggle-btn{
   background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
   color:rgba(255,255,255,0.85); border-radius:5px; cursor:pointer;
-  width:32px; height:32px; padding:0; display:flex; align-items:center; justify-content:center;
-  font-size:20px; line-height:1; transition:all 0.12s; font-family:inherit;
-  flex-shrink:0;
+  width:24px; height:24px; padding:0; display:flex; align-items:center; justify-content:center;
+  font-size:18px; line-height:1; transition:all 0.12s; font-family:inherit;
 }
 /* On phone, the nav-toggle is the PRIMARY way to open the sidebar — make it
    thumb-friendly (≥40px hit area per iOS guidelines) so it's not a tiny target
@@ -3303,10 +3329,10 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <input type="date" id="bpDate" style="width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius:5px;font-size:13px;font-family:inherit;background:white;box-sizing:border-box;"/>
         <div style="font-size:11px;color:var(--gray-500);margin-top:4px;font-style:italic;">When the driver originally texted you about it. Defaults to today; back-date if you're catching up.</div>
       </div>
-      <div class="cmp-field">
+      <div class="cmp-field" style="position:relative;">
         <label>Address *</label>
-        <input type="text" id="bpAddress" list="bpAddressList" autocomplete="off" placeholder="Start typing an address or account #"/>
-        <datalist id="bpAddressList"></datalist>
+        <input type="text" id="bpAddress" autocomplete="off" placeholder="Start typing an address, name, or account #" oninput="onBulkyAddressSearch(this.value)" onfocus="if(this.value)onBulkyAddressSearch(this.value)"/>
+        <div id="bpSearchResults" class="bp-search-results" style="display:none"></div>
         <div id="bpClientChip" style="font-size:11px;margin-top:4px;color:var(--gray-500);font-style:italic;">No client match — will be saved as a free-text address.</div>
       </div>
       <div class="cmp-field">
@@ -7642,22 +7668,17 @@ function openNewPickupModal(){
   document.getElementById('bpPhotoPreviews').innerHTML = '';
   document.getElementById('bpPhotoHint').textContent = 'No photos selected';
   document.getElementById('bpClientChip').textContent = 'No client match — will be saved as a free-text address.';
+  document.getElementById('bpClientChip').style.color = 'var(--gray-500)';
   document.getElementById('bpClientChip').dataset.clientId = '';
   document.getElementById('bpClientChip').dataset.clientName = '';
-  // Populate datalist with addresses + acct # entries (limited for perf).
-  const dl = document.getElementById('bpAddressList');
-  dl.innerHTML = clients.slice(0, 2000).map(c => {
-    const label = `${c.address || ''}${c.client_name?` — ${c.client_name}`:''}${c.client_id?` (#${c.client_id})`:''}`;
-    return `<option value="${esc(label)}"/>`;
-  }).join('');
+  // Clear the live-search dropdown — it populates lazily as the user types.
+  const sr = document.getElementById('bpSearchResults');
+  if(sr){ sr.style.display = 'none'; sr.innerHTML = ''; }
   document.getElementById('bpSubmitBtn').disabled = false;
   document.getElementById('bpSubmitBtn').textContent = 'Save Pickup';
   document.getElementById('newPickupModal').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // Wire address change → client lookup
-  const addr = document.getElementById('bpAddress');
-  addr.oninput = onBulkyAddressInput;
-  setTimeout(()=>{ addr.focus(); }, 50);
+  setTimeout(()=>{ document.getElementById('bpAddress').focus(); }, 50);
 }
 function closeNewPickupModal(){
   document.getElementById('newPickupModal').classList.remove('open');
@@ -7665,32 +7686,85 @@ function closeNewPickupModal(){
   _bulkyPendingPhotos = [];
 }
 
-// Match what the user typed to the clients array; auto-fill client_id/name
-// when an exact address (or "Name (#acct)" datalist pick) matches.
-function onBulkyAddressInput(){
-  const v = (document.getElementById('bpAddress').value || '').trim();
-  if(!v){
-    _bulkySetClientChip(null);
+// Live client search beneath the address input — mirrors the homepage's
+// doSearch() so reps get the same tokenized match across acct # / name /
+// address / phone. As the user types, top results render in a dropdown
+// below the input. Tap one to fill the address + lock the client chip.
+// Free-text (no match) is still allowed — just hit Save without picking.
+function onBulkyAddressSearch(q){
+  q = (q || '').trim().toLowerCase();
+  const results = document.getElementById('bpSearchResults');
+  // Clear the client-locked chip whenever the user starts editing again —
+  // they need to pick a result (or save as free-text) to set it.
+  _bulkySetClientChip(null);
+
+  if(q.length < 2){
+    results.style.display = 'none';
+    results.innerHTML = '';
     return;
   }
-  // Datalist value format: "ADDRESS — NAME (#acct)" — parse out the acct if present.
-  const acctM = v.match(/\(#(\d+)\)$/);
-  let match = null;
-  if(acctM){
-    match = clients.find(c => c.client_id === acctM[1]);
-  } else {
-    // Plain address typed — find by exact address match (case-insensitive)
-    const lc = v.toLowerCase();
-    match = clients.find(c => (c.address||'').toLowerCase() === lc);
+
+  // Tokenize the query — every token must appear SOMEWHERE in id/name/addr/phone.
+  const tokens = q.split(/\s+/).filter(t => t.length > 0);
+  const qClean = q.replace(/\D/g, '');
+
+  const matches = clients
+    .map(c => {
+      const idL    = (c.client_id || '').toLowerCase();
+      const addrL  = (c.address || '').toLowerCase();
+      const nameL  = (c.client_name || '').toLowerCase();
+      const phoneClean = (c.phone || '').replace(/\D/g, '');
+      const hay    = idL + ' ' + nameL + ' ' + addrL + ' ' + phoneClean;
+      if(!tokens.every(t => hay.includes(t))) return {c, score: 0};
+      // Scoring identical to homepage doSearch — keeps result ranking consistent.
+      let score = 1;
+      if(idL === q)            score = 10;
+      else if(idL.startsWith(q)) score = 8;
+      else if(idL.includes(q))   score = 6;
+      if(nameL){
+        if(nameL.includes(q))                          score = Math.max(score, 7);
+        else if(tokens.every(t => nameL.includes(t)))  score = Math.max(score, 5);
+      }
+      if(addrL.includes(q)) score = Math.max(score, 3);
+      if(qClean.length >= 3 && phoneClean.includes(qClean))
+        score = Math.max(score, qClean.length >= 7 ? 9 : 4);
+      return {c, score};
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+
+  results.style.display = '';
+  if(!matches.length){
+    results.innerHTML = `<div class="bp-search-empty">No clients matched "${esc(q)}". You can still save this address as free text.</div>`;
+    return;
   }
-  if(match){
-    _bulkySetClientChip(match);
-  } else {
-    _bulkySetClientChip(null);
-  }
+  results.innerHTML = matches.map(({c}) => {
+    const phoneDisp = c.phone || '';
+    return `<div class="bp-search-result" onmousedown="pickBulkyClient('${esc(c.client_id)}')" ontouchstart="pickBulkyClient('${esc(c.client_id)}')">
+      <div class="name">${esc(c.client_name || 'Account '+c.client_id)}</div>
+      <div class="addr">${esc(c.address || '')}</div>
+      <div class="meta"><span class="acct">#${esc(c.client_id)}</span>${phoneDisp?' · '+esc(phoneDisp):''}</div>
+    </div>`;
+  }).join('');
 }
+
+// Picked from the dropdown — fill the input with the real address, lock the
+// chip to that client, hide the dropdown. Using onmousedown/ontouchstart
+// instead of onclick because onclick fires after onblur, which would hide
+// the dropdown before the click registers.
+function pickBulkyClient(clientId){
+  const c = clients.find(x => x.client_id === clientId);
+  if(!c) return;
+  document.getElementById('bpAddress').value = c.address || '';
+  const sr = document.getElementById('bpSearchResults');
+  if(sr){ sr.style.display = 'none'; sr.innerHTML = ''; }
+  _bulkySetClientChip(c);
+}
+
 function _bulkySetClientChip(c){
   const el = document.getElementById('bpClientChip');
+  if(!el) return;
   if(c){
     el.textContent = `✓ Matched to #${c.client_id} — ${c.client_name || '(no name on file)'}`;
     el.style.color = 'var(--ok-text)';
