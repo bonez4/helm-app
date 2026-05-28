@@ -3066,6 +3066,12 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       </div>
       <button id="stickyBtn" class="btn-topbar-tool" onclick="toggleStickyPanel()">Sticky</button>
       <button id="contactsBtn" class="btn-topbar-tool" onclick="toggleContactsPanel()">Contacts</button>
+      <button id="beaconLaunchBtn" class="btn-topbar-tool" style="display:none;background:rgba(245,158,11,0.18);border-color:rgba(245,158,11,0.45);color:#fbbf24;font-weight:700;letter-spacing:0.08em;" onclick="launchBeacon()" title="Open the BEACON retention & outreach app">
+        <span style="display:inline-flex;align-items:center;gap:6px;">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/><circle cx="12" cy="12" r="4"/></svg>
+          BEACON
+        </span>
+      </button>
     </div>
     <div class="topbar-center" id="topbarCenter"></div>
     <div class="topbar-right">
@@ -3312,6 +3318,37 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     <div class="helm-modal-footer">
       <button class="btn-edit-sm" onclick="closeIgnoreModal()">Cancel</button>
       <button class="btn-ignore" onclick="confirmIgnoreComplaint()" style="padding:7px 18px;">Ignore Complaint</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── BEACON LAUNCH CONFIRMATION ──────────────────────────────────── -->
+<div class="helm-modal-backdrop" id="beaconLaunchModal" onclick="if(event.target===this)closeBeaconLaunch()">
+  <div class="helm-modal-sheet narrow" onclick="event.stopPropagation()">
+    <div class="helm-modal-header" style="background:#0a0a0f;">
+      <h3 style="display:flex;align-items:center;gap:10px;">
+        <svg viewBox="0 0 180 180" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="90" cy="55" rx="55" ry="16" fill="#f59e0b" opacity="0.45"/>
+          <polygon points="74,150 106,150 100,58 80,58" fill="#f5f5f4"/>
+          <rect x="76" y="50" width="28" height="10" fill="#dc2626"/>
+          <circle cx="90" cy="40" r="10" fill="#f59e0b"/>
+          <rect x="76" y="80" width="28" height="6" fill="#dc2626"/>
+          <rect x="76" y="108" width="28" height="6" fill="#dc2626"/>
+        </svg>
+        <span style="letter-spacing:.08em">Open BEACON</span>
+      </h3>
+      <button class="close-x" onclick="closeBeaconLaunch()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body">
+      <div style="font-size:13px;color:var(--gray-700);line-height:1.6;">
+        You're about to leave HELM and open <strong>BEACON</strong> — the retention &amp; outreach tracker. Your session carries over, so no need to log in again.
+        <br><br>
+        <span style="font-size:12px;color:var(--gray-500);font-style:italic;">Tip: To install BEACON as its own app on your phone, open it in Safari and use Share → Add to Home Screen.</span>
+      </div>
+    </div>
+    <div class="helm-modal-footer">
+      <button class="btn-edit-sm" onclick="closeBeaconLaunch()">Cancel</button>
+      <button class="btn-add" onclick="goToBeacon()" style="background:#f59e0b;color:#1a0f00;font-weight:700;">Continue to BEACON →</button>
     </div>
   </div>
 </div>
@@ -3839,6 +3876,10 @@ async function login() {
   if(data.username==='david' || data.role==='admin'){
     document.getElementById('bulkyTabBtn').style.display='';
   }
+  // BEACON topbar launcher — David, Chris, admin, Jarrett.
+  if(['david','chris','admin','jarrett'].includes(data.username) || data.role==='admin'){
+    document.getElementById('beaconLaunchBtn').style.display='';
+  }
   // Sharon: restricted view — only Client Lookup + Reports under Client
   // Management; hide Add Client, Roll-offs, and the entire Dispatch group.
   if(data.username==='sharon'){
@@ -3914,6 +3955,27 @@ function fmtDate(iso){
 // Gated to user 'david' for now while the feature stabilizes — other users see no change.
 function userIsDavid(){
   return !!(currentUser && currentUser.username==='david');
+}
+
+// BEACON access gate — same allow-list as the standalone app uses, so the
+// HELM-side button and the BEACON-side auth check stay in sync.
+function userCanLaunchBeacon(){
+  if(!currentUser) return false;
+  const un = (currentUser.username || '').toLowerCase();
+  if(['david','chris','admin','jarrett'].includes(un)) return true;
+  if(currentUser.role === 'admin') return true;
+  return false;
+}
+function launchBeacon(){
+  if(!userCanLaunchBeacon()){ toast('Access restricted'); return; }
+  document.getElementById('beaconLaunchModal').classList.add('open');
+}
+function closeBeaconLaunch(){
+  document.getElementById('beaconLaunchModal').classList.remove('open');
+}
+function goToBeacon(){
+  // sessionStorage 'helm_auth' is already set — BEACON will pick it up.
+  window.location.href = './beacon/';
 }
 
 // Complaint Report gate — David + Esme only. Complaints are intentionally hidden
@@ -15052,6 +15114,10 @@ if(_saved && _saved !== '1'){
     // Bulky Pickups nav button — David + admin role only (survives refresh).
     if(currentUser.username==='david' || currentUser.role==='admin'){
       document.getElementById('bulkyTabBtn').style.display='';
+    }
+    // BEACON topbar launcher — David, Chris, admin, Jarrett (survives refresh).
+    if(['david','chris','admin','jarrett'].includes(currentUser.username) || currentUser.role==='admin'){
+      document.getElementById('beaconLaunchBtn').style.display='';
     }
     // Sharon: restricted view — only Client Lookup + Reports.
     if(currentUser.username==='sharon'){

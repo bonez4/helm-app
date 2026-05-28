@@ -1,0 +1,11 @@
+{
+  "name": "BEACON — Retention & Outreach",
+  "short_name": "BEACON",
+  "description": "Reis Trucking retention, sales, and outreach tracker",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0a0a0f",
+  "background_color": "#0a0a0f"
+}

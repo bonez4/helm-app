@@ -187,6 +187,40 @@ Per-user themes live in `applyUserTheme()`:
 | status | TEXT | `pending` or `completed` |
 | picked_up_at / picked_up_by | — | Set when Mark Picked Up is clicked |
 
+**`beacon_accounts`** — BEACON CRM accounts (new business + lost business + exit pipeline)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| client_id | TEXT | Nullable HELM clients link (free-text accounts allowed too) |
+| business_name | TEXT | Required |
+| account_number | TEXT | The customer's billing acct # |
+| contact_name / contact_phone / contact_email | TEXT | Decision-maker info |
+| original_start_date | DATE | When they originally started service with us |
+| effective_date | DATE | When the new/lost event happened (required) |
+| event_type | TEXT | `new` or `lost` (CHECK) |
+| line_of_business | TEXT | `residential` / `commercial_route` / `commercial_rolloff` / `walk_in` / `intercompany` / `other` |
+| monthly_dollar_amount | NUMERIC(10,2) | Recurring monthly revenue |
+| sales_rep | TEXT | HELM user display name (dropdown excludes the literal `admin`) |
+| reason | TEXT | Why they signed / why they left |
+| competitor | TEXT | If lost to a competitor — who |
+| pipeline_stage | TEXT | Contextual. For lost: `new_loss` → `first_contact` → `engaged` → `negotiating` → `won_back` / `permanent`. For new: `new` → `active` / `at_risk` / `won_back` |
+| notes | TEXT | Additional free-form notes |
+| next_review_date | DATE | When to revisit |
+| archived | BOOLEAN | Soft-hide from active views |
+| created_at/by, updated_at/by | — | Audit |
+
+**`beacon_outreach`** — Outreach attempts logged against a BEACON account (exit-pipeline timeline)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| account_id | BIGINT (FK) | References beacon_accounts.id, ON DELETE CASCADE |
+| outreach_type | TEXT | `phone_call` / `voicemail` / `email` / `sms` / `in_person` / `mailer` / `note` |
+| outreach_date | DATE | Required |
+| performed_by | TEXT | HELM user display name |
+| outcome | TEXT | `no_answer` / `voicemail` / `spoke` / `interested` / `declined` / `won_back` / `other` |
+| notes | TEXT | What happened |
+| next_step_date / next_step_note | DATE, TEXT | Follow-up |
+
 **`users`** — Authentication
 | Column | Type | Notes |
 |---|---|---|
@@ -563,6 +597,23 @@ Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fide
 - **Weekly grid** with prev/next + date picker — Inbound / Outbound / Net / End-of-day balance rows × Mon–Sat + WTD + MTD + YTD columns
 - **Running balance line chart** (Chart.js) — full history, walking forward + backward from the seed; capacity target shown as dashed red line
 - **Capacity** input field — personal target (localStorage, not shared) for % over calculations on date cells
+
+### BEACON (separate sister app at `/beacon/`) — David / Chris / admin / Jarrett
+A standalone retention/sales/outreach CRM that lives next to HELM in the same repo + same Supabase project. Reachable from HELM via the amber **BEACON** button in the topbar (visible only to the allowed users), which opens a confirmation modal before navigating to `/beacon/`. Session carries over via sessionStorage so no re-login is required.
+
+- **Visual identity is intentionally distinct from HELM** — dark mode with amber-glow accents (lighthouse-at-night theme), Inter font, lighthouse SVG logo. Standalone PWA: separate `manifest.webmanifest` + apple-touch-icon so it gets its own home-screen icon on iPhone.
+- **Auth gate**: reads `helm_auth` sessionStorage on load. If valid + user in the allow-list (`david` / `chris` / `admin` / `jarrett` + anyone with role=admin), drops straight into the app. Otherwise shows its own login form pointing at the same HELM `users` table.
+- **Sales-rep dropdown** pulls from HELM's `users` table, skipping the literal `admin` username (keeps real-name reps only: David, Chris, Jackie, Esme, Hannah, Maria, Kobie, Tom, Jaime, Jack, Sharon, Jarrett).
+- **Four tabs**:
+  - **Dashboard** — 6 KPI cards (new this month, lost this month, net monthly change, in exit pipeline, won back, recovery rate) + recent activity feed.
+  - **Accounts** — filterable list (All / New Business / Lost / Won Back / At Risk / Permanently Lost / Archived) with a tokenized search bar.
+  - **Exit Pipeline** — kanban-style board with four columns (`New Loss` → `First Contact` → `Engaged` → `Negotiating`). Cards show business name, sales rep, days-since-loss, monthly $ at risk. Outcomes logged via the Outreach modal auto-advance the stage.
+  - **Reports** — by sales rep, by line of business, top reasons for loss.
+- **Add / Edit Account modal** — radio toggle for New vs Lost business; business-name field doubles as a tokenized HELM client search (same scoring as the homepage and Bulky modal) — pick a result to auto-fill acct # + phone, or just type a fresh business name for non-HELM accounts. Required fields: business name, effective date, event type.
+- **Outreach modal** — logged against any account. Type (phone/voicemail/email/SMS/in person/mailer/note), date, outcome, notes, next-step date + note. Auto-advances pipeline_stage: `interested` → `engaged`, `declined` → `permanent`, `won_back` flips event_type back to `new` and stamps stage as `won_back`.
+- **Detail modal** — shows full snapshot + stage transition buttons (stage-appropriate: lost accounts see First Contact / Engaged / Negotiating / Won Back / Permanently Lost; new accounts see At Risk / Active / Convert to Lost) + outreach timeline + Edit / Archive / Delete.
+- **Mobile-first**: same safe-area-inset awareness as HELM, single-column layouts at narrow widths.
+- **Code lives entirely under `/beacon/`** — index.html + manifest.webmanifest. Zero CSS/JS leakage between HELM and BEACON.
 
 ### Bulky Pickups (David + admin only) — new solo nav tab
 Tracks bulky / prohibited items drivers leave behind on residential routes (mattresses, appliances, freon items, construction scrap mixed into household trash). Workflow today: a driver texts David a photo + address; David logs it here. When the pending queue hits a threshold (default 15), David sends a driver out specifically to clear the pile.
