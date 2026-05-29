@@ -769,6 +769,48 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .bulky-age-pill.age-aging{background:#fef3c7;color:#92400e;}
 .bulky-age-pill.age-stale{background:#fee2e2;color:#991b1b;}
 
+/* Residential vs Commercial badge on each queue card. Tap-to-toggle —
+   event.stopPropagation() prevents the card click from firing the detail
+   modal. */
+.bulky-cat-badge{
+  padding:3px 10px;border-radius:11px;
+  font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  cursor:pointer;user-select:none;
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:'DM Sans',sans-serif;
+  transition:transform .1s,background .15s,box-shadow .15s;
+  border:1px solid transparent;
+}
+.bulky-cat-badge:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(15,31,61,0.1);}
+.bulky-cat-badge:active{transform:translateY(0);}
+.bulky-cat-badge.cat-residential{
+  background:#dcfce7;color:#166534;border-color:#86efac;
+}
+.bulky-cat-badge.cat-commercial{
+  background:#dbeafe;color:#1e40af;border-color:#93c5fd;
+}
+.bulky-cat-badge.cat-unset{
+  background:var(--gray-100);color:var(--gray-500);border-style:dashed;border-color:var(--gray-300);
+}
+
+/* Radio group in the New Pickup modal — same look as the bulky-cat-badge but
+   bigger, side-by-side toggle. */
+.bulky-cat-radio-grp{display:flex;gap:8px;}
+.bulky-cat-radio-grp label{
+  flex:1;padding:11px 12px;border:1px solid var(--gray-200);border-radius:7px;
+  background:white;cursor:pointer;text-align:center;
+  font-size:13px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .12s;
+}
+.bulky-cat-radio-grp label.checked{
+  background:#dcfce7;color:#166534;border-color:#16a34a;
+}
+.bulky-cat-radio-grp label[data-val="commercial"].checked{
+  background:#dbeafe;color:#1e40af;border-color:#3b82f6;
+}
+.bulky-cat-radio-grp input{display:none;}
+
 /* Floating new-pickup FAB */
 .bulky-fab{
   position:fixed;bottom:22px;right:22px;z-index:50;
@@ -3365,6 +3407,17 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <label>Date received *</label>
         <input type="date" id="bpDate" style="width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius:5px;font-size:13px;font-family:inherit;background:white;box-sizing:border-box;"/>
         <div style="font-size:11px;color:var(--gray-500);margin-top:4px;font-style:italic;">When the driver originally texted you about it. Defaults to today; back-date if you're catching up.</div>
+      </div>
+      <div class="cmp-field">
+        <label>Category *</label>
+        <div class="bulky-cat-radio-grp" id="bpCategoryGrp">
+          <label data-val="residential" onclick="setBulkyCategoryRadio('residential')">
+            🏠 Residential
+          </label>
+          <label data-val="commercial" onclick="setBulkyCategoryRadio('commercial')">
+            🏢 Commercial
+          </label>
+        </div>
       </div>
       <div class="cmp-field" style="position:relative;">
         <label>Address *</label>
@@ -7597,8 +7650,21 @@ function _bulkyCardHTML(r){
       </div>
       <div class="bulky-card-footer">
         <span class="bulky-age-pill ${ageClass}">${ageLabel}</span>
+        ${_bulkyCategoryBadgeHTML(r)}
       </div>
     </div>`;
+}
+
+// Stand-alone helper because we use it on cards AND in the detail header.
+// The badge is tappable — onclick toggles between residential and commercial
+// in place. If category was never set, the first tap classifies as residential.
+function _bulkyCategoryBadgeHTML(r){
+  const cat = r.category || '';
+  let cls, label;
+  if(cat === 'residential')      { cls = 'cat-residential'; label = '🏠 Residential'; }
+  else if(cat === 'commercial')  { cls = 'cat-commercial';  label = '🏢 Commercial';  }
+  else                           { cls = 'cat-unset';       label = '? Tap to set';   }
+  return `<span class="bulky-cat-badge ${cls}" onclick="toggleBulkyCategory(${r.id}, event)" title="Tap to switch between Residential and Commercial">${label}</span>`;
 }
 
 // Walk every <img data-photo-path> in the current view and replace its src
@@ -7729,6 +7795,8 @@ function openNewPickupModal(){
   document.getElementById('bpPhotos').value = '';
   document.getElementById('bpPhotoPreviews').innerHTML = '';
   document.getElementById('bpPhotoHint').textContent = 'No photos selected';
+  // Default category = Residential (most pickups come off residential routes).
+  setBulkyCategoryRadio('residential');
   document.getElementById('bpClientChip').textContent = 'No client match — will be saved as a free-text address.';
   document.getElementById('bpClientChip').style.color = 'var(--gray-500)';
   document.getElementById('bpClientChip').dataset.clientId = '';
@@ -7746,6 +7814,35 @@ function closeNewPickupModal(){
   document.getElementById('newPickupModal').classList.remove('open');
   document.body.style.overflow = '';
   _bulkyPendingPhotos = [];
+}
+
+// Toggle the Residential/Commercial radio in the New Pickup modal. Stored
+// on the group's dataset.value and visually reflected by the .checked class.
+function setBulkyCategoryRadio(cat){
+  const grp = document.getElementById('bpCategoryGrp');
+  if(!grp) return;
+  grp.dataset.value = cat;
+  grp.querySelectorAll('label').forEach(l => {
+    l.classList.toggle('checked', l.dataset.val === cat);
+  });
+}
+
+// Cycle a record's category in place (used by the queue card badge tap).
+// Three-state cycle when current is null: unset → residential → commercial → residential.
+async function toggleBulkyCategory(id, evt){
+  if(evt) evt.stopPropagation();
+  if(!userCanSeeBulky()) return;
+  const r = _bulkyRecords.find(x => x.id === id);
+  if(!r) return;
+  const next = (r.category === 'residential') ? 'commercial' : 'residential';
+  const {error} = await db.from('bulky_pickups').update({category: next}).eq('id', id);
+  if(error){ toast('Update failed: '+error.message); return; }
+  r.category = next;
+  // Re-render the current view (queue/calendar/history all use _bulkyCardHTML).
+  _renderBulkyView();
+  // If the detail modal is open on this record, refresh it too.
+  if(_bulkyDetailId === id) _renderPickupDetailBody();
+  toast('Set to ' + next, true);
 }
 
 // Live client search beneath the address input — mirrors the homepage's
@@ -7945,6 +8042,7 @@ async function submitNewPickup(){
   }
 
   btn.textContent = 'Saving…';
+  const category = (document.getElementById('bpCategoryGrp').dataset.value) || 'residential';
   const {error: insErr} = await db.from('bulky_pickups').insert({
     client_id:        clientId,
     address:          storedAddr,
@@ -7955,6 +8053,7 @@ async function submitNewPickup(){
     received_at:      date,
     logged_by:        loggedBy,
     status:           'pending',
+    category:         category,
   });
   if(insErr){
     toast('Save failed: '+insErr.message);
@@ -8013,6 +8112,9 @@ async function _renderPickupDetailBody(){
 
   document.getElementById('pickupDetailBody').innerHTML = `
     ${carousel}
+    <div style="display:flex;justify-content:flex-end;margin:-6px 0 10px;">
+      ${_bulkyCategoryBadgeHTML(r)}
+    </div>
     <div class="bulky-detail-info">
       <div class="field"><label>Address</label><div class="val">${esc(r.address || '—')}</div></div>
       <div class="field"><label>Client</label><div class="val">${r.client_name ? esc(r.client_name) + (r.client_id?` (#${esc(r.client_id)})`:'') : '<em style="color:var(--gray-400);">Not a HELM client</em>'}</div></div>

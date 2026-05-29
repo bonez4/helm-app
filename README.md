@@ -193,6 +193,7 @@ Per-user themes live in `applyUserTheme()`:
 | logged_at | TIMESTAMPTZ | When the record was created in HELM |
 | logged_by | TEXT | Display name of whoever logged it |
 | status | TEXT | `pending` or `completed` |
+| category | TEXT | `residential` or `commercial` (NULL on legacy rows). Required on new entries via radio toggle in the New Pickup modal; tappable badge on every queue card flips between Residential 🏠 and Commercial 🏢 in place — no detail-modal round-trip needed. |
 | picked_up_at / picked_up_by | — | Set when Mark Picked Up is clicked |
 
 **`beacon_accounts`** — BEACON CRM accounts (new business + lost business + exit pipeline)
