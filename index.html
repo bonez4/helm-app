@@ -7635,12 +7635,16 @@ function _bulkyCardHTML(r){
     stripHtml = '<div class="bulky-card-no-photo">No photo</div>';
   }
   const dateStr = r.received_at ? new Date(r.received_at+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+  // Servicing company derived from the acct # first digit (2xxxxx=REIS, 3xxxxx=SANTOS).
+  const co = getCompany(r.client_id);
+  const coTag = co.name ? `<span class="company-tag ${co.cls}">${co.name}</span>` : '';
+  const idLine = [r.client_name ? esc(r.client_name) : '', r.client_id ? `#${esc(r.client_id)}` : ''].filter(Boolean).join(' · ');
   return `
     <div class="bulky-card status-${r.status}" onclick="openPickupDetail(${r.id})">
       ${stripHtml}
       <div class="bulky-card-body">
         <div class="bulky-card-addr">${esc(r.address || '—')}</div>
-        ${r.client_name ? `<div class="bulky-card-name">${esc(r.client_name)}${r.client_id?` · #${esc(r.client_id)}`:''}</div>` : ''}
+        ${(idLine || coTag) ? `<div class="bulky-card-name">${idLine}${coTag}</div>` : ''}
         <div class="bulky-card-meta">
           <span>📅 ${esc(dateStr)}</span>
           ${r.reporting_driver?`<span>🚛 ${esc(r.reporting_driver)}</span>`:''}
@@ -8116,6 +8120,8 @@ async function _renderPickupDetailBody(){
   const idx = Math.min(_bulkyDetailIdx, Math.max(0, photos.length - 1));
   const dateStr = r.received_at ? new Date(r.received_at+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) : '—';
   const completedStr = r.picked_up_at ? new Date(r.picked_up_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+  const co = getCompany(r.client_id);
+  const coTag = co.name ? `<span class="company-tag ${co.cls}">${co.name}</span>` : '';
 
   let carousel = '';
   if(photos.length){
@@ -8140,7 +8146,7 @@ async function _renderPickupDetailBody(){
     </div>
     <div class="bulky-detail-info">
       <div class="field"><label>Address</label><div class="val">${esc(r.address || '—')}</div></div>
-      <div class="field"><label>Client</label><div class="val">${r.client_name ? esc(r.client_name) + (r.client_id?` (#${esc(r.client_id)})`:'') : '<em style="color:var(--gray-400);">Not a HELM client</em>'}</div></div>
+      <div class="field"><label>Client</label><div class="val">${r.client_name ? esc(r.client_name) + (r.client_id?` (#${esc(r.client_id)})`:'') : (r.client_id ? '#'+esc(r.client_id) : '<em style="color:var(--gray-400);">Not a HELM client</em>')}${coTag}</div></div>
       <div class="field"><label>Date received</label><div class="val">${esc(dateStr)}</div></div>
       <div class="field"><label>Reporting driver</label><div class="val">${esc(r.reporting_driver || '—')}</div></div>
       <div class="field" style="grid-column:1 / -1;"><label>Notes</label><div class="val">${r.notes ? esc(r.notes) : '<em style="color:var(--gray-400);">No notes</em>'}</div></div>
@@ -8243,6 +8249,8 @@ async function printBulkyPickup(id){
   const clientLine = r.client_name
     ? esc(r.client_name) + (r.client_id ? ` &middot; #${esc(r.client_id)}` : '')
     : (r.client_id ? '#'+esc(r.client_id) : 'Not a HELM client');
+  const coP = getCompany(r.client_id);
+  const coTagP = coP.name ? ` <span class="co-tag" style="background:${coP.name==='SANTOS'?'#dbeafe':'#d1fae5'};color:${coP.name==='SANTOS'?'#1e40af':'#065f46'};">${coP.name}</span>` : '';
   const photoHtml = srcs.length
     ? `<div class="photos">${srcs.map(s => `<img src="${s}" alt="Bulky pickup photo"/>`).join('')}</div>`
     : '<div class="no-photo">No photo on file.</div>';
@@ -8259,6 +8267,7 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:20
 .addr-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#666;font-weight:700;margin-bottom:2px;}
 .addr{font-size:30px;font-weight:800;color:#0f1f3d;line-height:1.15;margin-bottom:4px;}
 .client{font-size:15px;color:#333;margin-bottom:16px;}
+.co-tag{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:.04em;vertical-align:middle;}
 .meta{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:13px;margin-bottom:16px;}
 .meta label{color:#666;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding-top:2px;}
 .notes-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#666;font-weight:700;margin:0 0 4px;}
@@ -8280,7 +8289,7 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:20
 <span class="cat" style="background:${catColor};">${catLabel}</span>
 <div class="addr-label">Pickup location</div>
 <div class="addr">${esc(r.address || '—')}</div>
-<div class="client">${clientLine}</div>
+<div class="client">${clientLine}${coTagP}</div>
 <div class="meta">
   <label>Date reported</label><div>${esc(dateStr)}</div>
   <label>Reporting driver</label><div>${esc(r.reporting_driver || '—')}</div>
