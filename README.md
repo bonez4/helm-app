@@ -635,6 +635,7 @@ Tracks bulky / prohibited items drivers leave behind on residential routes (matt
   - **History** — completed pickups grouped by month, newest month first.
 - **Logging flow (+ FAB)**: Date received (default today, back-datable) → Address with client autosuggest (auto-fills name + acct # on match, otherwise saves as free-text address) → Reporting driver (free text, optional) → Notes → Photo picker. Photos are client-side resized to 1600px max dim + 85% JPEG quality before upload (iPhone photos go from ~4 MB → ~400 KB) and uploaded to `helm-files/bulky/YYYY-MM/...`. Save inserts one row with the photo paths embedded in the `photos` JSONB column.
 - **Detail view (tap any card)**: photo carousel (‹ / ›), client snapshot, date + driver + notes. Pending cards have a green **✓ Mark Picked Up** button; clicking flips status to `completed` and stamps `picked_up_at` + `picked_up_by`. Both pending and completed have a Delete button that also removes the photos from Storage.
+- **🖨 Print** button (detail view, both statuses) writes a one-page driver run sheet: big address up top, category badge, date/driver/logged-by, an Items/Notes block, the photo(s), and a "Picked up ☐ / Driver / Date" sign-off line. Photos are pre-fetched as base64 data URLs (signed-URL fallback) so they're embedded and guaranteed to render when the print dialog fires (the `helm-files` bucket is private). Stopgap so drivers can be handed paper jobs before the full bulky/dispatch rebuild lands.
 - **Threshold logic**: just a visual nudge — no auto-dispatch action. David sees the banner, decides to send a run, then opens each card and marks them picked up. The v1 scope deliberately skips a "Schedule Run" action; that's a future enhancement if useful.
 
 ### Files (David + admins)
@@ -1213,8 +1214,9 @@ Open items deliberately on hold. Pick these back up when relevant — listed in 
 
 Older entries are intentionally terse — full detail lives in git history. The most recent week is given fuller context.
 
-### May 21-28, 2026
+### May 21-29, 2026
 
+- **May 29** — **Bulky Pickups: printable driver run sheet.** 🖨 Print button in the detail modal (both statuses) generates a one-page per-pickup sheet — big address, category badge, date/driver/logged-by, Items/Notes block, embedded photo(s), and a "Picked up ☐ / Driver / Date" sign-off line. Photos pre-fetched as base64 data URLs (signed-URL fallback) so they're guaranteed present when the print dialog fires. Stopgap to hand drivers paper jobs ahead of the larger bulky/dispatch rebuild (in planning: automated text-ingestion, commercial site registry, residential revenue).
 - **May 28** — **Bulky Pickups: Residential / Commercial classification.** New `bulky_pickups.category` column. Radio toggle in the New Pickup modal (default Residential). Tappable badge in every queue card footer flips between 🏠 Residential (green) and 🏢 Commercial (blue) in place — badge click stops propagation so it doesn't open the detail modal. Legacy rows show a dashed "? Tap to set" badge. Same toggle also lives in the detail modal.
 - **May 28** — BEACON ↔ HELM cross-reference: `beacon_import_match.py` matched 449/592 (75.8%) of the July 2025 commercial accts (`BeaconImportData.xlsx`) against the live HELM `clients` table. 143 unmatched moved to the Deferred Backlog above.
 - **May 28** — BEACON theme switched from dark to clean light per user request. Warm off-white bg (`#f7f7f5`), white surfaces, near-black text, darker amber accent (`#d97706`) for contrast. Lighthouse logo wrapped in a small dark `.brand-badge` so the white body stays readable. Dashboard "At a Glance" section header dropped — KPI cards stand on their own.

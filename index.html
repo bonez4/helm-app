@@ -7688,6 +7688,29 @@ async function bulkyGetSignedUrl(path){
   return data.signedUrl;
 }
 
+// Fetch a stored photo as a base64 data URL so it can be embedded directly into
+// a print window — no cross-window network race, the image is guaranteed present
+// when window.print() fires. Returns '' on any failure (caller falls back to the
+// signed URL).
+async function bulkyGetDataUrl(path){
+  try {
+    const url = await bulkyGetSignedUrl(path);
+    if(!url) return '';
+    const resp = await fetch(url);
+    if(!resp.ok) return '';
+    const blob = await resp.blob();
+    return await new Promise(res => {
+      const fr = new FileReader();
+      fr.onload  = () => res(fr.result);
+      fr.onerror = () => res('');
+      fr.readAsDataURL(blob);
+    });
+  } catch(e){
+    console.error('bulkyGetDataUrl failed', e);
+    return '';
+  }
+}
+
 // ── Calendar view ─────────────────────────────────────────────────────
 function _renderBulkyCalendar(){
   if(!_bulkyCalMonth){
@@ -8128,11 +8151,13 @@ async function _renderPickupDetailBody(){
   document.getElementById('pickupDetailFooter').innerHTML = r.status === 'pending'
     ? `
       <button class="btn-edit-sm" onclick="confirmDeletePickup(${r.id})" style="color:#991b1b;border-color:#fee2e2;">Delete</button>
+      <button class="btn-edit-sm" onclick="printBulkyPickup(${r.id})">🖨 Print</button>
       <button class="btn-edit-sm" onclick="closePickupDetail()">Close</button>
       <button class="btn-add" onclick="markPickedUp(${r.id})" style="background:#16a34a;">✓ Mark Picked Up</button>
     `
     : `
       <button class="btn-edit-sm" onclick="confirmDeletePickup(${r.id})" style="color:#991b1b;border-color:#fee2e2;">Delete</button>
+      <button class="btn-edit-sm" onclick="printBulkyPickup(${r.id})">🖨 Print</button>
       <button class="btn-edit-sm" onclick="closePickupDetail()">Close</button>
     `;
 }
@@ -8183,6 +8208,102 @@ async function _deletePickup(id){
   closePickupDetail();
   _bulkyRecords = _bulkyRecords.filter(x => x.id !== id);
   _renderBulkyShell();
+}
+
+// Print a single bulky pickup as a one-page driver run sheet. Photos are
+// pre-fetched as base64 data URLs (signed-URL fallback) so they're embedded and
+// guaranteed present when the print dialog fires. The pop-up is opened
+// synchronously up front so it isn't blocked after the awaits below.
+async function printBulkyPickup(id){
+  const r = _bulkyRecords.find(x => x.id === id);
+  if(!r){ toast('Record not found'); return; }
+
+  const win = window.open('', '_blank');
+  if(win){
+    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Preparing print…</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#555;">Preparing print sheet…</body></html>');
+  }
+
+  // Gather photo sources: data URL first, signed URL as fallback.
+  const photos = Array.isArray(r.photos) ? r.photos : [];
+  const srcs = [];
+  for(const p of photos){
+    if(!p || !p.path) continue;
+    let src = await bulkyGetDataUrl(p.path);
+    if(!src) src = await bulkyGetSignedUrl(p.path);
+    if(src) srcs.push(src);
+  }
+
+  if(!win){ toast('Allow pop-ups to print this sheet'); return; }
+
+  const cat = r.category || '';
+  const catLabel = cat === 'residential' ? '🏠 RESIDENTIAL' : cat === 'commercial' ? '🏢 COMMERCIAL' : 'UNCLASSIFIED';
+  const catColor = cat === 'commercial' ? '#1e40af' : cat === 'residential' ? '#166534' : '#6b7280';
+  const dateStr  = r.received_at ? new Date(r.received_at+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) : '—';
+  const printedStr = new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  const clientLine = r.client_name
+    ? esc(r.client_name) + (r.client_id ? ` &middot; #${esc(r.client_id)}` : '')
+    : (r.client_id ? '#'+esc(r.client_id) : 'Not a HELM client');
+  const photoHtml = srcs.length
+    ? `<div class="photos">${srcs.map(s => `<img src="${s}" alt="Bulky pickup photo"/>`).join('')}</div>`
+    : '<div class="no-photo">No photo on file.</div>';
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/><title>Bulky Pickup — ${esc(r.address||'')}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:20px;}
+.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0f1f3d;padding-bottom:10px;margin-bottom:14px;}
+.header h1{font-size:18px;font-weight:700;color:#0f1f3d;letter-spacing:.02em;}
+.header .printed{font-size:11px;color:#666;text-align:right;line-height:1.5;}
+.cat{display:inline-block;padding:5px 12px;border-radius:5px;font-size:13px;font-weight:800;letter-spacing:.06em;color:#fff;margin-bottom:12px;}
+.addr-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#666;font-weight:700;margin-bottom:2px;}
+.addr{font-size:30px;font-weight:800;color:#0f1f3d;line-height:1.15;margin-bottom:4px;}
+.client{font-size:15px;color:#333;margin-bottom:16px;}
+.meta{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:13px;margin-bottom:16px;}
+.meta label{color:#666;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding-top:2px;}
+.notes-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#666;font-weight:700;margin:0 0 4px;}
+.notes{padding:10px 14px;background:#fff7ed;border-left:4px solid #d97706;border-radius:4px;font-size:15px;line-height:1.5;white-space:pre-wrap;margin-bottom:18px;min-height:34px;}
+.photos{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+.photos img{max-width:48%;max-height:420px;border:1px solid #ccc;border-radius:6px;object-fit:contain;}
+.no-photo{color:#999;font-style:italic;margin-bottom:18px;}
+.signoff{border:2px solid #0f1f3d;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:15px;color:#0f1f3d;}
+.signoff .box{width:22px;height:22px;border:2px solid #0f1f3d;border-radius:4px;flex:none;}
+.signoff .fld{display:flex;align-items:flex-end;gap:6px;font-weight:700;}
+.signoff .fld .ul{display:inline-block;border-bottom:1.5px solid #555;min-width:150px;height:20px;}
+.footer{margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+@media print{body{padding:10px;}@page{margin:0.6cm;}.photos img{max-height:360px;}}
+</style></head><body>
+<div class="header">
+  <h1>HELM — Bulky Pickup</h1>
+  <div class="printed">Printed ${esc(printedStr)}</div>
+</div>
+<span class="cat" style="background:${catColor};">${catLabel}</span>
+<div class="addr-label">Pickup location</div>
+<div class="addr">${esc(r.address || '—')}</div>
+<div class="client">${clientLine}</div>
+<div class="meta">
+  <label>Date reported</label><div>${esc(dateStr)}</div>
+  <label>Reporting driver</label><div>${esc(r.reporting_driver || '—')}</div>
+  <label>Logged by</label><div>${esc(r.logged_by || '—')}</div>
+</div>
+<div class="notes-h">Items / Notes</div>
+<div class="notes">${r.notes ? esc(r.notes) : '(no notes)'}</div>
+${photoHtml}
+<div class="signoff">
+  <span class="box"></span><strong>PICKED UP</strong>
+  <span class="fld">Driver: <span class="ul"></span></span>
+  <span class="fld">Date: <span class="ul" style="min-width:120px;"></span></span>
+</div>
+<div class="footer">
+  <span>Reis Trucking — Nantucket, MA</span>
+  <span>HELM Bulky Pickup Sheet</span>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 }
 
 // ── MONTHLY COMPLAINT SUMMARY (David + Esme) ──────────────────────────
