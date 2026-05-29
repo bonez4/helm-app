@@ -735,10 +735,26 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .bulky-card{
   background:white;border:1px solid var(--gray-100);border-radius:8px;overflow:hidden;
   cursor:pointer;transition:box-shadow .15s,transform .1s;
-  display:flex;flex-direction:column;
+  display:flex;flex-direction:column;position:relative;
 }
 .bulky-card:hover{box-shadow:0 4px 14px rgba(15,31,61,0.12);transform:translateY(-1px);}
 .bulky-card.status-completed{opacity:.7;}
+.bulky-card.selected{outline:3px solid var(--teal);outline-offset:-2px;border-color:var(--teal);}
+.bulky-select-box{
+  position:absolute;top:8px;left:8px;z-index:6;
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(255,255,255,0.92);border:2px solid var(--gray-300);color:transparent;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;line-height:1;cursor:pointer;user-select:none;
+  box-shadow:0 1px 3px rgba(0,0,0,0.25);transition:all .12s;
+}
+.bulky-card.selected .bulky-select-box{background:var(--teal);border-color:var(--teal);color:#fff;}
+.bulky-selbar{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  background:#f3f6fa;border:1px solid var(--gray-200);border-radius:8px;
+  padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--gray-600);
+}
+.bulky-selbar .sel-actions{display:flex;gap:6px;flex-wrap:wrap;}
 .bulky-card-photo-strip{
   display:flex;gap:0;background:var(--gray-100);
   height:140px;overflow:hidden;flex-shrink:0;
@@ -3462,6 +3478,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     </div>
     <div class="helm-modal-body" id="pickupDetailBody"></div>
     <div class="helm-modal-footer" id="pickupDetailFooter"></div>
+    <input type="file" id="detailPhotoInput" accept="image/*" multiple style="display:none" onchange="onDetailPhotosChosen(event)"/>
   </div>
 </div>
 
@@ -7519,6 +7536,7 @@ let _bulkySignedUrls = {};          // path → {url, expires_at} cache for phot
 let _bulkyPendingPhotos = [];       // staged File objects + previews for the new-pickup modal
 let _bulkyDetailId   = null;        // currently-open detail record id
 let _bulkyDetailIdx  = 0;           // photo carousel index
+let _bulkySelected   = new Set();   // queue ids checked off for bulk print / bulk picked-up
 
 function bulkyThreshold(){
   const v = parseInt(localStorage.getItem('helm_bulky_threshold')||'15', 10);
@@ -7540,6 +7558,8 @@ async function bulkyFetchAll(){
   const {data, error} = await db.from('bulky_pickups').select('*').order('received_at',{ascending:false});
   if(error){ toast('Error: '+error.message); return; }
   _bulkyRecords = data || [];
+  // Drop selections that no longer exist after a refresh.
+  _bulkySelected.forEach(id => { if(!_bulkyRecords.some(r => r.id === id)) _bulkySelected.delete(id); });
 }
 
 async function renderBulkyTab(){
@@ -7574,6 +7594,7 @@ function _renderBulkyShell(){
 }
 
 function setBulkyView(v){
+  if(v !== 'queue') _bulkySelected.clear();
   _bulkyView = v;
   _renderBulkyShell();
 }
@@ -7614,11 +7635,11 @@ function _renderBulkyQueue(){
   }
   // Sort oldest-first within the queue so the oldest pending sites get attention.
   const sortedPending = [...pending].sort((a,b) => (a.received_at||'').localeCompare(b.received_at||''));
-  body.innerHTML = banner + `<div class="bulky-grid">${sortedPending.map(_bulkyCardHTML).join('')}</div>`;
+  body.innerHTML = banner + _bulkySelBarHTML(pending) + `<div class="bulky-grid">${sortedPending.map(r => _bulkyCardHTML(r, true)).join('')}</div>`;
   _hydrateBulkyCardPhotos();
 }
 
-function _bulkyCardHTML(r){
+function _bulkyCardHTML(r, selectable){
   const photos = Array.isArray(r.photos) ? r.photos : [];
   const ageDays = r.received_at ? Math.floor((Date.now() - new Date(r.received_at+'T00:00:00').getTime()) / 86400000) : 0;
   const ageClass = ageDays >= 14 ? 'age-stale' : ageDays >= 7 ? 'age-aging' : 'age-new';
@@ -7639,8 +7660,10 @@ function _bulkyCardHTML(r){
   const co = getCompany(r.client_id);
   const coTag = co.name ? `<span class="company-tag ${co.cls}">${co.name}</span>` : '';
   const idLine = [r.client_name ? esc(r.client_name) : '', r.client_id ? `#${esc(r.client_id)}` : ''].filter(Boolean).join(' · ');
+  const selected = selectable && _bulkySelected.has(r.id);
   return `
-    <div class="bulky-card status-${r.status}" onclick="openPickupDetail(${r.id})">
+    <div class="bulky-card status-${r.status}${selected ? ' selected' : ''}" onclick="openPickupDetail(${r.id})">
+      ${selectable ? `<div class="bulky-select-box" onclick="toggleBulkySelect(${r.id}, event)" title="Select for bulk actions">✓</div>` : ''}
       ${stripHtml}
       <div class="bulky-card-body">
         <div class="bulky-card-addr">${esc(r.address || '—')}</div>
@@ -7780,7 +7803,7 @@ function _bulkyDrillDate(iso){
     <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">
       ${esc(new Date(iso+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}))} — ${matches.length} record${matches.length===1?'':'s'}
     </div>
-    <div class="bulky-grid">${matches.map(_bulkyCardHTML).join('')}</div>`;
+    <div class="bulky-grid">${matches.map(r => _bulkyCardHTML(r)).join('')}</div>`;
   _hydrateBulkyCardPhotos();
 }
 
@@ -7804,7 +7827,7 @@ function _renderBulkyHistory(){
     return `
       <div style="margin-bottom:18px;">
         <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">${esc(monthLabel)} — ${groups[ym].length}</div>
-        <div class="bulky-grid">${groups[ym].map(_bulkyCardHTML).join('')}</div>
+        <div class="bulky-grid">${groups[ym].map(r => _bulkyCardHTML(r)).join('')}</div>
       </div>`;
   }).join('');
   _hydrateBulkyCardPhotos();
@@ -8158,12 +8181,14 @@ async function _renderPickupDetailBody(){
     ? `
       <button class="btn-edit-sm" onclick="confirmDeletePickup(${r.id})" style="color:#991b1b;border-color:#fee2e2;">Delete</button>
       <button class="btn-edit-sm" onclick="printBulkyPickup(${r.id})">🖨 Print</button>
+      <button class="btn-edit-sm" onclick="triggerAddPhotos()">＋ Add Photo</button>
       <button class="btn-edit-sm" onclick="closePickupDetail()">Close</button>
       <button class="btn-add" onclick="markPickedUp(${r.id})" style="background:#16a34a;">✓ Mark Picked Up</button>
     `
     : `
       <button class="btn-edit-sm" onclick="confirmDeletePickup(${r.id})" style="color:#991b1b;border-color:#fee2e2;">Delete</button>
       <button class="btn-edit-sm" onclick="printBulkyPickup(${r.id})">🖨 Print</button>
+      <button class="btn-edit-sm" onclick="triggerAddPhotos()">＋ Add Photo</button>
       <button class="btn-edit-sm" onclick="closePickupDetail()">Close</button>
     `;
 }
@@ -8216,50 +8241,107 @@ async function _deletePickup(id){
   _renderBulkyShell();
 }
 
-// Print a single bulky pickup as a one-page driver run sheet. Photos are
-// pre-fetched as base64 data URLs (signed-URL fallback) so they're embedded and
-// guaranteed present when the print dialog fires. The pop-up is opened
-// synchronously up front so it isn't blocked after the awaits below.
-async function printBulkyPickup(id){
+// ── Bulk select + bulk actions on the queue ───────────────────────────
+// The selection bar above the queue grid. Only the Queue view is selectable;
+// calendar/history render plain cards.
+function _bulkySelBarHTML(pending){
+  const n = _bulkySelected.size;
+  const allSelected = pending.length > 0 && pending.every(r => _bulkySelected.has(r.id));
+  return `
+    <div class="bulky-selbar">
+      <div class="sel-info">${n ? `<strong>${n}</strong> selected` : 'Tap the ◯ on a card to select for printing'}</div>
+      <div class="sel-actions">
+        ${!allSelected ? `<button class="btn-edit-sm" onclick="selectAllBulky()">Select all</button>` : ''}
+        ${n ? `<button class="btn-edit-sm" onclick="clearBulkySel()">Clear</button>` : ''}
+        ${n ? `<button class="btn-add" onclick="printBulkySelected()">🖨 Print (${n})</button>` : ''}
+        ${n ? `<button class="btn-add" style="background:#16a34a;" onclick="markSelectedPickedUp()">✓ Picked Up (${n})</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function toggleBulkySelect(id, evt){
+  if(evt) evt.stopPropagation();
+  if(_bulkySelected.has(id)) _bulkySelected.delete(id);
+  else _bulkySelected.add(id);
+  _renderBulkyView();
+}
+
+function selectAllBulky(){
+  _bulkyRecords.filter(r => r.status === 'pending').forEach(r => _bulkySelected.add(r.id));
+  _renderBulkyView();
+}
+
+function clearBulkySel(){
+  _bulkySelected.clear();
+  _renderBulkyView();
+}
+
+async function markSelectedPickedUp(){
+  if(!userCanSeeBulky()) return;
+  const ids = [..._bulkySelected];
+  if(!ids.length) return;
+  if(!confirm(`Mark ${ids.length} pickup${ids.length===1?'':'s'} as picked up?`)) return;
+  const by  = currentUser ? (currentUser.display_name || currentUser.username) : '';
+  const now = new Date().toISOString();
+  const {error} = await db.from('bulky_pickups')
+    .update({status:'completed', picked_up_at: now, picked_up_by: by})
+    .in('id', ids);
+  if(error){ toast('Error: '+error.message); return; }
+  ids.forEach(id => { const r = _bulkyRecords.find(x => x.id === id); if(r){ r.status='completed'; r.picked_up_at=now; r.picked_up_by=by; } });
+  _bulkySelected.clear();
+  toast(ids.length+' marked picked up', true);
+  logActivity('bulky_bulk_picked_up', ids.length+' records');
+  _renderBulkyShell();
+}
+
+// ── Add photo(s) to an existing pickup ────────────────────────────────
+function triggerAddPhotos(){
+  const inp = document.getElementById('detailPhotoInput');
+  if(inp){ inp.value = ''; inp.click(); }
+}
+
+// Resize + upload like the new-pickup flow, then append to the record's photos
+// JSONB. For when the original text had no photo, or a follow-up arrives later.
+async function onDetailPhotosChosen(evt){
+  if(!userCanSeeBulky()) return;
+  const id = _bulkyDetailId;
   const r = _bulkyRecords.find(x => x.id === id);
   if(!r){ toast('Record not found'); return; }
-
-  const win = window.open('', '_blank');
-  if(win){
-    win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Preparing print…</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#555;">Preparing print sheet…</body></html>');
+  const files = Array.from(evt.target.files || []);
+  if(!files.length) return;
+  toast('Uploading photo'+(files.length===1?'':'s')+'…');
+  const ym = (r.received_at || bulkyTodayISO()).slice(0, 7);
+  const loggedBy = currentUser ? (currentUser.display_name || currentUser.username) : '';
+  const added = [];
+  for(let i = 0; i < files.length; i++){
+    let blob;
+    try { blob = await resizeImage(files[i], 1600, 0.85); }
+    catch(e){ blob = files[i]; }
+    const ts = Date.now(); const rand = Math.random().toString(36).slice(2, 8);
+    const path = `bulky/${ym}/${ts}-${rand}-${i}.jpg`;
+    const {error} = await db.storage.from('helm-files').upload(path, blob, {contentType:'image/jpeg', upsert:false});
+    if(error){ toast('Upload failed: '+error.message); break; }
+    added.push({path, uploaded_at:new Date().toISOString(), uploaded_by:loggedBy});
   }
+  if(!added.length) return;
+  const existing = Array.isArray(r.photos) ? r.photos.slice() : [];
+  const newPhotos = existing.concat(added);
+  const {error:upErr} = await db.from('bulky_pickups').update({photos:newPhotos}).eq('id', id);
+  if(upErr){ toast('Save failed: '+upErr.message); return; }
+  r.photos = newPhotos;
+  _bulkyDetailIdx = existing.length;   // jump carousel to the first newly-added photo
+  toast(added.length+' photo'+(added.length===1?'':'s')+' added', true);
+  logActivity('bulky_photo_added', `${r.address||id} (+${added.length})`);
+  await _renderPickupDetailBody();
+  _renderBulkyShell();
+}
 
-  // Gather photo sources: data URL first, signed URL as fallback.
-  const photos = Array.isArray(r.photos) ? r.photos : [];
-  const srcs = [];
-  for(const p of photos){
-    if(!p || !p.path) continue;
-    let src = await bulkyGetDataUrl(p.path);
-    if(!src) src = await bulkyGetSignedUrl(p.path);
-    if(src) srcs.push(src);
-  }
-
-  if(!win){ toast('Allow pop-ups to print this sheet'); return; }
-
-  const cat = r.category || '';
-  const catLabel = cat === 'residential' ? '🏠 RESIDENTIAL' : cat === 'commercial' ? '🏢 COMMERCIAL' : 'UNCLASSIFIED';
-  const catColor = cat === 'commercial' ? '#1e40af' : cat === 'residential' ? '#166534' : '#6b7280';
-  const dateStr  = r.received_at ? new Date(r.received_at+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) : '—';
-  const printedStr = new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
-  const clientLine = r.client_name
-    ? esc(r.client_name) + (r.client_id ? ` &middot; #${esc(r.client_id)}` : '')
-    : (r.client_id ? '#'+esc(r.client_id) : 'Not a HELM client');
-  const coP = getCompany(r.client_id);
-  const coTagP = coP.name ? ` <span class="co-tag" style="background:${coP.name==='SANTOS'?'#dbeafe':'#d1fae5'};color:${coP.name==='SANTOS'?'#1e40af':'#065f46'};">${coP.name}</span>` : '';
-  const photoHtml = srcs.length
-    ? `<div class="photos">${srcs.map(s => `<img src="${s}" alt="Bulky pickup photo"/>`).join('')}</div>`
-    : '<div class="no-photo">No photo on file.</div>';
-
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"/><title>Bulky Pickup — ${esc(r.address||'')}</title>
-<style>
+// ── Print: shared styles + per-sheet body (single + bulk) ─────────────
+function _bulkyPrintStyles(){
+  return `
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:20px;}
+.sheet.pagebreak{page-break-after:always;}
 .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0f1f3d;padding-bottom:10px;margin-bottom:14px;}
 .header h1{font-size:18px;font-weight:700;color:#0f1f3d;letter-spacing:.02em;}
 .header .printed{font-size:11px;color:#666;text-align:right;line-height:1.5;}
@@ -8273,15 +8355,31 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:20
 .notes-h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#666;font-weight:700;margin:0 0 4px;}
 .notes{padding:10px 14px;background:#fff7ed;border-left:4px solid #d97706;border-radius:4px;font-size:15px;line-height:1.5;white-space:pre-wrap;margin-bottom:18px;min-height:34px;}
 .photos{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
-.photos img{max-width:48%;max-height:420px;border:1px solid #ccc;border-radius:6px;object-fit:contain;}
+.photos img{max-width:48%;max-height:340px;border:1px solid #ccc;border-radius:6px;object-fit:contain;}
 .no-photo{color:#999;font-style:italic;margin-bottom:18px;}
 .signoff{border:2px solid #0f1f3d;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:15px;color:#0f1f3d;}
 .signoff .box{width:22px;height:22px;border:2px solid #0f1f3d;border-radius:4px;flex:none;}
 .signoff .fld{display:flex;align-items:flex-end;gap:6px;font-weight:700;}
 .signoff .fld .ul{display:inline-block;border-bottom:1.5px solid #555;min-width:150px;height:20px;}
 .footer{margin-top:20px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
-@media print{body{padding:10px;}@page{margin:1cm;}.photos img{max-height:340px;}}
-</style></head><body>
+@media print{body{padding:10px;}@page{margin:1cm;}}
+`;
+}
+
+function _bulkySheetBody(r, srcs, printedStr){
+  const cat = r.category || '';
+  const catLabel = cat === 'residential' ? '🏠 RESIDENTIAL' : cat === 'commercial' ? '🏢 COMMERCIAL' : 'UNCLASSIFIED';
+  const catColor = cat === 'commercial' ? '#1e40af' : cat === 'residential' ? '#166534' : '#6b7280';
+  const dateStr  = r.received_at ? new Date(r.received_at+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}) : '—';
+  const clientLine = r.client_name
+    ? esc(r.client_name) + (r.client_id ? ` &middot; #${esc(r.client_id)}` : '')
+    : (r.client_id ? '#'+esc(r.client_id) : 'Not a HELM client');
+  const coP = getCompany(r.client_id);
+  const coTagP = coP.name ? ` <span class="co-tag" style="background:${coP.name==='SANTOS'?'#dbeafe':'#d1fae5'};color:${coP.name==='SANTOS'?'#1e40af':'#065f46'};">${coP.name}</span>` : '';
+  const photoHtml = srcs.length
+    ? `<div class="photos">${srcs.map(s => `<img src="${s}" alt="Bulky pickup photo"/>`).join('')}</div>`
+    : '<div class="no-photo">No photo on file.</div>';
+  return `
 <div class="header">
   <h1>HELM — Bulky Pickup</h1>
   <div class="printed">Printed ${esc(printedStr)}</div>
@@ -8306,13 +8404,68 @@ ${photoHtml}
 <div class="footer">
   <span>Reis Trucking — Nantucket, MA</span>
   <span>HELM Bulky Pickup Sheet</span>
-</div>
+</div>`;
+}
+
+async function _bulkyPhotoSrcs(r){
+  const photos = Array.isArray(r.photos) ? r.photos : [];
+  const srcs = [];
+  for(const p of photos){
+    if(!p || !p.path) continue;
+    let src = await bulkyGetDataUrl(p.path);
+    if(!src) src = await bulkyGetSignedUrl(p.path);
+    if(src) srcs.push(src);
+  }
+  return srcs;
+}
+
+// Single-pickup run sheet. Pop-up opened synchronously so it isn't blocked
+// after the awaits; photos embedded as data URLs so they're guaranteed present.
+async function printBulkyPickup(id){
+  const r = _bulkyRecords.find(x => x.id === id);
+  if(!r){ toast('Record not found'); return; }
+  const win = window.open('', '_blank');
+  if(win){ win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Preparing print…</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#555;">Preparing print sheet…</body></html>'); }
+  const srcs = await _bulkyPhotoSrcs(r);
+  if(!win){ toast('Allow pop-ups to print this sheet'); return; }
+  const printedStr = new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/><title>Bulky Pickup — ${esc(r.address||'')}</title>
+<style>${_bulkyPrintStyles()}</style></head><body>
+<div class="sheet">${_bulkySheetBody(r, srcs, printedStr)}</div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`;
-
   win.document.open();
   win.document.write(html);
   win.document.close();
+}
+
+// Bulk run sheet: every selected pending pickup, each on its own page.
+async function printBulkySelected(){
+  const chosen = _bulkyRecords
+    .filter(r => r.status === 'pending' && _bulkySelected.has(r.id))
+    .sort((a,b) => (a.received_at||'').localeCompare(b.received_at||''));
+  if(!chosen.length){ toast('Select at least one pickup to print'); return; }
+  const win = window.open('', '_blank');
+  if(win){ win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Preparing…</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#555;">Preparing '+chosen.length+' run sheet(s)…</body></html>'); }
+  const printedStr = new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+  const sheets = [];
+  for(let i = 0; i < chosen.length; i++){
+    const srcs = await _bulkyPhotoSrcs(chosen[i]);
+    const last = i === chosen.length - 1;
+    sheets.push(`<div class="sheet${last ? '' : ' pagebreak'}">${_bulkySheetBody(chosen[i], srcs, printedStr)}</div>`);
+  }
+  if(!win){ toast('Allow pop-ups to print these sheets'); return; }
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/><title>Bulky Pickups — ${chosen.length} sheet${chosen.length===1?'':'s'}</title>
+<style>${_bulkyPrintStyles()}</style></head><body>
+${sheets.join('\n')}
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  logActivity('bulky_bulk_print', chosen.length+' sheets');
 }
 
 // ── MONTHLY COMPLAINT SUMMARY (David + Esme) ──────────────────────────
