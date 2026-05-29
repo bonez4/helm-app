@@ -759,9 +759,10 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
   display:flex;gap:0;background:var(--gray-100);
   height:140px;overflow:hidden;flex-shrink:0;
 }
-.bulky-card-photo-strip img{
-  flex:1;min-width:0;object-fit:cover;height:100%;background:#000;
-}
+.bulky-card-photo-strip .bulky-thumb{flex:1;min-width:0;height:100%;position:relative;background:#000;}
+.bulky-card-photo-strip .bulky-thumb img,
+.bulky-card-photo-strip .bulky-thumb video{width:100%;height:100%;object-fit:cover;display:block;}
+.bulky-card-photo-strip .play-badge{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;text-shadow:0 1px 4px rgba(0,0,0,.75);pointer-events:none;}
 .bulky-card-photo-strip .more-photos{
   flex:0 0 60px;display:flex;align-items:center;justify-content:center;
   background:rgba(15,31,61,0.65);color:white;font-size:14px;font-weight:700;
@@ -898,7 +899,7 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
   position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:#000;
   border:1px solid var(--gray-200);
 }
-.bulky-photo-preview img{width:100%;height:100%;object-fit:cover;}
+.bulky-photo-preview img,.bulky-photo-preview video{width:100%;height:100%;object-fit:cover;}
 .bulky-photo-preview .remove{
   position:absolute;top:4px;right:4px;width:22px;height:22px;
   background:rgba(0,0,0,0.7);color:white;border:none;border-radius:50%;
@@ -937,7 +938,7 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
   position:relative;background:#000;border-radius:6px;overflow:hidden;margin-bottom:14px;
   aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;
 }
-.bulky-carousel img{
+.bulky-carousel img,.bulky-carousel video{
   max-width:100%;max-height:100%;object-fit:contain;
 }
 .bulky-carousel .nav-btn{
@@ -3450,12 +3451,12 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <textarea id="bpNotes" placeholder="What's been left out? e.g. '3 mattresses + an old TV'" style="min-height:70px;"></textarea>
       </div>
       <div class="cmp-field">
-        <label>Photos</label>
+        <label>Photos &amp; videos</label>
         <div class="bulky-photo-input-row">
           <label class="bulky-photo-pick-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            Pick photos from camera roll
-            <input type="file" id="bpPhotos" accept="image/*" multiple onchange="onBulkyPhotosChosen(event)"/>
+            Pick photos / videos from camera roll
+            <input type="file" id="bpPhotos" accept="image/*,video/*" multiple onchange="onBulkyPhotosChosen(event)"/>
           </label>
           <span class="bulky-photo-pick-hint" id="bpPhotoHint">No photos selected</span>
         </div>
@@ -3478,7 +3479,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     </div>
     <div class="helm-modal-body" id="pickupDetailBody"></div>
     <div class="helm-modal-footer" id="pickupDetailFooter"></div>
-    <input type="file" id="detailPhotoInput" accept="image/*" multiple style="display:none" onchange="onDetailPhotosChosen(event)"/>
+    <input type="file" id="detailPhotoInput" accept="image/*,video/*" multiple style="display:none" onchange="onDetailPhotosChosen(event)"/>
   </div>
 </div>
 
@@ -7554,6 +7555,28 @@ function bulkyTodayISO(){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
+// ── Video helpers ─────────────────────────────────────────────────────
+// A photos[] entry is a video by its stored type (new rows) or extension.
+function bulkyIsVideo(p){
+  if(!p) return false;
+  if(p.type === 'video') return true;
+  return /\.(mov|mp4|m4v|webm|3gp|3gpp|avi|mkv|quicktime)$/i.test(p.path || '');
+}
+// Pick a sane file extension for an uploaded video.
+function bulkyVideoExt(p){
+  const m = (p.originalName || '').match(/\.([a-z0-9]+)$/i);
+  if(m) return m[1].toLowerCase();
+  const mime = (p.mime || '').toLowerCase();
+  if(mime.includes('quicktime')) return 'mov';
+  if(mime.includes('webm')) return 'webm';
+  return 'mp4';
+}
+// Videos can't be resized client-side and can be large; warn (but allow).
+function bulkyWarnIfHugeVideo(f){
+  const mb = f.size / (1024 * 1024);
+  if(mb > 50) toast(`Large video (~${Math.round(mb)} MB) — upload may be slow or fail if it exceeds the Supabase limit`);
+}
+
 async function bulkyFetchAll(){
   const {data, error} = await db.from('bulky_pickups').select('*').order('received_at',{ascending:false});
   if(error){ toast('Error: '+error.message); return; }
@@ -7641,6 +7664,8 @@ function _renderBulkyQueue(){
 
 function _bulkyCardHTML(r, selectable){
   const photos = Array.isArray(r.photos) ? r.photos : [];
+  const vidCount = photos.filter(bulkyIsVideo).length;
+  const imgCount = photos.length - vidCount;
   const ageDays = r.received_at ? Math.floor((Date.now() - new Date(r.received_at+'T00:00:00').getTime()) / 86400000) : 0;
   const ageClass = ageDays >= 14 ? 'age-stale' : ageDays >= 7 ? 'age-aging' : 'age-new';
   const ageLabel = ageDays === 0 ? 'TODAY' : ageDays === 1 ? '1 DAY' : ageDays+' DAYS';
@@ -7649,7 +7674,10 @@ function _bulkyCardHTML(r, selectable){
   if(photos.length){
     const shown = photos.slice(0, 3);
     stripHtml = '<div class="bulky-card-photo-strip">' +
-      shown.map((p,i) => `<img data-photo-path="${esc(p.path)}" alt="" loading="lazy"/>`).join('') +
+      shown.map(p => bulkyIsVideo(p)
+        ? `<div class="bulky-thumb"><video data-photo-path="${esc(p.path)}" muted playsinline preload="metadata"></video><span class="play-badge">▶</span></div>`
+        : `<div class="bulky-thumb"><img data-photo-path="${esc(p.path)}" alt="" loading="lazy"/></div>`
+      ).join('') +
       (photos.length > 3 ? `<div class="more-photos">+${photos.length - 3}</div>` : '') +
       '</div>';
   } else {
@@ -7671,7 +7699,7 @@ function _bulkyCardHTML(r, selectable){
         <div class="bulky-card-meta">
           <span>📅 ${esc(dateStr)}</span>
           ${r.reporting_driver?`<span>🚛 ${esc(r.reporting_driver)}</span>`:''}
-          <span>📷 ${photos.length}</span>
+          <span>📷 ${imgCount}</span>${vidCount ? `<span>🎥 ${vidCount}</span>` : ''}
         </div>
         ${r.notes?`<div class="bulky-card-notes">${esc(r.notes)}</div>`:''}
       </div>
@@ -7992,13 +8020,18 @@ function _bulkySetClientChip(c){
 async function onBulkyPhotosChosen(evt){
   const files = Array.from(evt.target.files || []);
   for(const f of files){
+    if(f.type && f.type.startsWith('video/')){
+      bulkyWarnIfHugeVideo(f);
+      _bulkyPendingPhotos.push({file: f, previewUrl: URL.createObjectURL(f), originalName: f.name, isVideo: true, mime: f.type});
+      continue;
+    }
     try {
       const resized = await resizeImage(f, 1600, 0.85);
       const url = URL.createObjectURL(resized);
-      _bulkyPendingPhotos.push({file: resized, previewUrl: url, originalName: f.name});
+      _bulkyPendingPhotos.push({file: resized, previewUrl: url, originalName: f.name, isVideo: false});
     } catch(err){
       console.error('Photo resize failed:', err);
-      _bulkyPendingPhotos.push({file: f, previewUrl: URL.createObjectURL(f), originalName: f.name});
+      _bulkyPendingPhotos.push({file: f, previewUrl: URL.createObjectURL(f), originalName: f.name, isVideo: false});
     }
   }
   _renderBulkyPhotoPreviews();
@@ -8012,7 +8045,7 @@ function _renderBulkyPhotoPreviews(){
   }
   wrap.innerHTML = _bulkyPendingPhotos.map((p,i) => `
     <div class="bulky-photo-preview">
-      <img src="${p.previewUrl}" alt=""/>
+      ${p.isVideo ? `<video src="${p.previewUrl}" muted playsinline></video>` : `<img src="${p.previewUrl}" alt=""/>`}
       <button class="remove" onclick="_removeBulkyPhoto(${i})" title="Remove">×</button>
     </div>`).join('');
   document.getElementById('bpPhotoHint').textContent = `${_bulkyPendingPhotos.length} photo${_bulkyPendingPhotos.length===1?'':'s'} ready`;
@@ -8078,17 +8111,19 @@ async function submitNewPickup(){
     const ts = Date.now();
     const rand = Math.random().toString(36).slice(2, 8);
     const ym = date.slice(0, 7);
-    const path = `bulky/${ym}/${ts}-${rand}-${i}.jpg`;
+    const ext   = p.isVideo ? bulkyVideoExt(p) : 'jpg';
+    const ctype = p.isVideo ? (p.mime || 'video/mp4') : 'image/jpeg';
+    const path = `bulky/${ym}/${ts}-${rand}-${i}.${ext}`;
     btn.textContent = `Uploading ${i+1}/${_bulkyPendingPhotos.length}…`;
     const {error} = await db.storage.from('helm-files').upload(path, p.file, {
-      contentType: 'image/jpeg', upsert: false,
+      contentType: ctype, upsert: false,
     });
     if(error){
-      toast('Photo upload failed: '+error.message);
+      toast('Upload failed: '+error.message);
       btn.disabled = false; btn.textContent = 'Save Pickup';
       return;
     }
-    photoEntries.push({path, uploaded_at: new Date().toISOString(), uploaded_by: loggedBy});
+    photoEntries.push({path, type: p.isVideo ? 'video' : 'image', uploaded_at: new Date().toISOString(), uploaded_by: loggedBy});
   }
 
   btn.textContent = 'Saving…';
@@ -8148,10 +8183,14 @@ async function _renderPickupDetailBody(){
 
   let carousel = '';
   if(photos.length){
-    const url = await bulkyGetSignedUrl(photos[idx].path);
+    const cur = photos[idx];
+    const url = await bulkyGetSignedUrl(cur.path);
+    const media = bulkyIsVideo(cur)
+      ? `<video src="${url}" controls playsinline></video>`
+      : `<img src="${url}" alt=""/>`;
     carousel = `
       <div class="bulky-carousel">
-        <img src="${url}" alt=""/>
+        ${media}
         ${photos.length > 1 ? `
           <button class="nav-btn prev" onclick="_carouselStep(-1)" aria-label="Previous">‹</button>
           <button class="nav-btn next" onclick="_carouselStep(1)" aria-label="Next">›</button>
@@ -8314,14 +8353,23 @@ async function onDetailPhotosChosen(evt){
   const loggedBy = currentUser ? (currentUser.display_name || currentUser.username) : '';
   const added = [];
   for(let i = 0; i < files.length; i++){
-    let blob;
-    try { blob = await resizeImage(files[i], 1600, 0.85); }
-    catch(e){ blob = files[i]; }
+    const f = files[i];
     const ts = Date.now(); const rand = Math.random().toString(36).slice(2, 8);
+    if(f.type && f.type.startsWith('video/')){
+      bulkyWarnIfHugeVideo(f);
+      const vpath = `bulky/${ym}/${ts}-${rand}-${i}.${bulkyVideoExt({originalName:f.name, mime:f.type})}`;
+      const {error} = await db.storage.from('helm-files').upload(vpath, f, {contentType:f.type||'video/mp4', upsert:false});
+      if(error){ toast('Upload failed: '+error.message); break; }
+      added.push({path:vpath, type:'video', uploaded_at:new Date().toISOString(), uploaded_by:loggedBy});
+      continue;
+    }
+    let blob;
+    try { blob = await resizeImage(f, 1600, 0.85); }
+    catch(e){ blob = f; }
     const path = `bulky/${ym}/${ts}-${rand}-${i}.jpg`;
     const {error} = await db.storage.from('helm-files').upload(path, blob, {contentType:'image/jpeg', upsert:false});
     if(error){ toast('Upload failed: '+error.message); break; }
-    added.push({path, uploaded_at:new Date().toISOString(), uploaded_by:loggedBy});
+    added.push({path, type:'image', uploaded_at:new Date().toISOString(), uploaded_by:loggedBy});
   }
   if(!added.length) return;
   const existing = Array.isArray(r.photos) ? r.photos.slice() : [];
@@ -8357,6 +8405,7 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:20
 .photos{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
 .photos img{max-width:48%;max-height:340px;border:1px solid #ccc;border-radius:6px;object-fit:contain;}
 .no-photo{color:#999;font-style:italic;margin-bottom:18px;}
+.vid-note{font-size:13px;color:#444;font-style:italic;margin-bottom:16px;}
 .signoff{border:2px solid #0f1f3d;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:15px;color:#0f1f3d;}
 .signoff .box{width:22px;height:22px;border:2px solid #0f1f3d;border-radius:4px;flex:none;}
 .signoff .fld{display:flex;align-items:flex-end;gap:6px;font-weight:700;}
@@ -8376,9 +8425,11 @@ function _bulkySheetBody(r, srcs, printedStr){
     : (r.client_id ? '#'+esc(r.client_id) : 'Not a HELM client');
   const coP = getCompany(r.client_id);
   const coTagP = coP.name ? ` <span class="co-tag" style="background:${coP.name==='SANTOS'?'#dbeafe':'#d1fae5'};color:${coP.name==='SANTOS'?'#1e40af':'#065f46'};">${coP.name}</span>` : '';
+  const vidCount = (Array.isArray(r.photos) ? r.photos : []).filter(bulkyIsVideo).length;
   const photoHtml = srcs.length
     ? `<div class="photos">${srcs.map(s => `<img src="${s}" alt="Bulky pickup photo"/>`).join('')}</div>`
-    : '<div class="no-photo">No photo on file.</div>';
+    : (vidCount ? '' : '<div class="no-photo">No photo on file.</div>');
+  const videoNote = vidCount ? `<div class="vid-note">🎥 ${vidCount} video${vidCount===1?'':'s'} attached — view in HELM</div>` : '';
   return `
 <div class="header">
   <h1>HELM — Bulky Pickup</h1>
@@ -8396,6 +8447,7 @@ function _bulkySheetBody(r, srcs, printedStr){
 <div class="notes-h">Items / Notes</div>
 <div class="notes">${r.notes ? esc(r.notes) : '(no notes)'}</div>
 ${photoHtml}
+${videoNote}
 <div class="signoff">
   <span class="box"></span><strong>PICKED UP</strong>
   <span class="fld">Driver: <span class="ul"></span></span>
@@ -8411,7 +8463,7 @@ async function _bulkyPhotoSrcs(r){
   const photos = Array.isArray(r.photos) ? r.photos : [];
   const srcs = [];
   for(const p of photos){
-    if(!p || !p.path) continue;
+    if(!p || !p.path || bulkyIsVideo(p)) continue;   // videos can't print
     let src = await bulkyGetDataUrl(p.path);
     if(!src) src = await bulkyGetSignedUrl(p.path);
     if(src) srcs.push(src);
