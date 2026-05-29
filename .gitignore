@@ -46,3 +46,17 @@ Tonnage_Analysis_*.xlsx
 
 # Python bytecode cache
 __pycache__/
+
+# Delta export PDFs (PII — customer names + addresses). README documents these as local-only.
+delta export*.pdf
+
+# All Excel workbooks are PII-bearing data extracts/analyses — keep local-only.
+# client_import_template.xlsx is the one intentionally-tracked template (re-included below).
+*.xlsx
+!client_import_template.xlsx
+
+# Local agent/editor settings + worktrees
+.claude/
+
+# Stray phone photo dropped into repo root (PII / not an app asset)
+IMG_9452.png
