@@ -457,6 +457,21 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
 .s-active{background:var(--ok-bg);color:var(--ok-text);}
 .s-skipped{background:var(--warn-bg);color:var(--warn-text);}
 .s-paused{background:var(--err-bg);color:var(--err-text);}
+.s-inactive{background:var(--gray-100);color:var(--gray-500);border:1px solid var(--gray-300);}
+/* Residential / commercial classification badge (from account_type) */
+.type-tag{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;margin-left:4px;}
+.type-resi{background:#dcfce7;color:#166534;}
+.type-comm{background:#dbeafe;color:#1e40af;}
+/* master/sub line on the lookup card */
+.acct-role-line{font-size:11px;color:var(--gray-600);margin-top:3px;}
+.acct-role-line a{color:var(--teal);cursor:pointer;text-decoration:underline;}
+.acct-role-line .role-badge{font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:9px;padding:1px 6px;border-radius:8px;background:var(--gray-100);color:var(--gray-600);margin-right:5px;}
+/* active/inactive marker in homepage search suggestions */
+.srch-status{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle;}
+.srch-status.ss-active{background:#dcfce7;color:#166534;}
+.srch-status.ss-paused{background:#fef3c7;color:#92400e;}
+.srch-status.ss-inactive{background:#f3f4f6;color:#9ca3af;}
+.result-item.is-inactive{opacity:.6;}
 .autopay-yes{background:var(--ok-bg);color:var(--ok-text);}
 .autopay-no{background:var(--gray-100);color:var(--gray-400);}
 
@@ -4460,10 +4475,14 @@ function doSearch(q){
   if(results.length===1){res.innerHTML='';openClient(results[0].c);updateLookupWatermark();return;}
   res.innerHTML='<div class="results-list">'+results.map(({c})=>{
     const co=getCompany(c.client_id);
+    const st = c.status==='Inactive' ? {k:'ss-inactive',l:'Inactive'}
+             : c.status==='Paused'   ? {k:'ss-paused',l:'Paused'}
+             : {k:'ss-active',l:'Active'};
+    const inact = c.status && c.status!=='Active';
     return `
-    <div class="result-item" tabindex="0" data-cid="${esc(c.client_id)}" onclick="pickClient('${esc(c.client_id)}')" onkeydown="handleResultKey(event,'${esc(c.client_id)}')">
+    <div class="result-item${inact?' is-inactive':''}" tabindex="0" data-cid="${esc(c.client_id)}" onclick="pickClient('${esc(c.client_id)}')" onkeydown="handleResultKey(event,'${esc(c.client_id)}')">
       <div>
-        <div class="result-id">${c.client_name?`${esc(c.client_name)} &mdash; `:''}${esc(c.client_id)}${co.name?` <span class="company-tag ${co.cls}">${co.name}</span>`:''}</div>
+        <div class="result-id">${c.client_name?`${esc(c.client_name)} &mdash; `:''}${esc(c.client_id)}${co.name?` <span class="company-tag ${co.cls}">${co.name}</span>`:''}<span class="srch-status ${st.k}">${st.l}</span></div>
         <div class="result-addr">${esc(c.address)}</div>
       </div>
       <div class="result-day">${esc(c.service_day||'')}</div>
@@ -4527,9 +4546,21 @@ async function showPanel(c){
   if(clearBtn) clearBtn.style.display='';
 
   const paused=c.status==='Paused';
+  const inactive=c.status==='Inactive';
   const displayName=c.client_name||`Account ${c.client_id}`;
   const allDays=c.service_day?c.service_day.split(',').map(d=>d.trim()):[];
   const co=getCompany(c.client_id);
+  const typeTag = c.account_type==='residential' ? `<span class="type-tag type-resi">🏠 Resi</span>`
+                : c.account_type==='commercial'  ? `<span class="type-tag type-comm">🏢 Comm</span>` : '';
+  let roleLine='';
+  if(c.account_role==='master'){
+    const subCount=clients.filter(x=>x.master_account_id===c.client_id).length;
+    roleLine=`<div class="acct-role-line"><span class="role-badge">Master</span>${subCount} sub-account${subCount===1?'':'s'}</div>`;
+  } else if(c.account_role==='sub' && c.master_account_id){
+    const mst=clients.find(x=>x.client_id===c.master_account_id);
+    const mlabel=mst?`${esc(mst.client_name||mst.client_id)} (#${esc(mst.client_id)})`:`#${esc(c.master_account_id)}`;
+    roleLine=`<div class="acct-role-line"><span class="role-badge">Sub</span>of <a onclick="pickClient('${esc(c.master_account_id)}')">${mlabel}</a></div>`;
+  }
 
   const cSkips=skips.filter(s=>s.client_id===c.client_id);
   const today=getTodayISO();
@@ -4547,8 +4578,10 @@ async function showPanel(c){
             <div class="cli-name-row">
               <h2>${esc(displayName)}</h2>
               ${co.name?`<span class="company-tag ${co.cls}">${co.name}</span>`:''}
+              ${typeTag}
             </div>
             <div class="cli-acct">Acct #: <strong>${esc(c.client_id)}</strong></div>
+            ${roleLine}
             <div class="cli-addr">${esc(c.address)}, Nantucket MA</div>
             ${c.route_note ? `<div class="cli-route-note" style="font-size:12px;color:var(--teal-dim);font-style:italic;margin-top:3px;line-height:1.3;">📋 ${esc(c.route_note)}</div>` : ''}
             <div class="cli-phone">${esc(c.phone)||'No phone on file'}</div>
@@ -4558,8 +4591,8 @@ async function showPanel(c){
           <div class="cli-info-tiles">
             <div class="info-tile"><label>Pickup Day${allDays.length>1?'s':''}</label>${allDays.length?allDays.map(d=>`<span class="day-pill">${esc(d)}</span>`).join(' '):'<span style="color:var(--gray-400);font-size:11px">None set</span>'}</div>
             <div class="info-tile"><label>Account Status</label>
-              <span class="status-pill ${paused?'s-paused':activeSkip?'s-skipped':'s-active'}">
-                ${paused?'Paused':activeSkip?'Skipped':'Active'}
+              <span class="status-pill ${inactive?'s-inactive':paused?'s-paused':activeSkip?'s-skipped':'s-active'}">
+                ${inactive?'Inactive':paused?'Paused':activeSkip?'Skipped':'Active'}
               </span>
             </div>
             <div class="info-tile"><label>Autopay</label>
@@ -4713,6 +4746,24 @@ async function submitNote(baseId){
   dateIn.value='';
   toast('Note added',true);
   logActivity('note_added', action+(baseId?' on '+baseId:''));
+  // Auto status shift: recurring resume actions reactivate the client; LPU pauses.
+  // A 1XER (one-time pickup) never changes status, by design.
+  let statusChanged=false;
+  if(activeClient && activeClient.client_id===baseId){
+    let ns=null;
+    if(['1X WK','2X WK','3X WK'].includes(action)) ns='Active';
+    else if(action==='LPU') ns='Paused';
+    if(ns && activeClient.status!==ns){
+      const {error:se}=await db.from('clients').update({status:ns}).eq('client_id',baseId);
+      if(!se){
+        activeClient.status=ns;
+        const cc=clients.find(x=>x.client_id===baseId); if(cc) cc.status=ns;
+        statusChanged=true;
+        toast('Status → '+ns, true);
+      }
+    }
+  }
+  if(statusChanged){ showPanel(activeClient); return; }
   const notes=await loadNotes(baseId);
   renderNotesTable(notes);
 }
