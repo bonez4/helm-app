@@ -840,18 +840,23 @@ function userIsAllowed(u){
   return false;
 }
 async function initAuth(){
-  // Try the shared HELM session first (the most common path: user clicked
-  // BEACON from HELM, gets dropped in already logged in).
-  const u = readHelmSession();
-  if(u && userIsAllowed(u)){
-    currentUser = u;
-    showApp();
-    return;
-  }
-  if(u && !userIsAllowed(u)){
-    // Someone's logged in to HELM but not authorized for BEACON.
-    document.getElementById('loginErr').textContent =
-      `Signed in as ${u.display_name||u.username} — but BEACON access is restricted. Ask David to enable it for you.`;
+  // Require a real Supabase Auth session (shared with HELM on the same origin
+  // via localStorage). Reconstruct the profile from the carried-over HELM
+  // session if present, else fetch it by the signed-in username.
+  let session=null;
+  try{ session=(await db.auth.getSession()).data.session; }catch(_){}
+  if(session){
+    let u = readHelmSession();
+    if(!u){
+      const un=(session.user&&session.user.user_metadata&&session.user.user_metadata.username)||((session.user&&session.user.email)||'').split('@')[0];
+      try{ const {data}=await db.from('users').select('*').eq('username',un).single(); u=data; }catch(_){}
+      if(u){ try{ sessionStorage.setItem('helm_auth', JSON.stringify(u)); }catch(_){} }
+    }
+    if(u && userIsAllowed(u)){ currentUser = u; showApp(); return; }
+    if(u && !userIsAllowed(u)){
+      document.getElementById('loginErr').textContent =
+        `Signed in as ${u.display_name||u.username} — but BEACON access is restricted. Ask David to enable it for you.`;
+    }
   }
   showLogin();
 }
@@ -861,9 +866,10 @@ async function doLogin(){
   const err = document.getElementById('loginErr');
   err.textContent = '';
   if(!un || !pw){ err.textContent = 'Enter username and password.'; return; }
-  const {data, error} = await db.from('users').select('*')
-    .eq('username', un).eq('password', pw).single();
-  if(error || !data){ err.textContent = 'Incorrect username or password.'; return; }
+  const {error:authErr} = await db.auth.signInWithPassword({email: un+'@helm.internal', password: pw});
+  if(authErr){ err.textContent = 'Incorrect username or password.'; return; }
+  const {data, error} = await db.from('users').select('*').eq('username', un).single();
+  if(error || !data){ err.textContent = 'Signed in, but no profile found — contact David.'; return; }
   if(!userIsAllowed(data)){
     err.textContent = 'You do not have access to BEACON. Contact David.';
     return;
@@ -876,7 +882,7 @@ async function doLogin(){
 function doLogout(){
   sessionStorage.removeItem('helm_auth');
   currentUser = null;
-  location.reload();
+  db.auth.signOut().finally(()=>location.reload());
 }
 function showLogin(){
   document.getElementById('loginGate').style.display = '';

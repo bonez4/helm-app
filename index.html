@@ -3917,8 +3917,12 @@ async function login() {
   const pw = document.getElementById('pwInput').value;
   const errEl = document.getElementById('loginErr');
   if(!un||!pw){errEl.textContent='Enter username and password.';return;}
-  const {data,error} = await db.from('users').select('*').eq('username',un).eq('password',pw).single();
-  if(error||!data){errEl.textContent='Incorrect username or password.';return;}
+  // Real auth: sign in to Supabase Auth with the synthetic username@helm.internal email.
+  const {error:authErr} = await db.auth.signInWithPassword({email: un+'@helm.internal', password: pw});
+  if(authErr){errEl.textContent='Incorrect username or password.';return;}
+  // Profile row drives display name / role / nav gating (no password compare anymore).
+  const {data,error} = await db.from('users').select('*').eq('username',un).single();
+  if(error||!data){errEl.textContent='Signed in, but no profile found — contact admin.';return;}
   currentUser = data;
   sessionStorage.setItem('helm_auth', JSON.stringify(data));
   show('appScreen'); hide('loginScreen');
@@ -3979,7 +3983,7 @@ async function login() {
 function logout() {
   if(heartbeatTimer) clearInterval(heartbeatTimer);
   sessionStorage.removeItem('helm_auth');
-  location.reload();
+  db.auth.signOut().finally(()=>location.reload());
 }
 
 // Per-user accent theming. Currently: esme gets pink; jackie gets a Jamaica topbar message.
@@ -15564,10 +15568,23 @@ function toast(msg,ok=false){
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────
-const _saved = sessionStorage.getItem('helm_auth');
-if(_saved && _saved !== '1'){
+(async function boot(){
+  // Require a real Supabase Auth session to restore the app. The session lives
+  // in localStorage (survives tab close); the sessionStorage 'helm_auth' is just
+  // a fast cache of the profile row.
+  let _session=null;
+  try{ _session=(await db.auth.getSession()).data.session; }catch(_){}
+  if(!_session){ sessionStorage.removeItem('helm_auth'); return; }
   try{
-    currentUser = JSON.parse(_saved);
+    const _saved = sessionStorage.getItem('helm_auth');
+    if(_saved && _saved !== '1'){ try{ currentUser = JSON.parse(_saved); }catch(_){} }
+    if(!currentUser){
+      const _un=(_session.user&&_session.user.user_metadata&&_session.user.user_metadata.username)||((_session.user&&_session.user.email)||'').split('@')[0];
+      const {data:_prof}=await db.from('users').select('*').eq('username',_un).single();
+      currentUser=_prof;
+    }
+    if(!currentUser){ await db.auth.signOut(); sessionStorage.removeItem('helm_auth'); return; }
+    sessionStorage.setItem('helm_auth', JSON.stringify(currentUser));
     hide('loginScreen'); show('appScreen');
     document.getElementById('appScreen').style.flexDirection='column';
     document.getElementById('topbarUser').textContent = currentUser.display_name;
@@ -15621,7 +15638,7 @@ if(_saved && _saved !== '1'){
       console.error('Init failed:',err);
     }).then(()=>{ try { restoreActiveTab(); } catch(_){} });
   }catch(e){ sessionStorage.removeItem('helm_auth'); }
-}
+})();
 
 // Maps a saved tab name to the nav button that activates it. Used to
 // re-trigger the click on page reload so the user lands on the tab
