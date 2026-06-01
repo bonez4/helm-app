@@ -642,6 +642,45 @@ async function renderDetail(id){
   }
   _metaMap[id] = meta;
 
+  // If this is a master (or anything points here as its master), gather sub-accounts.
+  let subs = [];
+  try{
+    const rs = await db.from('clients')
+      .select('client_id,client_name,address,status,account_type')
+      .eq('master_account_id', id).order('client_id');
+    subs = rs.data || [];
+    if(subs.length){
+      const ids = subs.map(s=>s.client_id);
+      const rm = await db.from('commercial_accounts').select('*').in('client_id', ids);
+      const mm = {}; (rm.data||[]).forEach(m=>{ mm[m.client_id]=m; });
+      subs = subs.map(s=>({ ...s, meta: mm[s.client_id]||{} }));
+    }
+  }catch(_){ subs = []; }
+  const subsCard = subs.length ? `
+    <div class="card">
+      <h3>Locations / Sub-accounts (${subs.length})</h3>
+      <div class="table-wrap" style="box-shadow:none">
+        <table>
+          <thead><tr>
+            <th class="nosort">Name</th><th class="nosort">Account #</th><th class="nosort">Address</th>
+            <th class="nosort">Trash</th><th class="nosort">Cardboard</th><th class="nosort">Recyclables</th>
+          </tr></thead>
+          <tbody>${subs.map(s=>{
+            const sm=s.meta||{};
+            const tag = (s.status && s.status!=='Active') ? ` <span class="pill role">${esc(s.status)}</span>` : '';
+            return `<tr onclick="location.hash='#acct/'+encodeURIComponent('${esc(s.client_id)}')">
+              <td class="name">${esc(s.client_name||'(no name)')}${tag}</td>
+              <td class="acct">${esc(s.client_id)}</td>
+              <td class="addr">${esc(s.address||'')}</td>
+              <td>${dayCodeHtml(sm.trash_days)}</td>
+              <td>${dayCodeHtml(sm.cardboard_days)}</td>
+              <td>${dayCodeHtml(sm.recycle_days)}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>` : '';
+
   const co=companyOf(id);
   const coPill = co ? `<span class="pill ${co.toLowerCase()}">${co}</span>` : '';
   let roleLine='Standalone';
@@ -674,6 +713,8 @@ async function renderDetail(id){
       </div>
       ${rateStrip}
     </div>
+
+    ${subsCard}
 
     <div class="card">
       <h3>Pickup Schedule — by service &amp; day</h3>
