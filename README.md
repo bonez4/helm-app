@@ -1197,8 +1197,7 @@ helm-app/
 ├── .gitignore                                    ← Excludes PII-bearing extract artifacts + the raw scale export + tonnage output
 ├── IRR_DailyScaleReport.gs                       ← Legacy Google Apps Script (not used)
 ├── irr-daily-report.html                         ← Standalone daily report tool (legacy)
-├── sample_clients.csv                            ← Client CSV import template
-├── rolloffs_clean.csv                            ← Sample rolloff data
+├── sample_clients.csv                            ← Client CSV import template (fake data)
 ├── README.md                                     ← This file
 ```
 

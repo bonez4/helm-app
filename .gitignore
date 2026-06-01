@@ -68,3 +68,6 @@ reis_*.csv
 *_creates_preview.csv
 *_helm_not_in_pdf.csv
 *_pdf_not_in_helm.csv
+
+# rolloff data extract (real customer names/addresses) — untracked, kept local only
+rolloffs_clean.csv
