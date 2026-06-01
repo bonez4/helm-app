@@ -17,8 +17,8 @@ Both apps are hosted on GitHub Pages (free) and use Supabase (paid) as the share
 
 **HELM URL:** https://bonez4.github.io/helm-app/
 **BEACON URL:** https://bonez4.github.io/helm-app/beacon/
-**Office Password:** nantucket (shared gate password)
-**Per-user logins:** See `users` table in Supabase
+**Login:** real per-user accounts via **Supabase Auth** (`signInWithPassword` on a synthetic `username@helm.internal` email) — staff log in with the same username + password as before. The old shared `OFFICE_PW` gate is retired.
+**User profiles:** the `users` table now holds only display_name / role / nav metadata (passwords live hashed in Supabase Auth).
 
 ---
 
@@ -237,7 +237,7 @@ Per-user themes live in `applyUserTheme()`:
 | Column | Type | Notes |
 |---|---|---|
 | username | TEXT (PK) | Lowercase login |
-| password | TEXT | Plaintext (internal tool) |
+| ~~password~~ | — | Dropped 2026-05-29 — passwords now live hashed in Supabase Auth (`auth.users`); login uses `signInWithPassword` |
 | display_name | TEXT | Shown in topbar and notes |
 | role | TEXT | `admin` or `staff` |
 
@@ -367,7 +367,7 @@ Six tables backing the Workflow tab:
 - **`helm_action_dependencies`** — task → task blocking relationships (task_id, depends_on_task_id, dep_type, unique pair)
 - **`helm_action_activity`** — append-only log (project_id, task_id, action, detail jsonb, created_at)
 
-All tables RLS-enabled with open policies (HELM standard).
+All tables are RLS-enabled and **locked to authenticated only** (`FOR ALL TO authenticated`) as of 2026-05-29 — the public/anon key grants **no** table access without a Supabase Auth login. (Previously open `USING(true)` to anon.)
 
 ---
 
@@ -871,11 +871,12 @@ IRR Scale → Daily Scale Report → Historical Import. Upserts on `report_date`
 
 ## Supabase Setup Requirements
 
-### All tables require RLS + open policies (pattern):
+### All tables: RLS enabled, locked to authenticated (pattern, since 2026-05-29):
 ```sql
 ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "{table}_all" ON {table} FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "{table}_all" ON {table} FOR ALL TO authenticated USING (true) WITH CHECK (true);
 ```
+The anon/public key gets nothing without a login. A single `DO` block applies this to every public table (and a matching rollback re-opens to `public`) — see the 2026-05-29 changelog entry / git history.
 
 ### Non-obvious tables/columns (run these if setting up fresh):
 ```sql
@@ -1156,7 +1157,7 @@ DELETE FROM notes WHERE action LIKE 'Complaint%';
 ```
 
 ### Storage buckets
-- `helm-files` (Private) — with RLS policies allowing anon key to read/write/delete
+- `helm-files` (Private) — RLS locked to **authenticated only** (4 policies read/insert/update/delete, each `TO authenticated` scoped to `bucket_id='helm-files'`). Was anon-accessible until 2026-05-29.
 
 ---
 
@@ -1214,7 +1215,7 @@ Gitignored (local-only, contains PII):
 Open items deliberately on hold. Pick these back up when relevant — listed in the order they were paused.
 
 - **143 commercial accounts from the July 2025 BeaconImportData snapshot don't match HELM today** (104 Reis + 39 Santos). They're a mix of genuine lost-business candidates and multi-location sub-accounts where HELM uses a different parent ID (NANT COTTAGE HOSPITAL has 3 entries with different acct #s, MARINE HOME CENTER multiple, NANTUCKET GOLF CLUB 3, NANTUCKET BOYS CLUB 4, etc.). User flagged 2026-05-28: skip for now, revisit later. Source: `C:\Users\theco\Downloads\BeaconImportData.xlsx`. Re-run `beacon_import_match.py` to regenerate the gap list at any time. Two paths if revisited: (a) bulk-import all 143 into BEACON as `event_type='lost'` with `pipeline_stage='new_loss'` seeded from the spreadsheet — fastest, but pollutes the exit pipeline with sub-account duplicates; (b) manual triage via a CSV review pass first to weed out the sub-account renumbers, then import the survivors as lost business.
-- **Securing HELM** — diagnosis written up in chat 2026-05-25: every table has `USING(true) WITH CHECK(true)` RLS, so the public anon key (already exposed in HTML, by design) can read/write everything. Plaintext passwords in `users` table. Path: adopt Supabase Auth (`signInWithPassword`), tighten all RLS to `auth.role() = 'authenticated'`, hash passwords via Auth, retire `OFFICE_PW`. ~half-day of work. No `service_role` key has leaked anywhere in the repo (confirmed). Acceptable risk for now given small internal team, but should be done before any wider deployment.
+- ✅ **Securing HELM — DONE 2026-05-29** (Supabase Auth + authenticated-only RLS on all tables + the storage bucket + dropped the plaintext password column; see the 2026-05-29 changelog entry). Remaining one-offs: create Jack's Auth account (his old password was under Auth's 6-char minimum); roll the secret key that flashed in a screenshot during setup.
 
 ---
 
@@ -1224,6 +1225,7 @@ Older entries are intentionally terse — full detail lives in git history. The 
 
 ### May 21-29, 2026
 
+- **May 29** — **Security hardening: Supabase Auth + authenticated-only RLS (HELM + BEACON).** Closed the core exposure — the public anon key + `USING(true)` RLS let anyone read/write/delete every table (incl. plaintext passwords) with no login. Login migrated to **Supabase Auth** (`signInWithPassword` on synthetic `username@helm.internal` emails; same usernames/passwords; Auth accounts created for all users via `migrate_auth_create_users.py`). Locked **all ~34 public tables + the `helm-files` bucket** to `TO authenticated` via a `DO`-block (with a rollback block that re-opens to `public`). Dropped the plaintext `users.password` column. Verified: the public key with no login now returns `[]` from every table + the bucket, while the logged-in app + files work normally. `OFFICE_PW` gate retired. Remaining one-offs: create Jack's Auth account (old password <6 chars), roll the secret key (appeared in a screenshot during setup).
 - **May 29** — **Active-account reconciliation + resi/commercial classification (Santos + Reis).** New `import_active_accounts.py` parses the authoritative NetWork "ALL ACCOUNTS" PDF per company and reconciles HELM by acct #: matched → `Active` + `account_type` (resi/commercial) + `account_role` (master/sub/standalone) + `master_account_id` + rate1-5 + service_day; PDF-only accts created; HELM-only (stale delta-import duplicates) → `Inactive`. Rolloff (1xxxxx) ignored. **Applied:** Santos 1,441 updated / 73 created / 1,509 → Inactive; Reis 2,159 / 174 / 3,562. New `clients` columns `account_type` / `account_role` / `master_account_id` (added via SQL). **Front-end:** 🏠/🏢 badge + Active/Inactive on the lookup card, master/sub line with click-through, Active/Paused/Inactive chip in search suggestions, and notes that auto-shift status (1X/2X/3X WK → Active, LPU → Paused, 1XER unchanged).
 - **May 29** — **Bulky Pickups: video support.** New Pickup + Add Photo now accept video; clips upload raw (no resize) with correct content-type/extension and `type:'video'` in the `photos` JSONB. Cards show a ▶ badge + `🎥 N` count, the detail carousel plays inline, print embeds photos + an attached-video count. Helpers: `bulkyIsVideo` / `bulkyVideoExt` / `bulkyWarnIfHugeVideo`. Caveat: large clips may hit the Supabase per-file size limit (raise in Storage settings).
 - **May 29** — **Bulky Pickups: bulk select/print + add-photo-to-existing.** Queue cards got a tap-to-select circle; selecting shows a bar with Select all / Clear / 🖨 Print (N) / ✓ Picked Up (N). Bulk print = one page-broken document (print styles refactored into shared `_bulkyPrintStyles` / `_bulkySheetBody`, used by single + bulk). Detail modal got a ＋ Add Photo button to attach photos to a record after the fact (resize→upload→append to `photos` JSONB).
