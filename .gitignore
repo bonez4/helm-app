@@ -60,3 +60,11 @@ delta export*.pdf
 
 # Stray phone photo dropped into repo root (PII / not an app asset)
 IMG_9452.png
+
+# import_active_accounts.py outputs (PII — acct + name + address + rates + status lists)
+santos_*.csv
+reis_*.csv
+*_apply_results.csv
+*_creates_preview.csv
+*_helm_not_in_pdf.csv
+*_pdf_not_in_helm.csv
