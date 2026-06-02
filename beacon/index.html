@@ -292,6 +292,9 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
 .kpi.clickable{cursor:pointer;transition:transform .1s, box-shadow .15s, border-color .15s;}
 .kpi.clickable:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(15,23,42,.09);border-color:var(--border-2);}
 .kpi-link{font-size:11.5px;color:var(--amber-dim);font-weight:600;margin-top:9px;}
+.kpi-row.three{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));max-width:880px;}
+.kpi.contacted::before{background:var(--blue);}
+.kpi.contacted .kpi-num{color:var(--blue);}
 .dash-section+.dash-section{margin-top:20px;}
 .dash-section-title{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute);font-weight:700;margin-bottom:12px;}
 .bars{display:flex;flex-direction:column;gap:7px;}
@@ -698,7 +701,7 @@ async function loadCommercial(){
 function route(){
   const h = location.hash||'';
   const acct = h.match(/^#acct\/(.+)$/);
-  const rev  = h.match(/^#review\/(lost|new)(?:\/(\d{4}-\d{2}))?$/);
+  const rev  = h.match(/^#review\/(lost|new|contacted)(?:\/(\d{4}-\d{2}))?$/);
   if(acct){ setNav('accounts'); renderDetail(decodeURIComponent(acct[1])); }
   else if(rev){ setNav('accounts'); renderReview(rev[1], rev[2]||null); }
   else if(h==='#reports'){ setNav('reports'); renderReports(); }
@@ -838,8 +841,9 @@ function renderDashboard(){
   const curKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   const lostThis=_events.filter(e=>e.event_type==='lost' && (e.event_date||'').slice(0,7)===curKey);
   const newThis =_events.filter(e=>e.event_type==='new'  && (e.event_date||'').slice(0,7)===curKey);
+  const contactedThis=new Set(_outreach.filter(o=>(o.contact_date||'').slice(0,7)===curKey).map(o=>o.client_id)).size;
   body.innerHTML=`
-    <div class="kpi-row two">
+    <div class="kpi-row three">
       <div class="kpi lost clickable" onclick="location.hash='#review/lost'">
         <div class="kpi-num">${lostThis.length}</div>
         <div class="kpi-label">Lost this month</div>
@@ -848,6 +852,11 @@ function renderDashboard(){
       <div class="kpi new clickable" onclick="location.hash='#review/new'">
         <div class="kpi-num">${newThis.length}</div>
         <div class="kpi-label">Gained this month</div>
+        <div class="kpi-link">View accounts →</div>
+      </div>
+      <div class="kpi contacted clickable" onclick="location.hash='#review/contacted'">
+        <div class="kpi-num">${contactedThis}</div>
+        <div class="kpi-label">Contacted this month</div>
         <div class="kpi-link">View accounts →</div>
       </div>
     </div>`;
@@ -866,6 +875,32 @@ function monthLabelFull(key){ const p=key.split('-'); const d=new Date(Number(p[
 function renderReview(type, monthKey){
   const now=new Date();
   const mk = monthKey || (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  if(type==='contacted'){
+    const back = monthKey ? `location.hash='#reports'` : `location.hash=''`;
+    const sorted=_outreach.filter(o=>(o.contact_date||'').slice(0,7)===mk).slice()
+      .sort((a,b)=>{ const d=(b.contact_date||'').localeCompare(a.contact_date||''); return d!==0?d:(b.id-a.id); });
+    const seen={}, crows=[];
+    sorted.forEach(o=>{ if(!seen[o.client_id]){ seen[o.client_id]=true; crows.push(o); } });
+    const ctbl = crows.length ? `<div class="table-wrap"><table>
+        <thead><tr><th class="nosort">Name</th><th class="nosort">Account #</th><th class="nosort">Last contacted</th><th class="nosort">Method</th><th class="nosort">By</th></tr></thead>
+        <tbody>${crows.map(o=>`<tr onclick="location.hash='#acct/'+encodeURIComponent('${esc(o.client_id)}')">
+          <td class="name">${esc(clientName(o.client_id))}</td>
+          <td class="acct">${esc(o.client_id)}</td>
+          <td>${esc(fmtDate(o.contact_date))}</td>
+          <td><span class="method-chip">${esc(o.method||'Contact')}</span></td>
+          <td>${esc(o.contacted_by||'')}</td>
+        </tr>`).join('')}</tbody></table></div>`
+      : `<div class="card"><div class="empty">No accounts contacted in ${monthLabelFull(mk)}.</div></div>`;
+    showSecondary(`
+      <div class="detail-back" onclick="${back}">‹ Back</div>
+      <div class="detail-header"><div>
+        <h1>Contacted — ${monthLabelFull(mk)}</h1>
+        <div class="acct-sub">${crows.length} account${crows.length===1?'':'s'} contacted · click any to see the full contact log</div>
+      </div></div>
+      ${ctbl}
+    `);
+    return;
+  }
   const typeLabel = type==='lost'?'Lost':'Gained';
   const rows=_events.filter(e=>e.event_type===type && (e.event_date||'').slice(0,7)===mk)
     .sort((a,b)=>(b.event_date||'').localeCompare(a.event_date||''));
@@ -894,9 +929,11 @@ function renderReports(){
   const now=new Date();
   const months=[];
   for(let i=11;i>=0;i--){ const d=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
-  const lostC={}, newC={};
-  months.forEach(m=>{ lostC[m]=0; newC[m]=0; });
+  const lostC={}, newC={}, contactedSets={};
+  months.forEach(m=>{ lostC[m]=0; newC[m]=0; contactedSets[m]=new Set(); });
   _events.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(!(m in lostC)) return; if(e.event_type==='lost') lostC[m]++; else if(e.event_type==='new') newC[m]++; });
+  _outreach.forEach(o=>{ const m=(o.contact_date||'').slice(0,7); if(contactedSets[m]) contactedSets[m].add(o.client_id); });
+  const contactedC={}; months.forEach(m=>{ contactedC[m]=contactedSets[m].size; });
   const lost12=months.reduce((s,m)=>s+lostC[m],0), new12=months.reduce((s,m)=>s+newC[m],0), net=new12-lost12;
   const maxC=Math.max(1, ...months.map(m=>Math.max(lostC[m],newC[m])));
   const monthsDesc=months.slice().reverse();
@@ -914,7 +951,7 @@ function renderReports(){
       <h3>By month</h3>
       <div class="table-wrap" style="box-shadow:none">
         <table>
-          <thead><tr><th class="nosort">Month</th><th class="nosort">Lost</th><th class="nosort">Gained</th><th class="nosort">Net</th></tr></thead>
+          <thead><tr><th class="nosort">Month</th><th class="nosort">Lost</th><th class="nosort">Gained</th><th class="nosort">Net</th><th class="nosort">Contacted</th></tr></thead>
           <tbody>${monthsDesc.map(m=>{
             const l=lostC[m], g=newC[m], n=g-l;
             return `<tr>
@@ -922,6 +959,7 @@ function renderReports(){
               <td>${l?`<a onclick="location.hash='#review/lost/${m}'" style="cursor:pointer;color:var(--red-dim);font-weight:700">${l}</a>`:'<span class="dim">0</span>'}</td>
               <td>${g?`<a onclick="location.hash='#review/new/${m}'" style="cursor:pointer;color:var(--green-dim);font-weight:700">${g}</a>`:'<span class="dim">0</span>'}</td>
               <td class="mono" style="color:${n>=0?'var(--green-dim)':'var(--red-dim)'}">${n>=0?'+':''}${n}</td>
+              <td>${contactedC[m]?`<a onclick="location.hash='#review/contacted/${m}'" style="cursor:pointer;color:var(--blue);font-weight:700">${contactedC[m]}</a>`:'<span class="dim">0</span>'}</td>
             </tr>`;
           }).join('')}</tbody>
         </table>
