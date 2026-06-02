@@ -337,6 +337,37 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
 .modal input:focus,.modal textarea:focus{border-color:var(--amber);outline:none;background:var(--surface);}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
 @media (max-width:720px){ .loss-row{grid-template-columns:1fr;gap:2px;} .bar-val{width:84px;} }
+
+/* ── contacts + contact log ─────────────────────────────────────────── */
+.cdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:middle;}
+.cdot.fresh{background:var(--green);}
+.cdot.stale{background:var(--amber);}
+.cdot.cold{background:var(--red);}
+.cdot.never{background:var(--text-dim);}
+.contact-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 11px;border-radius:20px;}
+.contact-chip.fresh{background:var(--green-soft);color:var(--green-dim);}
+.contact-chip.stale{background:rgba(217,119,6,.13);color:var(--amber-dim);}
+.contact-chip.cold{background:rgba(220,38,38,.12);color:var(--red-dim);}
+.contact-chip.never{background:var(--surface-3);color:var(--text-mute);}
+.contact-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);}
+.contact-row:last-child{border-bottom:none;}
+.contact-main{min-width:0;}
+.contact-name{font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.contact-title{font-weight:400;font-size:12px;color:var(--text-mute);}
+.contact-lines{display:flex;gap:16px;flex-wrap:wrap;margin-top:5px;}
+.contact-link{font-size:13px;color:var(--text);}
+.contact-link:hover{color:var(--amber-dim);text-decoration:none;}
+.contact-actions{display:flex;gap:4px;flex:none;}
+.icon-btn{width:30px;height:30px;border:1px solid var(--border);border-radius:7px;background:var(--surface);cursor:pointer;color:var(--text-mute);font-size:14px;line-height:1;}
+.icon-btn:hover{background:var(--surface-2);color:var(--text);}
+.method-chip{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:5px;background:var(--blue-soft);color:var(--blue);}
+.mini-label{display:block;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin-bottom:4px;}
+.composer-row{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+.composer-row>div{flex:1;min-width:130px;}
+.composer-row input,.composer-row select{width:100%;padding:9px 11px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13.5px;color:var(--text);}
+.composer-row input:focus,.composer-row select:focus{border-color:var(--amber);outline:none;}
+.checkbox-label{display:flex !important;align-items:center;gap:8px;text-transform:none !important;letter-spacing:0 !important;font-size:13px !important;color:var(--text) !important;margin-top:16px !important;font-weight:600;}
+.checkbox-label input{width:auto !important;padding:0 !important;}
 </style>
 </head>
 <body>
@@ -457,6 +488,25 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     </div>
   </div>
 </div>
+<div id="contactModal" class="modal-overlay">
+  <div class="modal">
+    <h3 id="contactModalTitle">Add Contact</h3>
+    <input type="hidden" id="contactId"/>
+    <label>Name</label>
+    <input type="text" id="contactName" placeholder="Contact name" autocomplete="off"/>
+    <label>Title / role <span>(optional)</span></label>
+    <input type="text" id="contactTitle" placeholder="e.g. Site manager, Owner, Accounts payable" autocomplete="off"/>
+    <label>Phone <span>(optional)</span></label>
+    <input type="tel" id="contactPhone" placeholder="508-555-1212" autocomplete="off"/>
+    <label>Email <span>(optional)</span></label>
+    <input type="email" id="contactEmail" placeholder="name@company.com" autocomplete="off"/>
+    <label class="checkbox-label"><input type="checkbox" id="contactPrimary"/> Primary contact</label>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeContactModal()">Cancel</button>
+      <button class="btn-primary" id="contactSaveBtn" onclick="saveContact()">Save</button>
+    </div>
+  </div>
+</div>
 <div id="lightbox" onclick="closeLightbox()"><span class="lb-close">&times;</span><div id="lbContent"></div></div>
 <div id="toast" class="toast"></div>
 <input type="file" id="historyFileInput" accept="image/*,video/*" multiple style="display:none"/>
@@ -491,6 +541,9 @@ let _detailId = null;
 let _events = [];
 let _eventLatest = {};
 let _evtType = 'lost';
+let _outreach = [];
+let _lastContact = {};
+let _detailContacts = [];
 let _pendingFiles = [];
 let _lbUrls = {};           // path -> signed url (current detail)
 
@@ -604,7 +657,7 @@ function showApp(){
 
 // ── BOOT + DATA LOAD ───────────────────────────────────────────────────
 async function bootApp(){
-  await Promise.all([loadCommercial(), loadEvents()]);
+  await Promise.all([loadCommercial(), loadEvents(), loadOutreach()]);
   route();
 }
 async function fetchAll(table, cols, applyFilters){
@@ -689,7 +742,7 @@ function renderList(){
       const role = c.account_role && c.account_role!=='standalone'
         ? ` <span class="pill role">${c.account_role==='master'?'master':'sub'}</span>` : '';
       return `<tr onclick="location.hash='#acct/'+encodeURIComponent('${esc(c.client_id)}')">
-        <td class="name">${esc(c.client_name||'(no name)')}${role}${bizBadge(c.client_id)}</td>
+        <td class="name">${recencyDot(c.client_id)}${esc(c.client_name||'(no name)')}${role}${bizBadge(c.client_id)}</td>
         <td class="acct">${esc(c.client_id)}</td>
         <td class="addr">${esc(c.address||'')}</td>
         <td>${coPill}</td>
@@ -880,6 +933,137 @@ async function deleteEvent(id){
   if(cur) renderDetail(cur);
 }
 
+// ── CONTACTS + CONTACT LOG (outreach) ────────────────────────────────────
+async function loadOutreach(){
+  try{
+    const data=await fetchAll('commercial_outreach','*');
+    _outreach=data||[];
+    _lastContact={};
+    _outreach.slice()
+      .sort((a,b)=>{ const d=(a.contact_date||'').localeCompare(b.contact_date||''); return d!==0?d:(a.id-b.id); })
+      .forEach(o=>{ _lastContact[o.client_id]={contact_date:o.contact_date, contacted_by:o.contacted_by}; });
+  }catch(_){ _outreach=[]; _lastContact={}; }
+}
+function contactRecency(id){
+  const last=_lastContact[id];
+  if(!last || !last.contact_date) return {level:'never', days:null, by:null};
+  const days=Math.floor((Date.now()-new Date(last.contact_date+'T00:00:00').getTime())/86400000);
+  const level = days<=30?'fresh':days<=90?'stale':'cold';
+  return {level, days, by:last.contacted_by};
+}
+function recencyDot(id){
+  const r=contactRecency(id);
+  const label = r.level==='never' ? 'Never contacted' : `Last contacted ${r.days===0?'today':r.days===1?'yesterday':r.days+'d ago'}${r.by?' by '+r.by:''}`;
+  return `<span class="cdot ${r.level}" title="${esc(label)}"></span>`;
+}
+function contactChipHtml(id){
+  const r=contactRecency(id);
+  if(r.level==='never') return `<span class="contact-chip never">○ Never contacted — log your first outreach</span>`;
+  const ago = r.days===0?'today':r.days===1?'yesterday':r.days+' days ago';
+  return `<span class="contact-chip ${r.level}">● Last contacted ${ago}${r.by?' by '+esc(r.by):''}</span>`;
+}
+function contactRowHtml(c){
+  return `<div class="contact-row">
+    <div class="contact-main">
+      <div class="contact-name">${esc(c.name||'(no name)')}${c.is_primary?' <span class="pill role">Primary</span>':''}${c.title?` <span class="contact-title">${esc(c.title)}</span>`:''}</div>
+      <div class="contact-lines">
+        ${c.phone?`<a href="tel:${esc(c.phone)}" class="contact-link">📞 ${esc(c.phone)}</a>`:''}
+        ${c.email?`<a href="mailto:${esc(c.email)}" class="contact-link">✉️ ${esc(c.email)}</a>`:''}
+        ${(!c.phone&&!c.email)?`<span class="dim" style="font-size:12px">No phone / email on file</span>`:''}
+      </div>
+    </div>
+    <div class="contact-actions">
+      <button class="icon-btn" title="Edit" onclick="openContactModal(${c.id})">✎</button>
+      <button class="icon-btn" title="Delete" onclick="deleteContact(${c.id})">×</button>
+    </div>
+  </div>`;
+}
+function outreachRowHtml(o){
+  return `<div class="tl-entry">
+    <div class="tl-rail"><div class="dot"></div></div>
+    <div class="tl-body">
+      <div class="tl-meta"><span class="method-chip">${esc(o.method||'Contact')}</span> <b>${esc(fmtDate(o.contact_date))}</b>${o.contacted_by?` · ${esc(o.contacted_by)}`:''} <span class="biz-ev-del" style="float:right" title="Delete" onclick="deleteOutreach(${o.id})">×</span></div>
+      ${o.notes?`<div class="tl-note">${esc(o.notes)}</div>`:''}
+    </div>
+  </div>`;
+}
+function normalizePhone(s){
+  if(!s) return s;
+  const d=String(s).replace(/\D/g,'');
+  if(d.length===10) return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6);
+  if(d.length===11 && d[0]==='1') return d.slice(1,4)+'-'+d.slice(4,7)+'-'+d.slice(7);
+  return s;
+}
+function openContactModal(id){
+  if(!_detailId) return;
+  const c = id ? _detailContacts.find(x=>x.id===id) : null;
+  document.getElementById('contactModalTitle').textContent = c?'Edit Contact':'Add Contact';
+  document.getElementById('contactId').value = c?c.id:'';
+  document.getElementById('contactName').value = c?(c.name||''):'';
+  document.getElementById('contactTitle').value = c?(c.title||''):'';
+  document.getElementById('contactPhone').value = c?(c.phone||''):'';
+  document.getElementById('contactEmail').value = c?(c.email||''):'';
+  document.getElementById('contactPrimary').checked = c?!!c.is_primary:false;
+  document.getElementById('contactModal').classList.add('show');
+  setTimeout(()=>document.getElementById('contactName').focus(),60);
+}
+function closeContactModal(){ document.getElementById('contactModal').classList.remove('show'); }
+async function saveContact(){
+  const idv=document.getElementById('contactId').value;
+  const name=document.getElementById('contactName').value.trim();
+  const title=document.getElementById('contactTitle').value.trim();
+  const phone=document.getElementById('contactPhone').value.trim();
+  const email=document.getElementById('contactEmail').value.trim();
+  const primary=document.getElementById('contactPrimary').checked;
+  if(!name && !phone && !email){ toast('Enter at least a name, phone, or email.','err'); return; }
+  const btn=document.getElementById('contactSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  const row={ client_id:_detailId, name:name||null, title:title||null, phone:phone?normalizePhone(phone):null, email:email||null, is_primary:primary };
+  let res;
+  if(idv){ res=await db.from('commercial_contacts').update(row).eq('id',Number(idv)); }
+  else { row.created_by=who(); res=await db.from('commercial_contacts').insert(row); }
+  btn.disabled=false; btn.textContent='Save';
+  if(res.error){ toast('Save failed: '+res.error.message,'err'); return; }
+  toast('Contact saved','ok');
+  closeContactModal();
+  renderDetail(_detailId);
+}
+async function deleteContact(id){
+  if(!confirm('Delete this contact?')) return;
+  const {error}=await db.from('commercial_contacts').delete().eq('id',id);
+  if(error){ toast('Delete failed: '+error.message,'err'); return; }
+  toast('Contact deleted','ok');
+  renderDetail(_detailId);
+}
+function toggleOutreachComposer(){
+  const c=document.getElementById('outreachComposer');
+  const show=(c.style.display==='none'||!c.style.display);
+  c.style.display=show?'':'none';
+  if(show){ document.getElementById('outreachDate').value=todayISO(); document.getElementById('outreachNotes').value=''; setTimeout(()=>document.getElementById('outreachNotes').focus(),60); }
+}
+function closeOutreachComposer(){ const c=document.getElementById('outreachComposer'); if(c) c.style.display='none'; }
+async function saveOutreach(){
+  const date=document.getElementById('outreachDate').value || todayISO();
+  const method=document.getElementById('outreachMethod').value;
+  const notes=document.getElementById('outreachNotes').value.trim();
+  const btn=document.getElementById('outreachSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  const {error}=await db.from('commercial_outreach').insert({
+    client_id:_detailId, contact_date:date, method, contacted_by:who(), notes:notes||null, created_by:who()
+  });
+  btn.disabled=false; btn.textContent='Save';
+  if(error){ toast('Save failed: '+error.message,'err'); return; }
+  toast('Contact logged','ok');
+  await loadOutreach();
+  renderDetail(_detailId);
+}
+async function deleteOutreach(id){
+  if(!confirm('Delete this contact log entry?')) return;
+  const {error}=await db.from('commercial_outreach').delete().eq('id',id);
+  if(error){ toast('Delete failed: '+error.message,'err'); return; }
+  toast('Entry deleted','ok');
+  await loadOutreach();
+  renderDetail(_detailId);
+}
+
 // ── DETAIL ────────────────────────────────────────────────────────────
 async function renderDetail(id){
   _detailId = id;
@@ -947,6 +1131,29 @@ async function renderDetail(id){
       </div>
     </div>` : '';
 
+  // contacts (people) + outreach (contact log) for this account
+  let _dc=[];
+  try{ const rc=await db.from('commercial_contacts').select('*').eq('client_id',id).order('is_primary',{ascending:false}).order('id'); _dc=rc.data||[]; }catch(_){}
+  _detailContacts=_dc;
+  const outreach=_outreach.filter(o=>o.client_id===id).slice()
+    .sort((a,b)=>{ const d=(b.contact_date||'').localeCompare(a.contact_date||''); return d!==0?d:(b.id-a.id); });
+  const contactsCard = `<div class="card">
+      <div class="hist-add-bar"><h3 style="margin:0">Contacts</h3><button class="btn-primary" onclick="openContactModal()">＋ Add contact</button></div>
+      ${_dc.length ? _dc.map(c=>contactRowHtml(c)).join('') : `<div class="dim" style="padding:6px 0">No contacts yet — add the people you deal with here.</div>`}
+    </div>`;
+  const outreachCard = `<div class="card">
+      <div class="hist-add-bar"><h3 style="margin:0">Contact Log</h3><button class="btn-primary" onclick="toggleOutreachComposer()">＋ Log contact</button></div>
+      <div class="hist-composer" id="outreachComposer" style="display:none">
+        <div class="composer-row">
+          <div><label class="mini-label">Date</label><input type="date" id="outreachDate"/></div>
+          <div><label class="mini-label">Method</label><select id="outreachMethod"><option>Phone</option><option>Email</option><option>In person</option><option>Text</option><option>Other</option></select></div>
+        </div>
+        <textarea class="notes" id="outreachNotes" placeholder="What was discussed?"></textarea>
+        <div class="hist-composer-actions"><div style="flex:1"></div><button class="btn" onclick="closeOutreachComposer()">Cancel</button><button class="btn-primary" id="outreachSaveBtn" onclick="saveOutreach()">Save</button></div>
+      </div>
+      ${outreach.length ? `<div class="timeline">`+outreach.map(o=>outreachRowHtml(o)).join('')+`</div>` : `<div class="dim" style="padding:6px 0">No contact logged yet. Use “Log contact” after you reach out.</div>`}
+    </div>`;
+
   const co=companyOf(id);
   const coPill = co ? `<span class="pill ${co.toLowerCase()}">${co}</span>` : '';
   let roleLine='Standalone';
@@ -966,6 +1173,7 @@ async function renderDetail(id){
       <div>
         <h1>${esc(client.client_name||'(no name)')} ${coPill}</h1>
         <div class="acct-sub">Account #${esc(id)} · ${roleLine}</div>
+        <div style="margin-top:10px">${contactChipHtml(id)}</div>
       </div>
     </div>
 
@@ -981,6 +1189,10 @@ async function renderDetail(id){
       </div>
       ${rateStrip}
     </div>
+
+    ${contactsCard}
+
+    ${outreachCard}
 
     ${subsCard}
 
@@ -1179,7 +1391,7 @@ document.querySelectorAll('thead th[data-sort]').forEach(th=>{
 document.getElementById('loginPw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPw').focus(); });
 window.addEventListener('hashchange', route);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); } });
 try{ if(localStorage.getItem('beacon_dash_collapsed')==='1'){ const d=document.getElementById('dashboard'); if(d) d.classList.add('collapsed'); const t=document.getElementById('dashToggle'); if(t) t.textContent='▸'; } }catch(_){}
 
 initAuth();
