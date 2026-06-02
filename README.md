@@ -250,6 +250,28 @@ Per-user themes live in `applyUserTheme()`:
 | notes | TEXT | What was discussed |
 | created_at / created_by | — | Audit |
 
+**`dispatch_price_templates`** — Reusable price-list items for the dispatch pipeline
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| title | TEXT | Category label (e.g. "Mattress") |
+| price | NUMERIC(10,2) | Per-item charge |
+| sort_order / active | — | Ordering + soft-hide |
+| created_at / created_by | — | Audit |
+
+**`dispatch_jobs`** — Residential bulky-pickup jobs (the 4-stage Dispatch board)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| stage | TEXT | `verify` → `outreach` → `dispatch` → `completion`, plus terminal `denied` / `archived` (History) |
+| client_id / address / client_name / phone | — | Snapshot; autofilled from a matched client or free-typed |
+| photos | JSONB | `[{path,type,uploaded_at,uploaded_by}]` into `helm-files/dispatch/<job>/...` |
+| price_items | JSONB | `[{title,price}]` — agreed line items, carried Outreach → Completion |
+| driver | TEXT | Assigned at Dispatch |
+| completion_notes / denial_note | TEXT | Completion notes / "Client denied service" |
+| dispatched_at / completed_at / denied_at / archived_at | TIMESTAMPTZ | Stage stamps (`dispatched_at` = card goes live/green) |
+| created_at/by, updated_at/by | — | Audit |
+
 **`users`** — Authentication
 | Column | Type | Notes |
 |---|---|---|
@@ -645,6 +667,12 @@ Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fide
   - **Dispatch Notes** (autosave), **History** (photo/video + note timeline into `helm-files`, signed-URL display + lightbox), and a **Locations / Sub-accounts** card on masters (each sub with its day-codes, click-through).
 - **Homepage dashboard** — collapsible "Business Overview" (state persisted) with three **drill-in** cards: **Lost this month**, **Gained this month**, **Contacted this month** (distinct accounts). Each opens a **Review page** (`#review/lost|new|contacted[/YYYY-MM]`) listing the underlying accounts, click-through to each.
 - **Reports tab** (`#reports`) — historical view: 12-month Lost / Gained / Net totals, a **by-month table** (Lost / Gained / Net / Contacted; counts click through to that month's Review) and a lost-by-month bar chart. Dashboard, reviews, and reports all derive from the same `commercial_events` / `commercial_outreach` data, so figures tie out.
+- **Dispatch tab** (`#dispatch`) — a **residential** bulky-pickup Kanban board, 4 color-coded stages, cards advanced by a per-stage button:
+  - **Verify** (slate) — ＋ New job → add photo(s) + address; an address typeahead against active clients autofills acct/name/phone, or save a free address.
+  - **Outreach** (amber) — build the agreed **line items** from your Price List (category+price templates), or **Client denied service** → drops to History.
+  - **Dispatch** (green) — assign a driver (free text); **Dispatch — go live** turns the card green + LIVE badge, then **Mark complete →**.
+  - **Completion** (blue) — line items carry over + editable, completion notes, per-ticket print, and a board-level **🖨 Print completed (N)** bulk print (page-broken tickets with embedded photos).
+  - Plus a **Price List** manager, a **History** view (denied + archived jobs by day), photo/video upload into `helm-files/dispatch/`, and manual **Archive** to clear finished cards. Two new `authenticated`-only tables (`dispatch_jobs`, `dispatch_price_templates`). Commercial work stays in the dashboard — this board is residential only.
 - **Mobile-first**, same safe-area awareness as HELM.
 
 ### Bulky Pickups (David + admin only) — new solo nav tab
@@ -1248,6 +1276,7 @@ Older entries are intentionally terse — full detail lives in git history. The 
 
 - **BEACON rebuilt: commercial client database + dispatch home (replaces the retention CRM).** Wiped the old new/lost-business CRM UI and **dropped its tables** (`beacon_accounts` / `beacon_outreach`); rebuilt `beacon/index.html` to read commercial accounts **live from the shared `clients` table** (`account_type='commercial'` + `status='Active'`) — no re-import. QuickBooks-style list (tokenized search, sortable, paginated, count) → per-account detail **page** (`#acct/<id>`). **Five new RLS-locked (`authenticated`-only) tables**: `commercial_accounts` (per-service Trash/Cardboard/Recyclables weekday schedules, codes `MTWRFSN`), `commercial_history` (photo/video + note timeline into `helm-files`), `commercial_events` (new/lost business, free-text reason), `commercial_contacts` (multiple contact people), `commercial_outreach` (contact log). Detail page: **Business Status** (new/lost + reason; Mark-as-Lost requires a reason), **Contacts**, **Contact Log**, **contact-recency** chip + list dot (green/amber/red/never), **Pickup Schedule** editor, **Dispatch Notes**, photo/video **History**, and a **Sub-accounts** list on masters. Collapsible homepage **dashboard** with three drill-in cards — **Lost / Gained / Contacted this month** — each opening a **Review** list; a **Reports** tab holds the historical by-month view (Lost / Gained / Net / Contacted) + bar chart; all three views tie out off the same data. **Dollars deliberately excluded** for now (the `monthly_value` column is dormant). Setup SQL drops the old tables + creates the five new ones with explicit per-table RLS (Supabase's static checker can't see RLS enabled inside a `DO`-block, so the SQL enables it inline). Commits `8366130`→`8a830a4`.
 - **BEACON "Needs Attention" account flag.** Mark commercial accounts you have an issue with (required free-text note): `commercial_accounts` gains `flagged` / `flag_reason` / `flagged_at` / `flagged_by` (via ALTER). Detail-page banner (Flag / Edit / Clear), a `⚑ Needs Attention` list badge, and a toolbar filter chip with a live count to pull up everything flagged. Commit `ace6541`.
+- **BEACON residential dispatch pipeline.** New **Dispatch** tab: a 4-stage Kanban board (Verify → Outreach → Dispatch → Completion) for bulky pickups; cards are color-coded and advanced by a per-stage button. Verify autofills from a client address typeahead (or a free address); Outreach builds agreed line items from a **Price List** of category+price templates (or "Client denied service" → History); Dispatch assigns a driver + "go live" (turns green); Completion carries the line items over (editable), takes notes, and supports per-ticket + end-of-day **bulk print** (page-broken, photos embedded). Two new `authenticated`-only tables (`dispatch_jobs`, `dispatch_price_templates`); photos in `helm-files/dispatch/`; denied/archived jobs in a History view by day. Residential only. Commit `79f109d`.
 
 ### May 21-29, 2026
 
