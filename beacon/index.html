@@ -267,6 +267,76 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
   .wrap{padding:14px;}
   .svc-label{width:100%;}
 }
+
+/* ── dashboard / business overview ──────────────────────────────────── */
+.dash{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+.dash-head{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,var(--surface),var(--surface-2));}
+.dash.collapsed .dash-head{border-bottom:none;}
+.dash-title{font-size:14px;font-weight:800;letter-spacing:.02em;display:flex;align-items:center;gap:8px;}
+.dash-ico{font-size:15px;}
+.dash-toggle{width:30px;height:30px;border:1px solid var(--border-2);border-radius:8px;background:var(--surface);cursor:pointer;font-size:13px;color:var(--text-mute);}
+.dash-toggle:hover{background:var(--surface-2);}
+.dash.collapsed .dash-body{display:none;}
+.dash-body{padding:18px;}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.kpi{border:1px solid var(--border);border-radius:11px;padding:14px 16px 14px 20px;background:var(--surface-2);position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--text-dim);}
+.kpi.lost::before{background:var(--red);}
+.kpi.new::before{background:var(--green);}
+.kpi-num{font-size:26px;font-weight:800;line-height:1;letter-spacing:-.02em;}
+.kpi.lost .kpi-num{color:var(--red-dim);}
+.kpi.new .kpi-num{color:var(--green-dim);}
+.kpi-label{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin-top:5px;}
+.kpi-sub{font-size:12px;color:var(--text-dim);margin-top:3px;font-family:'DM Mono',monospace;}
+.dash-section+.dash-section{margin-top:20px;}
+.dash-section-title{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute);font-weight:700;margin-bottom:12px;}
+.bars{display:flex;flex-direction:column;gap:7px;}
+.bar-row{display:flex;align-items:center;gap:12px;}
+.bar-label{width:56px;flex:none;font-size:11.5px;color:var(--text-mute);font-family:'DM Mono',monospace;text-align:right;}
+.bar-track{flex:1;height:18px;background:var(--surface-2);border-radius:5px;overflow:hidden;}
+.bar-fill{height:100%;background:linear-gradient(90deg,#f87171,var(--red));border-radius:5px;transition:width .4s ease;}
+.bar-val{width:120px;flex:none;font-size:12px;color:var(--text-mute);font-family:'DM Mono',monospace;}
+.recent-losses{display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:9px;overflow:hidden;border:1px solid var(--border);}
+.loss-row{display:grid;grid-template-columns:1.4fr .8fr 2fr;gap:12px;padding:9px 13px;background:var(--surface);cursor:pointer;align-items:center;}
+.loss-row:hover{background:var(--amber-soft);}
+.loss-name{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.loss-date{font-size:12px;color:var(--text-mute);font-family:'DM Mono',monospace;}
+.loss-reason{font-size:12.5px;color:var(--text-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* business status */
+.pill.lost{background:rgba(220,38,38,.12);color:var(--red-dim);}
+.pill.new{background:var(--green-soft);color:var(--green-dim);}
+.pill.active{background:var(--surface-3);color:var(--text-mute);}
+.pill.lg{font-size:12px;padding:4px 12px;}
+.biz-card .biz-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+.biz-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn-danger{border-color:rgba(220,38,38,.4);color:var(--red-dim);}
+.btn-danger:hover{background:rgba(220,38,38,.06);}
+.biz-banner{margin-top:14px;padding:12px 14px;border-radius:9px;font-size:13.5px;}
+.biz-banner.lost{background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.18);}
+.biz-banner.new{background:var(--green-soft);border:1px solid rgba(5,150,105,.18);}
+.biz-reason{margin-top:5px;color:var(--text-mute);font-style:italic;}
+.biz-events{margin-top:16px;display:flex;flex-direction:column;}
+.biz-ev{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:8px 0;border-top:1px solid var(--border);flex-wrap:wrap;}
+.biz-ev-type{font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.04em;padding:2px 8px;border-radius:5px;}
+.biz-ev.lost .biz-ev-type{background:rgba(220,38,38,.12);color:var(--red-dim);}
+.biz-ev.new .biz-ev-type{background:var(--green-soft);color:var(--green-dim);}
+.biz-ev-date{color:var(--text-mute);font-family:'DM Mono',monospace;}
+.biz-ev-val{color:var(--text);font-family:'DM Mono',monospace;}
+.biz-ev-reason{color:var(--text-mute);flex:1;min-width:150px;}
+.biz-ev-del{color:var(--text-dim);cursor:pointer;font-size:17px;line-height:1;padding:0 4px;}
+.biz-ev-del:hover{color:var(--red);}
+/* modal */
+.modal-overlay{position:fixed;inset:0;z-index:90;background:rgba(10,10,15,.5);display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border-radius:14px;padding:24px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:8px;}
+.modal label{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin:14px 0 5px;}
+.modal label span{text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400;}
+.modal input,.modal textarea{width:100%;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);}
+.modal textarea{min-height:84px;resize:vertical;}
+.modal input:focus,.modal textarea:focus{border-color:var(--amber);outline:none;background:var(--surface);}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+@media (max-width:720px){ .loss-row{grid-template-columns:1fr;gap:2px;} .bar-val{width:84px;} }
 </style>
 </head>
 <body>
@@ -326,6 +396,13 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
 
   <!-- LIST VIEW -->
   <main id="listView" class="wrap">
+    <section id="dashboard" class="dash">
+      <div class="dash-head">
+        <div class="dash-title"><span class="dash-ico">📊</span> Business Overview</div>
+        <button class="dash-toggle" id="dashToggle" onclick="toggleDash()" title="Collapse / expand">▾</button>
+      </div>
+      <div class="dash-body" id="dashBody"></div>
+    </section>
     <div class="list-head">
       <h2>Commercial Accounts</h2>
       <span class="count-chip" id="totalChip">…</span>
@@ -365,6 +442,21 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
   <main id="detailView" class="wrap" style="display:none"></main>
 </div>
 
+<div id="eventModal" class="modal-overlay">
+  <div class="modal">
+    <h3 id="evtTitle">Mark as Lost</h3>
+    <label>Date</label>
+    <input type="date" id="evtDate"/>
+    <label>Reason <span id="evtReasonReq">(required)</span></label>
+    <textarea id="evtReason" placeholder="Free text — what happened?"></textarea>
+    <label>Monthly value <span>($ per month — optional)</span></label>
+    <input type="number" id="evtValue" step="0.01" min="0" inputmode="decimal" placeholder="0.00"/>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeEventModal()">Cancel</button>
+      <button class="btn-primary" id="evtSaveBtn" onclick="saveEvent()">Save</button>
+    </div>
+  </div>
+</div>
 <div id="lightbox" onclick="closeLightbox()"><span class="lb-close">&times;</span><div id="lbContent"></div></div>
 <div id="toast" class="toast"></div>
 <input type="file" id="historyFileInput" accept="image/*,video/*" multiple style="display:none"/>
@@ -396,6 +488,9 @@ let _filtered = [];
 let _page = 1;
 let _sort = {key:'name', dir:1};
 let _detailId = null;
+let _events = [];
+let _eventLatest = {};
+let _evtType = 'lost';
 let _pendingFiles = [];
 let _lbUrls = {};           // path -> signed url (current detail)
 
@@ -509,7 +604,7 @@ function showApp(){
 
 // ── BOOT + DATA LOAD ───────────────────────────────────────────────────
 async function bootApp(){
-  await loadCommercial();
+  await Promise.all([loadCommercial(), loadEvents()]);
   route();
 }
 async function fetchAll(table, cols, applyFilters){
@@ -552,6 +647,7 @@ function route(){
 function showList(){
   document.getElementById('detailView').style.display='none';
   document.getElementById('listView').style.display='';
+  renderDashboard();
   renderList();
 }
 
@@ -593,7 +689,7 @@ function renderList(){
       const role = c.account_role && c.account_role!=='standalone'
         ? ` <span class="pill role">${c.account_role==='master'?'master':'sub'}</span>` : '';
       return `<tr onclick="location.hash='#acct/'+encodeURIComponent('${esc(c.client_id)}')">
-        <td class="name">${esc(c.client_name||'(no name)')}${role}</td>
+        <td class="name">${esc(c.client_name||'(no name)')}${role}${bizBadge(c.client_id)}</td>
         <td class="acct">${esc(c.client_id)}</td>
         <td class="addr">${esc(c.address||'')}</td>
         <td>${coPill}</td>
@@ -613,6 +709,176 @@ function renderList(){
   });
 }
 function changePage(d){ _page+=d; renderList(); }
+
+// ── BUSINESS EVENTS: load + dashboard + detail card ─────────────────────
+async function loadEvents(){
+  try{
+    const data = await fetchAll('commercial_events','*');
+    _events = data || [];
+    _eventLatest = {};
+    _events.slice()
+      .sort((a,b)=>{ const d=(a.event_date||'').localeCompare(b.event_date||''); return d!==0?d:(a.id-b.id); })
+      .forEach(e=>{ _eventLatest[e.client_id]=e; });
+  }catch(_){ _events=[]; _eventLatest={}; }
+}
+function fmtDate(d){ if(!d) return ''; const x=new Date(String(d)+(String(d).length===10?'T00:00:00':'')); return x.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function eventsFor(id){
+  return _events.filter(e=>e.client_id===id).slice()
+    .sort((a,b)=>{ const d=(b.event_date||'').localeCompare(a.event_date||''); return d!==0?d:(b.id-a.id); });
+}
+function bizBadge(id){
+  const e=_eventLatest[id];
+  if(!e) return '';
+  if(e.event_type==='lost') return ` <span class="pill lost">LOST</span>`;
+  if(e.event_type==='new')  return ` <span class="pill new">NEW</span>`;
+  return '';
+}
+function clientName(id){ const c=_clients.find(x=>x.client_id===id); return c ? (c.client_name||('#'+id)) : ('#'+id); }
+function monthLabel(key){ const p=key.split('-'); const d=new Date(Number(p[0]),Number(p[1])-1,1); return d.toLocaleDateString('en-US',{month:'short',year:'2-digit'}); }
+function fmtK(n){ n=Number(n)||0; return n>=1000 ? (n/1000).toFixed(n%1000?1:0)+'k' : String(Math.round(n)); }
+
+function bizCardHtml(id){
+  const evs=eventsFor(id);
+  const latest=evs[0];
+  let badge, banner='';
+  if(latest && latest.event_type==='lost'){
+    badge=`<span class="pill lost lg">● LOST</span>`;
+    banner=`<div class="biz-banner lost"><div><b>Lost</b> · ${fmtDate(latest.event_date)}</div>${latest.reason?`<div class="biz-reason">"${esc(latest.reason)}"</div>`:''}</div>`;
+  } else if(latest && latest.event_type==='new'){
+    badge=`<span class="pill new lg">● NEW BUSINESS</span>`;
+    banner=`<div class="biz-banner new"><div><b>New business</b> · ${fmtDate(latest.event_date)}</div>${latest.reason?`<div class="biz-reason">${esc(latest.reason)}</div>`:''}</div>`;
+  } else {
+    badge=`<span class="pill active lg">● ACTIVE CUSTOMER</span>`;
+  }
+  const timeline=evs.length?`<div class="biz-events">`+evs.map(e=>`
+    <div class="biz-ev ${e.event_type}">
+      <span class="biz-ev-type">${e.event_type}</span>
+      <span class="biz-ev-date">${fmtDate(e.event_date)}</span>
+      ${e.monthly_value!=null?`<span class="biz-ev-val">$${Number(e.monthly_value).toFixed(2)}/mo</span>`:''}
+      ${e.reason?`<span class="biz-ev-reason">${esc(e.reason)}</span>`:`<span class="biz-ev-reason dim">—</span>`}
+      <span class="biz-ev-del" title="Delete event" onclick="deleteEvent(${e.id})">×</span>
+    </div>`).join('')+`</div>`:'';
+  return `<div class="card biz-card">
+    <div class="biz-head">
+      <div><h3 style="margin:0 0 8px">Business Status</h3>${badge}</div>
+      <div class="biz-actions">
+        <button class="btn" onclick="openEventModal('new')">＋ New / Won-back</button>
+        <button class="btn btn-danger" onclick="openEventModal('lost')">Mark as Lost</button>
+      </div>
+    </div>
+    ${banner}
+    ${timeline}
+  </div>`;
+}
+
+function renderDashboard(){
+  const body=document.getElementById('dashBody');
+  if(!body) return;
+  const now=new Date();
+  const curKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const months=[];
+  for(let i=11;i>=0;i--){ const d=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+  const lost=_events.filter(e=>e.event_type==='lost');
+  const news=_events.filter(e=>e.event_type==='new');
+  const lostC={}, lostV={}, newC={};
+  months.forEach(m=>{ lostC[m]=0; lostV[m]=0; newC[m]=0; });
+  lost.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(m in lostC){ lostC[m]++; lostV[m]+=Number(e.monthly_value)||0; } });
+  news.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(m in newC) newC[m]++; });
+  const inMonth=(arr,k)=>arr.filter(e=>(e.event_date||'').slice(0,7)===k);
+  const sumV=arr=>arr.reduce((s,e)=>s+(Number(e.monthly_value)||0),0);
+  const lostThis=inMonth(lost,curKey), newThis=inMonth(news,curKey);
+  const lost12=months.reduce((s,m)=>s+lostC[m],0);
+  const lostV12=months.reduce((s,m)=>s+lostV[m],0);
+  const new12=months.reduce((s,m)=>s+newC[m],0);
+  const net=new12-lost12;
+  const maxC=Math.max(1, ...months.map(m=>lostC[m]));
+  const recent=lost.slice().sort((a,b)=>(b.event_date||'').localeCompare(a.event_date||'')).slice(0,5);
+  const kpi=(label,num,val,kind,signed)=>`<div class="kpi ${kind}">
+      <div class="kpi-num">${signed&&num>=0?'+':''}${num}</div>
+      <div class="kpi-label">${label}</div>
+      ${val!=null&&val>0?`<div class="kpi-sub">$${fmtK(val)}/mo</div>`:''}
+    </div>`;
+  body.innerHTML=`
+    <div class="kpi-row">
+      ${kpi('Lost this month', lostThis.length, sumV(lostThis), 'lost')}
+      ${kpi('Lost · 12 mo', lost12, lostV12, 'lost')}
+      ${kpi('New this month', newThis.length, null, 'new')}
+      ${kpi('Net · 12 mo', net, null, net>=0?'new':'lost', true)}
+    </div>
+    <div class="dash-section">
+      <div class="dash-section-title">Lost business by month</div>
+      <div class="bars">
+        ${months.map(m=>{
+          const c=lostC[m], v=lostV[m], pct=c?Math.max(Math.round(c/maxC*100),5):0;
+          return `<div class="bar-row">
+            <div class="bar-label">${monthLabel(m)}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            <div class="bar-val">${c?c+(c===1?' acct':' accts'):''}${c&&v?` · $${fmtK(v)}`:''}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    ${recent.length?`<div class="dash-section">
+      <div class="dash-section-title">Recent losses &amp; reasons</div>
+      <div class="recent-losses">
+        ${recent.map(e=>`<div class="loss-row" onclick="location.hash='#acct/'+encodeURIComponent('${esc(e.client_id)}')">
+          <div class="loss-name">${esc(clientName(e.client_id))}</div>
+          <div class="loss-date">${fmtDate(e.event_date)}</div>
+          <div class="loss-reason">${e.reason?esc(e.reason):`<span class="dim">No reason given</span>`}</div>
+        </div>`).join('')}
+      </div>
+    </div>`:''}
+  `;
+}
+function toggleDash(){
+  const d=document.getElementById('dashboard');
+  const collapsed=d.classList.toggle('collapsed');
+  try{ localStorage.setItem('beacon_dash_collapsed', collapsed?'1':'0'); }catch(_){}
+  document.getElementById('dashToggle').textContent = collapsed?'▸':'▾';
+}
+
+// ── BUSINESS EVENT MODAL ─────────────────────────────────────────────────
+function openEventModal(type){
+  if(!_detailId) return;
+  _evtType=type;
+  document.getElementById('evtTitle').textContent = type==='lost'?'Mark as Lost':'Log New / Won-back Business';
+  document.getElementById('evtReasonReq').textContent = type==='lost'?'(required — why did they leave?)':'(optional — why they signed / source)';
+  document.getElementById('evtDate').value = todayISO();
+  document.getElementById('evtReason').value='';
+  document.getElementById('evtValue').value='';
+  document.getElementById('eventModal').classList.add('show');
+  setTimeout(()=>document.getElementById('evtReason').focus(),60);
+}
+function closeEventModal(){ document.getElementById('eventModal').classList.remove('show'); }
+async function saveEvent(){
+  const type=_evtType;
+  const date=document.getElementById('evtDate').value || todayISO();
+  const reason=document.getElementById('evtReason').value.trim();
+  const vr=document.getElementById('evtValue').value;
+  const val = vr!=='' ? Number(vr) : null;
+  if(type==='lost' && !reason){ toast('A reason is required when marking as lost.','err'); return; }
+  const btn=document.getElementById('evtSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  const {error}=await db.from('commercial_events').insert({
+    client_id:_detailId, event_type:type, event_date:date, reason:reason||null, monthly_value:val, created_by:who()
+  });
+  btn.disabled=false; btn.textContent='Save';
+  if(error){ toast('Save failed: '+error.message,'err'); return; }
+  toast(type==='lost'?'Marked as lost':'Logged new business','ok');
+  closeEventModal();
+  const cur=_detailId;
+  await loadEvents();
+  renderDetail(cur);
+}
+async function deleteEvent(id){
+  if(!confirm('Delete this business event?')) return;
+  const {error}=await db.from('commercial_events').delete().eq('id',id);
+  if(error){ toast('Delete failed: '+error.message,'err'); return; }
+  toast('Event deleted','ok');
+  const cur=_detailId;
+  await loadEvents();
+  if(cur) renderDetail(cur);
+}
 
 // ── DETAIL ────────────────────────────────────────────────────────────
 async function renderDetail(id){
@@ -702,6 +968,8 @@ async function renderDetail(id){
         <div class="acct-sub">Account #${esc(id)} · ${roleLine}</div>
       </div>
     </div>
+
+    ${bizCardHtml(id)}
 
     <div class="card">
       <h3>Account Details</h3>
@@ -911,7 +1179,8 @@ document.querySelectorAll('thead th[data-sort]').forEach(th=>{
 document.getElementById('loginPw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPw').focus(); });
 window.addEventListener('hashchange', route);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeLightbox(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); } });
+try{ if(localStorage.getItem('beacon_dash_collapsed')==='1'){ const d=document.getElementById('dashboard'); if(d) d.classList.add('collapsed'); const t=document.getElementById('dashToggle'); if(t) t.textContent='▸'; } }catch(_){}
 
 initAuth();
 </script>
