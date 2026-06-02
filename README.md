@@ -7,7 +7,7 @@
 
 HELM is a single-file web application (`index.html`) that started as a route management system for residential garbage pickup and has grown into a comprehensive operations platform for Reis Trucking and its sister companies. It now handles client management, daily scale reports, intercompany reporting, financial projections, file storage, a transfer-station C&D balance tracker, a complaint case-management pipeline, a bulky-pickup queue, and a private executive command center.
 
-**BEACON** is a sister app at `/beacon/` — a separate retention/sales/outreach CRM for tracking new business + lost business + winback efforts. Standalone HTML in the same repo, shares HELM's Supabase project + session, distinct light-mode amber-accent visual identity. Gated to David / Chris / admin / Jarrett.
+**BEACON** is a sister app at `/beacon/` — the **commercial client database + dispatch home** (rebuilt 2026-06-01 from the old retention CRM). A searchable list of active commercial accounts, each with per-service pickup schedules, a photo/video history, contacts + a contact log, and new/lost-business tracking with a dashboard + reports. Standalone HTML in the same repo, shares HELM's Supabase project + session, clean light amber visual identity. Gated to David / Chris / admin / Jarrett.
 
 Both apps are hosted on GitHub Pages (free) and use Supabase (paid) as the shared database backend. Both are PWA-installable to iPhone home screen with their own icons.
 
@@ -199,39 +199,56 @@ Per-user themes live in `applyUserTheme()`:
 | category | TEXT | `residential` or `commercial` (NULL on legacy rows). Required on new entries via radio toggle in the New Pickup modal; tappable badge on every queue card flips between Residential 🏠 and Commercial 🏢 in place — no detail-modal round-trip needed. |
 | picked_up_at / picked_up_by | — | Set when Mark Picked Up is clicked |
 
-**`beacon_accounts`** — BEACON CRM accounts (new business + lost business + exit pipeline)
-| Column | Type | Notes |
-|---|---|---|
-| id | BIGSERIAL (PK) | Auto |
-| client_id | TEXT | Nullable HELM clients link (free-text accounts allowed too) |
-| business_name | TEXT | Required |
-| account_number | TEXT | The customer's billing acct # |
-| contact_name / contact_phone / contact_email | TEXT | Decision-maker info |
-| original_start_date | DATE | When they originally started service with us |
-| effective_date | DATE | When the new/lost event happened (required) |
-| event_type | TEXT | `new` or `lost` (CHECK) |
-| line_of_business | TEXT | `residential` / `commercial_route` / `commercial_rolloff` / `walk_in` / `intercompany` / `other` |
-| monthly_dollar_amount | NUMERIC(10,2) | Recurring monthly revenue |
-| sales_rep | TEXT | HELM user display name (dropdown excludes the literal `admin`) |
-| reason | TEXT | Why they signed / why they left |
-| competitor | TEXT | If lost to a competitor — who |
-| pipeline_stage | TEXT | Contextual. For lost: `new_loss` → `first_contact` → `engaged` → `negotiating` → `won_back` / `permanent`. For new: `new` → `active` / `at_risk` / `won_back` |
-| notes | TEXT | Additional free-form notes |
-| next_review_date | DATE | When to revisit |
-| archived | BOOLEAN | Soft-hide from active views |
-| created_at/by, updated_at/by | — | Audit |
+**BEACON commercial tables** (`commercial_*`) — back the rebuilt BEACON app (see BEACON feature section). All five are RLS-enabled, **`authenticated`-only**. They reference commercial accounts by a **soft `client_id`** (plain TEXT, no FK — survives HELM acct-# migrations) into the shared `clients` table. *(The old `beacon_accounts` + `beacon_outreach` retention-CRM tables were **dropped 2026-06-01** in the rebuild.)*
 
-**`beacon_outreach`** — Outreach attempts logged against a BEACON account (exit-pipeline timeline)
+**`commercial_accounts`** — Per-commercial-client dispatch metadata (manual entry)
+| Column | Type | Notes |
+|---|---|---|
+| client_id | TEXT (PK) | Soft reference to `clients.client_id` |
+| trash_days / cardboard_days / recycle_days | TEXT | Per-service weekday schedule; ordered subset of `MTWRFSN` (M=Mon, T=Tue, W=Wed, R=Thu, F=Fri, S=Sat, N=Sun) |
+| dispatch_notes | TEXT | Free-form |
+| updated_at / updated_by | — | Audit |
+
+**`commercial_history`** — Photo/video + note timeline per account
 | Column | Type | Notes |
 |---|---|---|
 | id | BIGSERIAL (PK) | Auto |
-| account_id | BIGINT (FK) | References beacon_accounts.id, ON DELETE CASCADE |
-| outreach_type | TEXT | `phone_call` / `voicemail` / `email` / `sms` / `in_person` / `mailer` / `note` |
-| outreach_date | DATE | Required |
-| performed_by | TEXT | HELM user display name |
-| outcome | TEXT | `no_answer` / `voicemail` / `spoke` / `interested` / `declined` / `won_back` / `other` |
-| notes | TEXT | What happened |
-| next_step_date / next_step_note | DATE, TEXT | Follow-up |
+| client_id | TEXT | The account |
+| entry_type | TEXT | `note` / `photo` |
+| notes | TEXT | Free-form |
+| photos | JSONB | `[{path,type,uploaded_at,uploaded_by}]` into the private `helm-files` bucket under `commercial/<acct>/YYYY-MM/...` (images resized to 1600px/JPEG; video stored raw) |
+| created_at / created_by | — | Audit |
+
+**`commercial_events`** — New / lost business events
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| client_id | TEXT | The account |
+| event_type | TEXT | `new` or `lost` (CHECK) |
+| event_date | DATE | Defaults today |
+| reason | TEXT | Free text — **required for `lost`** (enforced client-side) |
+| monthly_value | NUMERIC(10,2) | Dormant — dollars deliberately dropped 2026-06-01 |
+| created_at / created_by | — | Audit |
+
+**`commercial_contacts`** — Contact people per account (multiple allowed)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| client_id | TEXT | The account |
+| name / title / phone / email | TEXT | `phone` normalized to `XXX-XXX-XXXX` on save |
+| is_primary | BOOLEAN | Flags the main contact |
+| created_at / created_by | — | Audit |
+
+**`commercial_outreach`** — Contact log (who contacted the client, when, how); powers the recency indicator + "Contacted this month"
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| client_id | TEXT | The account |
+| contact_date | DATE | Defaults today |
+| method | TEXT | `Phone` / `Email` / `In person` / `Text` / `Other` |
+| contacted_by | TEXT | Who made contact (signed-in user) |
+| notes | TEXT | What was discussed |
+| created_at / created_by | — | Audit |
 
 **`users`** — Authentication
 | Column | Type | Notes |
@@ -612,22 +629,22 @@ Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fide
 - **Running balance line chart** (Chart.js) — full history, walking forward + backward from the seed; capacity target shown as dashed red line
 - **Capacity** input field — personal target (localStorage, not shared) for % over calculations on date cells
 
-### BEACON (separate sister app at `/beacon/`) — David / Chris / admin / Jarrett
-A standalone retention/sales/outreach CRM that lives next to HELM in the same repo + same Supabase project. Reachable from HELM via the amber **BEACON** button in the topbar (visible only to the allowed users), which opens a confirmation modal before navigating to `/beacon/`. Session carries over via sessionStorage so no re-login is required.
+### BEACON (separate app at `/beacon/`) — David / Chris / admin / Jarrett
+**Rebuilt 2026-06-01** from a retention CRM into the **commercial client database + dispatch home** for Reis/Santos. Lives next to HELM in the same repo + Supabase project; reachable via the amber **BEACON** topbar button (allowed users only) with a confirmation modal. Shared Supabase Auth session carries over (no re-login). Clean light amber theme, lighthouse logo, standalone PWA (own `manifest.webmanifest` + apple-touch-icon). Single file, no framework, zero CSS/JS leakage with HELM.
 
-- **Visual identity is intentionally distinct from HELM** — dark mode with amber-glow accents (lighthouse-at-night theme), Inter font, lighthouse SVG logo. Standalone PWA: separate `manifest.webmanifest` + apple-touch-icon so it gets its own home-screen icon on iPhone.
-- **Auth gate**: reads `helm_auth` sessionStorage on load. If valid + user in the allow-list (`david` / `chris` / `admin` / `jarrett` + anyone with role=admin), drops straight into the app. Otherwise shows its own login form pointing at the same HELM `users` table.
-- **Sales-rep dropdown** pulls from HELM's `users` table, skipping the literal `admin` username (keeps real-name reps only: David, Chris, Jackie, Esme, Hannah, Maria, Kobie, Tom, Jaime, Jack, Sharon, Jarrett).
-- **Four tabs**:
-  - **Dashboard** — 6 KPI cards (new this month, lost this month, net monthly change, in exit pipeline, won back, recovery rate) + recent activity feed.
-  - **Accounts** — filterable list (All / New Business / Lost / Won Back / At Risk / Permanently Lost / Archived) with a tokenized search bar.
-  - **Exit Pipeline** — kanban-style board with four columns (`New Loss` → `First Contact` → `Engaged` → `Negotiating`). Cards show business name, sales rep, days-since-loss, monthly $ at risk. Outcomes logged via the Outreach modal auto-advance the stage.
-  - **Reports** — by sales rep, by line of business, top reasons for loss.
-- **Add / Edit Account modal** — radio toggle for New vs Lost business; business-name field doubles as a tokenized HELM client search (same scoring as the homepage and Bulky modal) — pick a result to auto-fill acct # + phone, or just type a fresh business name for non-HELM accounts. Required fields: business name, effective date, event type.
-- **Outreach modal** — logged against any account. Type (phone/voicemail/email/SMS/in person/mailer/note), date, outcome, notes, next-step date + note. Auto-advances pipeline_stage: `interested` → `engaged`, `declined` → `permanent`, `won_back` flips event_type back to `new` and stamps stage as `won_back`.
-- **Detail modal** — shows full snapshot + stage transition buttons (stage-appropriate: lost accounts see First Contact / Engaged / Negotiating / Won Back / Permanently Lost; new accounts see At Risk / Active / Convert to Lost) + outreach timeline + Edit / Archive / Delete.
-- **Mobile-first**: same safe-area-inset awareness as HELM, single-column layouts at narrow widths.
-- **Code lives entirely under `/beacon/`** — index.html + manifest.webmanifest. Zero CSS/JS leakage between HELM and BEACON.
+- **Auth gate**: shared `helm_auth` session + allow-list (`david` / `chris` / `admin` / `jarrett` + role=admin). **All BEACON tables are RLS-locked to `authenticated`**, consistent with the May-29 security hardening — the public key reads nothing without a login.
+- **Reads commercial clients live from the shared `clients` table** (`account_type='commercial'` AND `status='Active'`) — no separate import. Company (REIS/SANTOS) derived from the acct # first digit.
+- **List view** (QuickBooks-style): tokenized search (name / acct / address), sortable columns, client-side pagination + count. Columns: contact-recency dot · **Name** · **Acct #** · **Address** · **Company** · per-service day-codes (**Trash / Cardboard / Recyclables**, shown as the fixed `M T W R F S N` strip) · NEW/LOST badge.
+- **Account detail page** (`#acct/<id>` hash route — a real back-button page, not a modal):
+  - **Business Status** card — current standing (Active / New / Lost) + latest reason; a timeline of new/lost events; **Mark as Lost** (reason **required**) and **＋ New / Won-back** actions. *(Dollars deliberately excluded for now — the `monthly_value` column is dormant.)*
+  - **Contacts** card — multiple contact people (name / title / phone / email / primary), click-to-call + click-to-email, phone auto-normalized.
+  - **Contact Log** card — outreach timeline + inline composer (date / method / notes; stamps who via the signed-in user).
+  - **Contact-recency chip** in the header + a **dot on every list row**: 🟢 ≤30d · 🟡 ≤90d · 🔴 >90d · ⚪ never, with "last contacted X ago by Y".
+  - **Pickup Schedule** editor — three services, each a 7-day toggle row (`M T W R F S N`, R=Thu/N=Sun), autosaves to `commercial_accounts`.
+  - **Dispatch Notes** (autosave), **History** (photo/video + note timeline into `helm-files`, signed-URL display + lightbox), and a **Locations / Sub-accounts** card on masters (each sub with its day-codes, click-through).
+- **Homepage dashboard** — collapsible "Business Overview" (state persisted) with three **drill-in** cards: **Lost this month**, **Gained this month**, **Contacted this month** (distinct accounts). Each opens a **Review page** (`#review/lost|new|contacted[/YYYY-MM]`) listing the underlying accounts, click-through to each.
+- **Reports tab** (`#reports`) — historical view: 12-month Lost / Gained / Net totals, a **by-month table** (Lost / Gained / Net / Contacted; counts click through to that month's Review) and a lost-by-month bar chart. Dashboard, reviews, and reports all derive from the same `commercial_events` / `commercial_outreach` data, so figures tie out.
+- **Mobile-first**, same safe-area awareness as HELM.
 
 ### Bulky Pickups (David + admin only) — new solo nav tab
 Tracks bulky / prohibited items drivers leave behind on residential routes (mattresses, appliances, freon items, construction scrap mixed into household trash). Workflow today: a driver texts David a photo + address; David logs it here. When the pending queue hits a threshold (default 15), David sends a driver out specifically to clear the pile.
@@ -1225,6 +1242,10 @@ Open items deliberately on hold. Pick these back up when relevant — listed in 
 ## Recent Major Changes
 
 Older entries are intentionally terse — full detail lives in git history. The most recent week is given fuller context.
+
+### June 1, 2026
+
+- **BEACON rebuilt: commercial client database + dispatch home (replaces the retention CRM).** Wiped the old new/lost-business CRM UI and **dropped its tables** (`beacon_accounts` / `beacon_outreach`); rebuilt `beacon/index.html` to read commercial accounts **live from the shared `clients` table** (`account_type='commercial'` + `status='Active'`) — no re-import. QuickBooks-style list (tokenized search, sortable, paginated, count) → per-account detail **page** (`#acct/<id>`). **Five new RLS-locked (`authenticated`-only) tables**: `commercial_accounts` (per-service Trash/Cardboard/Recyclables weekday schedules, codes `MTWRFSN`), `commercial_history` (photo/video + note timeline into `helm-files`), `commercial_events` (new/lost business, free-text reason), `commercial_contacts` (multiple contact people), `commercial_outreach` (contact log). Detail page: **Business Status** (new/lost + reason; Mark-as-Lost requires a reason), **Contacts**, **Contact Log**, **contact-recency** chip + list dot (green/amber/red/never), **Pickup Schedule** editor, **Dispatch Notes**, photo/video **History**, and a **Sub-accounts** list on masters. Collapsible homepage **dashboard** with three drill-in cards — **Lost / Gained / Contacted this month** — each opening a **Review** list; a **Reports** tab holds the historical by-month view (Lost / Gained / Net / Contacted) + bar chart; all three views tie out off the same data. **Dollars deliberately excluded** for now (the `monthly_value` column is dormant). Setup SQL drops the old tables + creates the five new ones with explicit per-table RLS (Supabase's static checker can't see RLS enabled inside a `DO`-block, so the SQL enables it inline). Commits `8366130`→`8a830a4`.
 
 ### May 21-29, 2026
 
