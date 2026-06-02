@@ -375,6 +375,18 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
 .composer-row input:focus,.composer-row select:focus{border-color:var(--amber);outline:none;}
 .checkbox-label{display:flex !important;align-items:center;gap:8px;text-transform:none !important;letter-spacing:0 !important;font-size:13px !important;color:var(--text) !important;margin-top:16px !important;font-weight:600;}
 .checkbox-label input{width:auto !important;padding:0 !important;}
+/* needs-attention flag */
+.pill.flag{background:rgba(217,119,6,.14);color:var(--amber-dim);}
+.flag-filter{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border:1px solid var(--border-2);border-radius:8px;background:var(--surface);color:var(--text-mute);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.flag-filter:hover{background:var(--surface-2);}
+.flag-filter.active{background:rgba(217,119,6,.12);border-color:var(--amber);color:var(--amber-dim);}
+.flag-btn{border-color:rgba(217,119,6,.45)!important;color:var(--amber-dim)!important;}
+.flag-btn:hover{background:rgba(217,119,6,.08)!important;}
+.flag-banner{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.3);border-left:4px solid var(--amber);border-radius:11px;padding:14px 16px;margin-bottom:16px;}
+.flag-banner-title{font-weight:800;color:var(--amber-dim);font-size:14px;}
+.flag-banner-reason{margin-top:5px;font-size:13.5px;color:var(--text);white-space:pre-wrap;}
+.flag-banner-meta{margin-top:5px;font-size:11.5px;color:var(--text-dim);}
+.flag-banner-actions{display:flex;gap:8px;flex:none;}
 </style>
 </head>
 <body>
@@ -451,6 +463,7 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input id="searchInput" placeholder="Search name, account #, or address…" autocapitalize="none" spellcheck="false"/>
       </div>
+      <button id="flagFilterBtn" class="flag-filter" onclick="toggleFlagFilter()" style="display:none">⚑ Needs Attention</button>
       <div class="spacer"></div>
       <div class="pager">
         <span id="rangeLabel"></span>
@@ -513,6 +526,17 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     </div>
   </div>
 </div>
+<div id="flagModal" class="modal-overlay">
+  <div class="modal">
+    <h3>⚑ Flag for Attention</h3>
+    <label>What's the issue? <span>(so it can be properly addressed)</span></label>
+    <textarea id="flagReason" placeholder="e.g. repeated missed pickups; billing dispute; container damaged…"></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeFlagModal()">Cancel</button>
+      <button class="btn-primary" id="flagSaveBtn" onclick="saveFlag()">Flag account</button>
+    </div>
+  </div>
+</div>
 <div id="lightbox" onclick="closeLightbox()"><span class="lb-close">&times;</span><div id="lbContent"></div></div>
 <div id="toast" class="toast"></div>
 <input type="file" id="historyFileInput" accept="image/*,video/*" multiple style="display:none"/>
@@ -550,6 +574,7 @@ let _evtType = 'lost';
 let _outreach = [];
 let _lastContact = {};
 let _detailContacts = [];
+let _flagOnly = false;
 let _pendingFiles = [];
 let _lbUrls = {};           // path -> signed url (current detail)
 
@@ -719,6 +744,7 @@ function applyFilterSort(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const toks = q.split(/\s+/).filter(Boolean);
   _filtered = _clients.filter(c=>{
+    if(_flagOnly && !(c.meta && c.meta.flagged)) return false;
     if(!toks.length) return true;
     const hay = ((c.client_name||'')+' '+(c.client_id||'')+' '+(c.address||'')).toLowerCase();
     return toks.every(t=>hay.includes(t));
@@ -752,7 +778,7 @@ function renderList(){
       const role = c.account_role && c.account_role!=='standalone'
         ? ` <span class="pill role">${c.account_role==='master'?'master':'sub'}</span>` : '';
       return `<tr onclick="location.hash='#acct/'+encodeURIComponent('${esc(c.client_id)}')">
-        <td class="name">${recencyDot(c.client_id)}${esc(c.client_name||'(no name)')}${role}${bizBadge(c.client_id)}</td>
+        <td class="name">${recencyDot(c.client_id)}${esc(c.client_name||'(no name)')}${role}${bizBadge(c.client_id)}${flagBadge(c)}</td>
         <td class="acct">${esc(c.client_id)}</td>
         <td class="addr">${esc(c.address||'')}</td>
         <td>${coPill}</td>
@@ -770,8 +796,54 @@ function renderList(){
   document.querySelectorAll('.caret').forEach(el=>{
     el.textContent = (el.dataset.for===_sort.key) ? (_sort.dir>0?'▲':'▼') : '';
   });
+  const flagN=_clients.filter(c=>c.meta&&c.meta.flagged).length;
+  const fb=document.getElementById('flagFilterBtn');
+  if(fb){ fb.textContent='⚑ Needs Attention'+(flagN?' ('+flagN+')':''); fb.classList.toggle('active',_flagOnly); fb.style.display=(flagN||_flagOnly)?'':'none'; }
 }
 function changePage(d){ _page+=d; renderList(); }
+function toggleFlagFilter(){ _flagOnly=!_flagOnly; _page=1; renderList(); }
+function flagBadge(c){ return (c.meta && c.meta.flagged) ? ' <span class="pill flag">⚑ Needs Attention</span>' : ''; }
+function flagBannerHtml(id){
+  const m=_metaMap[id]||{};
+  if(m.flagged){
+    const by = m.flagged_by?` by ${esc(m.flagged_by)}`:'';
+    const when = m.flagged_at?` · ${fmtDate(m.flagged_at)}`:'';
+    return `<div class="flag-banner">
+      <div>
+        <div class="flag-banner-title">⚑ Needs Attention</div>
+        <div class="flag-banner-reason">${m.flag_reason?esc(m.flag_reason):'<span class="dim">No note added</span>'}</div>
+        <div class="flag-banner-meta">Flagged${by}${when}</div>
+      </div>
+      <div class="flag-banner-actions">
+        <button class="btn" onclick="openFlagModal('${esc(id)}')">Edit</button>
+        <button class="btn" onclick="clearFlag('${esc(id)}')">Clear flag</button>
+      </div>
+    </div>`;
+  }
+  return `<div style="margin-bottom:16px"><button class="btn flag-btn" onclick="openFlagModal('${esc(id)}')">⚑ Flag for attention</button></div>`;
+}
+function openFlagModal(id){
+  _detailId=id;
+  const m=_metaMap[id]||{};
+  document.getElementById('flagReason').value = m.flag_reason||'';
+  document.getElementById('flagModal').classList.add('show');
+  setTimeout(()=>document.getElementById('flagReason').focus(),60);
+}
+function closeFlagModal(){ document.getElementById('flagModal').classList.remove('show'); }
+async function saveFlag(){
+  const id=_detailId;
+  const reason=document.getElementById('flagReason').value.trim();
+  if(!reason){ toast('Add a short note on the issue first.','err'); return; }
+  const btn=document.getElementById('flagSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  const ok=await saveSchedule(id, {flagged:true, flag_reason:reason, flagged_at:new Date().toISOString(), flagged_by:who()});
+  btn.disabled=false; btn.textContent='Flag account';
+  if(ok){ toast('Flagged for attention','ok'); closeFlagModal(); renderDetail(id); }
+}
+async function clearFlag(id){
+  if(!confirm('Clear the attention flag on this account?')) return;
+  const ok=await saveSchedule(id, {flagged:false, flag_reason:null, flagged_at:null, flagged_by:null});
+  if(ok){ toast('Flag cleared','ok'); renderDetail(id); }
+}
 
 // ── BUSINESS EVENTS: load + dashboard + detail card ─────────────────────
 async function loadEvents(){
@@ -1263,6 +1335,8 @@ async function renderDetail(id){
       </div>
     </div>
 
+    ${flagBannerHtml(id)}
+
     ${bizCardHtml(id)}
 
     <div class="card">
@@ -1477,7 +1551,7 @@ document.querySelectorAll('thead th[data-sort]').forEach(th=>{
 document.getElementById('loginPw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPw').focus(); });
 window.addEventListener('hashchange', route);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); closeFlagModal(); } });
 try{ if(localStorage.getItem('beacon_dash_collapsed')==='1'){ const d=document.getElementById('dashboard'); if(d) d.classList.add('collapsed'); const t=document.getElementById('dashToggle'); if(t) t.textContent='▸'; } }catch(_){}
 
 initAuth();
