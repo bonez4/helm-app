@@ -444,6 +444,8 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
 .pl-add input{padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);font-size:13px;flex:1;min-width:0;}
 .hist-job{padding:9px 0;border-bottom:1px solid var(--border);}
 .hist-job:last-child{border-bottom:none;}
+.lost-link{margin-left:auto;font-size:12.5px;color:var(--text-mute);font-weight:600;}
+.jm-suggest .sug br+span{font-size:11.5px;}
 </style>
 </head>
 <body>
@@ -494,6 +496,7 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     <nav class="topnav">
       <a id="navAccounts" class="active" href="#">Commercial Accounts</a>
       <a id="navReports" href="#reports">Reports</a>
+      <a id="navLost" href="#lost">Lost Clients</a>
       <a id="navDispatch" href="#dispatch">Dispatch</a>
     </nav>
     <div class="spacer"></div>
@@ -514,6 +517,7 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     <div class="list-head">
       <h2>Commercial Accounts</h2>
       <span class="count-chip" id="totalChip">…</span>
+      <a href="#lost" class="lost-link">Lost clients →</a>
     </div>
     <div class="toolbar">
       <div class="search-box">
@@ -607,6 +611,25 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     <div style="text-align:right;margin-top:16px"><button class="btn" onclick="closePriceModal()">Done</button></div>
   </div>
 </div>
+<div id="lostModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Add Lost Client</h3>
+    <label>Find the client <span>(searches all accounts, incl. inactive)</span></label>
+    <div style="position:relative">
+      <input type="text" id="lostSearch" placeholder="Search name, acct #, or address…" oninput="lostSearch(this.value)" autocomplete="off"/>
+      <div id="lostResults" class="jm-suggest"></div>
+    </div>
+    <div id="lostSelected" class="jm-client"><span class="dim">No client selected</span></div>
+    <label>Date lost</label>
+    <input type="date" id="lostDate"/>
+    <label>Reason</label>
+    <textarea id="lostReason" placeholder="Why did they leave?"></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeLostModal()">Cancel</button>
+      <button class="btn-primary" id="lostSaveBtn" onclick="saveLostClient()">Log as lost</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="jobFileInput" accept="image/*,video/*" multiple style="display:none"/>
 <div id="lightbox" onclick="closeLightbox()"><span class="lb-close">&times;</span><div id="lbContent"></div></div>
 <div id="toast" class="toast"></div>
@@ -647,6 +670,7 @@ let _lastContact = {};
 let _detailContacts = [];
 let _flagOnly = false;
 let _jobs=[], _priceTemplates=[], _jobModalId=null, _jobItems=[], _dispatchLoaded=false, _lookupResults=[], _lookupT=null;
+let _lostSearchResults=[], _lostPick=null, _lostT=null;
 let _pendingFiles = [];
 let _lbUrls = {};           // path -> signed url (current detail)
 
@@ -804,6 +828,7 @@ function route(){
   else if(h==='#reports'){ setNav('reports'); renderReports(); }
   else if(h==='#dispatch'){ setNav('dispatch'); renderDispatchBoard(); }
   else if(h==='#dispatch/history'){ setNav('dispatch'); renderDispatchHistory(); }
+  else if(h==='#lost'){ setNav('lost'); renderLostView(); }
   else { setNav('accounts'); showList(); }
 }
 function showList(){
@@ -1254,6 +1279,83 @@ document.getElementById('jobFileInput').addEventListener('change', async e=>{
   }
 });
 
+// ── LOST CLIENTS LOG (from commercial_events; finds inactive accounts too) ─
+async function renderLostView(){
+  showSecondary(`<div class="detail-back" onclick="location.hash=''">‹ Back to accounts</div><div class="card"><div class="dim">Loading…</div></div>`);
+  const lostIds=Object.keys(_eventLatest).filter(id=>_eventLatest[id] && _eventLatest[id].event_type==='lost');
+  let snaps={};
+  if(lostIds.length){
+    try{ const {data}=await db.from('clients').select('client_id,client_name,address,phone,status').in('client_id', lostIds); (data||[]).forEach(c=>{ snaps[c.client_id]=c; }); }catch(_){}
+  }
+  const rows=lostIds.map(id=>({id, ev:_eventLatest[id], c:snaps[id]||{}}))
+    .sort((a,b)=>(b.ev.event_date||'').localeCompare(a.ev.event_date||''));
+  const body = rows.length ? `<div class="table-wrap"><table>
+      <thead><tr><th class="nosort">Name</th><th class="nosort">Account #</th><th class="nosort">Address</th><th class="nosort">Lost</th><th class="nosort">Reason</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr onclick="location.hash='#acct/'+encodeURIComponent('${esc(r.id)}')">
+        <td class="name">${esc(r.c.client_name||clientName(r.id))}${r.c.status&&r.c.status!=='Active'?` <span class="pill role">${esc(r.c.status)}</span>`:''}</td>
+        <td class="acct">${esc(r.id)}</td>
+        <td class="addr">${esc(r.c.address||'')}</td>
+        <td>${esc(fmtDate(r.ev.event_date))}</td>
+        <td class="addr" style="max-width:320px;white-space:normal">${r.ev.reason?esc(r.ev.reason):'<span class="dim">—</span>'}</td>
+      </tr>`).join('')}</tbody></table></div>`
+    : `<div class="card"><div class="empty">No lost clients logged yet. Use ＋ Add lost client to start.</div></div>`;
+  showSecondary(`
+    <div class="detail-back" onclick="location.hash=''">‹ Back to accounts</div>
+    <div class="detail-header" style="align-items:center">
+      <div style="flex:1"><h1>Lost Clients</h1><div class="acct-sub">${rows.length} currently lost · click any to open its file</div></div>
+      <button class="btn-primary" onclick="openAddLostModal()">＋ Add lost client</button>
+    </div>
+    ${body}
+  `);
+}
+function openAddLostModal(){
+  _lostPick=null; _lostSearchResults=[];
+  document.getElementById('lostSearch').value='';
+  document.getElementById('lostResults').innerHTML='';
+  document.getElementById('lostSelected').innerHTML='<span class="dim">No client selected</span>';
+  document.getElementById('lostDate').value=todayISO();
+  document.getElementById('lostReason').value='';
+  document.getElementById('lostModal').classList.add('show');
+  setTimeout(()=>document.getElementById('lostSearch').focus(),60);
+}
+function closeLostModal(){ const m=document.getElementById('lostModal'); if(m) m.classList.remove('show'); }
+function lostSearch(q){
+  clearTimeout(_lostT);
+  const box=document.getElementById('lostResults');
+  const qs=String(q||'').replace(/[(),*%]/g,' ').trim();
+  if(qs.length<2){ if(box) box.innerHTML=''; _lostSearchResults=[]; return; }
+  _lostT=setTimeout(async ()=>{
+    try{
+      const {data}=await db.from('clients').select('client_id,client_name,address,phone,status').or(`client_name.ilike.*${qs}*,address.ilike.*${qs}*,client_id.ilike.*${qs}*`).limit(10);
+      _lostSearchResults=data||[];
+      if(box) box.innerHTML=_lostSearchResults.length
+        ? _lostSearchResults.map((c,i)=>`<div class="sug" onclick="pickLostClient(${i})">${esc(c.client_name||'(no name)')} · #${esc(c.client_id)}${c.status&&c.status!=='Active'?` · ${esc(c.status)}`:''}<br><span class="dim">${esc(c.address||'')}</span></div>`).join('')
+        : '<div class="sug dim">No match</div>';
+    }catch(_){}
+  },250);
+}
+function pickLostClient(i){
+  const c=_lostSearchResults[i]; if(!c) return;
+  _lostPick=c;
+  document.getElementById('lostSelected').innerHTML=`Selected: <b>${esc(c.client_name||'(no name)')}</b> · #${esc(c.client_id)}${c.status&&c.status!=='Active'?` · ${esc(c.status)}`:''}`;
+  document.getElementById('lostResults').innerHTML='';
+  document.getElementById('lostSearch').value=c.client_name||c.client_id;
+}
+async function saveLostClient(){
+  if(!_lostPick){ toast('Pick a client first.','err'); return; }
+  const reason=document.getElementById('lostReason').value.trim();
+  if(!reason){ toast('Enter a reason.','err'); return; }
+  const date=document.getElementById('lostDate').value||todayISO();
+  const btn=document.getElementById('lostSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  const {error}=await db.from('commercial_events').insert({client_id:_lostPick.client_id, event_type:'lost', event_date:date, reason, created_by:who()});
+  btn.disabled=false; btn.textContent='Log as lost';
+  if(error){ toast('Save failed: '+error.message,'err'); return; }
+  toast('Logged as lost','ok');
+  closeLostModal();
+  await loadEvents();
+  renderLostView();
+}
+
 // ── BUSINESS EVENTS: load + dashboard + detail card ─────────────────────
 async function loadEvents(){
   try{
@@ -1343,10 +1445,11 @@ function renderDashboard(){
     </div>`;
 }
 function setNav(which){
-  const a=document.getElementById('navAccounts'), r=document.getElementById('navReports'), d=document.getElementById('navDispatch');
+  const a=document.getElementById('navAccounts'), r=document.getElementById('navReports'), d=document.getElementById('navDispatch'), l=document.getElementById('navLost');
   if(a) a.classList.toggle('active', which==='accounts');
   if(r) r.classList.toggle('active', which==='reports');
   if(d) d.classList.toggle('active', which==='dispatch');
+  if(l) l.classList.toggle('active', which==='lost');
 }
 function showSecondary(html){
   document.getElementById('listView').style.display='none';
@@ -1961,7 +2064,7 @@ document.querySelectorAll('thead th[data-sort]').forEach(th=>{
 document.getElementById('loginPw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPw').focus(); });
 window.addEventListener('hashchange', route);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); closeFlagModal(); closeJobModal(); closePriceModal(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); closeFlagModal(); closeJobModal(); closePriceModal(); closeLostModal(); } });
 try{ if(localStorage.getItem('beacon_dash_collapsed')==='1'){ const d=document.getElementById('dashboard'); if(d) d.classList.add('collapsed'); const t=document.getElementById('dashToggle'); if(t) t.textContent='▸'; } }catch(_){}
 
 initAuth();
