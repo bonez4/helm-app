@@ -288,6 +288,10 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
 .kpi.new .kpi-num{color:var(--green-dim);}
 .kpi-label{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin-top:5px;}
 .kpi-sub{font-size:12px;color:var(--text-dim);margin-top:3px;font-family:'DM Mono',monospace;}
+.kpi-row.two{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));max-width:580px;}
+.kpi.clickable{cursor:pointer;transition:transform .1s, box-shadow .15s, border-color .15s;}
+.kpi.clickable:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(15,23,42,.09);border-color:var(--border-2);}
+.kpi-link{font-size:11.5px;color:var(--amber-dim);font-weight:600;margin-top:9px;}
 .dash-section+.dash-section{margin-top:20px;}
 .dash-section-title{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-mute);font-weight:700;margin-bottom:12px;}
 .bars{display:flex;flex-direction:column;gap:7px;}
@@ -416,7 +420,8 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
       <div><b>BEACON</b> <span>Commercial</span></div>
     </div>
     <nav class="topnav">
-      <a class="active" href="#">Commercial Accounts</a>
+      <a id="navAccounts" class="active" href="#">Commercial Accounts</a>
+      <a id="navReports" href="#reports">Reports</a>
       <a class="disabled" title="Coming soon">Dispatch</a>
     </nav>
     <div class="spacer"></div>
@@ -429,7 +434,7 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
   <main id="listView" class="wrap">
     <section id="dashboard" class="dash">
       <div class="dash-head">
-        <div class="dash-title"><span class="dash-ico">📊</span> Business Overview</div>
+        <div class="dash-title">Business Overview</div>
         <button class="dash-toggle" id="dashToggle" onclick="toggleDash()" title="Collapse / expand">▾</button>
       </div>
       <div class="dash-body" id="dashBody"></div>
@@ -691,9 +696,13 @@ async function loadCommercial(){
 
 // ── ROUTER ──────────────────────────────────────────────────────────────
 function route(){
-  const m = (location.hash||'').match(/^#acct\/(.+)$/);
-  if(m){ renderDetail(decodeURIComponent(m[1])); }
-  else { showList(); }
+  const h = location.hash||'';
+  const acct = h.match(/^#acct\/(.+)$/);
+  const rev  = h.match(/^#review\/(lost|new)(?:\/(\d{4}-\d{2}))?$/);
+  if(acct){ setNav('accounts'); renderDetail(decodeURIComponent(acct[1])); }
+  else if(rev){ setNav('accounts'); renderReview(rev[1], rev[2]||null); }
+  else if(h==='#reports'){ setNav('reports'); renderReports(); }
+  else { setNav('accounts'); showList(); }
 }
 function showList(){
   document.getElementById('detailView').style.display='none';
@@ -827,57 +836,104 @@ function renderDashboard(){
   if(!body) return;
   const now=new Date();
   const curKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const lostThis=_events.filter(e=>e.event_type==='lost' && (e.event_date||'').slice(0,7)===curKey);
+  const newThis =_events.filter(e=>e.event_type==='new'  && (e.event_date||'').slice(0,7)===curKey);
+  body.innerHTML=`
+    <div class="kpi-row two">
+      <div class="kpi lost clickable" onclick="location.hash='#review/lost'">
+        <div class="kpi-num">${lostThis.length}</div>
+        <div class="kpi-label">Lost this month</div>
+        <div class="kpi-link">View accounts →</div>
+      </div>
+      <div class="kpi new clickable" onclick="location.hash='#review/new'">
+        <div class="kpi-num">${newThis.length}</div>
+        <div class="kpi-label">Gained this month</div>
+        <div class="kpi-link">View accounts →</div>
+      </div>
+    </div>`;
+}
+function setNav(which){
+  const a=document.getElementById('navAccounts'), r=document.getElementById('navReports');
+  if(a) a.classList.toggle('active', which==='accounts');
+  if(r) r.classList.toggle('active', which==='reports');
+}
+function showSecondary(html){
+  document.getElementById('listView').style.display='none';
+  const v=document.getElementById('detailView'); v.style.display=''; v.innerHTML=html;
+}
+function monthLabelFull(key){ const p=key.split('-'); const d=new Date(Number(p[0]),Number(p[1])-1,1); return d.toLocaleDateString('en-US',{month:'long',year:'numeric'}); }
+
+function renderReview(type, monthKey){
+  const now=new Date();
+  const mk = monthKey || (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+  const typeLabel = type==='lost'?'Lost':'Gained';
+  const rows=_events.filter(e=>e.event_type===type && (e.event_date||'').slice(0,7)===mk)
+    .sort((a,b)=>(b.event_date||'').localeCompare(a.event_date||''));
+  const back = monthKey ? `location.hash='#reports'` : `location.hash=''`;
+  const tbl = rows.length ? `<div class="table-wrap"><table>
+      <thead><tr><th class="nosort">Name</th><th class="nosort">Account #</th><th class="nosort">Date</th><th class="nosort">Reason</th><th class="nosort">Logged by</th></tr></thead>
+      <tbody>${rows.map(e=>`<tr onclick="location.hash='#acct/'+encodeURIComponent('${esc(e.client_id)}')">
+        <td class="name">${esc(clientName(e.client_id))}</td>
+        <td class="acct">${esc(e.client_id)}</td>
+        <td>${esc(fmtDate(e.event_date))}</td>
+        <td class="addr" style="max-width:380px;white-space:normal">${e.reason?esc(e.reason):'<span class="dim">—</span>'}</td>
+        <td>${esc(e.created_by||'')}</td>
+      </tr>`).join('')}</tbody></table></div>`
+    : `<div class="card"><div class="empty">No ${typeLabel.toLowerCase()} accounts in ${monthLabelFull(mk)}.</div></div>`;
+  showSecondary(`
+    <div class="detail-back" onclick="${back}">‹ Back</div>
+    <div class="detail-header"><div>
+      <h1>${typeLabel} — ${monthLabelFull(mk)}</h1>
+      <div class="acct-sub">${rows.length} account${rows.length===1?'':'s'} ${type==='lost'?'lost':'gained'}</div>
+    </div></div>
+    ${tbl}
+  `);
+}
+
+function renderReports(){
+  const now=new Date();
   const months=[];
   for(let i=11;i>=0;i--){ const d=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
-  const lost=_events.filter(e=>e.event_type==='lost');
-  const news=_events.filter(e=>e.event_type==='new');
   const lostC={}, newC={};
   months.forEach(m=>{ lostC[m]=0; newC[m]=0; });
-  lost.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(m in lostC) lostC[m]++; });
-  news.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(m in newC) newC[m]++; });
-  const inMonth=(arr,k)=>arr.filter(e=>(e.event_date||'').slice(0,7)===k);
-  const lostThis=inMonth(lost,curKey), newThis=inMonth(news,curKey);
-  const lost12=months.reduce((s,m)=>s+lostC[m],0);
-  const new12=months.reduce((s,m)=>s+newC[m],0);
-  const net=new12-lost12;
-  const maxC=Math.max(1, ...months.map(m=>lostC[m]));
-  const recent=lost.slice().sort((a,b)=>(b.event_date||'').localeCompare(a.event_date||'')).slice(0,5);
-  const kpi=(label,num,val,kind,signed)=>`<div class="kpi ${kind}">
-      <div class="kpi-num">${signed&&num>=0?'+':''}${num}</div>
-      <div class="kpi-label">${label}</div>
-      ${val!=null&&val>0?`<div class="kpi-sub">$${fmtK(val)}/mo</div>`:''}
-    </div>`;
-  body.innerHTML=`
-    <div class="kpi-row">
-      ${kpi('Lost this month', lostThis.length, null, 'lost')}
-      ${kpi('Lost · 12 mo', lost12, null, 'lost')}
-      ${kpi('New this month', newThis.length, null, 'new')}
-      ${kpi('Net · 12 mo', net, null, net>=0?'new':'lost', true)}
+  _events.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(!(m in lostC)) return; if(e.event_type==='lost') lostC[m]++; else if(e.event_type==='new') newC[m]++; });
+  const lost12=months.reduce((s,m)=>s+lostC[m],0), new12=months.reduce((s,m)=>s+newC[m],0), net=new12-lost12;
+  const maxC=Math.max(1, ...months.map(m=>Math.max(lostC[m],newC[m])));
+  const monthsDesc=months.slice().reverse();
+  showSecondary(`
+    <div class="detail-back" onclick="location.hash=''">‹ Back to accounts</div>
+    <div class="detail-header"><div><h1>Reports</h1><div class="acct-sub">New &amp; lost business · last 12 months</div></div></div>
+    <div class="card">
+      <div class="kpi-row">
+        <div class="kpi lost"><div class="kpi-num">${lost12}</div><div class="kpi-label">Lost · 12 mo</div></div>
+        <div class="kpi new"><div class="kpi-num">${new12}</div><div class="kpi-label">Gained · 12 mo</div></div>
+        <div class="kpi ${net>=0?'new':'lost'}"><div class="kpi-num">${net>=0?'+':''}${net}</div><div class="kpi-label">Net · 12 mo</div></div>
+      </div>
     </div>
-    <div class="dash-section">
-      <div class="dash-section-title">Lost business by month</div>
+    <div class="card">
+      <h3>By month</h3>
+      <div class="table-wrap" style="box-shadow:none">
+        <table>
+          <thead><tr><th class="nosort">Month</th><th class="nosort">Lost</th><th class="nosort">Gained</th><th class="nosort">Net</th></tr></thead>
+          <tbody>${monthsDesc.map(m=>{
+            const l=lostC[m], g=newC[m], n=g-l;
+            return `<tr>
+              <td class="name">${monthLabelFull(m)}</td>
+              <td>${l?`<a onclick="location.hash='#review/lost/${m}'" style="cursor:pointer;color:var(--red-dim);font-weight:700">${l}</a>`:'<span class="dim">0</span>'}</td>
+              <td>${g?`<a onclick="location.hash='#review/new/${m}'" style="cursor:pointer;color:var(--green-dim);font-weight:700">${g}</a>`:'<span class="dim">0</span>'}</td>
+              <td class="mono" style="color:${n>=0?'var(--green-dim)':'var(--red-dim)'}">${n>=0?'+':''}${n}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Lost business by month</h3>
       <div class="bars">
-        ${months.map(m=>{
-          const c=lostC[m], pct=c?Math.max(Math.round(c/maxC*100),5):0;
-          return `<div class="bar-row">
-            <div class="bar-label">${monthLabel(m)}</div>
-            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-            <div class="bar-val">${c?c+(c===1?' acct':' accts'):''}</div>
-          </div>`;
-        }).join('')}
+        ${months.map(m=>{ const c=lostC[m], pct=c?Math.max(Math.round(c/maxC*100),5):0; return `<div class="bar-row"><div class="bar-label">${monthLabel(m)}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-val">${c?c+(c===1?' acct':' accts'):''}</div></div>`; }).join('')}
       </div>
     </div>
-    ${recent.length?`<div class="dash-section">
-      <div class="dash-section-title">Recent losses &amp; reasons</div>
-      <div class="recent-losses">
-        ${recent.map(e=>`<div class="loss-row" onclick="location.hash='#acct/'+encodeURIComponent('${esc(e.client_id)}')">
-          <div class="loss-name">${esc(clientName(e.client_id))}</div>
-          <div class="loss-date">${fmtDate(e.event_date)}</div>
-          <div class="loss-reason">${e.reason?esc(e.reason):`<span class="dim">No reason given</span>`}</div>
-        </div>`).join('')}
-      </div>
-    </div>`:''}
-  `;
+  `);
 }
 function toggleDash(){
   const d=document.getElementById('dashboard');
