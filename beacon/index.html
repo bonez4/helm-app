@@ -480,8 +480,6 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     <input type="date" id="evtDate"/>
     <label>Reason <span id="evtReasonReq">(required)</span></label>
     <textarea id="evtReason" placeholder="Free text — what happened?"></textarea>
-    <label>Monthly value <span>($ per month — optional)</span></label>
-    <input type="number" id="evtValue" step="0.01" min="0" inputmode="decimal" placeholder="0.00"/>
     <div class="modal-actions">
       <button class="btn" onclick="closeEventModal()">Cancel</button>
       <button class="btn-primary" id="evtSaveBtn" onclick="saveEvent()">Save</button>
@@ -808,7 +806,6 @@ function bizCardHtml(id){
     <div class="biz-ev ${e.event_type}">
       <span class="biz-ev-type">${e.event_type}</span>
       <span class="biz-ev-date">${fmtDate(e.event_date)}</span>
-      ${e.monthly_value!=null?`<span class="biz-ev-val">$${Number(e.monthly_value).toFixed(2)}/mo</span>`:''}
       ${e.reason?`<span class="biz-ev-reason">${esc(e.reason)}</span>`:`<span class="biz-ev-reason dim">—</span>`}
       <span class="biz-ev-del" title="Delete event" onclick="deleteEvent(${e.id})">×</span>
     </div>`).join('')+`</div>`:'';
@@ -834,15 +831,13 @@ function renderDashboard(){
   for(let i=11;i>=0;i--){ const d=new Date(now.getFullYear(), now.getMonth()-i, 1); months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
   const lost=_events.filter(e=>e.event_type==='lost');
   const news=_events.filter(e=>e.event_type==='new');
-  const lostC={}, lostV={}, newC={};
-  months.forEach(m=>{ lostC[m]=0; lostV[m]=0; newC[m]=0; });
-  lost.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(m in lostC){ lostC[m]++; lostV[m]+=Number(e.monthly_value)||0; } });
+  const lostC={}, newC={};
+  months.forEach(m=>{ lostC[m]=0; newC[m]=0; });
+  lost.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(m in lostC) lostC[m]++; });
   news.forEach(e=>{ const m=(e.event_date||'').slice(0,7); if(m in newC) newC[m]++; });
   const inMonth=(arr,k)=>arr.filter(e=>(e.event_date||'').slice(0,7)===k);
-  const sumV=arr=>arr.reduce((s,e)=>s+(Number(e.monthly_value)||0),0);
   const lostThis=inMonth(lost,curKey), newThis=inMonth(news,curKey);
   const lost12=months.reduce((s,m)=>s+lostC[m],0);
-  const lostV12=months.reduce((s,m)=>s+lostV[m],0);
   const new12=months.reduce((s,m)=>s+newC[m],0);
   const net=new12-lost12;
   const maxC=Math.max(1, ...months.map(m=>lostC[m]));
@@ -854,8 +849,8 @@ function renderDashboard(){
     </div>`;
   body.innerHTML=`
     <div class="kpi-row">
-      ${kpi('Lost this month', lostThis.length, sumV(lostThis), 'lost')}
-      ${kpi('Lost · 12 mo', lost12, lostV12, 'lost')}
+      ${kpi('Lost this month', lostThis.length, null, 'lost')}
+      ${kpi('Lost · 12 mo', lost12, null, 'lost')}
       ${kpi('New this month', newThis.length, null, 'new')}
       ${kpi('Net · 12 mo', net, null, net>=0?'new':'lost', true)}
     </div>
@@ -863,11 +858,11 @@ function renderDashboard(){
       <div class="dash-section-title">Lost business by month</div>
       <div class="bars">
         ${months.map(m=>{
-          const c=lostC[m], v=lostV[m], pct=c?Math.max(Math.round(c/maxC*100),5):0;
+          const c=lostC[m], pct=c?Math.max(Math.round(c/maxC*100),5):0;
           return `<div class="bar-row">
             <div class="bar-label">${monthLabel(m)}</div>
             <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-            <div class="bar-val">${c?c+(c===1?' acct':' accts'):''}${c&&v?` · $${fmtK(v)}`:''}</div>
+            <div class="bar-val">${c?c+(c===1?' acct':' accts'):''}</div>
           </div>`;
         }).join('')}
       </div>
@@ -899,7 +894,6 @@ function openEventModal(type){
   document.getElementById('evtReasonReq').textContent = type==='lost'?'(required — why did they leave?)':'(optional — why they signed / source)';
   document.getElementById('evtDate').value = todayISO();
   document.getElementById('evtReason').value='';
-  document.getElementById('evtValue').value='';
   document.getElementById('eventModal').classList.add('show');
   setTimeout(()=>document.getElementById('evtReason').focus(),60);
 }
@@ -908,12 +902,10 @@ async function saveEvent(){
   const type=_evtType;
   const date=document.getElementById('evtDate').value || todayISO();
   const reason=document.getElementById('evtReason').value.trim();
-  const vr=document.getElementById('evtValue').value;
-  const val = vr!=='' ? Number(vr) : null;
   if(type==='lost' && !reason){ toast('A reason is required when marking as lost.','err'); return; }
   const btn=document.getElementById('evtSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
   const {error}=await db.from('commercial_events').insert({
-    client_id:_detailId, event_type:type, event_date:date, reason:reason||null, monthly_value:val, created_by:who()
+    client_id:_detailId, event_type:type, event_date:date, reason:reason||null, created_by:who()
   });
   btn.disabled=false; btn.textContent='Save';
   if(error){ toast('Save failed: '+error.message,'err'); return; }
