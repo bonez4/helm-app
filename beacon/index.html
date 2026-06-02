@@ -387,6 +387,63 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
 .flag-banner-reason{margin-top:5px;font-size:13.5px;color:var(--text);white-space:pre-wrap;}
 .flag-banner-meta{margin-top:5px;font-size:11.5px;color:var(--text-dim);}
 .flag-banner-actions{display:flex;gap:8px;flex:none;}
+/* ── dispatch board ─────────────────────────────────────────────────── */
+.board{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;align-items:flex-start;}
+.dcol{flex:1;min-width:240px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:10px;}
+.dcol-head{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:13px;padding:4px 6px;}
+.dcol-head.verify{color:#475569;} .dcol-head.outreach{color:var(--amber-dim);} .dcol-head.dispatch{color:var(--green-dim);} .dcol-head.completion{color:var(--blue);}
+.dcol-count{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:1px 9px;font-size:11px;font-weight:600;}
+.dcol-add{width:100%;justify-content:center;}
+.dcol-body{display:flex;flex-direction:column;gap:9px;min-height:30px;}
+.dcol-empty{text-align:center;color:var(--text-dim);font-size:12px;padding:8px;}
+.dcard{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--text-dim);border-radius:9px;padding:11px 12px;cursor:pointer;position:relative;box-shadow:var(--shadow);}
+.dcard:hover{border-color:var(--border-2);}
+.dcard.verify{border-left-color:#64748b;}
+.dcard.outreach{border-left-color:var(--amber);}
+.dcard.dispatch{border-left-color:var(--green);}
+.dcard.dispatch.live{background:rgba(5,150,105,.08);}
+.dcard.completion{border-left-color:var(--blue);}
+.dcard-addr{font-weight:700;font-size:13.5px;}
+.dcard-name{font-size:12px;color:var(--text-mute);margin-top:2px;}
+.dcard-row{font-size:12px;color:var(--text);margin-top:5px;font-family:'DM Mono',monospace;}
+.dcard-foot{font-size:11px;color:var(--text-mute);margin-top:6px;}
+.live-badge{display:inline-block;background:var(--green);color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:5px;letter-spacing:.04em;}
+.dcard .live-badge{position:absolute;top:8px;right:8px;}
+.modal.wide{max-width:560px;}
+.jm-stage{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:3px 10px;border-radius:6px;margin-bottom:12px;}
+.jm-verify{background:#e2e8f0;color:#475569;} .jm-outreach{background:var(--amber-soft);color:var(--amber-dim);} .jm-dispatch{background:var(--green-soft);color:var(--green-dim);} .jm-completion{background:var(--blue-soft);color:var(--blue);}
+.jm-photos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.jm-thumb{width:74px;height:74px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2) center/cover no-repeat;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;font-size:22px;}
+.jm-thumb.has-img{border-color:var(--border-2);}
+.jm-thumb video{width:100%;height:100%;object-fit:cover;}
+.jm-thumb .vbadge{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.6);color:#fff;border-radius:4px;padding:0 5px;font-size:10px;}
+.jm-label{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin:12px 0 5px;}
+.jm-snap{font-size:13px;color:var(--text-mute);margin-bottom:6px;}
+#jobModalBody input[type=text]{width:100%;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);}
+.jm-suggest{position:absolute;left:0;right:0;top:100%;background:var(--surface);border:1px solid var(--border-2);border-radius:8px;z-index:5;max-height:210px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);}
+.jm-suggest .sug{padding:8px 11px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--border);}
+.jm-suggest .sug:hover{background:var(--amber-soft);}
+.jm-client{font-size:12.5px;margin-top:8px;color:var(--green-dim);}
+.jm-actions{display:flex;align-items:center;gap:8px;margin-top:18px;flex-wrap:wrap;}
+.btn.danger{border-color:rgba(220,38,38,.4);color:var(--red-dim);}
+.btn-primary.green{background:var(--green);border-color:var(--green);}
+.btn-primary.green:hover{background:var(--green-dim);}
+.li-add{display:flex;gap:8px;margin-bottom:8px;}
+.li-add select{flex:1;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:13px;}
+.li-list{display:flex;flex-direction:column;gap:2px;}
+.li-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.li-title{flex:1;} .li-price{font-family:'DM Mono',monospace;}
+.li-del{border:none;background:none;color:var(--text-dim);font-size:16px;cursor:pointer;line-height:1;}
+.li-del:hover{color:var(--red);}
+.li-total{text-align:right;font-weight:800;margin-top:8px;font-family:'DM Mono',monospace;}
+.jm-itemsro{font-size:12.5px;color:var(--text-mute);margin:6px 0;}
+.pl-list{display:flex;flex-direction:column;gap:2px;margin-bottom:14px;}
+.pl-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.pl-title{flex:1;font-weight:600;} .pl-price{font-family:'DM Mono',monospace;}
+.pl-add{display:flex;gap:8px;}
+.pl-add input{padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);font-size:13px;flex:1;min-width:0;}
+.hist-job{padding:9px 0;border-bottom:1px solid var(--border);}
+.hist-job:last-child{border-bottom:none;}
 </style>
 </head>
 <body>
@@ -437,7 +494,7 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     <nav class="topnav">
       <a id="navAccounts" class="active" href="#">Commercial Accounts</a>
       <a id="navReports" href="#reports">Reports</a>
-      <a class="disabled" title="Coming soon">Dispatch</a>
+      <a id="navDispatch" href="#dispatch">Dispatch</a>
     </nav>
     <div class="spacer"></div>
     <div class="who"><span class="label">Signed in: </span><b id="topbarUser"></b></div>
@@ -537,6 +594,20 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     </div>
   </div>
 </div>
+<div id="jobModal" class="modal-overlay">
+  <div class="modal wide">
+    <div id="jobModalBody"></div>
+    <div style="text-align:right;margin-top:10px"><button class="btn" onclick="closeJobModal()">Close</button></div>
+  </div>
+</div>
+<div id="priceModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Price List <span style="font-weight:400;color:var(--text-dim);font-size:12px">— category + price</span></h3>
+    <div id="priceModalBody"></div>
+    <div style="text-align:right;margin-top:16px"><button class="btn" onclick="closePriceModal()">Done</button></div>
+  </div>
+</div>
+<input type="file" id="jobFileInput" accept="image/*,video/*" multiple style="display:none"/>
 <div id="lightbox" onclick="closeLightbox()"><span class="lb-close">&times;</span><div id="lbContent"></div></div>
 <div id="toast" class="toast"></div>
 <input type="file" id="historyFileInput" accept="image/*,video/*" multiple style="display:none"/>
@@ -575,6 +646,7 @@ let _outreach = [];
 let _lastContact = {};
 let _detailContacts = [];
 let _flagOnly = false;
+let _jobs=[], _priceTemplates=[], _jobModalId=null, _jobItems=[], _dispatchLoaded=false, _lookupResults=[], _lookupT=null;
 let _pendingFiles = [];
 let _lbUrls = {};           // path -> signed url (current detail)
 
@@ -730,6 +802,8 @@ function route(){
   if(acct){ setNav('accounts'); renderDetail(decodeURIComponent(acct[1])); }
   else if(rev){ setNav('accounts'); renderReview(rev[1], rev[2]||null); }
   else if(h==='#reports'){ setNav('reports'); renderReports(); }
+  else if(h==='#dispatch'){ setNav('dispatch'); renderDispatchBoard(); }
+  else if(h==='#dispatch/history'){ setNav('dispatch'); renderDispatchHistory(); }
   else { setNav('accounts'); showList(); }
 }
 function showList(){
@@ -845,6 +919,341 @@ async function clearFlag(id){
   if(ok){ toast('Flag cleared','ok'); renderDetail(id); }
 }
 
+// ── DISPATCH PIPELINE (residential bulky) ────────────────────────────────
+function valOf(id){ const el=document.getElementById(id); return el?el.value:''; }
+function stageLabel(s){ return {verify:'Verify',outreach:'Outreach',dispatch:'Dispatch',completion:'Completion',denied:'Denied',archived:'Archived'}[s]||s; }
+function jobTotal(j){ return (j.price_items||[]).reduce((s,i)=>s+(Number(i.price)||0),0); }
+async function loadDispatch(){
+  try{ _jobs = await fetchAll('dispatch_jobs','*'); }catch(_){ _jobs=[]; }
+  try{ _priceTemplates = (await fetchAll('dispatch_price_templates','*')).filter(t=>t.active!==false).sort((a,b)=>(a.sort_order-b.sort_order)||(a.id-b.id)); }catch(_){ _priceTemplates=[]; }
+  _dispatchLoaded=true;
+}
+async function renderDispatchBoard(){
+  showSecondary(`<div class="detail-back" onclick="location.hash=''">‹ Back to accounts</div><div class="card"><div class="dim">Loading…</div></div>`);
+  await loadDispatch();
+  const stages=[['verify','Verify'],['outreach','Outreach'],['dispatch','Dispatch'],['completion','Completion']];
+  const cols=stages.map(([key,label])=>{
+    const jobs=_jobs.filter(j=>j.stage===key).sort((a,b)=>(b.updated_at||'').localeCompare(a.updated_at||''));
+    const add = key==='verify' ? `<button class="btn btn-primary dcol-add" onclick="newJob()">＋ New job</button>` : '';
+    const cards = jobs.map(j=>jobCardHtml(j)).join('') || `<div class="dcol-empty">—</div>`;
+    return `<div class="dcol">
+      <div class="dcol-head ${key}"><span>${label}</span><span class="dcol-count">${jobs.length}</span></div>
+      ${add}
+      <div class="dcol-body">${cards}</div>
+    </div>`;
+  }).join('');
+  const compCount=_jobs.filter(j=>j.stage==='completion').length;
+  showSecondary(`
+    <div class="detail-back" onclick="location.hash=''">‹ Back to accounts</div>
+    <div class="detail-header" style="align-items:center">
+      <div style="flex:1"><h1>Dispatch — Residential</h1><div class="acct-sub">Bulky pickup pipeline · push cards to the next stage</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="openPriceModal()">Price List</button>
+        <button class="btn" onclick="location.hash='#dispatch/history'">History</button>
+        ${compCount?`<button class="btn-primary" onclick="bulkPrintCompleted()">🖨 Print completed (${compCount})</button>`:''}
+      </div>
+    </div>
+    <div class="board">${cols}</div>
+  `);
+}
+function jobCardHtml(j){
+  const live = j.stage==='dispatch' && j.dispatched_at;
+  const total=jobTotal(j); const photoN=(j.photos||[]).length;
+  let detail='';
+  if((j.stage==='outreach'||j.stage==='completion') && total) detail=`<div class="dcard-row">$${total.toFixed(2)} · ${(j.price_items||[]).length} item(s)</div>`;
+  if(j.stage==='dispatch' && j.driver) detail=`<div class="dcard-row">Driver: ${esc(j.driver)}</div>`;
+  return `<div class="dcard ${j.stage}${live?' live':''}" onclick="openJobModal(${j.id})">
+    ${live?'<div class="live-badge">● LIVE</div>':''}
+    <div class="dcard-addr">${esc(j.address||'(no address)')}</div>
+    ${j.client_name?`<div class="dcard-name">${esc(j.client_name)}${j.client_id?` · #${esc(j.client_id)}`:''}</div>`:''}
+    ${detail}
+    <div class="dcard-foot">${photoN?`📷 ${photoN}`:'<span class="dim">no photo</span>'}</div>
+  </div>`;
+}
+async function newJob(){
+  const {data,error}=await db.from('dispatch_jobs').insert({stage:'verify', created_by:who(), updated_by:who()}).select().single();
+  if(error){ toast('Create failed: '+error.message,'err'); return; }
+  _jobs.push(data); openJobModal(data.id);
+}
+function openJobModal(id){
+  const j=_jobs.find(x=>x.id===id); if(!j) return;
+  _jobModalId=id;
+  _jobItems=(j.price_items||[]).map(i=>({title:i.title, price:Number(i.price)||0}));
+  document.getElementById('jobModalBody').innerHTML=renderJobModalBody(j);
+  document.getElementById('jobModal').classList.add('show');
+  hydrateJobPhotos(j);
+}
+function closeJobModal(){
+  document.getElementById('jobModal').classList.remove('show');
+  if((location.hash||'').indexOf('#dispatch')===0) renderDispatchBoard();
+}
+function renderJobModalBody(j){
+  const head=`
+    <div class="jm-stage jm-${j.stage}">${stageLabel(j.stage)}</div>
+    <div class="jm-photos" id="jmPhotos">${jmPhotosInner(j)}</div>
+    <button class="btn" onclick="addJobPhoto()">📎 Add photo / video</button>`;
+  if(j.stage==='verify') return head + `
+    <label class="jm-label">Address</label>
+    <div style="position:relative">
+      <input type="text" id="jmAddress" value="${esc(j.address||'')}" placeholder="Type an address…" oninput="jobAddressLookup(this.value)" autocomplete="off"/>
+      <div id="jmSuggest" class="jm-suggest"></div>
+    </div>
+    <div class="jm-client" id="jmClient">${j.client_id?`Matched: ${esc(j.client_name||'')} · #${esc(j.client_id)} · ${esc(j.phone||'')}`:'<span class="dim">No client matched — saves as a free address</span>'}</div>
+    <div class="jm-actions">
+      <button class="btn danger" onclick="deleteJob(${j.id})">Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn" onclick="saveJob()">Save</button>
+      <button class="btn-primary" onclick="advance('outreach')">Next: Outreach →</button>
+    </div>`;
+  if(j.stage==='outreach') return head + `
+    <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}${j.phone?` · ${esc(j.phone)}`:''}</div>
+    <label class="jm-label">Agreed line items</label>
+    ${lineItemsEditorHtml()}
+    <div class="jm-actions">
+      <button class="btn danger" onclick="denyJob(${j.id})">Client denied service</button>
+      <div style="flex:1"></div>
+      <button class="btn-primary" onclick="advance('dispatch')">Client accepted → Dispatch</button>
+    </div>`;
+  if(j.stage==='dispatch'){ const live=!!j.dispatched_at; return head + `
+    <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}</div>
+    <div class="jm-itemsro">${itemsReadonlyHtml(j)}</div>
+    <label class="jm-label">Driver</label>
+    <input type="text" id="jmDriver" value="${esc(j.driver||'')}" placeholder="Driver name…" autocomplete="off"/>
+    <div class="jm-actions">
+      ${live?'<span class="live-badge">● LIVE</span>':''}
+      <div style="flex:1"></div>
+      ${live
+        ? `<button class="btn" onclick="saveJob()">Save</button><button class="btn-primary" onclick="advance('completion')">Mark complete →</button>`
+        : `<button class="btn-primary green" onclick="dispatchGoLive()">🟢 Dispatch — go live</button>`}
+    </div>`; }
+  if(j.stage==='completion') return head + `
+    <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}${j.driver?` · Driver: ${esc(j.driver)}`:''}</div>
+    <label class="jm-label">Line item charges</label>
+    ${lineItemsEditorHtml()}
+    <label class="jm-label">Completion notes</label>
+    <textarea class="notes" id="jmNotes" placeholder="Anything to note about the job…">${esc(j.completion_notes||'')}</textarea>
+    <div class="jm-actions">
+      <button class="btn" onclick="printJob(${j.id})">🖨 Print ticket</button>
+      <div style="flex:1"></div>
+      <button class="btn" onclick="saveJob()">Save</button>
+      <button class="btn-primary" onclick="archiveJob(${j.id})">Archive</button>
+    </div>`;
+  return head;
+}
+function jmPhotosInner(j){ return (j.photos||[]).map((p,idx)=>`<div class="jm-thumb" id="jmthumb-${idx}">${p.type==='video'?'🎥':''}</div>`).join('') || '<span class="dim">No photos yet</span>'; }
+function itemsReadonlyHtml(j){ const items=j.price_items||[]; if(!items.length) return '<span class="dim">No agreed items</span>'; return items.map(i=>`${esc(i.title)} ($${Number(i.price).toFixed(2)})`).join(', ')+` — total $${jobTotal(j).toFixed(2)}`; }
+function lineItemsInner(){
+  const opts=_priceTemplates.map(t=>`<option value="${t.id}">${esc(t.title)} — $${Number(t.price).toFixed(2)}</option>`).join('');
+  const rows=_jobItems.map((it,idx)=>`<div class="li-row"><span class="li-title">${esc(it.title)}</span><span class="li-price">$${Number(it.price).toFixed(2)}</span><button class="li-del" onclick="removeItem(${idx})">×</button></div>`).join('')||'<div class="dim" style="padding:4px 0">No items yet</div>';
+  const total=_jobItems.reduce((s,i)=>s+(Number(i.price)||0),0);
+  return `<div class="li-add"><select id="jmTemplate">${opts?('<option value="">Add an item…</option>'+opts):'<option value="">No price list yet — add items via Price List</option>'}</select><button class="btn" onclick="addItemFromTemplate()">Add</button></div>
+    <div class="li-list">${rows}</div>
+    <div class="li-total">Total: $${total.toFixed(2)}</div>`;
+}
+function lineItemsEditorHtml(){ return `<div id="jmItemsEditor">${lineItemsInner()}</div>`; }
+function addItemFromTemplate(){
+  const sel=document.getElementById('jmTemplate'); const id=Number(sel&&sel.value); if(!id) return;
+  const t=_priceTemplates.find(x=>x.id===id); if(!t) return;
+  _jobItems.push({title:t.title, price:Number(t.price)||0});
+  document.getElementById('jmItemsEditor').innerHTML=lineItemsInner();
+}
+function removeItem(idx){ _jobItems.splice(idx,1); document.getElementById('jmItemsEditor').innerHTML=lineItemsInner(); }
+async function hydrateJobPhotos(j){
+  const paths=(j.photos||[]).map(p=>p.path);
+  const map=await signPaths(paths);
+  (j.photos||[]).forEach((p,idx)=>{
+    const el=document.getElementById('jmthumb-'+idx); if(!el) return;
+    const url=map[p.path]; if(!url) return;
+    if(p.type==='video'){ el.innerHTML=`<video src="${esc(url)}" muted></video><span class="vbadge">▶</span>`; el.onclick=()=>{ _lbUrls[p.path]=url; openLightbox(p.path,true); }; }
+    else { el.textContent=''; el.style.backgroundImage=`url('${url}')`; el.classList.add('has-img'); el.onclick=()=>{ _lbUrls[p.path]=url; openLightbox(p.path,false); }; }
+  });
+}
+function addJobPhoto(){ document.getElementById('jobFileInput').click(); }
+function jobAddressLookup(q){
+  clearTimeout(_lookupT);
+  const box=document.getElementById('jmSuggest');
+  const qs=String(q||'').replace(/[(),*%]/g,' ').trim();
+  if(qs.length<3){ if(box) box.innerHTML=''; _lookupResults=[]; return; }
+  _lookupT=setTimeout(async ()=>{
+    try{
+      const {data}=await db.from('clients').select('client_id,client_name,address,phone').eq('status','Active').or(`address.ilike.*${qs}*,client_name.ilike.*${qs}*`).limit(8);
+      _lookupResults=data||[];
+      if(box) box.innerHTML = _lookupResults.length
+        ? _lookupResults.map((c,i)=>`<div class="sug" onclick="pickClient(${i})">${esc(c.client_name||'(no name)')} · ${esc(c.address||'')} · #${esc(c.client_id)}</div>`).join('')
+        : '<div class="sug dim">No match — saves as a free address</div>';
+    }catch(_){}
+  },250);
+}
+function pickClient(i){
+  const c=_lookupResults[i]; const j=_jobs.find(x=>x.id===_jobModalId); if(!c||!j) return;
+  j.client_id=c.client_id; j.client_name=c.client_name||''; j.phone=c.phone||''; j.address=c.address||j.address;
+  const a=document.getElementById('jmAddress'); if(a) a.value=c.address||'';
+  const cl=document.getElementById('jmClient'); if(cl) cl.innerHTML=`Matched: ${esc(c.client_name||'')} · #${esc(c.client_id)} · ${esc(c.phone||'')}`;
+  const s=document.getElementById('jmSuggest'); if(s) s.innerHTML='';
+}
+function collectPatch(j){
+  const p={};
+  if(j.stage==='verify'){ p.address=valOf('jmAddress').trim()||null; p.client_id=j.client_id||null; p.client_name=j.client_name||null; p.phone=j.phone||null; }
+  else if(j.stage==='outreach'){ p.price_items=_jobItems; }
+  else if(j.stage==='dispatch'){ p.driver=valOf('jmDriver').trim()||null; }
+  else if(j.stage==='completion'){ p.price_items=_jobItems; p.completion_notes=valOf('jmNotes').trim()||null; }
+  return p;
+}
+async function persistJob(id, patch){
+  const {error}=await db.from('dispatch_jobs').update(patch).eq('id',id);
+  if(error){ toast('Save failed: '+error.message,'err'); return false; }
+  const j=_jobs.find(x=>x.id===id); if(j) Object.assign(j, patch);
+  return true;
+}
+async function saveJob(){
+  const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
+  const ok=await persistJob(j.id,{...collectPatch(j), updated_at:new Date().toISOString(), updated_by:who()});
+  if(ok) toast('Saved','ok');
+}
+async function advance(toStage){
+  const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
+  if(j.stage==='verify' && !valOf('jmAddress').trim()){ toast('Enter an address first.','err'); return; }
+  const patch={...collectPatch(j), stage:toStage, updated_at:new Date().toISOString(), updated_by:who()};
+  if(toStage==='completion') patch.completed_at=new Date().toISOString();
+  if(await persistJob(j.id, patch)) closeJobModal();
+}
+async function dispatchGoLive(){
+  const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
+  const driver=valOf('jmDriver').trim();
+  if(!driver){ toast('Enter a driver first.','err'); return; }
+  if(await persistJob(j.id,{driver, dispatched_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Dispatched — live','ok'); openJobModal(j.id); }
+}
+async function denyJob(id){
+  if(!confirm('Mark as denied and move to History?')) return;
+  if(await persistJob(id,{stage:'denied', denial_note:'Client denied service', denied_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Client denied — moved to History','ok'); closeJobModal(); }
+}
+async function archiveJob(id){
+  const j=_jobs.find(x=>x.id===id); if(!j) return;
+  if(!confirm('Archive this job? It moves to History.')) return;
+  if(await persistJob(id,{...collectPatch(j), stage:'archived', archived_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Archived','ok'); closeJobModal(); }
+}
+async function deleteJob(id){
+  if(!confirm('Delete this job permanently?')) return;
+  const j=_jobs.find(x=>x.id===id);
+  const {error}=await db.from('dispatch_jobs').delete().eq('id',id);
+  if(error){ toast('Delete failed: '+error.message,'err'); return; }
+  if(j && (j.photos||[]).length){ try{ await db.storage.from(BUCKET).remove((j.photos||[]).map(p=>p.path)); }catch(_){} }
+  _jobs=_jobs.filter(x=>x.id!==id); toast('Deleted','ok'); closeJobModal();
+}
+function renderDispatchHistory(){
+  if(!_dispatchLoaded){ showSecondary('<div class="card"><div class="dim">Loading…</div></div>'); loadDispatch().then(renderDispatchHistory); return; }
+  const items=_jobs.filter(j=>j.stage==='denied'||j.stage==='archived')
+    .map(j=>({j, when:(j.stage==='denied'?j.denied_at:j.archived_at)||j.completed_at||j.updated_at}))
+    .sort((a,b)=>(b.when||'').localeCompare(a.when||''));
+  const groups={};
+  items.forEach(({j,when})=>{ const d=(when||'').slice(0,10)||'unknown'; (groups[d]=groups[d]||[]).push(j); });
+  const days=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  const body = days.length ? days.map(d=>`
+    <div class="card">
+      <h3>${d==='unknown'?'Undated':fmtDate(d)}</h3>
+      ${groups[d].map(j=>{
+        const tag=j.stage==='denied'?'<span class="pill lost">Denied</span>':'<span class="pill new">Completed</span>';
+        const sub=j.stage==='denied' ? esc(j.denial_note||'Client denied service')
+          : `${(j.price_items||[]).length} item(s) · $${jobTotal(j).toFixed(2)}${j.driver?` · ${esc(j.driver)}`:''}`;
+        return `<div class="hist-job">
+          <div><b>${esc(j.address||'(no address)')}</b>${j.client_name?` · ${esc(j.client_name)}`:''} ${tag}</div>
+          <div class="dim" style="font-size:12px;margin-top:3px">${sub}</div>
+        </div>`;
+      }).join('')}
+    </div>`).join('') : '<div class="card"><div class="empty">No history yet.</div></div>';
+  showSecondary(`
+    <div class="detail-back" onclick="location.hash='#dispatch'">‹ Back to board</div>
+    <div class="detail-header"><div><h1>Dispatch History</h1><div class="acct-sub">Denied &amp; archived jobs by day</div></div></div>
+    ${body}
+  `);
+}
+async function openPriceModal(){ if(!_dispatchLoaded) await loadDispatch(); renderPriceModal(); document.getElementById('priceModal').classList.add('show'); }
+function closePriceModal(){ document.getElementById('priceModal').classList.remove('show'); }
+function renderPriceModal(){
+  const rows=_priceTemplates.map(t=>`<div class="pl-row"><span class="pl-title">${esc(t.title)}</span><span class="pl-price">$${Number(t.price).toFixed(2)}</span><button class="li-del" onclick="deleteTemplate(${t.id})">×</button></div>`).join('')||'<div class="dim">No items yet.</div>';
+  document.getElementById('priceModalBody').innerHTML=`
+    <div class="pl-list">${rows}</div>
+    <div class="pl-add">
+      <input type="text" id="plTitle" placeholder="Category (e.g. Mattress)"/>
+      <input type="number" id="plPrice" step="0.01" min="0" placeholder="Price" style="max-width:110px"/>
+      <button class="btn-primary" onclick="addTemplate()">Add</button>
+    </div>`;
+}
+async function addTemplate(){
+  const title=valOf('plTitle').trim(); const price=Number(valOf('plPrice'));
+  if(!title){ toast('Enter a category title.','err'); return; }
+  const {data,error}=await db.from('dispatch_price_templates').insert({title, price:isNaN(price)?0:price, sort_order:_priceTemplates.length, created_by:who()}).select().single();
+  if(error){ toast('Save failed: '+error.message,'err'); return; }
+  _priceTemplates.push(data); renderPriceModal();
+}
+async function deleteTemplate(id){
+  if(!confirm('Delete this price item?')) return;
+  const {error}=await db.from('dispatch_price_templates').delete().eq('id',id);
+  if(error){ toast('Delete failed: '+error.message,'err'); return; }
+  _priceTemplates=_priceTemplates.filter(t=>t.id!==id); renderPriceModal();
+}
+async function pathToDataUrl(path){
+  try{ const map=await signPaths([path]); const url=map[path]; if(!url) return ''; const r=await fetch(url); const b=await r.blob();
+    return await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=()=>res(''); fr.readAsDataURL(b); }); }catch(_){ return ''; }
+}
+async function bulkPrintCompleted(){
+  const jobs=_jobs.filter(j=>j.stage==='completion');
+  if(!jobs.length){ toast('No completed jobs to print.','err'); return; }
+  await printJobs(jobs);
+}
+async function printJob(id){ const j=_jobs.find(x=>x.id===id); if(j) await printJobs([j]); }
+async function printJobs(jobs){
+  toast('Preparing print…');
+  const sections=[];
+  for(const j of jobs){
+    const imgs=[];
+    for(const p of (j.photos||[])){ if(p.type!=='video'){ const d=await pathToDataUrl(p.path); if(d) imgs.push(d); } }
+    sections.push(jobPrintHtml(j, imgs));
+  }
+  const w=window.open('','_blank'); if(!w){ toast('Allow pop-ups to print.','err'); return; }
+  w.document.write(`<html><head><title>Dispatch Tickets</title><style>${jobPrintStyles()}</style></head><body>${sections.join('<div class="pagebreak"></div>')}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),400);
+}
+function jobPrintStyles(){ return `body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:24px;}.pagebreak{page-break-after:always;}.tk-h{font-size:22px;font-weight:800;margin-bottom:2px;}.tk-sub{color:#555;font-size:13px;margin-bottom:14px;}.tk-row{margin:4px 0;font-size:14px;}.tk-label{display:inline-block;width:80px;color:#666;font-size:12px;text-transform:uppercase;}table.tk-items{width:100%;border-collapse:collapse;margin:12px 0;}table.tk-items td,table.tk-items th{border:1px solid #ccc;padding:6px 9px;font-size:13px;}table.tk-items th{background:#f0f0f0;text-align:left;}.tk-total{text-align:right;font-weight:800;font-size:15px;margin-top:6px;}.tk-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}.tk-imgs img{max-width:46%;max-height:300px;border:1px solid #ccc;border-radius:6px;}.tk-notes{margin-top:12px;font-size:13px;white-space:pre-wrap;}.tk-sign{margin-top:26px;font-size:13px;border-top:1px solid #000;padding-top:6px;}`; }
+function jobPrintHtml(j, imgs){
+  const items=j.price_items||[];
+  const itemRows=items.map(i=>`<tr><td>${esc(i.title)}</td><td style="text-align:right">$${Number(i.price).toFixed(2)}</td></tr>`).join('')||'<tr><td colspan="2">—</td></tr>';
+  return `<div class="tk">
+    <div class="tk-h">${esc(j.address||'(no address)')}</div>
+    <div class="tk-sub">Residential bulky pickup${j.completed_at?` · completed ${fmtDate(j.completed_at)}`:''}</div>
+    <div class="tk-row"><span class="tk-label">Client</span> ${esc(j.client_name||'—')}${j.client_id?` (#${esc(j.client_id)})`:''}</div>
+    <div class="tk-row"><span class="tk-label">Phone</span> ${esc(j.phone||'—')}</div>
+    <div class="tk-row"><span class="tk-label">Driver</span> ${esc(j.driver||'—')}</div>
+    <table class="tk-items"><thead><tr><th>Item</th><th style="text-align:right">Charge</th></tr></thead><tbody>${itemRows}</tbody></table>
+    <div class="tk-total">Total: $${jobTotal(j).toFixed(2)}</div>
+    ${j.completion_notes?`<div class="tk-notes"><b>Notes:</b> ${esc(j.completion_notes)}</div>`:''}
+    ${imgs.length?`<div class="tk-imgs">${imgs.map(d=>`<img src="${d}"/>`).join('')}</div>`:''}
+    <div class="tk-sign">Completed &#9744; &nbsp;&nbsp; Driver __________________ &nbsp;&nbsp; Date __________</div>
+  </div>`;
+}
+document.getElementById('jobFileInput').addEventListener('change', async e=>{
+  const files=Array.from(e.target.files||[]); e.target.value='';
+  if(!files.length||!_jobModalId) return;
+  const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
+  const added=[];
+  for(const f of files){
+    try{
+      let blob=f, ext, type;
+      if(isVideoFile(f)){ ext=videoExt(f); type='video'; } else { blob=await resizeImage(f,1600,0.85); ext='jpg'; type='image'; }
+      const path=`dispatch/${j.id}/${uuid()}.${ext}`;
+      const {error}=await db.storage.from(BUCKET).upload(path, blob, {contentType:type==='video'?f.type:'image/jpeg', upsert:false});
+      if(error){ toast('Upload failed: '+error.message,'err'); continue; }
+      added.push({path, type, uploaded_at:new Date().toISOString(), uploaded_by:who()});
+    }catch(_){ toast('Upload error','err'); }
+  }
+  if(added.length){
+    const photos=(j.photos||[]).concat(added);
+    await persistJob(j.id,{photos, updated_at:new Date().toISOString(), updated_by:who()});
+    const el=document.getElementById('jmPhotos'); if(el){ el.innerHTML=jmPhotosInner(j); hydrateJobPhotos(j); }
+    toast('Photo added','ok');
+  }
+});
+
 // ── BUSINESS EVENTS: load + dashboard + detail card ─────────────────────
 async function loadEvents(){
   try{
@@ -934,9 +1343,10 @@ function renderDashboard(){
     </div>`;
 }
 function setNav(which){
-  const a=document.getElementById('navAccounts'), r=document.getElementById('navReports');
+  const a=document.getElementById('navAccounts'), r=document.getElementById('navReports'), d=document.getElementById('navDispatch');
   if(a) a.classList.toggle('active', which==='accounts');
   if(r) r.classList.toggle('active', which==='reports');
+  if(d) d.classList.toggle('active', which==='dispatch');
 }
 function showSecondary(html){
   document.getElementById('listView').style.display='none';
@@ -1551,7 +1961,7 @@ document.querySelectorAll('thead th[data-sort]').forEach(th=>{
 document.getElementById('loginPw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPw').focus(); });
 window.addEventListener('hashchange', route);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); closeFlagModal(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); closeFlagModal(); closeJobModal(); closePriceModal(); } });
 try{ if(localStorage.getItem('beacon_dash_collapsed')==='1'){ const d=document.getElementById('dashboard'); if(d) d.classList.add('collapsed'); const t=document.getElementById('dashToggle'); if(t) t.textContent='▸'; } }catch(_){}
 
 initAuth();
