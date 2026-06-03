@@ -986,7 +986,7 @@ function jobCardHtml(j){
   const total=jobTotal(j); const photoN=(j.photos||[]).length;
   let detail='';
   if((j.stage==='outreach'||j.stage==='completion') && total) detail=`<div class="dcard-row">$${total.toFixed(2)} · ${(j.price_items||[]).length} item(s)</div>`;
-  if(j.stage==='dispatch' && j.driver) detail=`<div class="dcard-row">Driver: ${esc(j.driver)}</div>`;
+  if(j.stage==='dispatch') detail=`${j.phone?`<div class="dcard-row">📞 ${esc(j.phone)}</div>`:''}${j.driver?`<div class="dcard-row">Driver: ${esc(j.driver)}</div>`:''}`;
   return `<div class="dcard ${j.stage}${live?' live':''}" onclick="openJobModal(${j.id})">
     ${live?'<div class="live-badge">● LIVE</div>':''}
     <div class="dcard-addr">${esc(j.address||'(no address)')}</div>
@@ -1016,7 +1016,9 @@ function renderJobModalBody(j){
   const head=`
     <div class="jm-stage jm-${j.stage}">${stageLabel(j.stage)}</div>
     <div class="jm-photos" id="jmPhotos">${jmPhotosInner(j)}</div>
-    <button class="btn" onclick="addJobPhoto()">📎 Add photo / video</button>`;
+    <button class="btn" onclick="addJobPhoto()">📎 Add photo / video</button>
+    <label class="jm-label">Notes</label>
+    <textarea class="notes" id="jmNotes" placeholder="Type notes as needed — saved with this job at any stage">${esc(j.notes||'')}</textarea>`;
   if(j.stage==='verify') return head + `
     <label class="jm-label">Address</label>
     <div style="position:relative">
@@ -1040,7 +1042,11 @@ function renderJobModalBody(j){
       <button class="btn-primary" onclick="advance('dispatch')">Client accepted → Dispatch</button>
     </div>`;
   if(j.stage==='dispatch'){ const live=!!j.dispatched_at; return head + `
-    <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}</div>
+    <div class="jm-snap">
+      <div><b>${esc(j.client_name||'(no name)')}</b>${j.client_id?` · #${esc(j.client_id)}`:''}</div>
+      <div>${esc(j.address||'(no address)')}</div>
+      ${j.phone?`<div>📞 <a href="tel:${esc(j.phone)}">${esc(j.phone)}</a></div>`:'<div class="dim">No phone on file</div>'}
+    </div>
     <div class="jm-itemsro">${itemsReadonlyHtml(j)}</div>
     <label class="jm-label">Driver</label>
     <input type="text" id="jmDriver" value="${esc(j.driver||'')}" placeholder="Driver name…" autocomplete="off"/>
@@ -1055,8 +1061,6 @@ function renderJobModalBody(j){
     <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}${j.driver?` · Driver: ${esc(j.driver)}`:''}</div>
     <label class="jm-label">Line item charges</label>
     ${lineItemsEditorHtml()}
-    <label class="jm-label">Completion notes</label>
-    <textarea class="notes" id="jmNotes" placeholder="Anything to note about the job…">${esc(j.completion_notes||'')}</textarea>
     <div class="jm-actions">
       <button class="btn" onclick="printJob(${j.id})">🖨 Print ticket</button>
       <div style="flex:1"></div>
@@ -1117,11 +1121,11 @@ function pickClient(i){
   const s=document.getElementById('jmSuggest'); if(s) s.innerHTML='';
 }
 function collectPatch(j){
-  const p={};
+  const p={ notes: valOf('jmNotes').trim()||null };
   if(j.stage==='verify'){ p.address=valOf('jmAddress').trim()||null; p.client_id=j.client_id||null; p.client_name=j.client_name||null; p.phone=j.phone||null; }
   else if(j.stage==='outreach'){ p.price_items=_jobItems; }
   else if(j.stage==='dispatch'){ p.driver=valOf('jmDriver').trim()||null; }
-  else if(j.stage==='completion'){ p.price_items=_jobItems; p.completion_notes=valOf('jmNotes').trim()||null; }
+  else if(j.stage==='completion'){ p.price_items=_jobItems; }
   return p;
 }
 async function persistJob(id, patch){
@@ -1251,7 +1255,7 @@ function jobPrintHtml(j, imgs){
     <div class="tk-row"><span class="tk-label">Driver</span> ${esc(j.driver||'—')}</div>
     <table class="tk-items"><thead><tr><th>Item</th><th style="text-align:right">Charge</th></tr></thead><tbody>${itemRows}</tbody></table>
     <div class="tk-total">Total: $${jobTotal(j).toFixed(2)}</div>
-    ${j.completion_notes?`<div class="tk-notes"><b>Notes:</b> ${esc(j.completion_notes)}</div>`:''}
+    ${j.notes?`<div class="tk-notes"><b>Notes:</b> ${esc(j.notes)}</div>`:''}
     ${imgs.length?`<div class="tk-imgs">${imgs.map(d=>`<img src="${d}"/>`).join('')}</div>`:''}
     <div class="tk-sign">Completed &#9744; &nbsp;&nbsp; Driver __________________ &nbsp;&nbsp; Date __________</div>
   </div>`;
