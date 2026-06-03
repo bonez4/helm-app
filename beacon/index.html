@@ -951,7 +951,19 @@ function jobTotal(j){ return (j.price_items||[]).reduce((s,i)=>s+(Number(i.price
 async function loadDispatch(){
   try{ _jobs = await fetchAll('dispatch_jobs','*'); }catch(_){ _jobs=[]; }
   try{ _priceTemplates = (await fetchAll('dispatch_price_templates','*')).filter(t=>t.active!==false).sort((a,b)=>(a.sort_order-b.sort_order)||(a.id-b.id)); }catch(_){ _priceTemplates=[]; }
+  await overlayLiveClients();
   _dispatchLoaded=true;
+}
+// Always reflect CURRENT HELM client data on jobs linked to an account (esp.
+// phone) — even mid-pipeline. Snapshot is kept only for free-address jobs.
+async function overlayLiveClients(){
+  const ids=[...new Set(_jobs.filter(j=>j.client_id).map(j=>j.client_id))];
+  if(!ids.length) return;
+  try{
+    const {data}=await db.from('clients').select('client_id,client_name,address,phone').in('client_id', ids);
+    const m={}; (data||[]).forEach(c=>{ m[c.client_id]=c; });
+    _jobs.forEach(j=>{ if(j.client_id && m[j.client_id]){ const c=m[j.client_id]; j.client_name=c.client_name; j.address=c.address; j.phone=c.phone; } });
+  }catch(_){}
 }
 async function renderDispatchBoard(){
   showSecondary(`<div class="detail-back" onclick="location.hash=''">‹ Back to accounts</div><div class="card"><div class="dim">Loading…</div></div>`);
@@ -1171,8 +1183,9 @@ async function deleteJob(id){
   if(j && (j.photos||[]).length){ try{ await db.storage.from(BUCKET).remove((j.photos||[]).map(p=>p.path)); }catch(_){} }
   _jobs=_jobs.filter(x=>x.id!==id); toast('Deleted','ok'); closeJobModal();
 }
-function renderDispatchHistory(){
-  if(!_dispatchLoaded){ showSecondary('<div class="card"><div class="dim">Loading…</div></div>'); loadDispatch().then(renderDispatchHistory); return; }
+async function renderDispatchHistory(){
+  showSecondary(`<div class="detail-back" onclick="location.hash='#dispatch'">‹ Back to board</div><div class="card"><div class="dim">Loading…</div></div>`);
+  await loadDispatch();
   const items=_jobs.filter(j=>j.stage==='denied'||j.stage==='archived')
     .map(j=>({j, when:(j.stage==='denied'?j.denied_at:j.archived_at)||j.completed_at||j.updated_at}))
     .sort((a,b)=>(b.when||'').localeCompare(a.when||''));
