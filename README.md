@@ -670,8 +670,9 @@ Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fide
 - **Dispatch tab** (`#dispatch`) — a **residential** bulky-pickup Kanban board, 4 color-coded stages, cards advanced by a per-stage button:
   - **Verify** (slate) — ＋ New job → add photo(s) + address; an address typeahead against active clients autofills acct/name/phone, or save a free address.
   - **Outreach** (amber) — build the agreed **line items** from your Price List (category+price templates), or **Client denied service** → drops to History.
-  - **Dispatch** (green) — assign a driver (free text); **Dispatch — go live** turns the card green + LIVE badge, then **Mark complete →**.
-  - **Completion** (blue) — line items carry over + editable, completion notes, per-ticket print, and a board-level **🖨 Print completed (N)** bulk print (page-broken tickets with embedded photos).
+  - **Dispatch** (green) — shows the full contact block (name · acct # · address · click-to-call phone); assign a driver (free text); **Dispatch — go live** turns the card green + LIVE badge, then **Mark complete →**.
+  - **Completion** (blue) — line items carry over + editable, per-ticket print, and a board-level **🖨 Print completed (N)** bulk print (page-broken tickets with embedded photos).
+  - A **Notes** field is on every stage (saved with the job, printed on the ticket). `dispatch_jobs.notes`.
   - Plus a **Price List** manager, a **History** view (denied + archived jobs by day), photo/video upload into `helm-files/dispatch/`, and manual **Archive** to clear finished cards. Two new `authenticated`-only tables (`dispatch_jobs`, `dispatch_price_templates`). Commercial work stays in the dashboard — this board is residential only.
 - **Lost Clients** (`#lost`, also linked from the home list) — a log of every account whose latest event is `lost`, fetched by id so **inactive** accounts (which drop off the Active-commercial list) still show, with date + reason and click-through to the file. **＋ Add lost client** searches *all* accounts (any status, so inactive ones are findable) and logs a `commercial_events` lost row, so it also feeds the dashboard/reports. No new table.
 - **Mobile-first**, same safe-area awareness as HELM.
