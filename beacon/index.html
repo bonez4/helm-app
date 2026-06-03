@@ -1039,6 +1039,7 @@ function renderJobModalBody(j){
     <div class="jm-actions">
       <button class="btn danger" onclick="denyJob(${j.id})">Client denied service</button>
       <div style="flex:1"></div>
+      <button class="btn" onclick="saveJob()">Save</button>
       <button class="btn-primary" onclick="advance('dispatch')">Client accepted → Dispatch</button>
     </div>`;
   if(j.stage==='dispatch'){ const live=!!j.dispatched_at; return head + `
@@ -1055,7 +1056,7 @@ function renderJobModalBody(j){
       <div style="flex:1"></div>
       ${live
         ? `<button class="btn" onclick="saveJob()">Save</button><button class="btn-primary" onclick="advance('completion')">Mark complete →</button>`
-        : `<button class="btn-primary green" onclick="dispatchGoLive()">🟢 Dispatch — go live</button>`}
+        : `<button class="btn" onclick="saveJob()">Save</button><button class="btn-primary green" onclick="dispatchGoLive()">🟢 Dispatch — go live</button>`}
     </div>`; }
   if(j.stage==='completion') return head + `
     <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}${j.driver?` · Driver: ${esc(j.driver)}`:''}</div>
@@ -1150,11 +1151,12 @@ async function dispatchGoLive(){
   const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
   const driver=valOf('jmDriver').trim();
   if(!driver){ toast('Enter a driver first.','err'); return; }
-  if(await persistJob(j.id,{driver, dispatched_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Dispatched — live','ok'); openJobModal(j.id); }
+  if(await persistJob(j.id,{...collectPatch(j), dispatched_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Dispatched — live','ok'); openJobModal(j.id); }
 }
 async function denyJob(id){
+  const j=_jobs.find(x=>x.id===id);
   if(!confirm('Mark as denied and move to History?')) return;
-  if(await persistJob(id,{stage:'denied', denial_note:'Client denied service', denied_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Client denied — moved to History','ok'); closeJobModal(); }
+  if(await persistJob(id,{...(j?collectPatch(j):{}), stage:'denied', denial_note:'Client denied service', denied_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Client denied — moved to History','ok'); closeJobModal(); }
 }
 async function archiveJob(id){
   const j=_jobs.find(x=>x.id===id); if(!j) return;
