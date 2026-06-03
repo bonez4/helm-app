@@ -630,6 +630,16 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     </div>
   </div>
 </div>
+<div id="completeModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Confirm charges &amp; complete</h3>
+    <div id="completeModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeCompleteModal()">Cancel</button>
+      <button class="btn-primary" id="completeSaveBtn" onclick="confirmComplete()">Complete job →</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="jobFileInput" accept="image/*,video/*" multiple style="display:none"/>
 <div id="lightbox" onclick="closeLightbox()"><span class="lb-close">&times;</span><div id="lbContent"></div></div>
 <div id="toast" class="toast"></div>
@@ -1024,6 +1034,21 @@ function closeJobModal(){
   document.getElementById('jobModal').classList.remove('show');
   if((location.hash||'').indexOf('#dispatch')===0) renderDispatchBoard();
 }
+async function openCompleteModal(){
+  const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
+  await persistJob(j.id, {...collectPatch(j), updated_at:new Date().toISOString(), updated_by:who()});  // keep driver/notes
+  _jobItems=(j.price_items||[]).map(i=>({title:i.title, price:Number(i.price)||0}));
+  document.getElementById('completeModalBody').innerHTML=`<p class="dim" style="font-size:13px;margin-bottom:12px">Confirm the charges before completing — these become the line items on the printed ticket. Carried over from Outreach; edit as needed.</p>${lineItemsEditorHtml()}`;
+  document.getElementById('completeModal').classList.add('show');
+}
+function closeCompleteModal(){ const m=document.getElementById('completeModal'); if(m) m.classList.remove('show'); }
+async function confirmComplete(){
+  const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
+  const btn=document.getElementById('completeSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
+  const ok=await persistJob(j.id, {price_items:_jobItems, stage:'completion', completed_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()});
+  btn.disabled=false; btn.textContent='Complete job →';
+  if(ok){ toast('Job completed','ok'); closeCompleteModal(); closeJobModal(); }
+}
 function renderJobModalBody(j){
   const head=`
     <div class="jm-stage jm-${j.stage}">${stageLabel(j.stage)}</div>
@@ -1067,7 +1092,7 @@ function renderJobModalBody(j){
       ${live?'<span class="live-badge">● LIVE</span>':''}
       <div style="flex:1"></div>
       ${live
-        ? `<button class="btn" onclick="saveJob()">Save</button><button class="btn-primary" onclick="advance('completion')">Mark complete →</button>`
+        ? `<button class="btn" onclick="saveJob()">Save</button><button class="btn-primary" onclick="openCompleteModal()">Mark complete →</button>`
         : `<button class="btn" onclick="saveJob()">Save</button><button class="btn-primary green" onclick="dispatchGoLive()">🟢 Dispatch — go live</button>`}
     </div>`; }
   if(j.stage==='completion') return head + `
@@ -2083,7 +2108,7 @@ document.querySelectorAll('thead th[data-sort]').forEach(th=>{
 document.getElementById('loginPw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('loginUser').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('loginPw').focus(); });
 window.addEventListener('hashchange', route);
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); closeFlagModal(); closeJobModal(); closePriceModal(); closeLostModal(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeLightbox(); closeEventModal(); closeContactModal(); closeFlagModal(); closeJobModal(); closePriceModal(); closeLostModal(); closeCompleteModal(); } });
 try{ if(localStorage.getItem('beacon_dash_collapsed')==='1'){ const d=document.getElementById('dashboard'); if(d) d.classList.add('collapsed'); const t=document.getElementById('dashToggle'); if(t) t.textContent='▸'; } }catch(_){}
 
 initAuth();
