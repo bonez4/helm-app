@@ -1771,10 +1771,11 @@ async function runBulkyReport(){
       ${denied?`<div style="margin-top:8px;font-size:12px;line-height:1.5"><b>Denied by reason:</b> ${reasonOrder.map(rs=>`${esc(rs)} <b>${reasonCounts[rs]}</b>`).join(' · ')}</div>`:''}
     </div>
     ${rows.length?`<div class="table-wrap"><table>
-      <thead><tr><th class="nosort">Created</th><th class="nosort">Client / Address</th><th class="nosort">Outcome</th><th class="nosort">Reason not converted</th><th class="nosort">Stage</th><th class="nosort">Items</th><th class="nosort">$ Total</th><th class="nosort">Driver</th></tr></thead>
+      <thead><tr><th class="nosort">Created</th><th class="nosort">Client</th><th class="nosort">Service Address</th><th class="nosort">Outcome</th><th class="nosort">Reason not converted</th><th class="nosort">Stage</th><th class="nosort">Items</th><th class="nosort">$ Total</th><th class="nosort">Driver</th></tr></thead>
       <tbody>${rows.map(r=>`<tr>
         <td>${esc(fmtDate(r.j.created_at))}</td>
         <td class="name">${esc(r.j.client_name||r.j.address||('#'+(r.j.client_id||r.j.id)))}</td>
+        <td>${esc(r.j.address||'')||'<span class="dim">—</span>'}</td>
         <td>${ocChip(r.oc)}</td>
         <td>${r.oc==='denied'?esc(r.j.denial_note||''):'<span class="dim">—</span>'}</td>
         <td>${esc(r.j.stage||'')}</td>
@@ -1788,23 +1789,23 @@ async function runBulkyReport(){
 function printBulkyReport(){
   const d=_bulkyReportData; if(!d){ toast('Nothing to print yet.','err'); return; }
   const ocLabel=oc=> oc==='sale'?'Sale':oc==='denied'?'Denied':'In progress';
-  const rows=d.rows.map(r=>`<tr><td>${esc(fmtDate(r.j.created_at))}</td><td>${esc(r.j.client_name||r.j.address||('#'+(r.j.client_id||r.j.id)))}</td><td>${ocLabel(r.oc)}</td><td>${r.oc==='denied'?esc(r.j.denial_note||''):''}</td><td>${esc(r.j.stage||'')}</td><td>${(r.j.price_items||[]).length}</td><td>${r.total?('$'+r.total.toFixed(2)):''}</td><td>${esc(r.j.driver||'')}</td></tr>`).join('');
+  const rows=d.rows.map(r=>`<tr><td>${esc(fmtDate(r.j.created_at))}</td><td>${esc(r.j.client_name||r.j.address||('#'+(r.j.client_id||r.j.id)))}</td><td>${esc(r.j.address||'')}</td><td>${ocLabel(r.oc)}</td><td>${r.oc==='denied'?esc(r.j.denial_note||''):''}</td><td>${esc(r.j.stage||'')}</td><td>${(r.j.price_items||[]).length}</td><td>${r.total?('$'+r.total.toFixed(2)):''}</td><td>${esc(r.j.driver||'')}</td></tr>`).join('');
   const w=window.open('','_blank'); if(!w){ toast('Allow pop-ups to print.','err'); return; }
   w.document.write(`<html><head><title>BEACON Bulky Conversion Report</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#111}h1{font-size:20px;margin:0 0 2px}.rng{color:#555;font-size:13px}.tot{margin:12px 0;font-size:14px}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border:1px solid #ccc;padding:6px 9px;font-size:13px;text-align:left}th{background:#f0f0f0}</style></head><body>
     <h1>Bulky Pickup Conversion Report</h1>
     <div class="rng">Week of ${esc(fmtDate(d.from))} – ${esc(fmtDate(d.to))}</div>
     <div class="tot"><b>${d.created}</b> cards created · <b>${d.sales}</b> converted to sale (<b>${d.pctCreated}%</b>) · <b>${d.denied}</b> denied · <b>${d.progress}</b> in progress · sales value <b>$${d.salesValue.toFixed(2)}</b>${d.decided?` · ${d.pctDecided}% of decided`:''}</div>
     ${d.denied?`<div class="tot" style="margin-top:-4px">Denied by reason: ${d.reasonOrder.map(rs=>`${esc(rs)}: <b>${d.reasonCounts[rs]}</b>`).join(' · ')}</div>`:''}
-    <table><thead><tr><th>Created</th><th>Client / Address</th><th>Outcome</th><th>Reason not converted</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr></thead><tbody>${rows||'<tr><td colspan="8">No cards created in this week.</td></tr>'}</tbody></table>
+    <table><thead><tr><th>Created</th><th>Client</th><th>Service Address</th><th>Outcome</th><th>Reason not converted</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr></thead><tbody>${rows||'<tr><td colspan="9">No cards created in this week.</td></tr>'}</tbody></table>
   </body></html>`);
   w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
 }
 function exportBulkyReport(){
   const d=_bulkyReportData; if(!d){ toast('Nothing to export yet.','err'); return; }
   const ocLabel=oc=> oc==='sale'?'Sale':oc==='denied'?'Denied':'In progress';
-  const body=d.rows.map(r=>`<tr><td>${esc(fmtDate(r.j.created_at))}</td><td>${esc(r.j.client_name||r.j.address||('#'+(r.j.client_id||r.j.id)))}</td><td>${ocLabel(r.oc)}</td><td>${r.oc==='denied'?esc(r.j.denial_note||''):''}</td><td>${esc(r.j.stage||'')}</td><td>${(r.j.price_items||[]).length}</td><td>${r.total?r.total.toFixed(2):''}</td><td>${esc(r.j.driver||'')}</td></tr>`).join('');
+  const body=d.rows.map(r=>`<tr><td>${esc(fmtDate(r.j.created_at))}</td><td>${esc(r.j.client_name||r.j.address||('#'+(r.j.client_id||r.j.id)))}</td><td>${esc(r.j.address||'')}</td><td>${ocLabel(r.oc)}</td><td>${r.oc==='denied'?esc(r.j.denial_note||''):''}</td><td>${esc(r.j.stage||'')}</td><td>${(r.j.price_items||[]).length}</td><td>${r.total?r.total.toFixed(2):''}</td><td>${esc(r.j.driver||'')}</td></tr>`).join('');
   const xlsHtml=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>
-    <table border="1"><tr><th colspan="8" style="font-size:15px;text-align:left">Bulky Pickup Conversion Report — Week of ${esc(fmtDate(d.from))} to ${esc(fmtDate(d.to))}</th></tr></table>
+    <table border="1"><tr><th colspan="9" style="font-size:15px;text-align:left">Bulky Pickup Conversion Report — Week of ${esc(fmtDate(d.from))} to ${esc(fmtDate(d.to))}</th></tr></table>
     <table border="1">
       <tr><td>Cards created</td><td>${d.created}</td></tr>
       <tr><td>Converted to sale</td><td>${d.sales}</td></tr>
@@ -1817,7 +1818,7 @@ function exportBulkyReport(){
     ${d.denied?`<br/><table border="1"><tr><th colspan="2" style="text-align:left">Denied by reason</th></tr>${d.reasonOrder.map(rs=>`<tr><td>${esc(rs)}</td><td>${d.reasonCounts[rs]}</td></tr>`).join('')}</table>`:''}
     <br/>
     <table border="1">
-      <tr><th>Created</th><th>Client / Address</th><th>Outcome</th><th>Reason not converted</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr>
+      <tr><th>Created</th><th>Client</th><th>Service Address</th><th>Outcome</th><th>Reason not converted</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr>
       ${body}
     </table>
   </body></html>`;
