@@ -845,6 +845,7 @@ function route(){
   else if(h==='#dispatch/history'){ setNav('dispatch'); renderDispatchHistory(); }
   else if(h==='#lost'){ setNav('lost'); renderLostView(); }
   else if(h==='#activity'){ setNav('reports'); renderActivityReport(); }
+  else if(h==='#bulkyreport'){ setNav('reports'); renderBulkyReport(); }
   else { setNav('accounts'); showList(); }
 }
 function showList(){
@@ -1659,6 +1660,134 @@ function renderReview(type, monthKey){
   `);
 }
 
+// ── BULKY PICKUP CONVERSION REPORT ───────────────────────────────────────
+// A dispatch_jobs "card" is born at stage 'verify'. It becomes a SALE once the
+// client agrees and it advances past Outreach: 'dispatch' (live), 'completion'
+// (done) or 'archived' (filed) — all count. 'denied' = client declined.
+// 'verify'/'outreach' = still in progress (undecided). Cohort = cards CREATED
+// in the selected Mon–Sun week; conversion = sales / cards created.
+let _bulkyWeekOffset=0, _bulkyReportData=null;
+function bulkyOutcome(stage){
+  if(stage==='denied') return 'denied';
+  if(stage==='dispatch'||stage==='completion'||stage==='archived') return 'sale';
+  return 'progress';
+}
+function bulkyReportNav(delta){
+  if(delta==='this') _bulkyWeekOffset=0;
+  else if(delta==='last') _bulkyWeekOffset=-1;
+  else _bulkyWeekOffset+=delta;
+  if(_bulkyWeekOffset>0) _bulkyWeekOffset=0;   // never navigate into the future
+  runBulkyReport();
+}
+function renderBulkyReport(){
+  _bulkyWeekOffset=0;
+  showSecondary(`
+    <div class="detail-back" onclick="location.hash='#reports'">‹ Back to reports</div>
+    <div class="detail-header"><div><h1>Bulky Conversion Report</h1><div class="acct-sub">Dispatch cards created per week &amp; how many converted to a sale</div></div></div>
+    <div class="card">
+      <div class="act-controls">
+        <button class="btn" onclick="bulkyReportNav(-1)">‹ Prev</button>
+        <button class="btn" onclick="bulkyReportNav(1)">Next ›</button>
+        <button class="btn" onclick="bulkyReportNav('this')">This week</button>
+        <button class="btn" onclick="bulkyReportNav('last')">Last week</button>
+        <span id="bulkyWeekLabel" class="mini-label" style="margin-left:auto"></span>
+        <button class="btn" onclick="printBulkyReport()">🖨 Print</button>
+        <button class="btn" onclick="exportBulkyReport()">⬇ Excel</button>
+      </div>
+    </div>
+    <div id="bulkyResults"><div class="card"><div class="dim">Loading…</div></div></div>
+  `);
+  runBulkyReport();
+}
+async function runBulkyReport(){
+  const [from,to]=weekRange(_bulkyWeekOffset);
+  const lbl=document.getElementById('bulkyWeekLabel'); if(lbl) lbl.textContent='Week of '+fmtDate(from)+' – '+fmtDate(to);
+  const box=document.getElementById('bulkyResults'); if(box) box.innerHTML='<div class="card"><div class="dim">Loading…</div></div>';
+  let jobs=[];
+  try{ jobs = await fetchAll('dispatch_jobs','*', q=>q.gte('created_at', from+'T00:00:00').lte('created_at', to+'T23:59:59.999')); }
+  catch(_){ jobs=[]; }
+  jobs.sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||''));
+  let sales=0,denied=0,progress=0,salesValue=0;
+  const rows=jobs.map(j=>{
+    const oc=bulkyOutcome(j.stage);
+    if(oc==='sale'){ sales++; salesValue+=jobTotal(j); }
+    else if(oc==='denied'){ denied++; } else { progress++; }
+    return {j, oc, total:jobTotal(j)};
+  });
+  const created=jobs.length, decided=sales+denied;
+  const pctCreated=created?Math.round(sales/created*100):0;
+  const pctDecided=decided?Math.round(sales/decided*100):0;
+  _bulkyReportData={from,to,created,sales,denied,progress,decided,pctCreated,pctDecided,salesValue,rows};
+  const out=document.getElementById('bulkyResults'); if(!out) return;
+  const ocChip=oc=> oc==='sale'?'<span class="pill new">Sale</span>':oc==='denied'?'<span class="pill lost">Denied</span>':'<span class="pill">In progress</span>';
+  out.innerHTML=`
+    <div class="card">
+      <div class="kpi-row">
+        <div class="kpi"><div class="kpi-num">${created}</div><div class="kpi-label">Cards created</div></div>
+        <div class="kpi new"><div class="kpi-num">${sales}</div><div class="kpi-label">Converted to sale</div></div>
+        <div class="kpi"><div class="kpi-num">${pctCreated}%</div><div class="kpi-label">Conversion rate</div></div>
+        <div class="kpi"><div class="kpi-num">$${salesValue.toFixed(2)}</div><div class="kpi-label">Sales value</div></div>
+      </div>
+      <div class="dim" style="margin-top:8px;font-size:12px;line-height:1.5">
+        <b>${sales}</b> of <b>${created}</b> cards created this week converted to a sale (<b>${pctCreated}%</b>). Denied <b>${denied}</b> · still in progress <b>${progress}</b>.${decided?` Excluding in-progress, ${sales} of ${decided} decided → <b>${pctDecided}%</b>.`:''}
+      </div>
+    </div>
+    ${rows.length?`<div class="table-wrap"><table>
+      <thead><tr><th class="nosort">Created</th><th class="nosort">Client / Address</th><th class="nosort">Outcome</th><th class="nosort">Stage</th><th class="nosort">Items</th><th class="nosort">$ Total</th><th class="nosort">Driver</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${esc(fmtDate(r.j.created_at))}</td>
+        <td class="name">${esc(r.j.client_name||r.j.address||('#'+(r.j.client_id||r.j.id)))}</td>
+        <td>${ocChip(r.oc)}</td>
+        <td>${esc(r.j.stage||'')}</td>
+        <td>${(r.j.price_items||[]).length}</td>
+        <td class="mono">${r.total?('$'+r.total.toFixed(2)):'<span class="dim">—</span>'}</td>
+        <td>${esc(r.j.driver||'')||'<span class="dim">—</span>'}</td>
+      </tr>`).join('')}</tbody></table></div>`
+      : '<div class="card"><div class="empty">No dispatch cards were created in this week.</div></div>'}
+  `;
+}
+function printBulkyReport(){
+  const d=_bulkyReportData; if(!d){ toast('Nothing to print yet.','err'); return; }
+  const ocLabel=oc=> oc==='sale'?'Sale':oc==='denied'?'Denied':'In progress';
+  const rows=d.rows.map(r=>`<tr><td>${esc(fmtDate(r.j.created_at))}</td><td>${esc(r.j.client_name||r.j.address||('#'+(r.j.client_id||r.j.id)))}</td><td>${ocLabel(r.oc)}</td><td>${esc(r.j.stage||'')}</td><td>${(r.j.price_items||[]).length}</td><td>${r.total?('$'+r.total.toFixed(2)):''}</td><td>${esc(r.j.driver||'')}</td></tr>`).join('');
+  const w=window.open('','_blank'); if(!w){ toast('Allow pop-ups to print.','err'); return; }
+  w.document.write(`<html><head><title>BEACON Bulky Conversion Report</title><style>body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#111}h1{font-size:20px;margin:0 0 2px}.rng{color:#555;font-size:13px}.tot{margin:12px 0;font-size:14px}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border:1px solid #ccc;padding:6px 9px;font-size:13px;text-align:left}th{background:#f0f0f0}</style></head><body>
+    <h1>Bulky Pickup Conversion Report</h1>
+    <div class="rng">Week of ${esc(fmtDate(d.from))} – ${esc(fmtDate(d.to))}</div>
+    <div class="tot"><b>${d.created}</b> cards created · <b>${d.sales}</b> converted to sale (<b>${d.pctCreated}%</b>) · <b>${d.denied}</b> denied · <b>${d.progress}</b> in progress · sales value <b>$${d.salesValue.toFixed(2)}</b>${d.decided?` · ${d.pctDecided}% of decided`:''}</div>
+    <table><thead><tr><th>Created</th><th>Client / Address</th><th>Outcome</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr></thead><tbody>${rows||'<tr><td colspan="7">No cards created in this week.</td></tr>'}</tbody></table>
+  </body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
+}
+function exportBulkyReport(){
+  const d=_bulkyReportData; if(!d){ toast('Nothing to export yet.','err'); return; }
+  const ocLabel=oc=> oc==='sale'?'Sale':oc==='denied'?'Denied':'In progress';
+  const body=d.rows.map(r=>`<tr><td>${esc(fmtDate(r.j.created_at))}</td><td>${esc(r.j.client_name||r.j.address||('#'+(r.j.client_id||r.j.id)))}</td><td>${ocLabel(r.oc)}</td><td>${esc(r.j.stage||'')}</td><td>${(r.j.price_items||[]).length}</td><td>${r.total?r.total.toFixed(2):''}</td><td>${esc(r.j.driver||'')}</td></tr>`).join('');
+  const xlsHtml=`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>
+    <table border="1"><tr><th colspan="7" style="font-size:15px;text-align:left">Bulky Pickup Conversion Report — Week of ${esc(fmtDate(d.from))} to ${esc(fmtDate(d.to))}</th></tr></table>
+    <table border="1">
+      <tr><td>Cards created</td><td>${d.created}</td></tr>
+      <tr><td>Converted to sale</td><td>${d.sales}</td></tr>
+      <tr><td>Denied</td><td>${d.denied}</td></tr>
+      <tr><td>In progress</td><td>${d.progress}</td></tr>
+      <tr><td>Conversion rate (of cards created)</td><td>${d.pctCreated}%</td></tr>
+      <tr><td>Conversion rate (of decided)</td><td>${d.decided?d.pctDecided+'%':'n/a'}</td></tr>
+      <tr><td>Sales value</td><td>$${d.salesValue.toFixed(2)}</td></tr>
+    </table>
+    <br/>
+    <table border="1">
+      <tr><th>Created</th><th>Client / Address</th><th>Outcome</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr>
+      ${body}
+    </table>
+  </body></html>`;
+  const blob=new Blob(['﻿', xlsHtml], {type:'application/vnd.ms-excel'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Bulky_Conversion_Week_of_'+d.from.replace(/-/g,'')+'.xls';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
 function renderReports(){
   const now=new Date();
   const months=[];
@@ -1675,6 +1804,7 @@ function renderReports(){
     <div class="detail-back" onclick="location.hash=''">‹ Back to accounts</div>
     <div class="detail-header" style="align-items:center"><div style="flex:1"><h1>Reports</h1><div class="acct-sub">New &amp; lost business · last 12 months</div></div>
       <button class="btn" onclick="location.hash='#activity'">📷 Activity report →</button>
+      <button class="btn" onclick="location.hash='#bulkyreport'">📦 Bulky conversion →</button>
     </div>
     <div class="card">
       <div class="kpi-row">
