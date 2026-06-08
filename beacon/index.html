@@ -339,9 +339,9 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
 .modal h3{font-size:17px;font-weight:800;margin-bottom:8px;}
 .modal label{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-mute);font-weight:600;margin:14px 0 5px;}
 .modal label span{text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400;}
-.modal input,.modal textarea{width:100%;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);}
+.modal input,.modal textarea,.modal select{width:100%;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--text);}
 .modal textarea{min-height:84px;resize:vertical;}
-.modal input:focus,.modal textarea:focus{border-color:var(--amber);outline:none;background:var(--surface);}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:var(--amber);outline:none;background:var(--surface);}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
 @media (max-width:720px){ .loss-row{grid-template-columns:1fr;gap:2px;} .bar-val{width:84px;} }
 
@@ -631,6 +631,21 @@ textarea.notes:focus{border-color:var(--amber);outline:none;background:var(--sur
     <div class="modal-actions">
       <button class="btn" onclick="closeLostModal()">Cancel</button>
       <button class="btn-primary" id="lostSaveBtn" onclick="saveLostClient()">Log as lost</button>
+    </div>
+  </div>
+</div>
+<div id="denyModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Not converted — reason</h3>
+    <label>Why was this not converted to a sale? <span>(shows on the conversion report)</span></label>
+    <select id="denyReason" onchange="onDenyReasonChange()"><option value="">Select a reason…</option></select>
+    <div id="denyOtherWrap" style="display:none">
+      <label>Details <span>(required for "Other")</span></label>
+      <textarea id="denyOther" placeholder="Describe the reason…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeDenyModal()">Cancel</button>
+      <button class="btn-primary" id="denySaveBtn" onclick="confirmDeny()">Mark not converted</button>
     </div>
   </div>
 </div>
@@ -1081,7 +1096,7 @@ function renderJobModalBody(j){
     <label class="jm-label">Agreed line items</label>
     ${lineItemsEditorHtml()}
     <div class="jm-actions">
-      <button class="btn danger" onclick="denyJob(${j.id})">Client denied service</button>
+      <button class="btn danger" onclick="openDenyModal(${j.id})">Client denied service</button>
       <div style="flex:1"></div>
       <button class="btn" onclick="saveJob()">Save</button>
       <button class="btn-primary" onclick="advance('dispatch')">Client accepted → Dispatch</button>
@@ -1197,11 +1212,29 @@ async function dispatchGoLive(){
   if(!driver){ toast('Enter a driver first.','err'); return; }
   if(await persistJob(j.id,{...collectPatch(j), dispatched_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Dispatched — live','ok'); openJobModal(j.id); }
 }
-async function denyJob(id){
+const DENY_REASONS=['Price too high','Went with competitor','No longer needed','Unresponsive / could not reach','Existing Contact Invalid','Other'];
+let _denyJobId=null;
+function openDenyModal(id){
+  _denyJobId=id;
+  const sel=document.getElementById('denyReason');
+  if(sel) sel.innerHTML='<option value="">Select a reason…</option>'+DENY_REASONS.map(r=>`<option>${esc(r)}</option>`).join('');
+  const ot=document.getElementById('denyOther'); if(ot) ot.value='';
+  const w=document.getElementById('denyOtherWrap'); if(w) w.style.display='none';
+  document.getElementById('denyModal').classList.add('show');
+}
+function onDenyReasonChange(){ const w=document.getElementById('denyOtherWrap'); if(w) w.style.display=(valOf('denyReason')==='Other')?'':'none'; }
+function closeDenyModal(){ const m=document.getElementById('denyModal'); if(m) m.classList.remove('show'); }
+async function confirmDeny(){
+  const id=_denyJobId; if(id==null) return;
+  const sel=valOf('denyReason');
+  if(!sel){ toast('Pick a reason first.','err'); return; }
+  let reason=sel;
+  if(sel==='Other'){ reason=(valOf('denyOther')||'').trim(); if(!reason){ toast('Add the details for "Other".','err'); return; } }
   const j=_jobs.find(x=>x.id===id);
-  const reason=(prompt('Why was this not converted to a sale?\n(This reason shows on the conversion report and in History.)','')||'').trim();
-  if(!reason){ toast('A reason is required to mark as denied.','err'); return; }
-  if(await persistJob(id,{...(j?collectPatch(j):{}), stage:'denied', denial_note:reason, denied_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Client denied — moved to History','ok'); closeJobModal(); }
+  const btn=document.getElementById('denySaveBtn'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  const ok=await persistJob(id,{...(j?collectPatch(j):{}), stage:'denied', denial_note:reason, denied_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()});
+  if(btn){ btn.disabled=false; btn.textContent='Mark not converted'; }
+  if(ok){ toast('Marked not converted — moved to History','ok'); closeDenyModal(); closeJobModal(); }
 }
 async function archiveJob(id){
   const j=_jobs.find(x=>x.id===id); if(!j) return;
@@ -1718,7 +1751,10 @@ async function runBulkyReport(){
   const created=jobs.length, decided=sales+denied;
   const pctCreated=created?Math.round(sales/created*100):0;
   const pctDecided=decided?Math.round(sales/decided*100):0;
-  _bulkyReportData={from,to,created,sales,denied,progress,decided,pctCreated,pctDecided,salesValue,rows};
+  const reasonCounts={};
+  rows.filter(r=>r.oc==='denied').forEach(r=>{ const note=(r.j.denial_note||'').trim(); const key=DENY_REASONS.includes(note)?note:'Other'; reasonCounts[key]=(reasonCounts[key]||0)+1; });
+  const reasonOrder=DENY_REASONS.filter(rs=>reasonCounts[rs]);
+  _bulkyReportData={from,to,created,sales,denied,progress,decided,pctCreated,pctDecided,salesValue,rows,reasonCounts,reasonOrder};
   const out=document.getElementById('bulkyResults'); if(!out) return;
   const ocChip=oc=> oc==='sale'?'<span class="pill new">Sale</span>':oc==='denied'?'<span class="pill lost">Denied</span>':'<span class="pill">In progress</span>';
   out.innerHTML=`
@@ -1732,6 +1768,7 @@ async function runBulkyReport(){
       <div class="dim" style="margin-top:8px;font-size:12px;line-height:1.5">
         <b>${sales}</b> of <b>${created}</b> cards created this week converted to a sale (<b>${pctCreated}%</b>). Denied <b>${denied}</b> · still in progress <b>${progress}</b>.${decided?` Excluding in-progress, ${sales} of ${decided} decided → <b>${pctDecided}%</b>.`:''}
       </div>
+      ${denied?`<div style="margin-top:8px;font-size:12px;line-height:1.5"><b>Denied by reason:</b> ${reasonOrder.map(rs=>`${esc(rs)} <b>${reasonCounts[rs]}</b>`).join(' · ')}</div>`:''}
     </div>
     ${rows.length?`<div class="table-wrap"><table>
       <thead><tr><th class="nosort">Created</th><th class="nosort">Client / Address</th><th class="nosort">Outcome</th><th class="nosort">Reason not converted</th><th class="nosort">Stage</th><th class="nosort">Items</th><th class="nosort">$ Total</th><th class="nosort">Driver</th></tr></thead>
@@ -1757,6 +1794,7 @@ function printBulkyReport(){
     <h1>Bulky Pickup Conversion Report</h1>
     <div class="rng">Week of ${esc(fmtDate(d.from))} – ${esc(fmtDate(d.to))}</div>
     <div class="tot"><b>${d.created}</b> cards created · <b>${d.sales}</b> converted to sale (<b>${d.pctCreated}%</b>) · <b>${d.denied}</b> denied · <b>${d.progress}</b> in progress · sales value <b>$${d.salesValue.toFixed(2)}</b>${d.decided?` · ${d.pctDecided}% of decided`:''}</div>
+    ${d.denied?`<div class="tot" style="margin-top:-4px">Denied by reason: ${d.reasonOrder.map(rs=>`${esc(rs)}: <b>${d.reasonCounts[rs]}</b>`).join(' · ')}</div>`:''}
     <table><thead><tr><th>Created</th><th>Client / Address</th><th>Outcome</th><th>Reason not converted</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr></thead><tbody>${rows||'<tr><td colspan="8">No cards created in this week.</td></tr>'}</tbody></table>
   </body></html>`);
   w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
@@ -1776,6 +1814,7 @@ function exportBulkyReport(){
       <tr><td>Conversion rate (of decided)</td><td>${d.decided?d.pctDecided+'%':'n/a'}</td></tr>
       <tr><td>Sales value</td><td>$${d.salesValue.toFixed(2)}</td></tr>
     </table>
+    ${d.denied?`<br/><table border="1"><tr><th colspan="2" style="text-align:left">Denied by reason</th></tr>${d.reasonOrder.map(rs=>`<tr><td>${esc(rs)}</td><td>${d.reasonCounts[rs]}</td></tr>`).join('')}</table>`:''}
     <br/>
     <table border="1">
       <tr><th>Created</th><th>Client / Address</th><th>Outcome</th><th>Reason not converted</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr>
