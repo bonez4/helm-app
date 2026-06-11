@@ -1157,6 +1157,19 @@ async function hydrateJobPhotos(j){
     else { el.textContent=''; el.style.backgroundImage=`url('${url}')`; el.classList.add('has-img'); el.onclick=()=>{ _lbUrls[p.path]=url; openLightbox(p.path,false); }; }
   });
 }
+// Hydrate thumbnails for the Dispatch History view (many jobs at once). Mirrors
+// hydrateJobPhotos but uses per-job thumb ids so photos survive into History.
+async function hydrateHistoryPhotos(jobs){
+  const all=[]; (jobs||[]).forEach(j=>(j.photos||[]).forEach(p=>{ if(p&&p.path) all.push(p.path); }));
+  if(!all.length) return;
+  const map=await signPaths(all);
+  (jobs||[]).forEach(j=>(j.photos||[]).forEach((p,idx)=>{
+    const el=document.getElementById('histthumb-'+j.id+'-'+idx); if(!el) return;
+    const url=map[p.path]; if(!url) return;
+    if(p.type==='video'){ el.innerHTML=`<video src="${esc(url)}" muted></video><span class="vbadge">▶</span>`; el.onclick=()=>{ _lbUrls[p.path]=url; openLightbox(p.path,true); }; }
+    else { el.textContent=''; el.style.backgroundImage=`url('${url}')`; el.classList.add('has-img'); el.onclick=()=>{ _lbUrls[p.path]=url; openLightbox(p.path,false); }; }
+  }));
+}
 function addJobPhoto(){ document.getElementById('jobFileInput').click(); }
 function jobAddressLookup(q){
   clearTimeout(_lookupT);
@@ -1265,9 +1278,12 @@ async function renderDispatchHistory(){
         const tag=j.stage==='denied'?'<span class="pill lost">Denied</span>':'<span class="pill new">Completed</span>';
         const sub=j.stage==='denied' ? esc(j.denial_note||'Client denied service')
           : `${(j.price_items||[]).length} item(s) · $${jobTotal(j).toFixed(2)}${j.driver?` · ${esc(j.driver)}`:''}`;
+        const photos=j.photos||[];
+        const thumbs=photos.length?`<div class="jm-photos" style="margin-top:8px">${photos.map((p,idx)=>`<div class="jm-thumb" id="histthumb-${j.id}-${idx}">${p.type==='video'?'🎥':''}</div>`).join('')}</div>`:'';
         return `<div class="hist-job">
           <div><b>${esc(j.address||'(no address)')}</b>${j.client_name?` · ${esc(j.client_name)}`:''} ${tag}</div>
           <div class="dim" style="font-size:12px;margin-top:3px">${sub}</div>
+          ${thumbs}
         </div>`;
       }).join('')}
     </div>`).join('') : '<div class="card"><div class="empty">No history yet.</div></div>';
@@ -1276,6 +1292,7 @@ async function renderDispatchHistory(){
     <div class="detail-header"><div><h1>Dispatch History</h1><div class="acct-sub">Denied &amp; archived jobs by day</div></div></div>
     ${body}
   `);
+  hydrateHistoryPhotos(items.map(x=>x.j));
 }
 async function openPriceModal(){ if(!_dispatchLoaded) await loadDispatch(); renderPriceModal(); document.getElementById('priceModal').classList.add('show'); }
 function closePriceModal(){ document.getElementById('priceModal').classList.remove('show'); }
