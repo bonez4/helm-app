@@ -3342,6 +3342,11 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       <div id="consoleListView">
         <div id="consoleTriageStrip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px;"></div>
         <div class="inbox-week-strip" id="inboxWeekStrip" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
+        <div id="consoleDayBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <span style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;">Day report:</span>
+          <input type="date" id="dayReportDate" style="max-width:160px;"/>
+          <button class="btn-edit-sm" onclick="printComplaintDay()">🖨 Print day (cover + summary)</button>
+        </div>
         <div id="consoleToolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
         <div class="inbox-filter-strip" id="inboxFilterStrip" style="border:none;padding:0;margin-bottom:10px;background:transparent;"></div>
         <div id="consoleTableWrap"></div>
@@ -7112,6 +7117,7 @@ async function openComplaintInbox(){
   if(!userIsDavid()){ toast('David only'); return; }
   document.getElementById('complaintInbox').classList.add('open');
   document.body.style.overflow = 'hidden';
+  const _dq = document.getElementById('dayReportDate'); if(_dq && !_dq.value) _dq.value = new Date().toISOString().split('T')[0];
   _inboxFilter = 'new';
   _inboxWeek = null;          // default to all weeks; user picks one if they want
   _inboxSelectedId = null;
@@ -7709,6 +7715,114 @@ ${sections}
 </body></html>`);
   win.document.close();
   logActivity('complaint_week_print', _inboxWeek+' '+weekComplaints.length);
+}
+
+// Compact one-day complaint report: cover sheet + summary, multiple per page.
+async function printComplaintDay(){
+  if(!userIsDavid()) return;
+  const di = document.getElementById('dayReportDate');
+  const day = (di && di.value) ? di.value : new Date().toISOString().split('T')[0];
+  const start = new Date(day+'T00:00:00');
+  const end = new Date(day+'T00:00:00'); end.setDate(end.getDate()+1);
+  const startISO = start.toISOString(), endISO = end.toISOString();
+  const list = _inboxComplaints
+    .filter(c => c.logged_at && c.logged_at >= startISO && c.logged_at < endISO)
+    .sort((a,b)=>(a.logged_at||'').localeCompare(b.logged_at||''));
+  if(!list.length){ toast('No complaints logged on '+day); return; }
+  const dayLabel = start.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  const statusCounts = {new:0,case_open:0,resolved:0,ignored:0};
+  const byType={}, byRoute={};
+  list.forEach(c=>{
+    if(statusCounts.hasOwnProperty(c.status)) statusCounts[c.status]++;
+    byType[c.type]=(byType[c.type]||0)+1;
+    const rk=(c.client_route!=null&&c.client_route!=='')?('Route '+c.client_route):'No route'; byRoute[rk]=(byRoute[rk]||0)+1;
+  });
+  const typeOrder = COMPLAINT_TYPES.map(t=>t.value); Object.keys(byType).forEach(v=>{ if(typeOrder.indexOf(v)<0) typeOrder.push(v); });
+  const typeLis = typeOrder.filter(t=>byType[t]).map(t=>`<li><strong>${byType[t]}</strong> ${esc(complaintTypeLabel(t))}</li>`).join('') || '<li>—</li>';
+  const routeLis = Object.entries(byRoute).sort((a,b)=>b[1]-a[1]).map(e=>`<li><strong>${e[1]}</strong> ${esc(e[0])}</li>`).join('') || '<li>—</li>';
+
+  const blocks = list.map(c=>{
+    const t = c.logged_at ? new Date(c.logged_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+    const route = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
+    const stKey = c.status==='case_open'?'case':c.status;
+    const stLabel = c.status==='case_open'?'CASE OPEN':String(c.status||'').toUpperCase();
+    const driver = c.driver_name ? ` · Driver: <strong>${esc(c.driver_name)}</strong>` : '';
+    let footer='';
+    if(c.status==='resolved'){ footer = `<div class="ftr resolved"><strong>Resolved</strong> by ${esc(c.resolved_by||'—')} — ${esc(c.resolution_notes||'(no notes)')}</div>`; }
+    else if(c.status==='ignored'){ footer = `<div class="ftr ignored"><strong>Ignored</strong> by ${esc(c.ignored_by||'—')} — ${esc(c.ignored_reason||'(no reason)')}</div>`; }
+    return `<div class="cmp">
+      <div class="cmp-top">
+        <span class="time">${esc(t)}</span>
+        <span class="name">${esc(c.client_name||'Account '+c.client_id)}</span>
+        <span class="acct">#${esc(c.client_id)}</span>
+        <span class="type">${esc(complaintTypeLabel(c.type))}</span>
+        <span class="st st-${stKey}">${esc(stLabel)}</span>
+        <span class="route">${esc(route)}</span>
+      </div>
+      <div class="cmp-meta">Logged by ${esc(c.logged_by||'—')}${driver}</div>
+      <div class="cmp-notes">${esc(c.notes||'(no description)')}</div>
+      ${footer}
+    </div>`;
+  }).join('');
+
+  const win = window.open('','_blank');
+  if(!win){ toast('Allow pop-ups to print'); return; }
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/><title>HELM Complaints — ${esc(dayLabel)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#000;padding:18px;}
+.cover{border:2px solid #dc2626;padding:18px 20px;margin-bottom:16px;border-radius:6px;background:#fff7f7;}
+.cover h1{font-size:21px;color:#991b1b;margin-bottom:4px;}
+.cover .range{font-size:15px;color:#000;font-weight:700;margin-bottom:12px;}
+.cover .totals{display:flex;gap:30px;flex-wrap:wrap;}
+.cover .totals .col h4{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#666;margin-bottom:6px;}
+.cover .totals .col ul{list-style:none;padding:0;}
+.cover .totals .col li{padding:2px 0;color:#333;font-size:12px;}
+.cover .totals .col li strong{color:#000;display:inline-block;min-width:24px;text-align:right;margin-right:6px;}
+.cover .grand{margin-top:12px;padding-top:9px;border-top:1px solid #dc2626;font-size:13px;color:#000;font-weight:700;}
+.cmp{border:1px solid #e2e5ea;border-left:4px solid #dc2626;border-radius:4px;padding:8px 11px;margin-bottom:8px;page-break-inside:avoid;}
+.cmp-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:3px;}
+.cmp-top .time{font-weight:700;color:#444;font-size:12px;min-width:62px;}
+.cmp-top .name{font-weight:700;color:#0f1f3d;font-size:14px;}
+.cmp-top .acct{color:#666;font-family:monospace;font-size:12px;}
+.cmp-top .type{font-size:11px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:.03em;}
+.cmp-top .route{font-size:11px;color:#555;margin-left:auto;}
+.cmp-top .st{font-size:9px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border-radius:8px;}
+.st-new{background:#fee2e2;color:#991b1b;}.st-case{background:#fef3c7;color:#92400e;}.st-resolved{background:#dcfce7;color:#166534;}.st-ignored{background:#e5e7eb;color:#374151;}
+.cmp-meta{font-size:11px;color:#666;margin-bottom:4px;}
+.cmp-notes{font-size:13px;color:#222;line-height:1.4;white-space:pre-wrap;}
+.ftr{margin-top:5px;font-size:12px;padding:4px 9px;border-radius:3px;line-height:1.4;}
+.ftr.resolved{background:#f0fdf4;color:#166534;border-left:3px solid #16a34a;}
+.ftr.ignored{background:#f3f4f6;color:#4b5563;border-left:3px solid #9ca3af;}
+.footer{margin-top:16px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
+@media print{body{padding:10px;}@page{margin:0.5in;}.cover{background:white;}.cmp{break-inside:avoid;}}
+</style></head><body>
+<div class="cover">
+  <h1>HELM — Daily Complaints</h1>
+  <div class="range">${esc(dayLabel)}</div>
+  <div class="totals">
+    <div class="col"><h4>By Status</h4><ul>
+      <li><strong>${statusCounts.new}</strong> New</li>
+      <li><strong>${statusCounts.case_open}</strong> Case Open</li>
+      <li><strong>${statusCounts.resolved}</strong> Resolved</li>
+      <li><strong>${statusCounts.ignored}</strong> Ignored</li>
+    </ul></div>
+    <div class="col"><h4>By Type</h4><ul>${typeLis}</ul></div>
+    <div class="col"><h4>By Route</h4><ul>${routeLis}</ul></div>
+  </div>
+  <div class="grand">${list.length} complaint${list.length===1?'':'s'} on this day &nbsp;·&nbsp; Printed ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div>
+</div>
+${blocks}
+<div class="footer">
+  <span>Reis Trucking — Nantucket, MA</span>
+  <span>HELM Daily Complaint Summary — Confidential</span>
+</div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+  win.document.close();
+  logActivity('complaint_day_print', day+' '+list.length);
 }
 
 // Print a single complaint case file (auditable record).
