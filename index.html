@@ -3335,6 +3335,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
   <div class="helm-modal-sheet wide helm-inbox-sheet" onclick="event.stopPropagation()">
     <div class="helm-modal-header danger">
       <h3>Complaint Inbox</h3>
+      <button class="btn-edit-sm" onclick="openManageTypes()" style="margin-left:auto;margin-right:10px;background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.4);">&#9881; Manage types</button>
       <button class="close-x" onclick="closeComplaintInbox()" aria-label="Close">&times;</button>
     </div>
     <div class="helm-modal-body helm-inbox-body">
@@ -3347,6 +3348,17 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <div class="inbox-detail-empty">Select a complaint from the list to view details</div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ── MANAGE COMPLAINT / NOTE TYPES (David + admin) ───────────────── -->
+<div class="helm-modal-backdrop" id="manageTypesModal" onclick="if(event.target===this)closeManageTypes()">
+  <div class="helm-modal-sheet" onclick="event.stopPropagation()">
+    <div class="helm-modal-header">
+      <h3>Manage complaint &amp; note types</h3>
+      <button class="close-x" onclick="closeManageTypes()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body" id="manageTypesBody" style="max-height:70vh;overflow:auto"></div>
   </div>
 </div>
 
@@ -6815,6 +6827,103 @@ function caseActionLabel(v){
   if(_actionLabelMap[v]) return _actionLabelMap[v];
   const t = BUILTIN_CASE_ACTION_TYPES.find(x=>x.value===v);
   return t ? t.label : (v||'').replace(/_/g,' ');
+}
+
+// ── MANAGE TYPES (David + admin) ──────────────────────────────────────
+// Admin CRUD over complaint_taxonomies. Built-ins can be hidden + reordered
+// but not deleted (so historical complaints keep a clean label). Every change
+// reloadTaxonomies() so the live pickers update immediately.
+let _manageRows = [];
+async function openManageTypes(){
+  if(!userIsDavid()){ toast('Not allowed'); return; }
+  document.getElementById('manageTypesModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  await renderManageTypes();
+}
+function closeManageTypes(){
+  document.getElementById('manageTypesModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+async function renderManageTypes(){
+  const box = document.getElementById('manageTypesBody');
+  box.innerHTML = '<div style="font-size:13px;color:var(--gray-400)">Loading…</div>';
+  const {data,error} = await db.from('complaint_taxonomies').select('*').order('sort_order');
+  if(error){ box.innerHTML = '<div style="color:var(--err-text);font-size:13px">Error: '+esc(error.message)+'</div>'; return; }
+  _manageRows = data||[];
+  box.innerHTML = mtSectionHtml('type','Complaint types') + mtSectionHtml('action','Note types (case actions)');
+}
+function mtSectionHtml(kind, title){
+  const rows = _manageRows.filter(r=>r.kind===kind).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const list = rows.map((r,i)=>`
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:7px 0;border-bottom:1px solid var(--gray-100);${r.active?'':'opacity:.55;'}">
+      <span style="flex:1;min-width:120px;font-size:13px;font-weight:600;color:var(--navy)">${esc(r.label)}${r.is_builtin?' <span style="font-size:10px;font-weight:400;color:var(--gray-400)">built-in</span>':''}${r.active?'':' <span style="font-size:10px;color:var(--gray-400)">(hidden)</span>'}</span>
+      ${kind==='type'?`<label style="font-size:11px;color:var(--gray-500);display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" ${r.needs_driver?'checked':''} onchange="toggleNeedsDriver(${r.id},this.checked)"> driver</label>`:''}
+      <button class="btn-edit-sm" onclick="moveTaxonomy(${r.id},-1)" ${i===0?'disabled':''} title="Up">&#9650;</button>
+      <button class="btn-edit-sm" onclick="moveTaxonomy(${r.id},1)" ${i===rows.length-1?'disabled':''} title="Down">&#9660;</button>
+      <button class="btn-edit-sm" onclick="renameTaxonomy(${r.id})">Rename</button>
+      <button class="btn-edit-sm" onclick="toggleTaxonomyActive(${r.id},${r.active?'false':'true'})">${r.active?'Hide':'Show'}</button>
+      ${r.is_builtin?'':`<button class="btn-edit-sm" style="color:var(--err-text)" onclick="deleteTaxonomy(${r.id})">Delete</button>`}
+    </div>`).join('');
+  return `<div style="margin-bottom:20px;">
+    <div style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray-500);margin-bottom:6px;">${esc(title)}</div>
+    ${list||'<div style="font-size:13px;color:var(--gray-400);padding:6px 0;">None yet.</div>'}
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;">
+      <input type="text" id="mtAdd_${kind}" placeholder="New ${kind==='type'?'complaint':'note'} type label" style="flex:1;min-width:140px;"/>
+      ${kind==='type'?`<label style="font-size:11px;color:var(--gray-500);display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="mtAdd_${kind}_drv"> involves a driver</label>`:''}
+      <button class="btn-add" onclick="addTaxonomy('${kind}')">Add</button>
+    </div>
+  </div>`;
+}
+function _slugifyTax(s){ return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40); }
+async function addTaxonomy(kind){
+  const inp = document.getElementById('mtAdd_'+kind);
+  const label = (inp && inp.value || '').trim();
+  if(!label){ toast('Enter a label'); return; }
+  let value = _slugifyTax(label) || ('t_'+String(Date.now()).slice(-6));
+  if(_manageRows.some(r=>r.kind===kind && r.value===value)) value = value+'_'+String(Date.now()).slice(-4);
+  const drvEl = document.getElementById('mtAdd_'+kind+'_drv');
+  const needs_driver = kind==='type' && drvEl ? drvEl.checked : false;
+  const orders = _manageRows.filter(r=>r.kind===kind).map(r=>r.sort_order||0);
+  const maxOrder = orders.length ? Math.max.apply(null, orders) : 0;
+  const {error} = await db.from('complaint_taxonomies').insert({kind, value, label, needs_driver, sort_order:maxOrder+1, active:true, is_builtin:false, created_by:(currentUser?currentUser.username:null)});
+  if(error){ toast('Add failed: '+error.message); return; }
+  toast('Added',true);
+  await renderManageTypes(); await reloadTaxonomies();
+}
+async function renameTaxonomy(id){
+  const r = _manageRows.find(x=>x.id===id); if(!r) return;
+  const label = prompt('Rename "'+r.label+'" to:', r.label); if(label==null) return;
+  const t = label.trim(); if(!t){ toast('Label required'); return; }
+  const {error} = await db.from('complaint_taxonomies').update({label:t}).eq('id',id);
+  if(error){ toast('Rename failed: '+error.message); return; }
+  await renderManageTypes(); await reloadTaxonomies();
+}
+async function toggleTaxonomyActive(id, toActive){
+  const {error} = await db.from('complaint_taxonomies').update({active:toActive}).eq('id',id);
+  if(error){ toast('Update failed: '+error.message); return; }
+  await renderManageTypes(); await reloadTaxonomies();
+}
+async function toggleNeedsDriver(id, val){
+  const {error} = await db.from('complaint_taxonomies').update({needs_driver:val}).eq('id',id);
+  if(error){ toast('Update failed: '+error.message); return; }
+  await reloadTaxonomies();
+}
+async function moveTaxonomy(id, dir){
+  const r = _manageRows.find(x=>x.id===id); if(!r) return;
+  const sibs = _manageRows.filter(x=>x.kind===r.kind).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const idx = sibs.findIndex(x=>x.id===id); const swap = sibs[idx+dir]; if(!swap) return;
+  await db.from('complaint_taxonomies').update({sort_order:swap.sort_order}).eq('id',r.id);
+  await db.from('complaint_taxonomies').update({sort_order:r.sort_order}).eq('id',swap.id);
+  await renderManageTypes(); await reloadTaxonomies();
+}
+async function deleteTaxonomy(id){
+  const r = _manageRows.find(x=>x.id===id); if(!r) return;
+  if(r.is_builtin){ toast('Built-in types can be hidden, not deleted'); return; }
+  if(!confirm('Delete "'+r.label+'"? Existing complaints keep their value — you can also just Hide it.')) return;
+  const {error} = await db.from('complaint_taxonomies').delete().eq('id',id);
+  if(error){ toast('Delete failed: '+error.message); return; }
+  toast('Deleted',true);
+  await renderManageTypes(); await reloadTaxonomies();
 }
 
 // ── LOG-COMPLAINT MODAL ───────────────────────────────────────────────
