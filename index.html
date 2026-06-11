@@ -3312,10 +3312,6 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <label>Complaint Type *</label>
         <select id="cmpTypeSelect" onchange="onComplaintTypeChange()">
           <option value="">— Choose —</option>
-          <option value="DRIVER">Driver</option>
-          <option value="BILLING">Billing</option>
-          <option value="MISSED_STOP">Missed Stop</option>
-          <option value="OTHER">Other</option>
         </select>
       </div>
       <div class="cmp-field" id="cmpDriverField" style="display:none">
@@ -6764,36 +6760,70 @@ ${sections}
 //          ignored_reason). Status flips to 'ignored' but the row stays so
 //          the audit trail is preserved.
 
-const COMPLAINT_TYPES = [
-  {value:'DRIVER',      label:'Driver'},
-  {value:'BILLING',     label:'Billing'},
-  {value:'MISSED_STOP', label:'Missed Stop'},
-  {value:'OTHER',       label:'Other'},
+// Complaint types + case-action ("note") types are admin-managed in the
+// complaint_taxonomies table (kind='type' / 'action'). The built-ins below are
+// the seed rows AND the hard fallback if the table is empty/unreachable, so the
+// pickers can never come up blank. 'opened'/'resolved'/'reopened' are system
+// actions — auto-written, never user-editable, so they're not in the table.
+const BUILTIN_COMPLAINT_TYPES = [
+  {value:'DRIVER',      label:'Driver',      needs_driver:true},
+  {value:'BILLING',     label:'Billing',     needs_driver:false},
+  {value:'MISSED_STOP', label:'Missed Stop', needs_driver:false},
+  {value:'OTHER',       label:'Other',       needs_driver:false},
 ];
-function complaintTypeLabel(v){
-  const t = COMPLAINT_TYPES.find(x=>x.value===v);
-  return t ? t.label : (v||'').replace(/_/g,' ');
-}
-
-const CASE_ACTION_TYPES = [
+const BUILTIN_CASE_ACTION_TYPES = [
   {value:'called_client',   label:'Called Client'},
   {value:'spoke_to_driver', label:'Spoke to Driver'},
   {value:'spoke_to_rep',    label:'Spoke to Rep'},
   {value:'supervisor_informed', label:'Supervisor Informed'},
   {value:'note',            label:'Note'},
 ];
+// Live (active-only) lists that build the dropdowns. Replaced on load.
+let COMPLAINT_TYPES   = BUILTIN_COMPLAINT_TYPES.slice();
+let CASE_ACTION_TYPES = BUILTIN_CASE_ACTION_TYPES.slice();
+// value->label maps for ALL rows incl. deactivated ones, so historical
+// complaints always render a clean label even after a type is hidden.
+let _typeLabelMap = {}, _actionLabelMap = {}, _taxPromise = null;
+function ensureTaxonomies(){ if(!_taxPromise) _taxPromise = loadComplaintTaxonomies(); return _taxPromise; }
+async function reloadTaxonomies(){ _taxPromise = loadComplaintTaxonomies(); return _taxPromise; }
+async function loadComplaintTaxonomies(){
+  try{
+    const {data,error} = await db.from('complaint_taxonomies').select('*').order('sort_order');
+    if(error || !data) return;
+    const tMap={}, aMap={};
+    data.forEach(r=>{ if(r.kind==='type') tMap[r.value]=r.label; else if(r.kind==='action') aMap[r.value]=r.label; });
+    _typeLabelMap=tMap; _actionLabelMap=aMap;
+    const types = data.filter(r=>r.kind==='type'   && r.active).map(r=>({value:r.value,label:r.label,needs_driver:!!r.needs_driver}));
+    const acts  = data.filter(r=>r.kind==='action' && r.active).map(r=>({value:r.value,label:r.label}));
+    if(types.length) COMPLAINT_TYPES   = types;
+    if(acts.length)  CASE_ACTION_TYPES = acts;
+  }catch(_){}
+}
+function complaintTypeNeedsDriver(v){
+  const t = COMPLAINT_TYPES.find(x=>x.value===v) || BUILTIN_COMPLAINT_TYPES.find(x=>x.value===v);
+  return !!(t && t.needs_driver);
+}
+function complaintTypeLabel(v){
+  if(_typeLabelMap[v]) return _typeLabelMap[v];
+  const t = BUILTIN_COMPLAINT_TYPES.find(x=>x.value===v);
+  return t ? t.label : (v||'').replace(/_/g,' ');
+}
 function caseActionLabel(v){
   if(v==='opened')   return 'Opened';
   if(v==='resolved') return 'Resolved';
   if(v==='reopened') return 'Reopened';
-  const t = CASE_ACTION_TYPES.find(x=>x.value===v);
+  if(_actionLabelMap[v]) return _actionLabelMap[v];
+  const t = BUILTIN_CASE_ACTION_TYPES.find(x=>x.value===v);
   return t ? t.label : (v||'').replace(/_/g,' ');
 }
 
 // ── LOG-COMPLAINT MODAL ───────────────────────────────────────────────
-function openComplaintModal(clientId){
+async function openComplaintModal(clientId){
   const c = clients.find(x=>x.client_id===clientId);
   if(!c){ toast('Client not found'); return; }
+  await ensureTaxonomies();
+  const cmpSel0 = document.getElementById('cmpTypeSelect');
+  if(cmpSel0) cmpSel0.innerHTML = '<option value="">— Choose —</option>' + COMPLAINT_TYPES.map(t=>`<option value="${esc(t.value)}">${esc(t.label)}</option>`).join('');
   const days = c.service_day ? c.service_day.split(',').map(d=>d.trim()).filter(Boolean) : [];
   document.getElementById('complaintModal').dataset.clientId = clientId;
   document.getElementById('cmpName').textContent    = c.client_name || `Account ${c.client_id}`;
@@ -6831,7 +6861,7 @@ function onComplaintTypeChange(){
   // and hide+clear it for any other type so a stale name can't piggyback.
   // Plain text input, no autosuggest (deliberate: the bla_staff roster only
   // covers some drivers and would mislead reps).
-  if(sel.value === 'DRIVER'){
+  if(complaintTypeNeedsDriver(sel.value)){
     driverField.style.display = '';
     setTimeout(()=>{ if(driverInp) driverInp.focus(); }, 50);
   } else {
@@ -6851,7 +6881,7 @@ async function submitComplaint(){
   // structured field for the monthly report (which groups Driver complaints
   // by driver_name) so we don't let it through empty.
   let driverName = null;
-  if(type === 'DRIVER'){
+  if(complaintTypeNeedsDriver(type)){
     driverName = (document.getElementById('cmpDriver').value || '').trim();
     if(!driverName){ toast('Enter the driver\'s name'); return; }
   }
@@ -6969,6 +6999,7 @@ async function openComplaintInbox(){
   _inboxFilter = 'new';
   _inboxWeek = null;          // default to all weeks; user picks one if they want
   _inboxSelectedId = null;
+  await ensureTaxonomies();
   await loadInboxComplaints();
 }
 function closeComplaintInbox(){
@@ -7153,6 +7184,7 @@ async function renderInboxDetail(c){
 }
 
 async function renderCaseActionLog(c, readOnly){
+  await ensureTaxonomies();
   const {data:actions} = await db.from('complaint_actions')
     .select('*').eq('complaint_id', c.id).order('performed_at', {ascending:true});
   const entries = (actions||[]).map(a => {
