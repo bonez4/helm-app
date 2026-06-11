@@ -3338,14 +3338,18 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       <button class="btn-edit-sm" onclick="openManageTypes()" style="margin-left:auto;margin-right:10px;background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.4);">&#9881; Manage types</button>
       <button class="close-x" onclick="closeComplaintInbox()" aria-label="Close">&times;</button>
     </div>
-    <div class="helm-modal-body helm-inbox-body">
-      <div class="inbox-list">
-        <div class="inbox-week-strip" id="inboxWeekStrip"></div>
-        <div class="inbox-filter-strip" id="inboxFilterStrip"></div>
-        <div class="inbox-list-rows" id="inboxListRows"></div>
+    <div class="helm-modal-body" id="consoleBody">
+      <div id="consoleListView">
+        <div id="consoleTriageStrip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px;"></div>
+        <div class="inbox-week-strip" id="inboxWeekStrip" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
+        <div id="consoleToolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+        <div class="inbox-filter-strip" id="inboxFilterStrip" style="border:none;padding:0;margin-bottom:10px;background:transparent;"></div>
+        <div id="consoleTableWrap"></div>
+        <div id="consolePatterns" style="margin-top:18px;"></div>
       </div>
-      <div class="inbox-detail" id="inboxDetail">
-        <div class="inbox-detail-empty">Select a complaint from the list to view details</div>
+      <div id="consoleDetailView" style="display:none;">
+        <button class="btn-edit-sm" onclick="consoleBackToList()" style="margin-bottom:14px;">&larr; Back to list</button>
+        <div class="inbox-detail" id="inboxDetail" style="padding:0;overflow:visible;flex:none;"></div>
       </div>
     </div>
   </div>
@@ -7060,6 +7064,9 @@ let _inboxSelectedId = null;
 // Week filter: null = all weeks, else 'YYYY-MM-DD' Monday-of-week string.
 // Combines with _inboxFilter (status) — both must match for a row to show.
 let _inboxWeek = null;
+let _inboxSort = 'age';      // 'age' (oldest unresolved first) | 'priority' | 'recent'
+let _inboxSearch = '';
+const PRIORITY_RANK = {urgent:0, high:1, normal:2, low:3};
 
 // ISO Monday string for the week containing the given date (or today by default).
 function inboxMondayOf(refDate){
@@ -7125,8 +7132,10 @@ async function loadInboxComplaints(){
 }
 
 function renderInbox(){
-  // Render the week navigator + bulk-print button at the top of the sidebar.
+  const all = _inboxComplaints;
   const range = _inboxWeek ? inboxWeekRange(_inboxWeek) : null;
+
+  // Week navigator
   const wsEl = document.getElementById('inboxWeekStrip');
   if(wsEl){
     wsEl.innerHTML = `
@@ -7144,60 +7153,140 @@ function renderInbox(){
     `;
   }
 
-  // Apply the week filter first so the chip counts reflect what's actually
-  // available in the current week — otherwise the chips would lie.
-  const weekScoped = _inboxWeek
-    ? _inboxComplaints.filter(c => c.logged_at && c.logged_at >= range.startISO && c.logged_at < range.endISO)
-    : _inboxComplaints;
+  // Triage metric strip — live backlog state (not week-scoped)
+  const newCount = all.filter(c=>c.status==='new').length;
+  const openCount = all.filter(c=>c.status==='case_open').length;
+  const overdueCount = all.filter(complaintOverdue).length;
+  const wr = inboxWeekRange(inboxMondayOf());
+  const resolvedWk = all.filter(c=>c.status==='resolved' && c.resolved_at && c.resolved_at>=wr.startISO && c.resolved_at<wr.endISO).length;
+  const rt = all.filter(c=>c.status==='resolved' && c.resolved_at && c.logged_at);
+  const avgR = rt.length ? (rt.reduce((s,c)=>s+((new Date(c.resolved_at)-new Date(c.logged_at))/86400000),0)/rt.length) : null;
+  const tsEl = document.getElementById('consoleTriageStrip');
+  if(tsEl){
+    tsEl.innerHTML =
+      _mcCard('Needs triage', newCount, newCount?'var(--err-text)':'') +
+      _mcCard('Open cases', openCount, '') +
+      _mcCard('Overdue', overdueCount, overdueCount?'var(--err-text)':'') +
+      _mcCard('Resolved this wk', resolvedWk, '') +
+      _mcCard('Avg resolve', avgR==null?'—':(avgR.toFixed(1)+'d'), '');
+  }
 
+  // Toolbar — search + sort
+  const tbEl = document.getElementById('consoleToolbar');
+  if(tbEl){
+    tbEl.innerHTML = `
+      <input type="text" id="consoleSearch" placeholder="Search client, driver, note, acct…" value="${esc(_inboxSearch)}" oninput="setInboxSearch(this.value)" style="flex:1;min-width:200px;"/>
+      <select id="consoleSort" onchange="setInboxSort(this.value)" style="max-width:200px;">
+        <option value="age"${_inboxSort==='age'?' selected':''}>Sort: oldest unresolved</option>
+        <option value="priority"${_inboxSort==='priority'?' selected':''}>Sort: priority</option>
+        <option value="recent"${_inboxSort==='recent'?' selected':''}>Sort: recently logged</option>
+      </select>`;
+  }
+
+  // Filter chips (week-scoped counts so they never lie)
+  const weekScoped = _inboxWeek ? all.filter(c => c.logged_at && c.logged_at >= range.startISO && c.logged_at < range.endISO) : all;
   const counts = {new:0, case_open:0, resolved:0, ignored:0, all:weekScoped.length};
   for(const c of weekScoped){ if(counts.hasOwnProperty(c.status)) counts[c.status]++; }
   const filters = [
-    {key:'new',       label:'New'},
-    {key:'case_open', label:'Open Cases'},
-    {key:'resolved',  label:'Resolved'},
-    {key:'ignored',   label:'Ignored'},
-    {key:'all',       label:'All'},
+    {key:'new',label:'New'},{key:'case_open',label:'Open Cases'},{key:'resolved',label:'Resolved'},{key:'ignored',label:'Ignored'},{key:'all',label:'All'},
   ];
   const stripEl = document.getElementById('inboxFilterStrip');
   if(stripEl){
-    stripEl.innerHTML = filters.map(f =>
-      `<button class="inbox-filter-chip ${f.key===_inboxFilter?'active':''}" onclick="setInboxFilter('${f.key}')">
-        ${f.label}<span class="chip-count">${counts[f.key]||0}</span>
-      </button>`
-    ).join('');
+    stripEl.innerHTML = filters.map(f=>`<button class="inbox-filter-chip ${f.key===_inboxFilter?'active':''}" onclick="setInboxFilter('${f.key}')">${f.label}<span class="chip-count">${counts[f.key]||0}</span></button>`).join('');
   }
 
-  const filtered = _inboxFilter==='all'
-    ? weekScoped
-    : weekScoped.filter(c=>c.status===_inboxFilter);
+  renderConsoleTable();
+  renderConsolePatterns(weekScoped);
 
-  const listEl = document.getElementById('inboxListRows');
-  if(filtered.length){
-    listEl.innerHTML = filtered.map(c => {
-      const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
-      const preview = (c.notes||'').replace(/\s+/g,' ').slice(0,140);
-      const typeChip = `<span class="action-tag at-complaint" style="font-size:9px;padding:1px 5px;">${esc(complaintTypeLabel(c.type))}</span>`;
-      const statusChip = `<span class="status-pill-lg status-${c.status}" style="font-size:9px;padding:1px 6px;">${c.status==='case_open'?'CASE':c.status.toUpperCase()}</span>`;
-      return `<div class="inbox-row status-${c.status} ${c.id===_inboxSelectedId?'active':''}" onclick="selectInboxRow(${c.id})">
-        <div class="ir-top">
-          <div class="ir-name">${esc(c.client_name||'Account '+c.client_id)}</div>
-          <div class="ir-time">${esc(when)}</div>
-        </div>
-        <div class="ir-meta">${typeChip}${statusChip}<span style="font-size:10px;color:var(--gray-500);">by ${esc(c.logged_by||'—')}</span></div>
-        <div class="ir-preview">${esc(preview)}</div>
-      </div>`;
-    }).join('');
+  // List vs detail view toggle
+  const listView = document.getElementById('consoleListView');
+  const detailView = document.getElementById('consoleDetailView');
+  const sel = _inboxSelectedId ? all.find(c=>c.id===_inboxSelectedId) : null;
+  if(sel){
+    if(listView) listView.style.display='none';
+    if(detailView) detailView.style.display='';
+    renderInboxDetail(sel);
   } else {
-    listEl.innerHTML = `<div style="padding:30px 14px;text-align:center;color:var(--gray-400);font-size:12px;font-style:italic;">No complaints in this filter.</div>`;
+    if(listView) listView.style.display='';
+    if(detailView) detailView.style.display='none';
   }
-
-  // Detail pane
-  const detail = _inboxSelectedId
-    ? _inboxComplaints.find(c=>c.id===_inboxSelectedId)
-    : null;
-  renderInboxDetail(detail);
 }
+
+function _mcCard(label, val, color){
+  return `<div style="background:#f7f8fa;border-radius:8px;padding:10px 12px;">
+    <div style="font-size:11px;color:var(--gray-500);">${esc(label)}</div>
+    <div style="font-size:20px;font-weight:700;color:${color||'var(--navy)'};">${esc(String(val))}</div>
+  </div>`;
+}
+function complaintPriority(c){ return (c && c.priority) || 'normal'; }
+function complaintAgeDays(c){ return (c && c.logged_at) ? Math.floor((Date.now()-new Date(c.logged_at).getTime())/86400000) : 0; }
+function complaintIsOpenState(c){ return c.status==='new' || c.status==='case_open'; }
+function complaintOverdue(c){ return complaintIsOpenState(c) && complaintAgeDays(c)>3; }
+function priorityChipStyle(p){
+  if(p==='urgent') return 'background:#fee2e2;color:#991b1b;';
+  if(p==='high')   return 'background:#fef3c7;color:#92400e;';
+  if(p==='low')    return 'background:var(--gray-100);color:var(--gray-500);';
+  return 'background:var(--gray-100);color:var(--gray-700);';
+}
+function ageChipStyle(c){
+  if(!complaintIsOpenState(c)) return 'background:var(--gray-100);color:var(--gray-500);';
+  const d=complaintAgeDays(c);
+  if(d>3) return 'background:#fee2e2;color:#991b1b;';
+  if(d>=2) return 'background:#fef3c7;color:#92400e;';
+  return 'background:var(--gray-100);color:var(--gray-700);';
+}
+function renderConsoleTable(){
+  const wrap=document.getElementById('consoleTableWrap'); if(!wrap) return;
+  const range = _inboxWeek ? inboxWeekRange(_inboxWeek) : null;
+  let rows = _inboxWeek ? _inboxComplaints.filter(c=>c.logged_at && c.logged_at>=range.startISO && c.logged_at<range.endISO) : _inboxComplaints.slice();
+  if(_inboxFilter!=='all') rows = rows.filter(c=>c.status===_inboxFilter);
+  const q=_inboxSearch.trim().toLowerCase();
+  if(q) rows = rows.filter(c=>[c.client_name,c.client_id,c.driver_name,c.notes,complaintTypeLabel(c.type),c.client_address].map(x=>(x||'').toString().toLowerCase()).join(' ').includes(q));
+  if(_inboxSort==='priority') rows.sort((a,b)=>(PRIORITY_RANK[complaintPriority(a)]-PRIORITY_RANK[complaintPriority(b)])||(new Date(a.logged_at)-new Date(b.logged_at)));
+  else if(_inboxSort==='recent') rows.sort((a,b)=>new Date(b.logged_at)-new Date(a.logged_at));
+  else rows.sort((a,b)=>{ const ao=complaintIsOpenState(a)?0:1, bo=complaintIsOpenState(b)?0:1; return ao!==bo?ao-bo:(new Date(a.logged_at)-new Date(b.logged_at)); });
+  if(!rows.length){ wrap.innerHTML=`<div style="padding:34px;text-align:center;color:var(--gray-400);font-size:13px;font-style:italic;border:1px solid var(--gray-100);border-radius:8px;">No complaints in this view.</div>`; return; }
+  const th='font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);padding:6px 8px;border-bottom:1px solid var(--gray-200);text-align:left;';
+  const body=rows.map(c=>{
+    const p=complaintPriority(c);
+    const prio=`<select onclick="event.stopPropagation()" onchange="setComplaintPriority(${c.id},this.value)" style="font-size:11px;font-weight:700;padding:2px 4px;border-radius:6px;border:none;cursor:pointer;${priorityChipStyle(p)}">${['urgent','high','normal','low'].map(x=>`<option value="${x}"${p===x?' selected':''}>${x.charAt(0).toUpperCase()+x.slice(1)}</option>`).join('')}</select>`;
+    const ageLabel=complaintIsOpenState(c)?(complaintAgeDays(c)+'d'):(c.status==='resolved'?'done':(c.status==='ignored'?'ign':''));
+    const sub=complaintTypeLabel(c.type)+(c.driver_name?' · '+c.driver_name:'')+((c.client_route!=null&&c.client_route!=='')?' · R'+c.client_route:'');
+    const statusChip=`<span class="status-pill-lg status-${c.status}" style="font-size:9px;padding:1px 6px;">${c.status==='case_open'?'CASE':String(c.status).toUpperCase()}</span>`;
+    return `<tr onclick="selectInboxRow(${c.id})" style="cursor:pointer;background:${c.id===_inboxSelectedId?'#eef3fb':'transparent'};">
+      <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);">${prio}</td>
+      <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);"><span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:8px;${ageChipStyle(c)}">${esc(ageLabel)}</span></td>
+      <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);"><div style="font-weight:700;color:var(--navy);font-size:13px;">${esc(c.client_name||'Account '+c.client_id)}</div><div style="font-size:11px;color:var(--gray-500);">${esc(sub)} · by ${esc(c.logged_by||'—')}</div></td>
+      <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);">${statusChip}</td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML=`<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="${th}width:96px;">Priority</th><th style="${th}width:58px;">Age</th><th style="${th}">Complaint</th><th style="${th}width:82px;">Status</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+function renderConsolePatterns(rows){
+  const el=document.getElementById('consolePatterns'); if(!el) return;
+  if(!rows.length){ el.innerHTML=''; return; }
+  const byType={},byRoute={},byDriver={};
+  rows.forEach(c=>{ byType[c.type]=(byType[c.type]||0)+1; const rk=(c.client_route!=null&&c.client_route!=='')?('Route '+c.client_route):'No route'; byRoute[rk]=(byRoute[rk]||0)+1; if(c.driver_name) byDriver[c.driver_name]=(byDriver[c.driver_name]||0)+1; });
+  const typeList=COMPLAINT_TYPES.map(t=>[t.label,byType[t.value]||0]).filter(x=>x[1]>0);
+  Object.keys(byType).forEach(v=>{ if(!COMPLAINT_TYPES.some(t=>t.value===v)) typeList.push([complaintTypeLabel(v),byType[v]]); });
+  const topRoutes=Object.entries(byRoute).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topDrivers=Object.entries(byDriver).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const card=(title,pairs)=>`<div style="flex:1;min-width:160px;background:white;border:1px solid var(--gray-100);border-radius:8px;padding:10px 12px;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-400);margin-bottom:6px;">${esc(title)}</div>
+    ${pairs.length?pairs.map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:var(--gray-700);">${esc(p[0])}</span><span style="font-weight:700;color:var(--navy);">${p[1]}</span></div>`).join(''):'<div style="font-size:12px;color:var(--gray-400);">—</div>'}
+  </div>`;
+  el.innerHTML=`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;margin-bottom:8px;">Patterns ${_inboxWeek?'(this week)':'(all)'}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">${card('By type',typeList)}${card('Top routes',topRoutes)}${card('Top drivers',topDrivers)}</div>`;
+}
+async function setComplaintPriority(id, val){
+  const {error}=await db.from('complaints').update({priority:val}).eq('id',id);
+  if(error){ toast('Priority update failed: '+error.message); return; }
+  const c=_inboxComplaints.find(x=>x.id===id); if(c) c.priority=val;
+  renderInbox();
+}
+function consoleBackToList(){ _inboxSelectedId=null; renderInbox(); }
+function setInboxSearch(v){ _inboxSearch=v; renderConsoleTable(); }
+function setInboxSort(v){ _inboxSort=v; renderConsoleTable(); }
 
 function setInboxFilter(key){
   _inboxFilter = key;
