@@ -7729,7 +7729,16 @@ async function printComplaintDay(){
     .filter(c => c.logged_at && c.logged_at >= startISO && c.logged_at < endISO)
     .sort((a,b)=>(a.logged_at||'').localeCompare(b.logged_at||''));
   if(!list.length){ toast('No complaints logged on '+day); return; }
+  // Open the print window up front (inside the click) so the await below can't get it pop-up-blocked.
+  const win = window.open('','_blank');
+  if(win){ win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Preparing…</title></head><body style="font-family:Arial,Helvetica,sans-serif;padding:24px;color:#555;">Preparing daily complaint report…</body></html>'); }
   const dayLabel = start.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  // Pull every case-action step for the day's complaints in one query.
+  const ids = list.map(c=>c.id);
+  const {data:allActions} = await db.from('complaint_actions').select('*').in('complaint_id', ids).order('performed_at',{ascending:true});
+  const actionsByCmp = {};
+  (allActions||[]).forEach(a=>{ (actionsByCmp[a.complaint_id]=actionsByCmp[a.complaint_id]||[]).push(a); });
 
   const statusCounts = {new:0,case_open:0,resolved:0,ignored:0};
   const byType={}, byRoute={};
@@ -7745,12 +7754,26 @@ async function printComplaintDay(){
   const blocks = list.map(c=>{
     const t = c.logged_at ? new Date(c.logged_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
     const route = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
+    const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '';
     const stKey = c.status==='case_open'?'case':c.status;
     const stLabel = c.status==='case_open'?'CASE OPEN':String(c.status||'').toUpperCase();
     const driver = c.driver_name ? ` · Driver: <strong>${esc(c.driver_name)}</strong>` : '';
+    const acts = actionsByCmp[c.id] || [];
+    const stepRows = acts.length ? acts.map(a=>{
+      const at = a.performed_at ? new Date(a.performed_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
+      return `<tr><td class="st-when">${esc(at)}</td><td class="st-act">${esc(caseActionLabel(a.action_type))}</td><td class="st-by">${esc(a.performed_by||'—')}</td><td>${esc(a.notes||'')}</td></tr>`;
+    }).join('') : '<tr><td colspan="4" class="st-none">No steps logged yet</td></tr>';
     let footer='';
-    if(c.status==='resolved'){ footer = `<div class="ftr resolved"><strong>Resolved</strong> by ${esc(c.resolved_by||'—')} — ${esc(c.resolution_notes||'(no notes)')}</div>`; }
-    else if(c.status==='ignored'){ footer = `<div class="ftr ignored"><strong>Ignored</strong> by ${esc(c.ignored_by||'—')} — ${esc(c.ignored_reason||'(no reason)')}</div>`; }
+    if(c.status==='resolved'){
+      const rt = c.resolved_at ? new Date(c.resolved_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+      footer = `<div class="ftr resolved"><strong>Resolved</strong> by ${esc(c.resolved_by||'—')} on ${esc(rt)} — ${esc(c.resolution_notes||'(no notes)')}</div>`;
+    } else if(c.status==='ignored'){
+      const it = c.ignored_at ? new Date(c.ignored_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+      footer = `<div class="ftr ignored"><strong>Ignored</strong> by ${esc(c.ignored_by||'—')} on ${esc(it)} — ${esc(c.ignored_reason||'(no reason)')}</div>`;
+    } else if(c.status==='case_open'){
+      footer = `<div class="ftr case"><strong>Case open</strong>${c.case_opened_by?` — opened by ${esc(c.case_opened_by)}`:''}</div>`;
+    }
+    const snap = [c.client_address, c.client_phone, c.client_email, days].filter(x=>x&&String(x).trim()).map(esc).join(' · ');
     return `<div class="cmp">
       <div class="cmp-top">
         <span class="time">${esc(t)}</span>
@@ -7760,14 +7783,23 @@ async function printComplaintDay(){
         <span class="st st-${stKey}">${esc(stLabel)}</span>
         <span class="route">${esc(route)}</span>
       </div>
-      <div class="cmp-meta">Logged by ${esc(c.logged_by||'—')}${driver}</div>
+      <div class="cmp-meta">Logged by ${esc(c.logged_by||'—')}${driver}${snap?' · '+snap:''}</div>
       <div class="cmp-notes">${esc(c.notes||'(no description)')}</div>
+      <div class="steps-h">Steps taken (${acts.length})</div>
+      <table class="steps"><tbody>${stepRows}</tbody></table>
       ${footer}
     </div>`;
   }).join('');
+  const summaryRows = list.map(c=>{
+    const t = c.logged_at ? new Date(c.logged_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+    const route = (c.client_route!=null && c.client_route!=='') ? ('R'+c.client_route) : '—';
+    const n = (actionsByCmp[c.id]||[]).length;
+    const outcome = c.status==='resolved'?'Resolved':(c.status==='ignored'?'Ignored':(c.status==='case_open'?'Case open':'New'));
+    return `<tr><td>${esc(t)}</td><td>${esc(c.client_name||('#'+c.client_id))}</td><td>${esc(c.client_id)}</td><td>${esc(complaintTypeLabel(c.type))}</td><td>${esc(route)}</td><td style="text-align:center">${n}</td><td>${esc(outcome)}</td></tr>`;
+  }).join('');
 
-  const win = window.open('','_blank');
   if(!win){ toast('Allow pop-ups to print'); return; }
+  win.document.open();
   win.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"/><title>HELM Complaints — ${esc(dayLabel)}</title>
 <style>
@@ -7792,10 +7824,23 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#000;padding:18
 .cmp-top .st{font-size:9px;font-weight:700;letter-spacing:.05em;padding:1px 7px;border-radius:8px;}
 .st-new{background:#fee2e2;color:#991b1b;}.st-case{background:#fef3c7;color:#92400e;}.st-resolved{background:#dcfce7;color:#166534;}.st-ignored{background:#e5e7eb;color:#374151;}
 .cmp-meta{font-size:11px;color:#666;margin-bottom:4px;}
-.cmp-notes{font-size:13px;color:#222;line-height:1.4;white-space:pre-wrap;}
-.ftr{margin-top:5px;font-size:12px;padding:4px 9px;border-radius:3px;line-height:1.4;}
+.cmp-notes{font-size:13px;color:#222;line-height:1.4;white-space:pre-wrap;background:#fef9e7;border-left:3px solid #f59e0b;padding:5px 9px;border-radius:0 3px 3px 0;}
+.steps-h{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#0f1f3d;font-weight:700;margin:7px 0 3px;}
+table.steps{width:100%;border-collapse:collapse;margin-bottom:2px;}
+table.steps td{padding:3px 7px;border-bottom:1px solid #eef0f4;font-size:11px;vertical-align:top;}
+table.steps .st-when{white-space:nowrap;color:#555;width:118px;}
+table.steps .st-act{font-weight:700;color:#0f1f3d;text-transform:uppercase;font-size:10px;width:118px;}
+table.steps .st-by{color:#555;width:88px;}
+table.steps .st-none{color:#999;font-style:italic;}
+.ftr{margin-top:6px;font-size:12px;padding:4px 9px;border-radius:3px;line-height:1.4;}
 .ftr.resolved{background:#f0fdf4;color:#166534;border-left:3px solid #16a34a;}
 .ftr.ignored{background:#f3f4f6;color:#4b5563;border-left:3px solid #9ca3af;}
+.ftr.case{background:#fef3c7;color:#92400e;border-left:3px solid #f59e0b;}
+.sum-h{background:#0f1f3d;color:white;padding:6px 12px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin-top:18px;margin-bottom:6px;page-break-before:always;}
+table.sum{width:100%;border-collapse:collapse;}
+table.sum th{background:#0f1f3d;color:white;padding:5px 8px;text-align:left;font-size:10px;text-transform:uppercase;}
+table.sum td{padding:5px 8px;border-bottom:1px solid #d5d9e0;font-size:12px;}
+table.sum tr:nth-child(even) td{background:#fafbfd;}
 .footer{margin-top:16px;font-size:10px;color:#888;border-top:1px solid #ddd;padding-top:8px;display:flex;justify-content:space-between;}
 @media print{body{padding:10px;}@page{margin:0.5in;}.cover{background:white;}.cmp{break-inside:avoid;}}
 </style></head><body>
@@ -7815,9 +7860,11 @@ body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#000;padding:18
   <div class="grand">${list.length} complaint${list.length===1?'':'s'} on this day &nbsp;·&nbsp; Printed ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div>
 </div>
 ${blocks}
+<h2 class="sum-h">Day summary — ${list.length} complaint${list.length===1?'':'s'}</h2>
+<table class="sum"><thead><tr><th>Time</th><th>Client</th><th>Acct</th><th>Type</th><th>Rt</th><th>Steps</th><th>Outcome</th></tr></thead><tbody>${summaryRows}</tbody></table>
 <div class="footer">
   <span>Reis Trucking — Nantucket, MA</span>
-  <span>HELM Daily Complaint Summary — Confidential</span>
+  <span>HELM Daily Complaint Report — Confidential</span>
 </div>
 <script>window.onload=function(){window.print();}<\/script>
 </body></html>`);
