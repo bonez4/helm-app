@@ -4098,6 +4098,13 @@ function filterOutComplaints(notes){
   return (notes||[]).filter(n => !isComplaintAction(n && n.action));
 }
 
+// The Daily Action Report excludes complaints AND Driver Comment notes — Driver
+// Comments have their own dedicated Driver Comments Report and shouldn't clutter
+// the route sheets. (Notes Added Today / Everything Report still show them.)
+function filterDailyActionNotes(notes){
+  return filterOutComplaints(notes).filter(n => !(n && n.action === 'Driver Comment'));
+}
+
 // Normalize phone input to canonical XXX-XXX-XXXX format. Strips parens,
 // spaces, dots, dashes, +1 prefixes, etc. Anything that doesn't look like a
 // 10-digit US number passes through unchanged so we never lose data.
@@ -5548,7 +5555,7 @@ async function generateReport(){
   const {data:skipsData}=await db.from('skips').select('*').eq('skip_week',date);
 
   // Complaints are hidden from this report — they only surface on the Complaint Report.
-  const {data,grouped}=fetchReportData(filterOutComplaints(notesData),skipsData,date);
+  const {data,grouped}=fetchReportData(filterDailyActionNotes(notesData),skipsData,date);
 
   if(!data.length){
     results.innerHTML='<div class="empty-state">No action items for '+fmtDate(date)+'</div>';
@@ -5623,7 +5630,7 @@ function printReport(date){
     db.from('notes').select('*').eq('action_date',date).order('action').order('created_at'),
     db.from('skips').select('*').eq('skip_week',date)
   ]).then(([{data:notesData},{data:skipsData}])=>{
-    const {data,grouped}=fetchReportData(filterOutComplaints(notesData),skipsData,date);
+    const {data,grouped}=fetchReportData(filterDailyActionNotes(notesData),skipsData,date);
     if(!data.length) return;
 
     const companies=[
