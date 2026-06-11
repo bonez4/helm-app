@@ -8765,6 +8765,7 @@ async function generateMonthlySummary(){
   const range = _monthRange(ym);
   const results = document.getElementById('monthlyCmpResults');
   results.innerHTML = '<div class="loading">Loading complaints for '+esc(range.label)+'…</div>';
+  await ensureTaxonomies();
   const {data, error} = await db.from('complaints').select('*')
     .gte('logged_at', range.startISO).lt('logged_at', range.endISO)
     .order('logged_at', {ascending:true});
@@ -8790,8 +8791,11 @@ function renderMonthlySummary(){
   // Status mix + type mix across the whole month
   const statusCounts = {new:0, case_open:0, resolved:0, ignored:0};
   data.forEach(c => { if(statusCounts.hasOwnProperty(c.status)) statusCounts[c.status]++; });
-  const byType = {DRIVER:[], BILLING:[], MISSED_STOP:[], OTHER:[]};
-  data.forEach(c => { (byType[c.type] || byType.OTHER).push(c); });
+  const byType = {};
+  data.forEach(c => { const k=c.type||'OTHER'; (byType[k]=byType[k]||[]).push(c); });
+  const byRoute = {};
+  data.forEach(c => { const k=(c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route'; byRoute[k]=(byRoute[k]||0)+1; });
+  const routeKeys = Object.keys(byRoute).sort((a,b)=> (byRoute[b]-byRoute[a]) || a.localeCompare(b));
 
   let html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
@@ -8805,7 +8809,18 @@ function renderMonthlySummary(){
       <span class="status-pill-sm status-ignored">IGNORED ${statusCounts.ignored}</span>
     </div>`;
 
-  const order = ['DRIVER','BILLING','MISSED_STOP','OTHER'];
+  html += `<div style="margin-bottom:18px;">
+      <div class="report-group-header" style="background:var(--navy);color:white;padding:8px 12px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;">
+        <span style="font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">By route</span>
+        <span style="font-size:12px;font-weight:600;">${data.length} complaint${data.length===1?'':'s'}</span>
+      </div>
+      <div style="background:white;border:1px solid var(--gray-100);border-top:none;padding:4px 10px;">
+        ${routeKeys.map(k=>`<div style="display:flex;justify-content:space-between;padding:5px 4px;border-bottom:1px solid var(--gray-100);font-size:13px;"><span style="font-weight:600;color:var(--navy)">${esc(k)}</span><span style="font-weight:700;">${byRoute[k]}</span></div>`).join('')}
+      </div>
+    </div>`;
+
+  const order = COMPLAINT_TYPES.map(t=>t.value);
+  Object.keys(byType).forEach(k=>{ if(order.indexOf(k)<0) order.push(k); });
   for(const type of order){
     const rows = byType[type] || [];
     html += renderMonthlySection(type, rows);
@@ -8821,7 +8836,7 @@ function renderMonthlySection(type, rows){
 
   // For DRIVER type, sub-group by driver_name. Other types stay flat.
   let body = '';
-  if(type === 'DRIVER'){
+  if(complaintTypeNeedsDriver(type)){
     const byDriver = {};
     rows.forEach(c => {
       const k = (c.driver_name||'').trim() || '(No driver named)';
@@ -8896,15 +8911,18 @@ async function printMonthlySummary(){
   const range = _monthRange(_monthlyCmpMonth);
   const statusCounts = {new:0, case_open:0, resolved:0, ignored:0};
   data.forEach(c => { if(statusCounts.hasOwnProperty(c.status)) statusCounts[c.status]++; });
-  const byType = {DRIVER:[], BILLING:[], MISSED_STOP:[], OTHER:[]};
-  data.forEach(c => { (byType[c.type] || byType.OTHER).push(c); });
+  const byType = {};
+  data.forEach(c => { const k=c.type||'OTHER'; (byType[k]=byType[k]||[]).push(c); });
+  const byRoute = {};
+  data.forEach(c => { const k=(c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route'; byRoute[k]=(byRoute[k]||0)+1; });
+  const routeKeys = Object.keys(byRoute).sort((a,b)=> (byRoute[b]-byRoute[a]) || a.localeCompare(b));
 
   const sectionHTML = (type) => {
     const rows = byType[type] || [];
     if(!rows.length){
       return `<h2>${esc(complaintTypeLabel(type).toUpperCase())} (0)</h2><p class="empty">No complaints in this category this month.</p>`;
     }
-    if(type === 'DRIVER'){
+    if(complaintTypeNeedsDriver(type)){
       const byDriver = {};
       rows.forEach(c => { const k = (c.driver_name||'').trim() || '(No driver named)'; (byDriver[k]=byDriver[k]||[]).push(c); });
       const drivers = Object.keys(byDriver).sort((a,b) => (byDriver[b].length-byDriver[a].length) || a.localeCompare(b));
@@ -8944,7 +8962,10 @@ async function printMonthlySummary(){
       </div>`;
   };
 
-  const sections = ['DRIVER','BILLING','MISSED_STOP','OTHER'].map(sectionHTML).join('');
+  const _typeOrder = COMPLAINT_TYPES.map(t=>t.value);
+  Object.keys(byType).forEach(k=>{ if(_typeOrder.indexOf(k)<0) _typeOrder.push(k); });
+  const routeSection = `<h2>BY ROUTE (${data.length})</h2>` + routeKeys.map(k=>`<div class="entry"><div class="entry-top"><span class="name">${esc(k)}</span><span class="by">${byRoute[k]} complaint${byRoute[k]===1?'':'s'}</span></div></div>`).join('');
+  const sections = routeSection + _typeOrder.map(sectionHTML).join('');
 
   const win = window.open('','_blank');
   win.document.write(`<!DOCTYPE html>
@@ -8996,10 +9017,7 @@ h2{background:#991b1b;color:white;padding:6px 12px;font-size:14px;text-transform
     <li><strong>${statusCounts.ignored}</strong> Ignored</li>
   </ul></div>
   <div class="col"><h3>By Type</h3><ul>
-    <li><strong>${(byType.DRIVER||[]).length}</strong> Driver</li>
-    <li><strong>${(byType.BILLING||[]).length}</strong> Billing</li>
-    <li><strong>${(byType.MISSED_STOP||[]).length}</strong> Missed Stop</li>
-    <li><strong>${(byType.OTHER||[]).length}</strong> Other</li>
+    ${_typeOrder.filter(t=>(byType[t]||[]).length).map(t=>`<li><strong>${(byType[t]||[]).length}</strong> ${esc(complaintTypeLabel(t))}</li>`).join('')}
   </ul></div>
 </div>
 ${sections}
