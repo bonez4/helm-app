@@ -7798,6 +7798,20 @@ async function printComplaintDay(){
     return `<tr><td>${esc(t)}</td><td>${esc(c.client_name||('#'+c.client_id))}</td><td>${esc(c.client_id)}</td><td>${esc(complaintTypeLabel(c.type))}</td><td>${esc(route)}</td><td style="text-align:center">${n}</td><td>${esc(outcome)}</td></tr>`;
   }).join('');
 
+  // Appended under the day's complaints: the still-open backlog + cases resolved today.
+  const nowMs = Date.now();
+  const openCases = _inboxComplaints.filter(c=>c.status==='case_open').sort((a,b)=>(a.case_opened_at||'').localeCompare(b.case_opened_at||''));
+  const openRows = openCases.map(c=>{
+    const opened = c.case_opened_at ? new Date(c.case_opened_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    const daysOpen = c.case_opened_at ? Math.max(0, Math.floor((nowMs - new Date(c.case_opened_at).getTime())/86400000)) : '—';
+    return `<tr><td>${esc(c.client_name||('#'+c.client_id))}</td><td>${esc(c.client_id)}</td><td>${esc(complaintTypeLabel(c.type))}</td><td>${esc(opened)}</td><td style="text-align:center;font-weight:700">${daysOpen}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:#999;font-style:italic">No open cases.</td></tr>';
+  const resolvedToday = _inboxComplaints.filter(c=>c.status==='resolved' && c.resolved_at && c.resolved_at>=startISO && c.resolved_at<endISO).sort((a,b)=>(a.resolved_at||'').localeCompare(b.resolved_at||''));
+  const resolvedRows = resolvedToday.map(c=>{
+    const rt = c.resolved_at ? new Date(c.resolved_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—';
+    return `<tr><td>${esc(rt)}</td><td>${esc(c.client_name||('#'+c.client_id))}</td><td>${esc(c.client_id)}</td><td>${esc(complaintTypeLabel(c.type))}</td><td>${esc(c.resolved_by||'—')}</td><td>${esc(c.resolution_notes||'—')}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" style="color:#999;font-style:italic">None resolved today.</td></tr>';
+
   if(!win){ toast('Allow pop-ups to print'); return; }
   win.document.open();
   win.document.write(`<!DOCTYPE html>
@@ -7860,6 +7874,10 @@ table.sum tr:nth-child(even) td{background:#fafbfd;}
   <div class="grand">${list.length} complaint${list.length===1?'':'s'} on this day &nbsp;·&nbsp; Printed ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div>
 </div>
 ${blocks}
+<h2 style="background:#0f1f3d;color:white;padding:6px 12px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px;">Still-open cases — ${openCases.length} <span style="text-transform:none;font-weight:400;opacity:.85">(as of today)</span></h2>
+<table class="sum"><thead><tr><th>Client</th><th>Acct</th><th>Type</th><th>Case opened</th><th>Days open</th></tr></thead><tbody>${openRows}</tbody></table>
+<h2 style="background:#0f1f3d;color:white;padding:6px 12px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px;">Resolved today — ${resolvedToday.length}</h2>
+<table class="sum"><thead><tr><th>Time</th><th>Client</th><th>Acct</th><th>Type</th><th>Resolved by</th><th>Resolution</th></tr></thead><tbody>${resolvedRows}</tbody></table>
 <h2 class="sum-h">Day summary — ${list.length} complaint${list.length===1?'':'s'}</h2>
 <table class="sum"><thead><tr><th>Time</th><th>Client</th><th>Acct</th><th>Type</th><th>Rt</th><th>Steps</th><th>Outcome</th></tr></thead><tbody>${summaryRows}</tbody></table>
 <div class="footer">
