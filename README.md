@@ -162,8 +162,9 @@ Per-user themes live in `applyUserTheme()`:
 | id | BIGSERIAL (PK) | Auto |
 | client_id | TEXT | Client the complaint is about |
 | client_name / client_address / client_phone / client_email / client_route / client_days | snapshot fields | Frozen at time of logging so case files don't change if the client record changes later |
-| type | TEXT | `DRIVER` / `BILLING` / `MISSED_STOP` / `OTHER` |
-| driver_name | TEXT | Required for `DRIVER` complaints; plain text input (no autosuggest). Powers the Monthly Complaint Summary's driver sub-grouping. |
+| type | TEXT | Complaint-type value. Built-ins `DRIVER` / `BILLING` / `MISSED_STOP` / `OTHER`, but now **admin-managed** — custom types are added in `complaint_taxonomies` and stored here by their value. |
+| driver_name | TEXT | Required when the chosen type has `needs_driver=true` (built-in `DRIVER`, or any custom type flagged so). Plain text. Powers the Monthly Complaint Summary's driver sub-grouping. |
+| priority | TEXT | `urgent` / `high` / `normal` / `low` (default `normal`). Set by David in the Complaint Console; drives the sort + the triage strip. *(Requires user-applied `ALTER`.)* |
 | notes | TEXT | Rep's free-text description of the complaint |
 | logged_by | TEXT | Display name of the rep who logged it |
 | logged_at | TIMESTAMPTZ | When it was logged |
@@ -177,10 +178,23 @@ Per-user themes live in `applyUserTheme()`:
 |---|---|---|
 | id | BIGSERIAL (PK) | Auto |
 | complaint_id | BIGINT (FK) | References complaints.id, ON DELETE CASCADE |
-| action_type | TEXT | `opened` / `called_client` / `spoke_to_driver` / `spoke_to_rep` / `note` / `resolved` / `reopened` |
+| action_type | TEXT | System (auto-written): `opened` / `resolved` / `reopened`. User-pickable case-note types: `called_client` / `spoke_to_driver` / `spoke_to_rep` / `supervisor_informed` / `note` — **admin-managed** via `complaint_taxonomies` (kind=`action`), so custom note types can be added. |
 | notes | TEXT | Free-text detail for this step |
 | performed_by | TEXT | Display name |
 | performed_at | TIMESTAMPTZ | Auto |
+
+**`complaint_taxonomies`** — Admin-managed picklists for complaint types + case-note types (David + admin; user-applied SQL)
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGSERIAL (PK) | Auto |
+| kind | TEXT | `type` (complaint type) or `action` (case-note type) |
+| value | TEXT | Token stored on `complaints.type` / `complaint_actions.action_type` |
+| label | TEXT | Display label shown in the picker |
+| needs_driver | BOOLEAN | (types) shows the Driver field + feeds the by-driver report |
+| sort_order / active / is_builtin | — | Ordering · soft-hide · built-ins can be hidden but not deleted |
+| created_at / created_by | — | Audit |
+
+Built-ins seed the four types + five note types; the log-complaint picker, the case action-log dropdown, and the reports read this table at runtime (hardcoded built-ins are the fallback). Managed from the **"⚙ Manage types"** button in the Complaint Console header.
 
 **`bulky_pickups`** — Bulky / prohibited items left behind on a residential route (David + admin only)
 | Column | Type | Notes |
@@ -250,7 +264,7 @@ Per-user themes live in `applyUserTheme()`:
 | notes | TEXT | What was discussed |
 | created_at / created_by | — | Audit |
 
-**`dispatch_price_templates`** — Reusable price-list items for the dispatch pipeline
+**`dispatch_price_templates`** — Reusable price-list items. *Retired 2026-06: the dispatch flow now uses a single `dispatch_jobs.quoted_price` instead of a line-item price list, so this table + its manager are vestigial.*
 | Column | Type | Notes |
 |---|---|---|
 | id | BIGSERIAL (PK) | Auto |
@@ -263,12 +277,16 @@ Per-user themes live in `applyUserTheme()`:
 | Column | Type | Notes |
 |---|---|---|
 | id | BIGSERIAL (PK) | Auto |
-| stage | TEXT | `verify` → `outreach` → `dispatch` → `completion`, plus terminal `denied` / `archived` (History) |
+| stage | TEXT | `verify` → `outreach` → `dispatch` → `completion`, plus terminal `denied` / `unreachable` / `archived` (History) |
 | client_id / address / client_name / phone | — | Snapshot; autofilled from a matched client or free-typed |
 | photos | JSONB | `[{path,type,uploaded_at,uploaded_by}]` into `helm-files/dispatch/<job>/...` |
-| price_items | JSONB | `[{title,price}]` — agreed line items, carried Outreach → Completion |
+| quoted_price | NUMERIC(10,2) | **The job charge** — priced from the photo in Verify, read-only to outreach, confirmed at Completion, on the ticket. Replaced the price-list line items. *(Requires user-applied `ALTER`.)* |
+| price_items | JSONB | *Legacy* `[{title,price}]` line items — superseded by `quoted_price` (kept only as a fallback for old jobs). |
+| outreach_log | JSONB | `[{at,outcome,number,by,notes}]` — every outreach attempt (`accepted` / `denied` / `no_answer`), incl. the number called. *(User-applied SQL.)* |
+| callback_due | TIMESTAMPTZ | Set 30 min ahead on a 1st no-answer; drives the "⏰ Call back" badge + the desktop-notification reminder. |
+| phone_ok / alt_phone | BOOLEAN / TEXT | Outreach phone check — is the file # correct, and any alternate number called. |
 | driver | TEXT | Assigned at Dispatch |
-| completion_notes / denial_note | TEXT | Completion notes / "Client denied service" |
+| completion_notes / denial_note | TEXT | Completion notes / the chosen denial reason (or "Unreachable — N no-answers") |
 | dispatched_at / completed_at / denied_at / archived_at | TIMESTAMPTZ | Stage stamps (`dispatched_at` = card goes live/green) |
 | created_at/by, updated_at/by | — | Audit |
 
@@ -455,7 +473,8 @@ Seven cards on the Reports tab (the last two are gated to David + Esme):
    - **Grouped by Route** within each company (Route 1, Route 2, … Route 14, then "No Route Assigned"); rows sorted by account # within a route
    - **Per-day route resolution:** the route used for grouping is looked up in `route_assignments` for `(client_id, day_of_week_of_action_date)`; falls back to `clients.route` if no per-day override exists. Same for the inline `📋` route_note. So a multi-day client with Mon=R4 / Wed=R2 / Sat=R2 (e.g. acct 208849) has its Mon notes land under R4 and its Wed/Sat notes under R2, automatically.
    - Columns: #, Acct, Action (colored chip), Name, Address, Note
-   - Print popup mirrors the on-page layout in an Arial print template
+   - **Excludes Driver Comment notes** (they have their own Driver Comments Report) and complaints — both screen and print
+   - Print popup mirrors the on-page layout in an Arial print template (page margin 0.5in + long cells wrap so nothing clips)
 
 2. **Notes Added Today** — every note input on a specific date (filters by `notes.created_at`, not `action_date`, so future-dated notes still show)
    - Section per **For Date** (the date the note's action falls on); within each section, **sorted by Route** ascending (no-route last; ties broken by acct #)
@@ -486,8 +505,8 @@ Seven cards on the Reports tab (the last two are gated to David + Esme):
 6. **Monthly Complaint Summary** *(David + Esme only)* — calendar-month rollup
    - Month dropdown (current + 23 prior months); defaults to **previous month**
    - Status mix strip at the top (NEW / CASE OPEN / RESOLVED / IGNORED counts)
-   - One section per type (DRIVER / BILLING / MISSED STOP / OTHER) with a count header
-   - **Driver section sub-groups by `driver_name`** — each driver gets their own orange-tinted block showing total count, status mix, and the individual complaints. Drivers sorted by complaint count descending so the noisiest driver tops the list. Complaints without a driver name fall into a "(No driver named)" bucket.
+   - One section per type, **dynamic** — built-ins plus any custom types (from `complaint_taxonomies`) shown by name, each with a count header — plus a **By-route** breakdown (complaints per route, worst first)
+   - **Driver-type sections sub-group by `driver_name`** (any type with `needs_driver=true`) — each driver gets an orange-tinted block with total count, status mix, and the individual complaints, sorted by count descending. Complaints without a driver name fall into a "(No driver named)" bucket.
    - Each complaint row shows date · acct · client · status pill · who logged it · the notes, plus a green resolution footer if resolved or a gray ignore-reason footer if ignored
    - Print button generates a clean printable monthly archive with the same structure
 7. **Complaint Report** *(David + Esme only)* — weekly view of every Complaint note logged on a client card
@@ -513,20 +532,18 @@ A dedicated workflow for tracking and resolving customer complaints. Complaints 
 **David's Inbox (icon next to "David" in the topbar):**
 - iMessage-style red badge shows count of complaints with `status='new'` (those still needing triage)
 - Badge auto-refreshes on tab focus + every 60s; clears when complaints leave the `new` state
-- Clicking the icon opens an **email-style master/detail modal**:
-  - **Left list** — filter chips at top (New / Open Cases / Resolved / Ignored / All), each with a count. List rows show client name, type chip, status chip, who logged it, when, and a 2-line preview of the notes.
-  - **Right detail** — full client snapshot, original complaint, and a status-dependent action area:
-    - `new` → ▸ Open Case / Ignore buttons
-    - `case_open` → action log timeline + + Add Entry button + ✓ Mark Resolved button
-    - `resolved` → resolution banner + read-only action log
-    - `ignored` → ignore-reason banner
-  - **Week navigator at the top of the sidebar** — ‹ / › arrows + "This Week" / "All" shortcuts. Default is All weeks. When a specific week is selected, the chip counts and list rows scope to that Mon–Sun window so the status chips never lie about what's available.
-  - **🖨 Print Week** button (enabled when a specific week is selected) writes a single document containing every complaint logged that week as its own page-broken section — client snapshot, original notes, action log, resolution/ignore details. Includes a cover sheet with by-type and by-status totals. Use this for the weekly archive print.
-  - **Print** button on the detail pane writes a single-case printable file (snapshot + original + every action log entry with timestamp + by-whom + notes)
+- Clicking the icon opens the **Complaint Console** (rebuilt 2026-06 from the old email-style modal):
+  - **Triage strip** — needs-triage / open cases / overdue (>3 days) / resolved-this-week / avg-resolve-time: the live backlog at a glance.
+  - **Toolbar** — full-text search + sort (oldest-unresolved / priority / recently-logged); the **filter chips** (New / Open Cases / Resolved / Ignored / All) + the **week navigator** (‹ / › / This Week / All, Mon–Sun) carry over.
+  - **Table** — one row per complaint: an inline **priority** dropdown (Urgent/High/Normal/Low), a red/amber **age** chip (SLA: red >3 days), client + type · driver · route, and a status pill. A **row click** opens the case-management detail (the status-dependent action area: `new` → Open Case / Ignore · `case_open` → action-log timeline + Add Entry + Mark Resolved · `resolved`/`ignored` → banner) with a **← Back to list**.
+  - **Patterns panel** — by type / top routes / top drivers (respects the week filter).
+  - **⚙ Manage types** (header) — admin-manage the complaint + note types (see `complaint_taxonomies`).
+  - **Day report** — date picker + 🖨 Print day → a cover sheet (by status / type / route) + a detailed per-complaint block **with the full case-action steps**, then **Still-open cases** (opened date + days-open) and **Resolved today** sections, then a compact summary.
+  - **🖨 Print Week** (when a week is selected) — every complaint that week as its own page-broken case file + a by-type/by-status cover sheet. **Print** on a single case writes its full audit-trail file.
 
 **Opening a case:**
 - Status flips to `case_open`; first `complaint_actions` entry written as `opened`
-- David adds entries using a small inline form: action type dropdown (Called Client / Spoke to Driver / Spoke to Rep / Note) + optional notes field. Each entry is timestamped with who added it.
+- David adds entries using a small inline form: case-note type dropdown (Called Client / Spoke to Driver / Spoke to Rep / Supervisor Informed / Note — plus any custom note types from `complaint_taxonomies`) + optional notes field. Each entry is timestamped with who added it.
 - "✓ Mark Resolved" opens a modal requiring resolution notes; status flips to `resolved`, a final `resolved` action entry is written
 
 **Ignoring a complaint:**
@@ -668,14 +685,15 @@ Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fide
 - **Homepage dashboard** — collapsible "Business Overview" (state persisted) with three **drill-in** cards: **Lost this month**, **Gained this month**, **Contacted this month** (distinct accounts). Each opens a **Review page** (`#review/lost|new|contacted[/YYYY-MM]`) listing the underlying accounts, click-through to each.
 - **Reports tab** (`#reports`) — historical view: 12-month Lost / Gained / Net totals, a **by-month table** (Lost / Gained / Net / Contacted; counts click through to that month's Review) and a lost-by-month bar chart. Dashboard, reviews, and reports all derive from the same `commercial_events` / `commercial_outreach` data, so figures tie out.
   - **Activity Report** (`#activity`, linked from Reports) — date-range (From/To + This week / Last week / This month / Last 30d presets) tally of **images, videos, and notes added to account History** (`commercial_history`): a summary strip (totals + accounts touched) + a per-account table (counts + last activity, click-through) + Print.
+  - **Bulky Conversion report** (`#bulkyreport`, linked from Reports) — weekly dispatch **cards-created → converted-to-sale %**, with denied / in-progress counts, a **denied-by-reason** breakdown, and a per-card table (incl. **Service Address**). Excel + Print.
 - **Dispatch tab** (`#dispatch`) — a **residential** bulky-pickup Kanban board, 4 color-coded stages, cards advanced by a per-stage button:
-  - **Verify** (slate) — ＋ New job → add photo(s) + address; an address typeahead against active clients autofills acct/name/phone, or save a free address.
-  - **Outreach** (amber) — build the agreed **line items** from your Price List (category+price templates), or **Client denied service** → drops to History.
-  - **Dispatch** (green) — shows the full contact block (name · acct # · address · click-to-call phone); assign a driver (free text); **Dispatch — go live** turns the card green + LIVE badge, then **Mark complete →**.
-  - **Completion** (blue) — reached via a **Confirm charges** modal on "Mark complete" (line items pre-loaded from Outreach, fully editable) so billing is a deliberate step; then line items stay editable, per-ticket print, and a board-level **🖨 Print completed (N)** bulk print (page-broken tickets with embedded photos).
+  - **Verify** (slate) — ＋ New job → add photo(s) + address; an address typeahead against active clients autofills acct/name/phone, or save a free address. **Set the Quoted price here** (priced from the photo) — it replaced the old line-item price list.
+  - **Outreach** (amber) — the **quote shows read-only** to the employee, plus a **phone check** (is the file # correct + an alternate number called) and a **call-attempt log**. Three outcomes: **Accepted → Dispatch**, **Denied** (preset reason list → History), or **No answer** — a 1st no-answer logs an attempt, sets a **30-min callback** + fires a **desktop notification** (and a "⏰ Call back" badge on the card); a **2nd** no-answer → **Unreachable** (terminal → History).
+  - **Dispatch** (green) — shows the full contact block (name · acct # · address · click-to-call phone) + the quote; assign a driver (free text); **Dispatch — go live** turns the card green + LIVE badge, then **Mark complete →**.
+  - **Completion** (blue) — reached via a **Confirm charge** modal on "Mark complete" (the quote, editable) so billing is a deliberate step; per-ticket print + a board-level **🖨 Print completed (N)** bulk print (page-broken tickets with embedded photos).
   - A **Notes** field is on every stage (saved with the job, printed on the ticket). `dispatch_jobs.notes`.
-  - **Live client data:** for jobs linked to an account, the name / address / phone shown (and printed) are pulled **live from the HELM `clients` table on every load** (`overlayLiveClients()` in `loadDispatch`), so HELM edits (e.g. a phone change) always show, even mid-pipeline. The stored snapshot is a fallback only for free-address jobs.
-  - Plus a **Price List** manager, a **History** view (denied + archived jobs by day), photo/video upload into `helm-files/dispatch/`, and manual **Archive** to clear finished cards. Two new `authenticated`-only tables (`dispatch_jobs`, `dispatch_price_templates`). Commercial work stays in the dashboard — this board is residential only.
+  - **Live client data:** for jobs linked to an account, the name / address / phone shown (and printed) are pulled **live from the HELM `clients` table on every load** (`overlayLiveClients()` in `loadDispatch`), so HELM edits always show, even mid-pipeline. The stored snapshot is a fallback only for free-address jobs.
+  - A **History** view (denied · unreachable · archived jobs by day, with each job's photo thumbnails + lightbox), photo/video upload into `helm-files/dispatch/`, and manual **Archive** to clear finished cards. *(The old Price List manager is retired — see `dispatch_price_templates`.)* Commercial work stays in the dashboard — this board is residential only.
 - **Lost Clients** (`#lost`, also linked from the home list) — a log of every account whose latest event is `lost`, fetched by id so **inactive** accounts (which drop off the Active-commercial list) still show, with date + reason and click-through to the file. **＋ Add lost client** searches *all* accounts (any status, so inactive ones are findable) and logs a `commercial_events` lost row, so it also feeds the dashboard/reports. No new table.
 - **Mobile-first**, same safe-area awareness as HELM.
 
@@ -1275,6 +1293,23 @@ Open items deliberately on hold. Pick these back up when relevant — listed in 
 ## Recent Major Changes
 
 Older entries are intentionally terse — full detail lives in git history. The most recent week is given fuller context.
+
+### June 5-12, 2026
+
+**HELM — complaint system overhaul (rebuilt into the Complaint Console).**
+- **Complaint Console.** David's email-style inbox modal was rebuilt into a full-page console: a triage metric strip (needs-triage / open / overdue / resolved-this-week / avg-resolve), search + sort (oldest-unresolved / priority / recent), a table with an inline **priority** dropdown + red/amber **age-SLA coloring** + status, and a **patterns** panel (by type / top routes / top drivers). A row click opens the existing case-management as a detail view. Needs a `complaints.priority` column (user-applied `ALTER`). Commit `5d33c1a`.
+- **Admin-managed complaint + note types.** No longer hardcoded: a `complaint_taxonomies` table (user-applied SQL) + a **"⚙ Manage types"** panel (David + admin) add / rename / hide / reorder complaint types and case-note (action) types, with a per-type `needs_driver` toggle. Built-ins are the fallback; reports iterate the live list. Commits `e62babe` / `2237134`. Also added the **Supervisor Informed** case action (`2e13272`).
+- **Monthly Complaint Summary** is now dynamic by type (custom types show by name) with a **by-route** breakdown, screen + print. Commit `ade544c`.
+- **Day report** (Complaint Console). Pick a date → a printable cover sheet (by status / type / route) + a detailed block per complaint **including the full case-action steps**, then **Still-open cases** (opened date + days-open, as of today) and **Resolved today** sections under the day's complaints, then a compact summary. Commits `49834ab` → `40896ba` → `4317493`.
+- **Daily Action Report** now **excludes Driver Comment** notes (they have their own report); the print page margin was widened to 0.5in + long cells wrap so nothing clips. Commits `c97cde7` / `c7ea2a0`.
+
+**BEACON — commercial dispatch overhaul + bulky conversion report.**
+- **Quoted price replaces the price list.** A single `dispatch_jobs.quoted_price` (user-applied `ALTER`) priced from the photo in Verify, read-only to the outreach employee, confirmed at Completion, on the ticket. The price-list templates + button are retired. Commits `a1de9de` / `1631625`.
+- **Outreach redesign.** Three outcomes (Accepted / Denied / **No answer**). A 1st no-answer logs a timestamped attempt, sets a **30-min callback** + fires a **desktop notification**; a **2nd** no-answer → **Unreachable** (terminal → History). Plus a **phone check** (is the file # correct + an alternate number called) and a per-job call-attempt log. Expanded denial-reason list. New columns `outreach_log` / `callback_due` / `phone_ok` / `alt_phone` (user-applied SQL). Commit `190fd01`.
+- **Bulky Pickup conversion report** (BEACON → Reports). Weekly cards-created → converted-to-sale %, by outcome, with a **denied-by-reason** breakdown and a **Service Address** column; Excel + print. Denials now require a reason (preset dropdown incl. "Existing Contact Invalid"). Commits `011958f` → `a581c21`.
+- **Dispatch History** now shows each job's **photos** (signed-URL thumbnails + lightbox) and includes **Unreachable** jobs. Commit `c7c0857`.
+
+**Pricing-increase model spec (for the IT consultant).** A standalone `PRICE_INCREASE_MODEL.md` (kept **outside** the repo) specs a Metabase report against the Delta-scraped data: per-bill-code pricing variability + a parameterized "raise base R1 to Y" incremental-revenue model (residential, Reis + Santos, base-only, per-service × monthly frequency; the master/sub billing rollup + the frequency field flagged as consultant-resolved).
 
 ### June 4-5, 2026
 
