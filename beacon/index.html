@@ -1018,7 +1018,6 @@ async function renderDispatchBoard(){
     <div class="detail-header" style="align-items:center">
       <div style="flex:1"><h1>Dispatch — Residential</h1><div class="acct-sub">Bulky pickup pipeline · push cards to the next stage</div></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn" onclick="openPriceModal()">Price List</button>
         <button class="btn" onclick="location.hash='#dispatch/history'">History</button>
         ${compCount?`<button class="btn-primary" onclick="bulkPrintCompleted()">🖨 Print completed (${compCount})</button>`:''}
       </div>
