@@ -979,7 +979,7 @@ async function clearFlag(id){
 // ── DISPATCH PIPELINE (residential bulky) ────────────────────────────────
 function valOf(id){ const el=document.getElementById(id); return el?el.value:''; }
 function stageLabel(s){ return {verify:'Verify',outreach:'Outreach',dispatch:'Dispatch',completion:'Completion',denied:'Denied',archived:'Archived'}[s]||s; }
-function jobTotal(j){ return (j.price_items||[]).reduce((s,i)=>s+(Number(i.price)||0),0); }
+function jobTotal(j){ if(j && j.quoted_price!=null && j.quoted_price!=='') return Number(j.quoted_price)||0; return (j.price_items||[]).reduce((s,i)=>s+(Number(i.price)||0),0); }
 async function loadDispatch(){
   try{ _jobs = await fetchAll('dispatch_jobs','*'); }catch(_){ _jobs=[]; }
   try{ _priceTemplates = (await fetchAll('dispatch_price_templates','*')).filter(t=>t.active!==false).sort((a,b)=>(a.sort_order-b.sort_order)||(a.id-b.id)); }catch(_){ _priceTemplates=[]; }
@@ -1029,7 +1029,7 @@ function jobCardHtml(j){
   const live = j.stage==='dispatch' && j.dispatched_at;
   const total=jobTotal(j); const photoN=(j.photos||[]).length;
   let detail='';
-  if((j.stage==='outreach'||j.stage==='completion') && total) detail=`<div class="dcard-row">$${total.toFixed(2)} · ${(j.price_items||[]).length} item(s)</div>`;
+  if((j.stage==='outreach'||j.stage==='completion'||j.stage==='dispatch') && total) detail=`<div class="dcard-row">$${total.toFixed(2)} quote</div>`;
   if(j.stage==='dispatch') detail=`${j.phone?`<div class="dcard-row">📞 ${esc(j.phone)}</div>`:''}${j.driver?`<div class="dcard-row">Driver: ${esc(j.driver)}</div>`:''}`;
   return `<div class="dcard ${j.stage}${live?' live':''}" onclick="openJobModal(${j.id})">
     ${live?'<div class="live-badge">● LIVE</div>':''}
@@ -1059,15 +1059,18 @@ function closeJobModal(){
 async function openCompleteModal(){
   const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
   await persistJob(j.id, {...collectPatch(j), updated_at:new Date().toISOString(), updated_by:who()});  // keep driver/notes
-  _jobItems=(j.price_items||[]).map(i=>({title:i.title, price:Number(i.price)||0}));
-  document.getElementById('completeModalBody').innerHTML=`<p class="dim" style="font-size:13px;margin-bottom:12px">Confirm the charges before completing — these become the line items on the printed ticket. Carried over from Outreach; edit as needed.</p>${lineItemsEditorHtml()}`;
+  const q = (j.quoted_price!=null && j.quoted_price!=='') ? Number(j.quoted_price) : jobTotal(j);
+  document.getElementById('completeModalBody').innerHTML=`<p class="dim" style="font-size:13px;margin-bottom:12px">Confirm the final charge before completing — this prints on the ticket.</p>
+    <label class="jm-label">Charge ($)</label>
+    <input type="number" id="jmCompleteQuote" min="0" step="0.01" value="${(q!=null&&!isNaN(q))?q:''}" placeholder="$ charge"/>`;
   document.getElementById('completeModal').classList.add('show');
 }
 function closeCompleteModal(){ const m=document.getElementById('completeModal'); if(m) m.classList.remove('show'); }
 async function confirmComplete(){
   const j=_jobs.find(x=>x.id===_jobModalId); if(!j) return;
   const btn=document.getElementById('completeSaveBtn'); btn.disabled=true; btn.textContent='Saving…';
-  const ok=await persistJob(j.id, {price_items:_jobItems, stage:'completion', completed_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()});
+  const qv=valOf('jmCompleteQuote').trim(); const quoted = qv===''?null:(parseFloat(qv)||0);
+  const ok=await persistJob(j.id, {quoted_price:quoted, stage:'completion', completed_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()});
   btn.disabled=false; btn.textContent='Complete job →';
   if(ok){ toast('Job completed','ok'); closeCompleteModal(); closeJobModal(); }
 }
@@ -1085,6 +1088,8 @@ function renderJobModalBody(j){
       <div id="jmSuggest" class="jm-suggest"></div>
     </div>
     <div class="jm-client" id="jmClient">${j.client_id?`Matched: ${esc(j.client_name||'')} · #${esc(j.client_id)} · ${esc(j.phone||'')}`:'<span class="dim">No client matched — saves as a free address</span>'}</div>
+    <label class="jm-label">Quoted price <span class="dim" style="font-weight:400">— priced from the photo; shown read-only to outreach</span></label>
+    <input type="number" id="jmQuote" min="0" step="0.01" value="${(j.quoted_price!=null&&j.quoted_price!=='')?esc(j.quoted_price):''}" placeholder="$ quote" autocomplete="off"/>
     <div class="jm-actions">
       <button class="btn danger" onclick="deleteJob(${j.id})">Delete</button>
       <div style="flex:1"></div>
@@ -1093,8 +1098,8 @@ function renderJobModalBody(j){
     </div>`;
   if(j.stage==='outreach') return head + `
     <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}${j.phone?` · ${esc(j.phone)}`:''}</div>
-    <label class="jm-label">Agreed line items</label>
-    ${lineItemsEditorHtml()}
+    <label class="jm-label">Quoted price</label>
+    <div style="font-size:26px;font-weight:800;color:#d97706;margin:2px 0 10px;">${(j.quoted_price!=null&&j.quoted_price!=='')?('$'+Number(j.quoted_price).toFixed(2)):'<span class="dim" style="font-size:14px;font-weight:400">No quote set yet</span>'}</div>
     <div class="jm-actions">
       <button class="btn danger" onclick="openDenyModal(${j.id})">Client denied service</button>
       <div style="flex:1"></div>
@@ -1119,8 +1124,8 @@ function renderJobModalBody(j){
     </div>`; }
   if(j.stage==='completion') return head + `
     <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}${j.driver?` · Driver: ${esc(j.driver)}`:''}</div>
-    <label class="jm-label">Line item charges</label>
-    ${lineItemsEditorHtml()}
+    <label class="jm-label">Charge</label>
+    <div style="font-size:24px;font-weight:800;color:#d97706;margin:2px 0 8px;">${jobTotal(j)?('$'+jobTotal(j).toFixed(2)):'<span class="dim" style="font-size:14px;font-weight:400">No charge set</span>'}</div>
     <div class="jm-actions">
       <button class="btn" onclick="printJob(${j.id})">🖨 Print ticket</button>
       <div style="flex:1"></div>
@@ -1130,7 +1135,7 @@ function renderJobModalBody(j){
   return head;
 }
 function jmPhotosInner(j){ return (j.photos||[]).map((p,idx)=>`<div class="jm-thumb" id="jmthumb-${idx}">${p.type==='video'?'🎥':''}</div>`).join('') || '<span class="dim">No photos yet</span>'; }
-function itemsReadonlyHtml(j){ const items=j.price_items||[]; if(!items.length) return '<span class="dim">No agreed items</span>'; return items.map(i=>`${esc(i.title)} ($${Number(i.price).toFixed(2)})`).join(', ')+` — total $${jobTotal(j).toFixed(2)}`; }
+function itemsReadonlyHtml(j){ const q=jobTotal(j); return q ? `Quoted price: <b>$${q.toFixed(2)}</b>` : '<span class="dim">No quote set</span>'; }
 function lineItemsInner(){
   const opts=_priceTemplates.map(t=>`<option value="${t.id}">${esc(t.title)} — $${Number(t.price).toFixed(2)}</option>`).join('');
   const rows=_jobItems.map((it,idx)=>`<div class="li-row"><span class="li-title">${esc(it.title)}</span><span class="li-price">$${Number(it.price).toFixed(2)}</span><button class="li-del" onclick="removeItem(${idx})">×</button></div>`).join('')||'<div class="dim" style="padding:4px 0">No items yet</div>';
@@ -1195,10 +1200,8 @@ function pickClient(i){
 }
 function collectPatch(j){
   const p={ notes: valOf('jmNotes').trim()||null };
-  if(j.stage==='verify'){ p.address=valOf('jmAddress').trim()||null; p.client_id=j.client_id||null; p.client_name=j.client_name||null; p.phone=j.phone||null; }
-  else if(j.stage==='outreach'){ p.price_items=_jobItems; }
+  if(j.stage==='verify'){ p.address=valOf('jmAddress').trim()||null; p.client_id=j.client_id||null; p.client_name=j.client_name||null; p.phone=j.phone||null; const qv=valOf('jmQuote').trim(); p.quoted_price = qv===''?null:(parseFloat(qv)||0); }
   else if(j.stage==='dispatch'){ p.driver=valOf('jmDriver').trim()||null; }
-  else if(j.stage==='completion'){ p.price_items=_jobItems; }
   return p;
 }
 async function persistJob(id, patch){
@@ -1343,16 +1346,13 @@ async function printJobs(jobs){
 }
 function jobPrintStyles(){ return `body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:24px;}.pagebreak{page-break-after:always;}.tk-h{font-size:22px;font-weight:800;margin-bottom:2px;}.tk-sub{color:#555;font-size:13px;margin-bottom:14px;}.tk-row{margin:4px 0;font-size:14px;}.tk-label{display:inline-block;width:80px;color:#666;font-size:12px;text-transform:uppercase;}table.tk-items{width:100%;border-collapse:collapse;margin:12px 0;}table.tk-items td,table.tk-items th{border:1px solid #ccc;padding:6px 9px;font-size:13px;}table.tk-items th{background:#f0f0f0;text-align:left;}.tk-total{text-align:right;font-weight:800;font-size:15px;margin-top:6px;}.tk-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}.tk-imgs img{max-width:46%;max-height:300px;border:1px solid #ccc;border-radius:6px;}.tk-notes{margin-top:12px;font-size:13px;white-space:pre-wrap;}.tk-sign{margin-top:26px;font-size:13px;border-top:1px solid #000;padding-top:6px;}`; }
 function jobPrintHtml(j, imgs){
-  const items=j.price_items||[];
-  const itemRows=items.map(i=>`<tr><td>${esc(i.title)}</td><td style="text-align:right">$${Number(i.price).toFixed(2)}</td></tr>`).join('')||'<tr><td colspan="2">—</td></tr>';
   return `<div class="tk">
     <div class="tk-h">${esc(j.address||'(no address)')}</div>
     <div class="tk-sub">Residential bulky pickup${j.completed_at?` · completed ${fmtDate(j.completed_at)}`:''}</div>
     <div class="tk-row"><span class="tk-label">Client</span> ${esc(j.client_name||'—')}${j.client_id?` (#${esc(j.client_id)})`:''}</div>
     <div class="tk-row"><span class="tk-label">Phone</span> ${esc(j.phone||'—')}</div>
     <div class="tk-row"><span class="tk-label">Driver</span> ${esc(j.driver||'—')}</div>
-    <table class="tk-items"><thead><tr><th>Item</th><th style="text-align:right">Charge</th></tr></thead><tbody>${itemRows}</tbody></table>
-    <div class="tk-total">Total: $${jobTotal(j).toFixed(2)}</div>
+    <div class="tk-total">Quoted charge: $${jobTotal(j).toFixed(2)}</div>
     ${j.notes?`<div class="tk-notes"><b>Notes:</b> ${esc(j.notes)}</div>`:''}
     ${imgs.length?`<div class="tk-imgs">${imgs.map(d=>`<img src="${d}"/>`).join('')}</div>`:''}
     <div class="tk-sign">Completed &#9744; &nbsp;&nbsp; Driver __________________ &nbsp;&nbsp; Date __________</div>
