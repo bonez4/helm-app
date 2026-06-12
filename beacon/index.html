@@ -985,6 +985,7 @@ async function loadDispatch(){
   try{ _priceTemplates = (await fetchAll('dispatch_price_templates','*')).filter(t=>t.active!==false).sort((a,b)=>(a.sort_order-b.sort_order)||(a.id-b.id)); }catch(_){ _priceTemplates=[]; }
   await overlayLiveClients();
   _dispatchLoaded=true;
+  scheduleAllCallbacks();
 }
 // Always reflect CURRENT HELM client data on jobs linked to an account (esp.
 // phone) — even mid-pipeline. Snapshot is kept only for free-address jobs.
@@ -1036,6 +1037,7 @@ function jobCardHtml(j){
     <div class="dcard-addr">${esc(j.address||'(no address)')}</div>
     ${j.client_name?`<div class="dcard-name">${esc(j.client_name)}${j.client_id?` · #${esc(j.client_id)}`:''}</div>`:''}
     ${detail}
+    ${(j.stage==='outreach'&&j.callback_due)?`<div class="dcard-row" style="color:#b45309;font-weight:700">⏰ Call back ${esc(fmtDateTime(j.callback_due))}</div>`:''}
     <div class="dcard-foot">${photoN?`📷 ${photoN}`:'<span class="dim">no photo</span>'}</div>
   </div>`;
 }
@@ -1097,14 +1099,25 @@ function renderJobModalBody(j){
       <button class="btn-primary" onclick="advance('outreach')">Next: Outreach →</button>
     </div>`;
   if(j.stage==='outreach') return head + `
-    <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}${j.phone?` · ${esc(j.phone)}`:''}</div>
-    <label class="jm-label">Quoted price</label>
-    <div style="font-size:26px;font-weight:800;color:#d97706;margin:2px 0 10px;">${(j.quoted_price!=null&&j.quoted_price!=='')?('$'+Number(j.quoted_price).toFixed(2)):'<span class="dim" style="font-size:14px;font-weight:400">No quote set yet</span>'}</div>
-    <div class="jm-actions">
-      <button class="btn danger" onclick="openDenyModal(${j.id})">Client denied service</button>
+    <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}</div>
+    <label class="jm-label">Quote to read the client</label>
+    <div style="font-size:28px;font-weight:800;color:#d97706;margin:2px 0 12px;">${(j.quoted_price!=null&&j.quoted_price!=='')?('$'+Number(j.quoted_price).toFixed(2)):'<span class="dim" style="font-size:14px;font-weight:400">No quote set — go back to Verify</span>'}</div>
+    <label class="jm-label">Phone${j.phone?` — on file: <a href="tel:${esc(j.phone)}">${esc(j.phone)}</a>`:' — none on file'}</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
+      <select id="jmPhoneOk" style="flex:0 0 auto">
+        <option value="">File # — not checked</option>
+        <option value="yes"${j.phone_ok===true?' selected':''}>✓ File # correct</option>
+        <option value="no"${j.phone_ok===false?' selected':''}>✗ File # wrong</option>
+      </select>
+      <input type="text" id="jmAltPhone" value="${esc(j.alt_phone||'')}" placeholder="Alt number called (optional)" style="flex:1;min-width:150px;"/>
+    </div>
+    ${outreachLogHtml(j)}
+    <div class="jm-actions" style="flex-wrap:wrap;gap:8px;">
+      <button class="btn danger" onclick="openDenyModal(${j.id})">Denied…</button>
+      <button class="btn" style="border-color:#d97706;color:#b45309" onclick="outreachNoAnswer(${j.id})">No answer</button>
       <div style="flex:1"></div>
       <button class="btn" onclick="saveJob()">Save</button>
-      <button class="btn-primary" onclick="advance('dispatch')">Client accepted → Dispatch</button>
+      <button class="btn-primary green" onclick="outreachAccept(${j.id})">Accepted → Dispatch</button>
     </div>`;
   if(j.stage==='dispatch'){ const live=!!j.dispatched_at; return head + `
     <div class="jm-snap">
@@ -1201,6 +1214,7 @@ function pickClient(i){
 function collectPatch(j){
   const p={ notes: valOf('jmNotes').trim()||null };
   if(j.stage==='verify'){ p.address=valOf('jmAddress').trim()||null; p.client_id=j.client_id||null; p.client_name=j.client_name||null; p.phone=j.phone||null; const qv=valOf('jmQuote').trim(); p.quoted_price = qv===''?null:(parseFloat(qv)||0); }
+  else if(j.stage==='outreach'){ const a=valOf('jmAltPhone').trim(); p.alt_phone=a||null; const pk=valOf('jmPhoneOk'); p.phone_ok = pk===''?null:(pk==='yes'); }
   else if(j.stage==='dispatch'){ p.driver=valOf('jmDriver').trim()||null; }
   return p;
 }
@@ -1228,7 +1242,7 @@ async function dispatchGoLive(){
   if(!driver){ toast('Enter a driver first.','err'); return; }
   if(await persistJob(j.id,{...collectPatch(j), dispatched_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()})){ toast('Dispatched — live','ok'); openJobModal(j.id); }
 }
-const DENY_REASONS=['Price too high','Went with competitor','No longer needed','Unresponsive / could not reach','Existing Contact Invalid','Other'];
+const DENY_REASONS=['Price too high','Doing it themselves','No longer needed','Item already removed',"Couldn't agree on timing",'Wrong contact / bad number','Other'];
 let _denyJobId=null;
 function openDenyModal(id){
   _denyJobId=id;
@@ -1248,9 +1262,59 @@ async function confirmDeny(){
   if(sel==='Other'){ reason=(valOf('denyOther')||'').trim(); if(!reason){ toast('Add the details for "Other".','err'); return; } }
   const j=_jobs.find(x=>x.id===id);
   const btn=document.getElementById('denySaveBtn'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
-  const ok=await persistJob(id,{...(j?collectPatch(j):{}), stage:'denied', denial_note:reason, denied_at:new Date().toISOString(), updated_at:new Date().toISOString(), updated_by:who()});
+  const dlog=(j&&j.outreach_log||[]).concat([{at:new Date().toISOString(), outcome:'denied', number:(j&&(j.alt_phone||j.phone))||null, by:who(), notes:reason}]);
+  const ok=await persistJob(id,{...(j?collectPatch(j):{}), stage:'denied', denial_note:reason, denied_at:new Date().toISOString(), outreach_log:dlog, callback_due:null, updated_at:new Date().toISOString(), updated_by:who()});
   if(btn){ btn.disabled=false; btn.textContent='Mark not converted'; }
   if(ok){ toast('Marked not converted — moved to History','ok'); closeDenyModal(); closeJobModal(); }
+}
+// ── Outreach outcomes: accepted / no-answer (callback + desktop alert) / unreachable ──
+let _cbTimers={};
+function requestNotifPermission(){ try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(_){} }
+function notifyCallback(j){
+  if(!j) return;
+  const name=j.client_name||j.address||('Job #'+j.id);
+  const num=j.alt_phone||j.phone||'';
+  try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('⏰ Call back: '+name, {body:'Bulky pickup — call '+(num||'the client')+' again', tag:'dispatch-cb-'+j.id}); } }catch(_){}
+  toast('⏰ Call back due: '+name,'ok');
+}
+function scheduleCallback(j){
+  if(!j || !j.callback_due || j.stage!=='outreach') return;
+  if(_cbTimers[j.id]) clearTimeout(_cbTimers[j.id]);
+  const ms=new Date(j.callback_due).getTime()-Date.now();
+  if(ms<=0 || ms>6*60*60*1000) return;   // overdue ones are surfaced by the board badge — don't fire on load
+  _cbTimers[j.id]=setTimeout(()=>{ delete _cbTimers[j.id]; const cur=(_jobs||[]).find(x=>x.id===j.id); if(cur && cur.stage==='outreach' && cur.callback_due) notifyCallback(cur); }, ms);
+}
+function scheduleAllCallbacks(){ (_jobs||[]).forEach(j=>{ if(j.stage==='outreach' && j.callback_due) scheduleCallback(j); }); }
+function outreachLogHtml(j){
+  const log=j.outreach_log||[];
+  const cbDue = j.callback_due ? `<div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:4px;">⏰ Call back due ${esc(fmtDateTime(j.callback_due))}</div>` : '';
+  if(!log.length && !cbDue) return '';
+  const rows=log.slice().reverse().map(e=>{
+    const oc=e.outcome==='no_answer'?'No answer':(e.outcome==='denied'?'Denied':(e.outcome==='accepted'?'Accepted':String(e.outcome||'')));
+    return `<div style="font-size:12px;color:#6b6256;padding:2px 0;">${esc(fmtDateTime(e.at))} · <b>${esc(oc)}</b>${e.number?` · ${esc(e.number)}`:''}${e.by?` · ${esc(e.by)}`:''}${e.notes?` — ${esc(e.notes)}`:''}</div>`;
+  }).join('');
+  return `<div style="margin:8px 0;padding:8px 11px;background:#faf6ee;border:1px solid #ecdcc0;border-radius:8px;">${cbDue}<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#9a7b3f;font-weight:700;margin-bottom:3px;">Call attempts (${log.length})</div>${rows||'<div style="font-size:12px;color:#999">None yet</div>'}</div>`;
+}
+async function outreachAccept(id){
+  const j=_jobs.find(x=>x.id===id); if(!j) return;
+  const log=(j.outreach_log||[]).concat([{at:new Date().toISOString(), outcome:'accepted', number:(valOf('jmAltPhone').trim()||j.phone||null), by:who()}]);
+  if(await persistJob(id,{...collectPatch(j), stage:'dispatch', outreach_log:log, callback_due:null, updated_at:new Date().toISOString(), updated_by:who()})){ if(_cbTimers[id]){ clearTimeout(_cbTimers[id]); delete _cbTimers[id]; } closeJobModal(); }
+}
+async function outreachNoAnswer(id){
+  const j=_jobs.find(x=>x.id===id); if(!j) return;
+  const num=valOf('jmAltPhone').trim()||j.phone||null;
+  const log=(j.outreach_log||[]).concat([{at:new Date().toISOString(), outcome:'no_answer', number:num, by:who()}]);
+  const noAns=log.filter(e=>e.outcome==='no_answer').length;
+  if(noAns>=2){
+    if(await persistJob(id,{...collectPatch(j), stage:'unreachable', outreach_log:log, callback_due:null, denial_note:'Unreachable — '+noAns+' no-answers', updated_at:new Date().toISOString(), updated_by:who()})){ if(_cbTimers[id]){ clearTimeout(_cbTimers[id]); delete _cbTimers[id]; } toast('2nd no-answer — marked Unreachable','ok'); closeJobModal(); }
+  } else {
+    requestNotifPermission();
+    const due=new Date(Date.now()+30*60*1000).toISOString();
+    if(await persistJob(id,{...collectPatch(j), outreach_log:log, callback_due:due, updated_at:new Date().toISOString(), updated_by:who()})){
+      scheduleCallback(_jobs.find(x=>x.id===id));
+      toast('No answer logged — reminder to call back in 30 min','ok'); openJobModal(id);
+    }
+  }
 }
 async function archiveJob(id){
   const j=_jobs.find(x=>x.id===id); if(!j) return;
@@ -1268,7 +1332,7 @@ async function deleteJob(id){
 async function renderDispatchHistory(){
   showSecondary(`<div class="detail-back" onclick="location.hash='#dispatch'">‹ Back to board</div><div class="card"><div class="dim">Loading…</div></div>`);
   await loadDispatch();
-  const items=_jobs.filter(j=>j.stage==='denied'||j.stage==='archived')
+  const items=_jobs.filter(j=>j.stage==='denied'||j.stage==='archived'||j.stage==='unreachable')
     .map(j=>({j, when:(j.stage==='denied'?j.denied_at:j.archived_at)||j.completed_at||j.updated_at}))
     .sort((a,b)=>(b.when||'').localeCompare(a.when||''));
   const groups={};
@@ -1278,9 +1342,9 @@ async function renderDispatchHistory(){
     <div class="card">
       <h3>${d==='unknown'?'Undated':fmtDate(d)}</h3>
       ${groups[d].map(j=>{
-        const tag=j.stage==='denied'?'<span class="pill lost">Denied</span>':'<span class="pill new">Completed</span>';
-        const sub=j.stage==='denied' ? esc(j.denial_note||'Client denied service')
-          : `${(j.price_items||[]).length} item(s) · $${jobTotal(j).toFixed(2)}${j.driver?` · ${esc(j.driver)}`:''}`;
+        const tag=j.stage==='denied'?'<span class="pill lost">Denied</span>':(j.stage==='unreachable'?'<span class="pill lost">Unreachable</span>':'<span class="pill new">Completed</span>');
+        const sub=(j.stage==='denied'||j.stage==='unreachable') ? esc(j.denial_note||(j.stage==='unreachable'?'Unreachable':'Client denied service'))
+          : `$${jobTotal(j).toFixed(2)} quote${j.driver?` · ${esc(j.driver)}`:''}`;
         const photos=j.photos||[];
         const thumbs=photos.length?`<div class="jm-photos" style="margin-top:8px">${photos.map((p,idx)=>`<div class="jm-thumb" id="histthumb-${j.id}-${idx}">${p.type==='video'?'🎥':''}</div>`).join('')}</div>`:'';
         return `<div class="hist-job">
@@ -1292,7 +1356,7 @@ async function renderDispatchHistory(){
     </div>`).join('') : '<div class="card"><div class="empty">No history yet.</div></div>';
   showSecondary(`
     <div class="detail-back" onclick="location.hash='#dispatch'">‹ Back to board</div>
-    <div class="detail-header"><div><h1>Dispatch History</h1><div class="acct-sub">Denied &amp; archived jobs by day</div></div></div>
+    <div class="detail-header"><div><h1>Dispatch History</h1><div class="acct-sub">Denied · unreachable · completed jobs by day</div></div></div>
     ${body}
   `);
   hydrateHistoryPhotos(items.map(x=>x.j));
@@ -1719,7 +1783,7 @@ function renderReview(type, monthKey){
 // in the selected Mon–Sun week; conversion = sales / cards created.
 let _bulkyWeekOffset=0, _bulkyReportData=null;
 function bulkyOutcome(stage){
-  if(stage==='denied') return 'denied';
+  if(stage==='denied'||stage==='unreachable') return 'denied';
   if(stage==='dispatch'||stage==='completion'||stage==='archived') return 'sale';
   return 'progress';
 }
