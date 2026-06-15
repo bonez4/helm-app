@@ -1259,12 +1259,13 @@ async function confirmDeny(){
   if(!sel){ toast('Pick a reason first.','err'); return; }
   let reason=sel;
   if(sel==='Other'){ reason=(valOf('denyOther')||'').trim(); if(!reason){ toast('Add the details for "Other".','err'); return; } }
+  requestNotifPermission();   // prompt on this click so the denial can pop a desktop alert too
   const j=_jobs.find(x=>x.id===id);
   const btn=document.getElementById('denySaveBtn'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
   const dlog=(j&&j.outreach_log||[]).concat([{at:new Date().toISOString(), outcome:'denied', number:(j&&(j.alt_phone||j.phone))||null, by:who(), notes:reason}]);
   const ok=await persistJob(id,{...(j?collectPatch(j):{}), stage:'denied', denial_note:reason, denied_at:new Date().toISOString(), outreach_log:dlog, callback_due:null, updated_at:new Date().toISOString(), updated_by:who()});
   if(btn){ btn.disabled=false; btn.textContent='Mark not converted'; }
-  if(ok){ toast('Marked not converted — moved to History','ok'); closeDenyModal(); closeJobModal(); }
+  if(ok){ notifyJobDenied(j, reason); closeDenyModal(); closeJobModal(); }
 }
 // ── Outreach outcomes: accepted / no-answer (callback + desktop alert) / unreachable ──
 let _cbTimers={};
@@ -1287,6 +1288,14 @@ function notifyDispatchReady(j){
   const body=(bits.length?bits.join(' · ')+' — ':'')+'accepted — assign a driver';
   try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('📦 Ready to dispatch: '+name, {body:body, tag:'dispatch-ready-'+j.id}); } }catch(_){}
   toast('📦 '+name+' → Dispatch — assign a driver','ok');
+}
+// Fired when an outreach card is denied (client declined / not converted) and drops to History.
+function notifyJobDenied(j, reason){
+  if(!j) return;
+  const name=j.client_name||j.address||('Job #'+j.id);
+  const body=(j.address?j.address+' — ':'')+'not converted'+(reason?' ('+reason+')':'')+' → History';
+  try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('🚫 Job denied: '+name, {body:body, tag:'dispatch-denied-'+j.id}); } }catch(_){}
+  toast('🚫 '+name+' — not converted → History','ok');
 }
 function scheduleCallback(j){
   if(!j || !j.callback_due || j.stage!=='outreach') return;
