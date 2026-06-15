@@ -1037,6 +1037,7 @@ function jobCardHtml(j){
     ${j.client_name?`<div class="dcard-name">${esc(j.client_name)}${j.client_id?` · #${esc(j.client_id)}`:''}</div>`:''}
     ${detail}
     ${(j.stage==='outreach'&&j.callback_due)?`<div class="dcard-row" style="color:#b45309;font-weight:700">⏰ Call back ${esc(fmtDateTime(j.callback_due))}</div>`:''}
+    ${(j.stage==='completion'&&j.completed_at)?`<div class="dcard-row" style="color:#0369a1;font-weight:600">✓ Completed ${esc(fmtDateTime(j.completed_at))}</div>`:''}
     <div class="dcard-foot">${photoN?`📷 ${photoN}`:'<span class="dim">no photo</span>'}</div>
   </div>`;
 }
@@ -1138,6 +1139,7 @@ function renderJobModalBody(j){
     <div class="jm-snap">${esc(j.address||'')}${j.client_name?` · ${esc(j.client_name)}`:''}${j.driver?` · Driver: ${esc(j.driver)}`:''}</div>
     <label class="jm-label">Charge</label>
     <div style="font-size:24px;font-weight:800;color:#d97706;margin:2px 0 8px;">${jobTotal(j)?('$'+jobTotal(j).toFixed(2)):'<span class="dim" style="font-size:14px;font-weight:400">No charge set</span>'}</div>
+    ${j.completed_at?`<div class="dim" style="font-size:12px;margin:0 0 10px;">✓ Completed ${esc(fmtDateTime(j.completed_at))}</div>`:''}
     <div class="jm-actions">
       <button class="btn" onclick="printJob(${j.id})">🖨 Print ticket</button>
       <div style="flex:1"></div>
