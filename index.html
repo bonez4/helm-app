@@ -7902,11 +7902,15 @@ function emailComplaint(id){
   if(!c){ toast('Complaint not found'); return; }
   const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
   const typeLabel = complaintTypeLabel(c.type);
+  const route = (c.client_route!=null && c.client_route!=='') ? String(c.client_route) : '—';
+  const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '—';
   const lines = [
     'ADDRESS: '+(c.client_address||'—'),
     'TIME OF COMPLAINT: '+when,
     'ACCOUNT #: '+(c.client_id||'—'),
     'CLIENT NAME: '+(c.client_name||'—'),
+    'ROUTE: '+route,
+    'DAYS OF WEEK PICKUP: '+days,
   ];
   if(c.driver_name) lines.push('DRIVER INVOLVED: '+c.driver_name);
   lines.push('____', '', 'COMPLAINT: '+(c.notes||'—'), 'COMPLAINT TYPE: '+typeLabel);
