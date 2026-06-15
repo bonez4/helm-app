@@ -1276,6 +1276,18 @@ function notifyCallback(j){
   try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('⏰ Call back: '+name, {body:'Bulky pickup — call '+(num||'the client')+' again', tag:'dispatch-cb-'+j.id}); } }catch(_){}
   toast('⏰ Call back due: '+name,'ok');
 }
+// Fired the moment a card crosses Outreach → Dispatch (client accepted the quote).
+// Desktop notification (if the user has granted permission) + an in-app toast,
+// mirroring the callback alert above.
+function notifyDispatchReady(j){
+  if(!j) return;
+  const name=j.client_name||j.address||('Job #'+j.id);
+  const total=jobTotal(j);
+  const bits=[]; if(j.address) bits.push(j.address); if(total) bits.push('$'+total.toFixed(2));
+  const body=(bits.length?bits.join(' · ')+' — ':'')+'accepted — assign a driver';
+  try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('📦 Ready to dispatch: '+name, {body:body, tag:'dispatch-ready-'+j.id}); } }catch(_){}
+  toast('📦 '+name+' → Dispatch — assign a driver','ok');
+}
 function scheduleCallback(j){
   if(!j || !j.callback_due || j.stage!=='outreach') return;
   if(_cbTimers[j.id]) clearTimeout(_cbTimers[j.id]);
@@ -1296,8 +1308,13 @@ function outreachLogHtml(j){
 }
 async function outreachAccept(id){
   const j=_jobs.find(x=>x.id===id); if(!j) return;
+  requestNotifPermission();   // prompt on this click so the first accept can pop a desktop alert too
   const log=(j.outreach_log||[]).concat([{at:new Date().toISOString(), outcome:'accepted', number:(valOf('jmAltPhone').trim()||j.phone||null), by:who()}]);
-  if(await persistJob(id,{...collectPatch(j), stage:'dispatch', outreach_log:log, callback_due:null, updated_at:new Date().toISOString(), updated_by:who()})){ if(_cbTimers[id]){ clearTimeout(_cbTimers[id]); delete _cbTimers[id]; } closeJobModal(); }
+  if(await persistJob(id,{...collectPatch(j), stage:'dispatch', outreach_log:log, callback_due:null, updated_at:new Date().toISOString(), updated_by:who()})){
+    if(_cbTimers[id]){ clearTimeout(_cbTimers[id]); delete _cbTimers[id]; }
+    notifyDispatchReady(_jobs.find(x=>x.id===id)||j);   // Outreach → Dispatch: alert that a job is ready
+    closeJobModal();
+  }
 }
 async function outreachNoAnswer(id){
   const j=_jobs.find(x=>x.id===id); if(!j) return;
