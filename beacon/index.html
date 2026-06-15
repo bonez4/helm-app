@@ -815,6 +815,7 @@ function showApp(){
 // ── BOOT + DATA LOAD ───────────────────────────────────────────────────
 async function bootApp(){
   await Promise.all([loadCommercial(), loadEvents(), loadOutreach()]);
+  initDispatchRealtime();
   route();
 }
 async function fetchAll(table, cols, applyFilters){
@@ -1305,9 +1306,16 @@ function collectPatch(j){
   return p;
 }
 async function persistJob(id, patch){
+  const prevStage=(_jobs.find(x=>x.id===id)||{}).stage;
   const {error}=await db.from('dispatch_jobs').update(patch).eq('id',id);
   if(error){ toast('Save failed: '+error.message,'err'); return false; }
   const j=_jobs.find(x=>x.id===id); if(j) Object.assign(j, patch);
+  // Any stage change → broadcast so admin (card → Outreach) + David (every move) get a live alert.
+  if(patch && patch.stage && patch.stage!==prevStage){
+    broadcastDispatchMove({jobId:id, from:prevStage||null, to:patch.stage,
+      name:(j&&(j.client_name||j.address))||'', address:(j&&j.address)||'',
+      total:(j?(jobTotal(j)||0):0), by:who()});
+  }
   return true;
 }
 async function saveJob(){
@@ -1352,7 +1360,7 @@ async function confirmDeny(){
   const dlog=(j&&j.outreach_log||[]).concat([{at:new Date().toISOString(), outcome:'denied', number:(j&&(j.alt_phone||j.phone))||null, by:who(), notes:reason}]);
   const ok=await persistJob(id,{...(j?collectPatch(j):{}), stage:'denied', denial_note:reason, denied_at:new Date().toISOString(), outreach_log:dlog, callback_due:null, updated_at:new Date().toISOString(), updated_by:who()});
   if(btn){ btn.disabled=false; btn.textContent='Mark not converted'; }
-  if(ok){ notifyJobDenied(j, reason); closeDenyModal(); closeJobModal(); }
+  if(ok){ toast('🚫 Marked not converted → History','ok'); closeDenyModal(); closeJobModal(); }
 }
 // ── Outreach outcomes: accepted / no-answer (callback + desktop alert) / unreachable ──
 let _cbTimers={};
@@ -1364,25 +1372,46 @@ function notifyCallback(j){
   try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('⏰ Call back: '+name, {body:'Bulky pickup — call '+(num||'the client')+' again', tag:'dispatch-cb-'+j.id}); } }catch(_){}
   toast('⏰ Call back due: '+name,'ok');
 }
-// Fired the moment a card crosses Outreach → Dispatch (client accepted the quote).
-// Desktop notification (if the user has granted permission) + an in-app toast,
-// mirroring the callback alert above.
-function notifyDispatchReady(j){
-  if(!j) return;
-  const name=j.client_name||j.address||('Job #'+j.id);
-  const total=jobTotal(j);
-  const bits=[]; if(j.address) bits.push(j.address); if(total) bits.push('$'+total.toFixed(2));
-  const body=(bits.length?bits.join(' · ')+' — ':'')+'accepted — assign a driver';
-  try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('📦 Ready to dispatch: '+name, {body:body, tag:'dispatch-ready-'+j.id}); } }catch(_){}
-  toast('📦 '+name+' → Dispatch — assign a driver','ok');
+// ── Cross-user dispatch notifications (Supabase Realtime broadcast) ──────────
+// Browser notifications only reach the local tab, so to alert OTHER people we
+// broadcast every stage move on a shared channel; each open BEACON client then
+// decides whether to alert based on who's signed in:
+//   • the 'admin' user (makes the calls) is alerted when a card enters Outreach
+//   • 'david' is alerted on EVERY move
+// We never alert whoever performed the move. Recipients must have BEACON open in
+// a tab — there is no server push when the app is fully closed.
+let _dispatchChannel=null;
+function initDispatchRealtime(){
+  if(_dispatchChannel || !currentUser) return;
+  requestNotifPermission();
+  try{
+    _dispatchChannel = db.channel('beacon-dispatch-moves');
+    _dispatchChannel.on('broadcast', {event:'move'}, ({payload})=>handleDispatchMove(payload)).subscribe();
+  }catch(_){ _dispatchChannel=null; }
 }
-// Fired when an outreach card is denied (client declined / not converted) and drops to History.
-function notifyJobDenied(j, reason){
-  if(!j) return;
-  const name=j.client_name||j.address||('Job #'+j.id);
-  const body=(j.address?j.address+' — ':'')+'not converted'+(reason?' ('+reason+')':'')+' → History';
-  try{ if('Notification' in window && Notification.permission==='granted'){ new Notification('🚫 Job denied: '+name, {body:body, tag:'dispatch-denied-'+j.id}); } }catch(_){}
-  toast('🚫 '+name+' — not converted → History','ok');
+function broadcastDispatchMove(payload){
+  try{ if(_dispatchChannel) _dispatchChannel.send({type:'broadcast', event:'move', payload}); }catch(_){}
+}
+function dispatchNotifyBeacon(title, body, jobId){
+  try{ if('Notification' in window && Notification.permission==='granted'){ new Notification(title, {body:body||'', tag:'beacon-dispatch-'+jobId}); } }catch(_){}
+  toast(title,'ok');
+}
+function handleDispatchMove(p){
+  if(!p || !currentUser) return;
+  if(p.by && p.by===who()) return;                 // don't alert whoever made the move
+  const u=(currentUser.username||'').toLowerCase();
+  const isAdmin = u==='admin' || currentUser.role==='admin';
+  const isDavid = u==='david';
+  if(!isAdmin && !isDavid) return;
+  const name=p.name||p.address||('Job #'+p.jobId);
+  const amt=p.total?` · $${Number(p.total).toFixed(2)}`:'';
+  if(isAdmin && p.to==='outreach'){
+    dispatchNotifyBeacon('📞 New card to call: '+name, (p.address||'')+' — moved to Outreach'+amt, p.jobId);
+    return;
+  }
+  if(isDavid){
+    dispatchNotifyBeacon('📦 '+name+': '+stageLabel(p.from)+' → '+stageLabel(p.to), (p.address||'')+amt, p.jobId);
+  }
 }
 function scheduleCallback(j){
   if(!j || !j.callback_due || j.stage!=='outreach') return;
@@ -1408,7 +1437,7 @@ async function outreachAccept(id){
   const log=(j.outreach_log||[]).concat([{at:new Date().toISOString(), outcome:'accepted', number:(valOf('jmAltPhone').trim()||j.phone||null), by:who()}]);
   if(await persistJob(id,{...collectPatch(j), stage:'dispatch', outreach_log:log, callback_due:null, updated_at:new Date().toISOString(), updated_by:who()})){
     if(_cbTimers[id]){ clearTimeout(_cbTimers[id]); delete _cbTimers[id]; }
-    notifyDispatchReady(_jobs.find(x=>x.id===id)||j);   // Outreach → Dispatch: alert that a job is ready
+    toast('📦 Accepted → Dispatch','ok');   // recipients (David) are alerted via the realtime broadcast in persistJob
     closeJobModal();
   }
 }
