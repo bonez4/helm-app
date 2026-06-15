@@ -7376,7 +7376,10 @@ async function renderInboxDetail(c){
         </div>
         <div style="font-size:12px;color:var(--gray-500);">Logged by <strong>${esc(c.logged_by||'—')}</strong> on ${esc(when)}</div>
       </div>
-      <button class="btn-edit-sm" onclick="printComplaintCase(${c.id})" style="white-space:nowrap;">Print</button>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn-edit-sm" onclick="emailComplaint(${c.id})" style="white-space:nowrap;">📧 Email complaint</button>
+        <button class="btn-edit-sm" onclick="printComplaintCase(${c.id})" style="white-space:nowrap;">Print</button>
+      </div>
     </div>
     ${snapshot}
     <div class="inbox-section">
@@ -7891,6 +7894,28 @@ ${blocks}
 }
 
 // Print a single complaint case file (auditable record).
+// Email a single complaint — opens a Gmail compose with the key details prefilled
+// (plain text) and copies the same text to the clipboard as a fallback. Mirrors
+// the Gmail-compose approach used by the scale reports (icrMonthlyEmail).
+function emailComplaint(id){
+  const c=(_inboxComplaints||[]).find(x=>x.id===id);
+  if(!c){ toast('Complaint not found'); return; }
+  const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+  const typeLabel = complaintTypeLabel(c.type);
+  const lines = [
+    'ADDRESS: '+(c.client_address||'—'),
+    'TIME OF COMPLAINT: '+when,
+    'ACCOUNT #: '+(c.client_id||'—'),
+    'CLIENT NAME: '+(c.client_name||'—'),
+  ];
+  if(c.driver_name) lines.push('DRIVER INVOLVED: '+c.driver_name);
+  lines.push('____', '', 'COMPLAINT: '+(c.notes||'—'), 'COMPLAINT TYPE: '+typeLabel);
+  const body = lines.join('\n');
+  const subject = 'Complaint — '+(c.client_name||('Account '+c.client_id))+' (#'+(c.client_id||'')+') — '+typeLabel;
+  try{ if(navigator.clipboard) navigator.clipboard.writeText(body).catch(()=>{}); }catch(_){}
+  window.open('https://mail.google.com/mail/?view=cm&fs=1&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body), '_blank');
+  toast('Opening Gmail — complaint details also copied to clipboard', true);
+}
 async function printComplaintCase(complaintId){
   const c = _inboxComplaints.find(x=>x.id===complaintId);
   if(!c){ toast('Complaint not found'); return; }
