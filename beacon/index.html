@@ -1023,7 +1023,64 @@ async function renderDispatchBoard(){
       </div>
     </div>
     <div class="board">${cols}</div>
+    <div id="dispStats"></div>
   `);
+  renderDispatchStats();
+}
+// ── Conversion stats (under the board): cards created → conversions, by day/week/month ──
+// Reuses bulkyOutcome() so these numbers match the Bulky Conversion Report exactly:
+// sale = dispatch/completion/archived, denied = denied/unreachable, else in-progress.
+// Cohort = cards CREATED in the selected period (by created_at), computed straight from
+// the already-loaded _jobs (no extra fetch). Same created_at filtering convention as the report.
+let _dispStatsMode='week', _dispStatsOffset=0;
+function dispStatsRange(mode, offset){
+  const now=new Date(); now.setHours(0,0,0,0);
+  if(mode==='day'){
+    const d=new Date(now); d.setDate(now.getDate()+offset); const iso=isoOf(d);
+    return {from:iso, to:iso, label:fmtDate(iso)};
+  }
+  if(mode==='month'){
+    const first=new Date(now.getFullYear(), now.getMonth()+offset, 1);
+    const last=new Date(first.getFullYear(), first.getMonth()+1, 0);
+    return {from:isoOf(first), to:isoOf(last), label:first.toLocaleDateString('en-US',{month:'long',year:'numeric'})};
+  }
+  const [from,to]=weekRange(offset);
+  return {from, to, label:'Week of '+fmtDate(from)+' – '+fmtDate(to)};
+}
+function dispStatsSetMode(mode){ _dispStatsMode=mode; _dispStatsOffset=0; renderDispatchStats(); }
+function dispStatsNav(delta){ if(delta==='this'){ _dispStatsOffset=0; } else { _dispStatsOffset+=delta; } if(_dispStatsOffset>0) _dispStatsOffset=0; renderDispatchStats(); }
+function renderDispatchStats(){
+  const box=document.getElementById('dispStats'); if(!box) return;
+  const {from,to,label}=dispStatsRange(_dispStatsMode,_dispStatsOffset);
+  const lo=from+'T00:00:00', hi=to+'T23:59:59.999';
+  const inRange=(_jobs||[]).filter(j=>{ const c=j.created_at||''; return c>=lo && c<=hi; });
+  let created=inRange.length, sales=0, denied=0, progress=0, salesValue=0, totalValue=0, deniedValue=0;
+  inRange.forEach(j=>{ const oc=bulkyOutcome(j.stage); const v=jobTotal(j)||0; totalValue+=v;
+    if(oc==='sale'){ sales++; salesValue+=v; } else if(oc==='denied'){ denied++; deniedValue+=v; } else { progress++; } });
+  const decided=sales+denied;
+  const pct=created?Math.round(sales/created*100):0;
+  const pctDecided=decided?Math.round(sales/decided*100):0;
+  const modeBtn=(m,lbl)=>`<button class="btn${_dispStatsMode===m?' btn-primary':''}" onclick="dispStatsSetMode('${m}')">${lbl}</button>`;
+  box.innerHTML=`
+    <div class="card" style="margin-top:18px">
+      <div class="act-controls" style="flex-wrap:wrap;gap:8px;align-items:center">
+        <b style="font-size:14px">Conversion stats</b>
+        <span style="display:inline-flex;gap:4px;margin-left:6px">${modeBtn('day','Day')}${modeBtn('week','Week')}${modeBtn('month','Month')}</span>
+        <button class="btn" onclick="dispStatsNav(-1)">‹ Prev</button>
+        <button class="btn" onclick="dispStatsNav('this')">Current</button>
+        <button class="btn" onclick="dispStatsNav(1)">Next ›</button>
+        <span class="mini-label" style="margin-left:auto">${esc(label)}</span>
+      </div>
+      <div class="kpi-row" style="margin-top:12px">
+        <div class="kpi"><div class="kpi-num">${created}</div><div class="kpi-label">Cards created</div></div>
+        <div class="kpi new"><div class="kpi-num">${sales}</div><div class="kpi-label">Conversions</div></div>
+        <div class="kpi"><div class="kpi-num">${pct}%</div><div class="kpi-label">Conversion rate</div></div>
+        <div class="kpi"><div class="kpi-num" style="font-size:18px">$${salesValue.toFixed(2)} / $${totalValue.toFixed(2)}</div><div class="kpi-label">Converted $ / total $</div></div>
+      </div>
+      <div class="dim" style="margin-top:8px;font-size:12px;line-height:1.5">
+        ${created ? `<b>${sales}</b> of <b>${created}</b> cards created converted (<b>${pct}%</b>). Denied <b>${denied}</b> ($${deniedValue.toFixed(2)}) · in progress <b>${progress}</b>.${decided?` Excluding in-progress: ${sales}/${decided} → <b>${pctDecided}%</b>.`:''}` : 'No cards created in this period.'}
+      </div>
+    </div>`;
 }
 function jobCardHtml(j){
   const live = j.stage==='dispatch' && j.dispatched_at;
@@ -1371,7 +1428,7 @@ async function renderDispatchHistory(){
       ${groups[d].map(j=>{
         const tag=j.stage==='denied'?'<span class="pill lost">Denied</span>':(j.stage==='unreachable'?'<span class="pill lost">Unreachable</span>':'<span class="pill new">Completed</span>');
         const sub=(j.stage==='denied'||j.stage==='unreachable') ? esc(j.denial_note||(j.stage==='unreachable'?'Unreachable':'Client denied service'))
-          : `$${jobTotal(j).toFixed(2)} quote${j.driver?` · ${esc(j.driver)}`:''}`;
+          : `$${jobTotal(j).toFixed(2)} quote${j.driver?` · ${esc(j.driver)}`:''}${j.completed_at?` · ✓ Completed ${esc(fmtDateTime(j.completed_at))}`:''}`;
         const photos=j.photos||[];
         const thumbs=photos.length?`<div class="jm-photos" style="margin-top:8px">${photos.map((p,idx)=>`<div class="jm-thumb" id="histthumb-${j.id}-${idx}">${p.type==='video'?'🎥':''}</div>`).join('')}</div>`:'';
         return `<div class="hist-job">
@@ -1439,7 +1496,7 @@ function jobPrintStyles(){ return `body{font-family:Arial,Helvetica,sans-serif;c
 function jobPrintHtml(j, imgs){
   return `<div class="tk">
     <div class="tk-h">${esc(j.address||'(no address)')}</div>
-    <div class="tk-sub">Residential bulky pickup${j.completed_at?` · completed ${fmtDate(j.completed_at)}`:''}</div>
+    <div class="tk-sub">Residential bulky pickup${j.completed_at?` · completed ${esc(fmtDateTime(j.completed_at))}`:''}</div>
     <div class="tk-row"><span class="tk-label">Client</span> ${esc(j.client_name||'—')}${j.client_id?` (#${esc(j.client_id)})`:''}</div>
     <div class="tk-row"><span class="tk-label">Phone</span> ${esc(j.phone||'—')}</div>
     <div class="tk-row"><span class="tk-label">Driver</span> ${esc(j.driver||'—')}</div>
