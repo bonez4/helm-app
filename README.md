@@ -51,7 +51,7 @@ No build step. No npm. No framework. One file.
 
 ## Users & Access Control
 
-**Current users:** admin, david, chris, jackie, esme, hannah, kobie, maria, tom, jaime, jack, sharon, jarrett
+**Current users:** admin, david, chris, jackie, esme, hannah, kobie, maria, tom, jaime, jack, sharon, jarrett, dane, brian
 
 **Access control:**
 - **All users** see: Client Lookup, Add Client, Reports, Roll-offs, **Dispatch group → Dispatch Input + History**
@@ -62,6 +62,7 @@ No build step. No npm. No framework. One file.
 - **David / Chris / admin**: **Dispatch group → Rolloff Queue** (the dispatcher view)
 - **David + admin**: **Bulky Pickups** tab (new solo nav item) + the topbar complaint inbox icon
 - **David + Esme**: Complaint Report card + Monthly Complaint Summary card on the Reports tab
+- **Supervisors — Dane, Brian** (`users.is_supervisor`): the **Supervisor Queue** (large green topbar pill; they land on it at login) to work complaints routed to them. David + admin can open the queue too (small icon) for oversight.
 - **David / Chris / admin / Jarrett**: **BEACON** sister app launch button in the topbar (goes to `/beacon/`)
 - **David only**: Workflow tab (Action Items / project management) **and Routing group → Residential Routing tab**
 - **David + Chris + admin (per-user nav variant):** Roll-offs tab moves *into* the Client Management group (rather than sitting standalone). Other users still see Roll-offs as a top-level item.
@@ -171,14 +172,16 @@ Per-user themes live in `applyUserTheme()`:
 | status | TEXT | `new` (untriaged) / `case_open` / `resolved` / `ignored` |
 | ignored_reason / ignored_at / ignored_by | — | Required when status=ignored |
 | case_opened_at / case_opened_by | — | When David opened a case |
-| resolved_at / resolved_by / resolution_notes | — | When David closed the case |
+| resolved_at / resolved_by / resolution_notes | — | When David closed the case (or a supervisor) |
+| routed_to_supervisor | BOOLEAN | TRUE once the complaint is in the Supervisor Queue — auto for Driver/Missed Stop on log, or via David's "Hand to a supervisor". *(User-applied `ALTER`.)* |
+| assigned_to / assigned_at / assigned_by | TEXT / TIMESTAMPTZ / TEXT | The supervisor a routed complaint is assigned to (NULL = unclaimed pool) + when/by-whom (claim or David-assign). *(User-applied `ALTER`.)* |
 
-**`complaint_actions`** — Per-case timeline of standardized steps
+**`complaint_actions`** — Per-case timeline of standardized steps (the shared audit trail for David AND supervisors)
 | Column | Type | Notes |
 |---|---|---|
 | id | BIGSERIAL (PK) | Auto |
 | complaint_id | BIGINT (FK) | References complaints.id, ON DELETE CASCADE |
-| action_type | TEXT | System (auto-written): `opened` / `resolved` / `reopened`. User-pickable case-note types: `called_client` / `spoke_to_driver` / `spoke_to_rep` / `supervisor_informed` / `note` — **admin-managed** via `complaint_taxonomies` (kind=`action`), so custom note types can be added. |
+| action_type | TEXT | System (auto-written): `opened` / `resolved` / `reopened` / `routed` / `escalated`. David's case-note types `called_client` / `spoke_to_driver` / `spoke_to_rep` / `supervisor_informed` / `note` are **admin-managed** via `complaint_taxonomies` (kind=`action`). The **Supervisor Queue** writes its own fixed button set (`spoke_to_driver` / `spoke_to_client` / `contacted_office` / `on_site_visit`); labels for the non-built-in values resolve in `caseActionLabel`. Every supervisor tap + note is one row here, so it all prints in the case files. |
 | notes | TEXT | Free-text detail for this step |
 | performed_by | TEXT | Display name |
 | performed_at | TIMESTAMPTZ | Auto |
@@ -297,6 +300,7 @@ Built-ins seed the four types + five note types; the log-complaint picker, the c
 | ~~password~~ | — | Dropped 2026-05-29 — passwords now live hashed in Supabase Auth (`auth.users`); login uses `signInWithPassword` |
 | display_name | TEXT | Shown in topbar and notes |
 | role | TEXT | `admin` or `staff` |
+| is_supervisor | BOOLEAN | TRUE → access to the **Supervisor Queue** (Dane, Brian). David/admin also see the queue (oversight) regardless of this flag. *(User-applied `ALTER`.)* |
 
 **`contacts`** — Shared contact panel (office + drivers)
 | Column | Type | Notes |
@@ -539,7 +543,9 @@ A dedicated workflow for tracking and resolving customer complaints. Complaints 
   - **Patterns panel** — by type / top routes / top drivers (respects the week filter).
   - **⚙ Manage types** (header) — admin-manage the complaint + note types (see `complaint_taxonomies`).
   - **Day report** — date picker + 🖨 Print day → a cover sheet (by status / type / route) + a detailed per-complaint block **with the full case-action steps**, then **Still-open cases** (opened date + days-open) and **Resolved today** sections, then a compact summary.
-  - **🖨 Print Week** (when a week is selected) — every complaint that week as its own page-broken case file + a by-type/by-status cover sheet. **Print** on a single case writes its full audit-trail file.
+  - **🖨 Print Week** (when a week is selected) — every complaint that week as its own page-broken case file + a by-type/by-status cover sheet. **Print** on a single case writes its full audit-trail file. **🖨 Print range** does the same for any From–To window, **any status**.
+  - **Hand to a supervisor** — from a complaint's detail, assign it to Dane/Brian or drop it in the shared pool (Driver + Missed Stop auto-route on log). Routed complaints show a `👤 <name> / pool` chip in the list so David can tell what's in supervisor hands. (See **Supervisor Queue** below.)
+  - **📧 Email complaint** — opens a Gmail compose prefilled with the key details (address / time / acct / client / route / days / driver / complaint / type) + copies to clipboard. **Address** now also shows under the client name in the console list.
 
 **Opening a case:**
 - Status flips to `case_open`; first `complaint_actions` entry written as `opened`
@@ -550,6 +556,15 @@ A dedicated workflow for tracking and resolving customer complaints. Complaints 
 - "Ignore" opens a small modal that **requires a reason** (no empty submit)
 - Status flips to `ignored`; reason + when + by-whom are saved on the complaint row
 - Stays visible under the Ignored filter — nothing is deleted; full audit trail preserved
+
+**Supervisor Queue (supervisors + David/admin) — the resolution arm of the same pipeline:**
+Supervisors (Dane, Brian) take complaints off David's plate. The queue and David's console are the **same `complaints` / `complaint_actions` data** — David triages/routes, supervisors resolve, and it's all one audit trail.
+- **Access:** `users.is_supervisor`. Supervisors get a big green **"Complaint Queue"** topbar pill and **land on it at login**; David/admin get a small icon for oversight.
+- **How complaints arrive:** **Driver + Missed Stop** auto-route to the pool on log; David hand-routes anything else ("Hand to a supervisor" → a specific supervisor or the pool).
+- **Queue:** mobile-first **My cases / Available (pool) / Solved** tabs, sorted by priority then age, overdue (>3d) flagged. **Claim** pulls a pool case into "mine."
+- **Solve screen (few taps, everything logged):** ordered buttons **Spoke to Driver** (prompts for the driver's name) · **Spoke to Client** · **Contacted Office** · **On-site Visit** — tap any/all, each writes a timestamped `complaint_actions` row — plus an **always-on notes** field, **✓ Resolve** (resolution notes), **↩ Send back to David** (escalate → leaves the pool, back to David), **Reopen**. Header has click-to-call + a ⚠ repeat-client flag.
+- **Notifications:** realtime ping (Supabase broadcast, `helm-complaints`) to the supervisor on route-to-them, and to David/admin on solve/escalate. Needs HELM open in a tab.
+- **Reporting:** every action lands in `complaint_actions`, so it already shows in the Day/Week/Range **case-file prints** + the Monthly Summary resolution footer. *(A dedicated on-screen supervisor / by-outcome report is the planned next step — see the June 17 changelog.)*
 
 **Migration on rollout:** The SQL migration block (see Supabase Setup) moves every existing `Complaint - DRIVER` / `Complaint - BILLING` / `Complaint - OTHER` note from `notes` into the new `complaints` table as `status='new'`, then deletes the source notes so they don't get double-counted.
 
@@ -921,11 +936,13 @@ Reclassifications also matter: if any IC tickets were marked **Pile Pickup**, **
 2. Run `git add index.html && git commit -m "description" && git push`
 3. GitHub Pages auto-deploys in ~1-2 minutes
 
-### To add a new staff user:
+### To add a new staff user (TWO steps — there is NO `password` column; login is Supabase Auth):
+1. **Create the Auth login** — Supabase dashboard → Authentication → Users → **Add user** → email `newname@helm.internal`, a password (≥6 chars), tick **Auto Confirm User**.
+2. **Create the profile row** (no password):
 ```sql
-INSERT INTO users (username, password, display_name, role)
-VALUES ('newname', 'password', 'Display Name', 'staff');
+INSERT INTO users (username, display_name, role) VALUES ('newname', 'Display Name', 'staff');
 ```
+A `users` row alone does **not** grant login — the Auth account from step 1 is required (login = `signInWithPassword` on `username@helm.internal`, then loads this profile). Deleting a `users` row does NOT delete the Auth account. *(The old single-INSERT-with-password recipe was retired when Supabase Auth landed 2026-05-29.)*
 
 ### To promote a user to admin:
 ```sql
@@ -1197,6 +1214,17 @@ CREATE INDEX IF NOT EXISTS complaint_actions_complaint_idx ON complaint_actions(
 ALTER TABLE complaint_actions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "complaint_actions_all" ON complaint_actions FOR ALL USING(true) WITH CHECK(true);
 
+-- Complaint Console priority + Supervisor complaint system (user-applied ALTERs)
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'normal';
+ALTER TABLE users      ADD COLUMN IF NOT EXISTS is_supervisor BOOLEAN DEFAULT false;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS routed_to_supervisor BOOLEAN DEFAULT false;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS assigned_to TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS assigned_by TEXT;
+CREATE INDEX IF NOT EXISTS complaints_assigned_idx ON complaints(assigned_to);
+-- Supervisors also need an Auth login (see "add a new staff user"):
+-- UPDATE users SET is_supervisor = true WHERE username IN ('dane','brian');
+
 -- One-time migration of legacy "Complaint - X" notes into the new complaints table.
 -- Each migrated complaint lands with status='new' so it shows up in David's inbox
 -- the first time he opens it after this SQL runs.
@@ -1293,6 +1321,20 @@ Open items deliberately on hold. Pick these back up when relevant — listed in 
 ## Recent Major Changes
 
 Older entries are intentionally terse — full detail lives in git history. The most recent week is given fuller context.
+
+### June 17, 2026
+
+**HELM — Supervisor complaint system (the complaint log + supervisor views are now ONE connected pipeline).** Complaints, David's Complaint Console, and the new Supervisor Queue all read/write the **same `complaints` + `complaint_actions` tables** — David triages/routes, supervisors resolve, and every action is one shared, timestamped audit trail that prints in the same case files.
+- **Supervisor role + queue.** New `users.is_supervisor` flag (**Dane + Brian**). A big green **"Complaint Queue"** topbar pill (supervisors land on it at login; David/admin get a small oversight icon). Mobile-first **My / Available / Solved** tabs; **claim** from the pool; a fast **Solve** screen — ordered multi-select buttons **Spoke to Driver** (prompts for + captures the driver's name) · **Spoke to Client** · **Contacted Office** · **On-site Visit** (each tap = a timestamped `complaint_actions` row) + an always-on **notes** field, **✓ Resolve**, **↩ Send back to David** (escalate), **Reopen**; click-to-call + a ⚠ repeat-client flag. New `complaints` columns `routed_to_supervisor` / `assigned_to` / `assigned_at` / `assigned_by` (user-applied SQL). Commits `38c8ef7` → `c480ebd` → `1a22f5e`.
+- **Routing.** David's console detail gains **"Hand to a supervisor"** (assign to Dane/Brian or drop in the pool); **Driver + Missed Stop** complaints **auto-route** to the pool on log. Routed complaints show a `👤 <name> / pool` chip in David's console list.
+- **Realtime** (Supabase broadcast, channel `helm-complaints`, no DB change): supervisors pinged when a complaint is routed to them; David/admin on solve/escalate. Recipients need HELM open in a tab.
+- **📧 Email complaint** (console detail) → Gmail compose prefilled with Address / Time / Acct / Client / Route / Days / Driver / Complaint / Type (+ clipboard copy). Commits `2408c5a` / `5c95405`. **Address** now shows under the client name in the console list, and **🖨 Print range** prints every complaint in any date window, **any status**, as page-broken case files + cover (shared `printComplaintList`). Commits `be01d7a` / `2111f58`.
+- **▶ Planned next (new chat):** an **overhaul of David's Complaint Console view + the printed complaint reports** so supervisor actions/outcomes are first-class on screen (by-outcome / by-supervisor / full action timeline), not just inside the case-file prints. The data is all captured in `complaint_actions` — this is a presentation/reporting overhaul, not new tracking.
+
+**BEACON — dispatch notifications, completion timestamps, on-board conversion report.**
+- **Cross-user move notifications** (Supabase broadcast, channel `beacon-dispatch-moves`, centralized in `persistJob`): the `admin` user is alerted when a card enters **Outreach** (he makes the calls); `david` on **every** stage move. The actor isn't self-alerted; recipients need BEACON open. Commits `4047489` / `cb024d9`.
+- **Completed timestamp** (`completed_at`) surfaced on completion cards, the detail modal, History rows, and the print ticket. Commit `69f6716`.
+- **Conversion stats moved onto the Dispatch board** (under the Kanban): cards created / conversions / rate / converted-$ vs total-$, filter by **Day / Week / Month**, denied-by-reason + per-card table + Print/Excel (reuses `bulkyOutcome` so figures tie out). The standalone **Reports-tab "Bulky conversion" page was removed** — this on-board panel replaces it. Commit `95b0d18`.
 
 ### June 5-12, 2026
 
