@@ -1069,6 +1069,47 @@ body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
 
 /* Inbox layout — email-style master/detail */
 .helm-inbox-sheet{max-width:1240px;height:88vh;}
+
+/* ── Complaint Console — full-page rebuild (David). Scoped to #complaintInbox so
+     every OTHER modal keeps the centered-card treatment untouched. ─────────── */
+#complaintInbox.open{padding:0;align-items:stretch;justify-content:stretch;overflow:hidden;}
+#complaintInbox .helm-modal-sheet{max-width:none;width:100%;height:100vh;max-height:100vh;margin:0;border-radius:0;animation:none;}
+#complaintInbox .helm-modal-header{padding-top:calc(14px + env(safe-area-inset-top));}
+.cc-statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;}
+.cc-statbox{text-align:left;border:1px solid var(--gray-200);border-radius:12px;padding:14px 16px;background:#fff;cursor:pointer;font-family:inherit;transition:transform .1s,box-shadow .12s,border-color .12s;box-shadow:0 1px 2px rgba(15,31,61,.05);}
+.cc-statbox:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(15,31,61,.1);border-color:var(--gray-300);}
+.cc-statbox.active{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy) inset;}
+.cc-statbox-val{font-size:27px;font-weight:800;color:var(--navy);line-height:1;}
+.cc-statbox-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.045em;color:var(--gray-500);margin-top:7px;font-weight:700;}
+.cc-statbox.box-new .cc-statbox-val{color:#b91c1c;}
+.cc-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.cc-search{flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--gray-200);border-radius:9px;font-size:13px;font-family:inherit;box-sizing:border-box;}
+.cc-search:focus{border-color:var(--teal);outline:none;}
+.cc-subfilters{display:flex;gap:6px;}
+.cc-chip{border:1px solid var(--gray-200);background:#fff;border-radius:20px;padding:6px 13px;font-size:12px;font-weight:700;color:var(--gray-600);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.cc-chip.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.cc-chip-n{font-size:10px;background:rgba(15,31,61,.08);border-radius:9px;padding:1px 6px;}
+.cc-chip.active .cc-chip-n{background:rgba(255,255,255,.25);}
+.cc-reports{background:#f7f9fc;border:1px solid var(--gray-200);border-radius:10px;padding:13px 15px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;}
+.cc-reports .cc-rep-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.cc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:12px;}
+.cc-card{position:relative;border:1px solid var(--gray-200);border-left:4px solid var(--gray-200);border-radius:12px;padding:13px 15px;background:#fff;cursor:pointer;box-shadow:0 1px 2px rgba(15,31,61,.05);transition:transform .1s,box-shadow .12s;}
+.cc-card:hover{transform:translateY(-1px);box-shadow:0 5px 16px rgba(15,31,61,.11);}
+.cc-card.routed{box-shadow:0 0 0 2px #dbe8ff,0 1px 2px rgba(15,31,61,.05);}
+.cc-card-top{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.cc-age-pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:800;letter-spacing:.03em;white-space:nowrap;}
+.cc-card-client{font-weight:800;color:var(--navy);font-size:15px;line-height:1.25;}
+.cc-card-addr{font-size:12.5px;color:var(--gray-600);margin-top:2px;line-height:1.3;}
+.cc-card-sub{font-size:11px;color:var(--gray-400);margin-top:4px;}
+.cc-card-time{font-size:11.5px;color:var(--gray-500);margin-top:8px;}
+.cc-card-resolve{font-size:11.5px;color:#166534;margin-top:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:5px 9px;line-height:1.35;}
+.cc-routed-ribbon{display:inline-flex;align-items:center;gap:5px;margin-top:9px;background:#eef4ff;color:#1e40af;border:1px solid #c7ddff;border-radius:8px;padding:3px 9px;font-size:10.5px;font-weight:700;}
+.cc-empty{padding:48px 20px;text-align:center;color:var(--gray-400);font-size:13px;font-style:italic;border:1px dashed var(--gray-200);border-radius:12px;grid-column:1/-1;}
+@media (max-width:768px){
+  .cc-grid{grid-template-columns:1fr;}
+  .cc-statgrid{grid-template-columns:repeat(2,1fr);}
+  .cc-statbox-val{font-size:23px;}
+}
 .helm-inbox-body{padding:0;display:flex;flex:1;min-height:0;}
 .inbox-list{
   width:320px;border-right:1px solid var(--gray-100);
@@ -3347,33 +3388,39 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
 <div class="helm-modal-backdrop" id="complaintInbox" onclick="if(event.target===this)closeComplaintInbox()">
   <div class="helm-modal-sheet wide helm-inbox-sheet" onclick="event.stopPropagation()">
     <div class="helm-modal-header danger">
-      <h3>Complaint Inbox</h3>
+      <h3>Complaints</h3>
       <button class="btn-edit-sm" onclick="openManageTypes()" style="margin-left:auto;margin-right:10px;background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.4);">&#9881; Manage types</button>
       <button class="close-x" onclick="closeComplaintInbox()" aria-label="Close">&times;</button>
     </div>
     <div class="helm-modal-body" id="consoleBody">
       <div id="consoleListView">
-        <div id="consoleTriageStrip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px;"></div>
-        <div class="inbox-week-strip" id="inboxWeekStrip" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
-        <div id="consoleDayBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-          <span style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;">Day report:</span>
-          <input type="date" id="dayReportDate" style="max-width:160px;"/>
-          <button class="btn-edit-sm" onclick="printComplaintDay()">🖨 Print day (cover + summary)</button>
+        <!-- 4 clickable stat boxes — each filters the grid below -->
+        <div class="cc-statgrid" id="ccStatBoxes"></div>
+        <div class="cc-controls">
+          <input type="text" id="consoleSearch" class="cc-search" placeholder="Search client, address, driver, note, acct…" oninput="setInboxSearch(this.value)"/>
+          <div class="cc-subfilters" id="ccSubFilters"></div>
+          <button class="btn-edit-sm" id="ccReportsToggle" onclick="ccToggleReports()">🖨 Reports</button>
         </div>
-        <div id="consoleRangeBar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-          <span style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;">Print range:</span>
-          <input type="date" id="cmpRangeFrom" style="max-width:150px;" title="From date"/>
-          <span style="color:var(--gray-400);font-size:12px;">to</span>
-          <input type="date" id="cmpRangeTo" style="max-width:150px;" title="To date"/>
-          <button class="btn-edit-sm" onclick="printComplaintRange()">🖨 Print range (all statuses)</button>
+        <!-- Interim print controls; a cleaner daily / weekly / custom report set replaces this in Phase 2 -->
+        <div class="cc-reports" id="ccReports" style="display:none;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;">Print &mdash; interim (a cleaner daily / weekly / custom report set is coming next)</div>
+          <div class="cc-rep-row">
+            <span style="font-size:12px;font-weight:700;color:var(--gray-600);min-width:48px;">Day:</span>
+            <input type="date" id="dayReportDate" style="max-width:160px;"/>
+            <button class="btn-edit-sm" onclick="printComplaintDay()">🖨 Print day</button>
+          </div>
+          <div class="cc-rep-row">
+            <span style="font-size:12px;font-weight:700;color:var(--gray-600);min-width:48px;">Range:</span>
+            <input type="date" id="cmpRangeFrom" style="max-width:150px;" title="From date"/>
+            <span style="color:var(--gray-400);font-size:12px;">to</span>
+            <input type="date" id="cmpRangeTo" style="max-width:150px;" title="To date"/>
+            <button class="btn-edit-sm" onclick="printComplaintRange()">🖨 Print range</button>
+          </div>
         </div>
-        <div id="consoleToolbar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
-        <div class="inbox-filter-strip" id="inboxFilterStrip" style="border:none;padding:0;margin-bottom:10px;background:transparent;"></div>
-        <div id="consoleTableWrap"></div>
-        <div id="consolePatterns" style="margin-top:18px;"></div>
+        <div class="cc-grid" id="ccCardGrid"></div>
       </div>
       <div id="consoleDetailView" style="display:none;">
-        <button class="btn-edit-sm" onclick="consoleBackToList()" style="margin-bottom:14px;">&larr; Back to list</button>
+        <button class="btn-edit-sm" onclick="consoleBackToList()" style="margin-bottom:14px;">&larr; Back to all complaints</button>
         <div class="inbox-detail" id="inboxDetail" style="padding:0;overflow:visible;flex:none;"></div>
       </div>
     </div>
@@ -7082,7 +7129,7 @@ async function submitComplaint(){
 let _complaintBadgePollTimer = null;
 async function refreshComplaintBadge(){
   if(!userIsDavid()) return;
-  const {data, error} = await db.from('complaints').select('id', {count:'exact', head:true}).eq('status','new');
+  const {data, error} = await db.from('complaints').select('id', {count:'exact', head:true}).eq('status','new').eq('routed_to_supervisor',false);
   if(error) return;
   // PostgREST returns count on the response — supabase-js exposes it via the
   // response. Fall back to a length lookup if needed.
@@ -7091,7 +7138,7 @@ async function refreshComplaintBadge(){
   let count = 0;
   if(typeof data === 'object' && data !== null && 'count' in data) count = data.count;
   // supabase-js v2: count via second call
-  const resp = await db.from('complaints').select('id').eq('status','new');
+  const resp = await db.from('complaints').select('id').eq('status','new').eq('routed_to_supervisor',false);
   count = (resp.data || []).length;
   if(count > 0){
     badge.textContent = count > 99 ? '99+' : String(count);
@@ -7503,6 +7550,7 @@ async function davidSendToSupervisor(id, assignee){
   logActivity('complaint_routed', id+' '+(assignee||'pool'));
   complaintRoutedBroadcast({id, assignee:assignee||null, name:(c&&c.client_name)||'', address:(c&&c.client_address)||''});
   refreshComplaintBadge();
+  _inboxFilter = 'open';   // routed complaints live in Open now — land there on Back
   const cur=_inboxComplaints.find(x=>x.id===id); if(cur) renderInboxDetail(cur);
 }
 
@@ -7513,85 +7561,156 @@ async function loadInboxComplaints(){
   renderInbox();
 }
 
+// ── Complaint Console (David) — full-page rebuild ─────────────────────────────
+// 4 clickable stat boxes drive ONE card grid. The data layer (complaints /
+// complaint_actions) + the case-management detail view are unchanged — this is
+// presentation only. Bucket model:
+//   new   = status 'new' AND not routed to a supervisor (needs David's triage)
+//   open  = in progress: case_open OR routed to a supervisor, and not resolved/ignored
+//   resolved / avgresolve = resolved with resolved_at in the current (Mon–Sun) week
+//   ignored = status 'ignored' (reachable via the low-key chip; nothing is deleted)
+function complaintBucketOf(c){
+  if(c.status==='resolved') return 'resolved';
+  if(c.status==='ignored')  return 'ignored';
+  if(c.routed_to_supervisor) return 'open';   // sent to a supervisor = it's been addressed
+  if(c.status==='case_open') return 'open';
+  return 'new';
+}
+// Hours since logged → subtle card shading. Green <8h, yellow 8–24h, red 24h+.
+function ccAgeTint(c){
+  const h = c.logged_at ? (Date.now()-new Date(c.logged_at).getTime())/3600000 : 0;
+  if(h < 8)  return {bg:'#f0fdf4', bd:'#16a34a'};
+  if(h < 24) return {bg:'#fffbeb', bd:'#d97706'};
+  return {bg:'#fef2f2', bd:'#dc2626'};
+}
+function ccFriendlyAge(c){
+  if(!c.logged_at) return '—';
+  const ms = Date.now()-new Date(c.logged_at).getTime();
+  const h = ms/3600000;
+  if(h < 1)  return Math.max(1,Math.round(ms/60000))+'m';
+  if(h < 24) return Math.round(h)+'h';
+  return Math.floor(h/24)+'d';
+}
+function ccFmtDuration(ms){
+  const h = ms/3600000;
+  if(h < 1)  return Math.max(1,Math.round(ms/60000))+'m';
+  if(h < 48) return (h<10 ? h.toFixed(1) : String(Math.round(h)))+'h';
+  return (h/24).toFixed(1)+'d';
+}
+
 function renderInbox(){
   const all = _inboxComplaints;
-  const range = _inboxWeek ? inboxWeekRange(_inboxWeek) : null;
-
-  // Week navigator
-  const wsEl = document.getElementById('inboxWeekStrip');
-  if(wsEl){
-    wsEl.innerHTML = `
-      <span class="lbl">Week:</span>
-      <button class="week-nav-btn" onclick="shiftInboxWeek(-1)" title="Previous week">‹</button>
-      ${range
-        ? `<span class="week-display">${esc(range.startStr)} – ${esc(range.endStr)}</span>`
-        : `<span class="week-display all">All weeks</span>`}
-      <button class="week-nav-btn" onclick="shiftInboxWeek(1)" title="Next week">›</button>
-      <button class="week-nav-btn" onclick="thisInboxWeek()" title="Jump to this week">This Week</button>
-      ${_inboxWeek
-        ? `<button class="week-nav-btn" onclick="clearInboxWeek()" title="Show all weeks">All</button>`
-        : ''}
-      <button class="week-print-btn" onclick="printComplaintWeek()" ${!_inboxWeek?'disabled title="Pick a week first"':'title="Print every complaint logged in this week as a single document"'}>🖨 Print Week</button>
-    `;
-  }
-
-  // Triage metric strip — live backlog state (not week-scoped)
-  const newCount = all.filter(c=>c.status==='new').length;
-  const openCount = all.filter(c=>c.status==='case_open').length;
-  const overdueCount = all.filter(complaintOverdue).length;
   const wr = inboxWeekRange(inboxMondayOf());
-  const resolvedWk = all.filter(c=>c.status==='resolved' && c.resolved_at && c.resolved_at>=wr.startISO && c.resolved_at<wr.endISO).length;
-  const rt = all.filter(c=>c.status==='resolved' && c.resolved_at && c.logged_at);
-  const avgR = rt.length ? (rt.reduce((s,c)=>s+((new Date(c.resolved_at)-new Date(c.logged_at))/86400000),0)/rt.length) : null;
-  const tsEl = document.getElementById('consoleTriageStrip');
-  if(tsEl){
-    tsEl.innerHTML =
-      _mcCard('Needs triage', newCount, newCount?'var(--err-text)':'') +
-      _mcCard('Open cases', openCount, '') +
-      _mcCard('Overdue', overdueCount, overdueCount?'var(--err-text)':'') +
-      _mcCard('Resolved this wk', resolvedWk, '') +
-      _mcCard('Avg resolve', avgR==null?'—':(avgR.toFixed(1)+'d'), '');
+
+  // ── 4 stat boxes — each click filters the grid ──────────────────────────
+  const newCount  = all.filter(c=>complaintBucketOf(c)==='new').length;
+  const openCount = all.filter(c=>complaintBucketOf(c)==='open').length;
+  const resolvedWkList = all.filter(c=>c.status==='resolved' && c.resolved_at && c.resolved_at>=wr.startISO && c.resolved_at<wr.endISO);
+  const durs  = resolvedWkList.filter(c=>c.logged_at).map(c=>(new Date(c.resolved_at)-new Date(c.logged_at)));
+  const avgMs = durs.length ? durs.reduce((s,x)=>s+x,0)/durs.length : null;
+  const ignoredCount = all.filter(c=>complaintBucketOf(c)==='ignored').length;
+
+  const sbEl = document.getElementById('ccStatBoxes');
+  if(sbEl){
+    const box=(key,val,label)=>`<button class="cc-statbox box-${key} ${_inboxFilter===key?'active':''}" onclick="setInboxFilter('${key}')">
+        <div class="cc-statbox-val">${esc(String(val))}</div>
+        <div class="cc-statbox-lbl">${esc(label)}</div>
+      </button>`;
+    sbEl.innerHTML =
+      box('new', newCount, 'New') +
+      box('open', openCount, 'Open') +
+      box('resolved', resolvedWkList.length, 'Resolved this week') +
+      box('avgresolve', avgMs==null?'—':ccFmtDuration(avgMs), 'Avg. resolve this week');
   }
 
-  // Toolbar — search + sort
-  const tbEl = document.getElementById('consoleToolbar');
-  if(tbEl){
-    tbEl.innerHTML = `
-      <input type="text" id="consoleSearch" placeholder="Search client, driver, note, acct…" value="${esc(_inboxSearch)}" oninput="setInboxSearch(this.value)" style="flex:1;min-width:200px;"/>
-      <select id="consoleSort" onchange="setInboxSort(this.value)" style="max-width:200px;">
-        <option value="age"${_inboxSort==='age'?' selected':''}>Sort: oldest unresolved</option>
-        <option value="priority"${_inboxSort==='priority'?' selected':''}>Sort: priority</option>
-        <option value="recent"${_inboxSort==='recent'?' selected':''}>Sort: recently logged</option>
-      </select>`;
+  // ── Low-key secondary chips: All / Ignored (the 4 boxes stay the headline) ──
+  const chipsEl = document.getElementById('ccSubFilters');
+  if(chipsEl){
+    const chip=(key,label,n)=>`<button class="cc-chip ${_inboxFilter===key?'active':''}" onclick="setInboxFilter('${key}')">${esc(label)}<span class="cc-chip-n">${n}</span></button>`;
+    chipsEl.innerHTML = chip('all','All',all.length) + chip('ignored','Ignored',ignoredCount);
   }
 
-  // Filter chips (week-scoped counts so they never lie)
-  const weekScoped = _inboxWeek ? all.filter(c => c.logged_at && c.logged_at >= range.startISO && c.logged_at < range.endISO) : all;
-  const counts = {new:0, case_open:0, resolved:0, ignored:0, all:weekScoped.length};
-  for(const c of weekScoped){ if(counts.hasOwnProperty(c.status)) counts[c.status]++; }
-  const filters = [
-    {key:'new',label:'New'},{key:'case_open',label:'Open Cases'},{key:'resolved',label:'Resolved'},{key:'ignored',label:'Ignored'},{key:'all',label:'All'},
-  ];
-  const stripEl = document.getElementById('inboxFilterStrip');
-  if(stripEl){
-    stripEl.innerHTML = filters.map(f=>`<button class="inbox-filter-chip ${f.key===_inboxFilter?'active':''}" onclick="setInboxFilter('${f.key}')">${f.label}<span class="chip-count">${counts[f.key]||0}</span></button>`).join('');
-  }
-
-  renderConsoleTable();
-  renderConsolePatterns(weekScoped);
-
-  // List vs detail view toggle
-  const listView = document.getElementById('consoleListView');
+  // ── List vs detail toggle (detail view is the existing case-management UI) ──
+  const listView   = document.getElementById('consoleListView');
   const detailView = document.getElementById('consoleDetailView');
   const sel = _inboxSelectedId ? all.find(c=>c.id===_inboxSelectedId) : null;
   if(sel){
-    if(listView) listView.style.display='none';
+    if(listView)   listView.style.display='none';
     if(detailView) detailView.style.display='';
     renderInboxDetail(sel);
   } else {
-    if(listView) listView.style.display='';
+    if(listView)   listView.style.display='';
     if(detailView) detailView.style.display='none';
+    renderConsoleCards();
   }
+}
+
+function renderConsoleCards(){
+  const grid = document.getElementById('ccCardGrid');
+  if(!grid) return;
+  const bucket = _inboxFilter;
+  const wr = inboxWeekRange(inboxMondayOf());
+  let rows = _inboxComplaints.filter(c=>{
+    if(bucket==='resolved' || bucket==='avgresolve') return c.status==='resolved' && c.resolved_at && c.resolved_at>=wr.startISO && c.resolved_at<wr.endISO;
+    if(bucket==='all')     return true;
+    if(bucket==='ignored') return complaintBucketOf(c)==='ignored';
+    return complaintBucketOf(c)===bucket;   // 'new' | 'open'
+  });
+  const q = _inboxSearch.trim().toLowerCase();
+  if(q) rows = rows.filter(c=>[c.client_name,c.client_id,c.client_address,c.driver_name,c.notes,complaintTypeLabel(c.type),c.assigned_to].map(x=>(x||'').toString().toLowerCase()).join(' ').includes(q));
+  if(bucket==='avgresolve')      rows.sort((a,b)=>((new Date(b.resolved_at)-new Date(b.logged_at))-(new Date(a.resolved_at)-new Date(a.logged_at))));   // slowest resolve first
+  else if(bucket==='resolved')   rows.sort((a,b)=>new Date(b.resolved_at)-new Date(a.resolved_at));
+  else if(bucket==='ignored')    rows.sort((a,b)=>new Date(b.ignored_at||b.logged_at)-new Date(a.ignored_at||a.logged_at));
+  else                           rows.sort((a,b)=>new Date(a.logged_at)-new Date(b.logged_at));   // new/open/all → oldest first (most urgent surfaces)
+  if(!rows.length){
+    const msg = bucket==='new' ? 'Nothing new to triage — you’re all caught up.'
+      : bucket==='open' ? 'No open cases right now.'
+      : (bucket==='resolved'||bucket==='avgresolve') ? 'Nothing resolved yet this week.'
+      : bucket==='ignored' ? 'No ignored complaints.'
+      : 'No complaints to show.';
+    grid.innerHTML = `<div class="cc-empty">${esc(msg)}</div>`;
+    return;
+  }
+  grid.innerHTML = rows.map(c=>ccCardHTML(c,bucket)).join('');
+}
+
+function ccCardHTML(c, bucket){
+  const co = getCompany(c.client_id);
+  const coTag = co.name ? `<span class="company-tag ${co.cls}">${co.name}</span>` : '';
+  const typeChip = `<span class="action-tag at-complaint" style="font-size:10px;">${esc(complaintTypeLabel(c.type))}</span>`;
+  const prio = complaintPriority(c);
+  const prioChip = (prio!=='normal') ? `<span style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:8px;${priorityChipStyle(prio)}">${prio.toUpperCase()}</span>` : '';
+  const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+  const isOpenish = (bucket==='new' || bucket==='open');
+  let leftBorder = 'var(--gray-200)', bg = '#fff', agePill = '', resolveLine = '';
+  if(isOpenish){
+    const t = ccAgeTint(c); leftBorder = t.bd; bg = t.bg;
+    agePill = `<span class="cc-age-pill" style="background:rgba(255,255,255,.72);border:1px solid ${t.bd};color:${t.bd};">${esc(ccFriendlyAge(c))}</span>`;
+  } else if(bucket==='resolved' || bucket==='avgresolve'){
+    const dur = (c.resolved_at && c.logged_at) ? ccFmtDuration(new Date(c.resolved_at)-new Date(c.logged_at)) : '—';
+    const rwhen = c.resolved_at ? new Date(c.resolved_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+    agePill = `<span class="cc-age-pill" style="background:#dcfce7;border:1px solid #16a34a;color:#166534;">DONE</span>`;
+    resolveLine = `<div class="cc-card-resolve">✓ Resolved in <b>${esc(dur)}</b> · ${esc(rwhen)}${c.resolved_by?(' · '+esc(c.resolved_by)):''}</div>`;
+  } else if(bucket==='ignored'){
+    agePill = `<span class="cc-age-pill" style="background:var(--gray-100);color:var(--gray-500);">IGNORED</span>`;
+  }
+  const routed = c.routed_to_supervisor;
+  const ribbon = routed ? `<div class="cc-routed-ribbon">👤 ${c.assigned_to?esc(c.assigned_to):'Supervisor pool'}</div>` : '';
+  const subBits = `#${esc(c.client_id)}${(c.client_route!=null&&c.client_route!=='')?(' · R'+esc(c.client_route)):''}${c.driver_name?(' · '+esc(c.driver_name)):''}`;
+  return `<div class="cc-card${routed?' routed':''}" style="border-left-color:${leftBorder};background:${bg};" onclick="selectInboxRow(${c.id})">
+    <div class="cc-card-top">${typeChip}${prioChip}<span style="margin-left:auto;">${agePill}</span></div>
+    <div class="cc-card-client">${esc(c.client_name||('Account '+c.client_id))}</div>
+    <div class="cc-card-addr">${esc(c.client_address||'—')}</div>
+    <div class="cc-card-sub">${subBits} ${coTag}</div>
+    <div class="cc-card-time">🕒 ${esc(when)}</div>
+    ${resolveLine}
+    ${ribbon}
+  </div>`;
+}
+
+function ccToggleReports(){
+  const el = document.getElementById('ccReports');
+  if(el) el.style.display = (el.style.display==='none' || !el.style.display) ? 'flex' : 'none';
 }
 
 function _mcCard(label, val, color){
@@ -7667,16 +7786,12 @@ async function setComplaintPriority(id, val){
   renderInbox();
 }
 function consoleBackToList(){ _inboxSelectedId=null; renderInbox(); }
-function setInboxSearch(v){ _inboxSearch=v; renderConsoleTable(); }
-function setInboxSort(v){ _inboxSort=v; renderConsoleTable(); }
+function setInboxSearch(v){ _inboxSearch=v; renderConsoleCards(); }
+function setInboxSort(v){ _inboxSort=v; renderConsoleCards(); }
 
 function setInboxFilter(key){
   _inboxFilter = key;
-  // If currently selected complaint isn't in this filter anymore, clear it.
-  if(_inboxSelectedId){
-    const s = _inboxComplaints.find(c=>c.id===_inboxSelectedId);
-    if(s && key!=='all' && s.status!==key) _inboxSelectedId = null;
-  }
+  _inboxSelectedId = null;   // clicking a stat box / chip always returns to that bucket's grid
   renderInbox();
 }
 
@@ -7846,7 +7961,7 @@ async function openCase(complaintId){
   // Refresh in-memory + re-render
   const idx = _inboxComplaints.findIndex(c=>c.id===complaintId);
   if(idx>=0){ _inboxComplaints[idx].status='case_open'; _inboxComplaints[idx].case_opened_at=now; _inboxComplaints[idx].case_opened_by=by; }
-  _inboxFilter = 'case_open';
+  _inboxFilter = 'open';
   _inboxSelectedId = complaintId;
   renderInbox();
 }
