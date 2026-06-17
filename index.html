@@ -6864,6 +6864,11 @@ function caseActionLabel(v){
   if(v==='opened')   return 'Opened';
   if(v==='resolved') return 'Resolved';
   if(v==='reopened') return 'Reopened';
+  if(v==='escalated') return 'Sent back to David';
+  if(v==='routed')    return 'Sent to supervisor';
+  if(v==='spoke_to_client')  return 'Spoke to Client';
+  if(v==='contacted_office') return 'Contacted Office';
+  if(v==='on_site_visit')    return 'On-site Visit';
   if(_actionLabelMap[v]) return _actionLabelMap[v];
   const t = BUILTIN_CASE_ACTION_TYPES.find(x=>x.value===v);
   return t ? t.label : (v||'').replace(/_/g,' ');
@@ -7170,6 +7175,15 @@ function closeComplaintInbox(){
 // flows into the existing reports + case-file prints. Mobile-first.
 // ════════════════════════════════════════════════════════════════════
 const SUP_AUTOROUTE_TYPES = ['DRIVER','MISSED_STOP'];   // auto-dropped into the pool on log
+// The supervisor Solve-screen buttons, in order. 'spoke_to_driver' prompts for the
+// driver's name. (Distinct from David's admin-managed CASE_ACTION_TYPES so this set
+// stays fixed + carries the driver-capture behavior.)
+const SUP_ACTION_BUTTONS = [
+  {value:'spoke_to_driver',  label:'Spoke to Driver'},
+  {value:'spoke_to_client',  label:'Spoke to Client'},
+  {value:'contacted_office', label:'Contacted Office'},
+  {value:'on_site_visit',    label:'On-site Visit'},
+];
 let _supComplaints = [];
 let _supView = 'mine';            // 'mine' | 'pool' | 'solved'
 let _supSelectedId = null;
@@ -7329,7 +7343,7 @@ async function renderSupervisorDetail(){
     return `<div style="padding:7px 0;border-bottom:1px solid var(--gray-100);font-size:12.5px;"><b style="color:var(--navy);">${esc(caseActionLabel(a.action_type))}</b> <span style="color:var(--gray-400);">· ${esc(a.performed_by||'—')} · ${esc(ts)}</span>${a.notes?`<div style="color:var(--gray-600);margin-top:2px;">${esc(a.notes)}</div>`:''}</div>`;
   }).join('') || '<div style="color:var(--gray-400);font-style:italic;font-size:12px;">No actions logged yet.</div>';
   const prior=_supComplaints.filter(x=>x.client_id===c.client_id && x.id!==c.id).length;
-  const actBtns=CASE_ACTION_TYPES.map(t=>`<button onclick="supLogAction(${c.id},'${esc(t.value)}')" style="background:#eef7f6;color:#0a6b5f;border:1px solid var(--teal);border-radius:9px;padding:10px 13px;font-weight:700;font-size:13px;cursor:pointer;">${esc(t.label)}</button>`).join('');
+  const actBtns=SUP_ACTION_BUTTONS.map(t=>`<button onclick="supLogAction(${c.id},'${esc(t.value)}')" style="background:#eef7f6;color:#0a6b5f;border:1px solid var(--teal);border-radius:9px;padding:10px 13px;font-weight:700;font-size:13px;cursor:pointer;">${esc(t.label)}</button>`).join('');
   body.innerHTML=`
     <button class="btn-edit-sm" onclick="supBackToList()" style="margin-bottom:12px;">← Back to queue</button>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
@@ -7384,7 +7398,17 @@ async function supClaim(id){
 }
 async function supLogAction(id, type){
   const me=_supMe(); const c=_supComplaints.find(x=>x.id===id);
-  const noteEl=document.getElementById('supNote'); const note=noteEl?noteEl.value.trim():'';
+  const noteEl=document.getElementById('supNote'); let note=noteEl?noteEl.value.trim():'';
+  // "Spoke to Driver" captures the driver's name (pre-filled with the one on file).
+  if(type==='spoke_to_driver'){
+    const dn = prompt("Driver's name:", (c&&c.driver_name)||'');
+    if(dn===null) return;                       // cancelled — log nothing
+    const name=(dn||'').trim();
+    if(name){
+      note = 'Driver: '+name + (note?(' — '+note):'');
+      if(c && !c.driver_name){ try{ await db.from('complaints').update({driver_name:name}).eq('id',id); c.driver_name=name; }catch(_){} }
+    }
+  }
   const now=new Date().toISOString(); const patch={};
   if(c){
     if(c.status==='new'){ patch.status='case_open'; patch.case_opened_at=now; patch.case_opened_by=me; }
@@ -7584,7 +7608,7 @@ function renderConsoleTable(){
     return `<tr onclick="selectInboxRow(${c.id})" style="cursor:pointer;background:${c.id===_inboxSelectedId?'#eef3fb':'transparent'};">
       <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);">${prio}</td>
       <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);"><span style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:8px;${ageChipStyle(c)}">${esc(ageLabel)}</span></td>
-      <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);"><div style="font-weight:700;color:var(--navy);font-size:13px;">${esc(c.client_name||'Account '+c.client_id)}</div>${c.client_address?`<div style="font-size:11px;color:var(--gray-600);">${esc(c.client_address)}</div>`:''}<div style="font-size:11px;color:var(--gray-500);">${esc(sub)} · by ${esc(c.logged_by||'—')}</div></td>
+      <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);"><div style="font-weight:700;color:var(--navy);font-size:13px;">${esc(c.client_name||'Account '+c.client_id)}</div>${c.client_address?`<div style="font-size:11px;color:var(--gray-600);">${esc(c.client_address)}</div>`:''}<div style="font-size:11px;color:var(--gray-500);">${esc(sub)} · by ${esc(c.logged_by||'—')}</div>${c.routed_to_supervisor?`<div style="margin-top:3px;"><span style="font-size:10px;background:#eef4ff;color:#1e40af;border:1px solid #c7ddff;border-radius:7px;padding:1px 8px;font-weight:700;">👤 ${c.assigned_to?esc(c.assigned_to):'Supervisor pool'}</span></div>`:''}</td>
       <td style="padding:7px 8px;border-bottom:1px solid var(--gray-100);">${statusChip}</td>
     </tr>`;
   }).join('');
