@@ -1110,6 +1110,49 @@ body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
   .cc-statgrid{grid-template-columns:repeat(2,1fr);}
   .cc-statbox-val{font-size:23px;}
 }
+
+/* ── Reports view (Daily / Weekly / Custom) — compact, dense, descriptive ─── */
+.cr-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.cr-modetabs{display:inline-flex;border:1px solid var(--gray-200);border-radius:9px;overflow:hidden;}
+.cr-tab{border:none;background:#fff;padding:8px 16px;font-size:12.5px;font-weight:700;color:var(--gray-500);cursor:pointer;border-right:1px solid var(--gray-200);font-family:inherit;}
+.cr-tab:last-child{border-right:none;}
+.cr-tab.active{background:var(--navy);color:#fff;}
+.cr-print{margin-left:auto;}
+.cr-daterow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.cr-daterow input[type=date]{padding:7px 9px;border:1px solid var(--gray-200);border-radius:7px;font-size:13px;font-family:inherit;}
+.cr-navbtn{width:30px;height:30px;border:1px solid var(--gray-200);background:#fff;border-radius:7px;cursor:pointer;font-size:16px;color:var(--gray-600);line-height:1;}
+.cr-navbtn:hover{background:var(--gray-100);}
+.cr-weeklbl{font-size:13px;font-weight:700;color:var(--navy);min-width:150px;text-align:center;}
+.cr-chiplink{border:1px solid var(--gray-200);background:#fff;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--gray-600);cursor:pointer;font-family:inherit;}
+.cr-chiplink:hover{background:var(--gray-100);}
+.cr-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px;}
+.cr-kpi{background:#f7f8fa;border:1px solid var(--gray-100);border-radius:10px;padding:11px 14px;}
+.cr-kpi-v{font-size:22px;font-weight:800;color:var(--navy);line-height:1;}
+.cr-kpi-l{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);margin-top:5px;font-weight:700;}
+.cr-sec-hdr{display:flex;align-items:center;justify-content:space-between;background:var(--navy);color:#fff;padding:7px 12px;border-radius:7px 7px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-top:16px;}
+.cr-sec-n{background:rgba(255,255,255,.2);border-radius:9px;padding:1px 9px;font-size:11px;}
+.cr-sec-empty{padding:14px;border:1px solid var(--gray-100);border-top:none;color:var(--gray-400);font-style:italic;font-size:12.5px;border-radius:0 0 7px 7px;}
+.cr-tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.cr-table{width:100%;border-collapse:collapse;border:1px solid var(--gray-100);border-top:none;margin-bottom:2px;min-width:560px;}
+.cr-table th{background:#f3f6fa;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--gray-500);padding:6px 9px;border-bottom:1px solid var(--gray-200);}
+.cr-table td{padding:7px 9px;border-bottom:1px solid var(--gray-100);font-size:12px;color:var(--gray-700);vertical-align:top;}
+.cr-table tbody tr{cursor:pointer;}
+.cr-table tbody tr:nth-child(even){background:#fafbfd;}
+.cr-table tbody tr:hover{background:#eef3fb;}
+.cr-table td.nw{white-space:nowrap;}
+.cr-cl{font-weight:700;color:var(--navy);font-size:12.5px;}
+.cr-cl-sub{font-size:10.5px;color:var(--gray-400);margin-top:1px;}
+.cr-note{max-width:340px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.cr-pill{font-size:9.5px;font-weight:800;padding:1px 7px;border-radius:8px;white-space:nowrap;display:inline-block;}
+.cr-pill.cr-new{background:#fee2e2;color:#991b1b;}
+.cr-pill.cr-open{background:#fef3c7;color:#92400e;}
+.cr-pill.cr-res{background:#dcfce7;color:#166534;}
+.cr-pill.cr-ign{background:var(--gray-100);color:var(--gray-500);}
+.cr-sup{font-size:9.5px;color:#1e40af;background:#eef4ff;border:1px solid #c7ddff;border-radius:7px;padding:1px 6px;font-weight:700;white-space:nowrap;display:inline-block;margin-top:2px;}
+@media (max-width:768px){
+  .cr-note{max-width:none;-webkit-line-clamp:3;}
+  .cr-summary{grid-template-columns:repeat(2,1fr);}
+}
 .helm-inbox-body{padding:0;display:flex;flex:1;min-height:0;}
 .inbox-list{
   width:320px;border-right:1px solid var(--gray-100);
@@ -3399,29 +3442,24 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <div class="cc-controls">
           <input type="text" id="consoleSearch" class="cc-search" placeholder="Search client, address, driver, note, acct…" oninput="setInboxSearch(this.value)"/>
           <div class="cc-subfilters" id="ccSubFilters"></div>
-          <button class="btn-edit-sm" id="ccReportsToggle" onclick="ccToggleReports()">🖨 Reports</button>
-        </div>
-        <!-- Interim print controls; a cleaner daily / weekly / custom report set replaces this in Phase 2 -->
-        <div class="cc-reports" id="ccReports" style="display:none;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;">Print &mdash; interim (a cleaner daily / weekly / custom report set is coming next)</div>
-          <div class="cc-rep-row">
-            <span style="font-size:12px;font-weight:700;color:var(--gray-600);min-width:48px;">Day:</span>
-            <input type="date" id="dayReportDate" style="max-width:160px;"/>
-            <button class="btn-edit-sm" onclick="printComplaintDay()">🖨 Print day</button>
-          </div>
-          <div class="cc-rep-row">
-            <span style="font-size:12px;font-weight:700;color:var(--gray-600);min-width:48px;">Range:</span>
-            <input type="date" id="cmpRangeFrom" style="max-width:150px;" title="From date"/>
-            <span style="color:var(--gray-400);font-size:12px;">to</span>
-            <input type="date" id="cmpRangeTo" style="max-width:150px;" title="To date"/>
-            <button class="btn-edit-sm" onclick="printComplaintRange()">🖨 Print range</button>
-          </div>
+          <button class="btn-edit-sm" id="ccReportsToggle" onclick="ccShowReports()">📊 Reports</button>
         </div>
         <div class="cc-grid" id="ccCardGrid"></div>
       </div>
       <div id="consoleDetailView" style="display:none;">
         <button class="btn-edit-sm" onclick="consoleBackToList()" style="margin-bottom:14px;">&larr; Back to all complaints</button>
         <div class="inbox-detail" id="inboxDetail" style="padding:0;overflow:visible;flex:none;"></div>
+      </div>
+      <!-- ── Reports view (Daily / Weekly / Custom) — Phase 2 ───────────────── -->
+      <div id="consoleReportsView" style="display:none;">
+        <div class="cr-head">
+          <button class="btn-edit-sm" onclick="ccShowTriage()">&larr; Back to complaints</button>
+          <div class="cr-modetabs" id="crModeTabs"></div>
+          <button class="btn-edit-sm cr-print" onclick="printConsoleReport()">🖨 Print</button>
+        </div>
+        <div class="cr-daterow" id="crDateRow"></div>
+        <div class="cr-summary" id="crSummary"></div>
+        <div id="crBody"></div>
       </div>
     </div>
   </div>
@@ -7165,6 +7203,12 @@ let _inboxSelectedId = null;
 let _inboxWeek = null;
 let _inboxSort = 'age';      // 'age' (oldest unresolved first) | 'priority' | 'recent'
 let _inboxSearch = '';
+let _consoleMode = 'triage'; // 'triage' (stat boxes + cards) | 'reports' (Daily/Weekly/Custom)
+// Reporting state (Phase 2)
+let _crMode = 'daily';       // 'daily' | 'weekly' | 'custom'
+let _crDay  = null;          // 'YYYY-MM-DD'
+let _crWeek = null;          // Monday 'YYYY-MM-DD'
+let _crFrom = null, _crTo = null;
 const PRIORITY_RANK = {urgent:0, high:1, normal:2, low:3};
 
 // ISO Monday string for the week containing the given date (or today by default).
@@ -7211,10 +7255,15 @@ async function openComplaintInbox(){
   if(!userIsDavid()){ toast('David only'); return; }
   document.getElementById('complaintInbox').classList.add('open');
   document.body.style.overflow = 'hidden';
-  const _dq = document.getElementById('dayReportDate'); if(_dq && !_dq.value) _dq.value = new Date().toISOString().split('T')[0];
+  const _today = new Date().toISOString().split('T')[0];
+  _consoleMode = 'triage';
   _inboxFilter = 'new';
-  _inboxWeek = null;          // default to all weeks; user picks one if they want
+  _inboxWeek = null;
   _inboxSelectedId = null;
+  // Reporting defaults: Daily=today, Weekly=this week, Custom=last 7 days.
+  _crMode = 'daily'; _crDay = _today; _crWeek = inboxMondayOf();
+  _crTo = _crTo || _today;
+  if(!_crFrom){ const _d = new Date(); _d.setDate(_d.getDate()-6); _crFrom = _d.toISOString().split('T')[0]; }
   await ensureTaxonomies();
   await loadInboxComplaints();
 }
@@ -7630,17 +7679,25 @@ function renderInbox(){
     chipsEl.innerHTML = chip('all','All',all.length) + chip('ignored','Ignored',ignoredCount);
   }
 
-  // ── List vs detail toggle (detail view is the existing case-management UI) ──
-  const listView   = document.getElementById('consoleListView');
-  const detailView = document.getElementById('consoleDetailView');
-  const sel = _inboxSelectedId ? all.find(c=>c.id===_inboxSelectedId) : null;
-  if(sel){
-    if(listView)   listView.style.display='none';
-    if(detailView) detailView.style.display='';
+  // ── View toggle: triage cards / case detail / reports ──────────────────────
+  const listView    = document.getElementById('consoleListView');
+  const detailView  = document.getElementById('consoleDetailView');
+  const reportsView = document.getElementById('consoleReportsView');
+  const sel = (_consoleMode==='triage' && _inboxSelectedId) ? all.find(c=>c.id===_inboxSelectedId) : null;
+  if(_consoleMode==='reports'){
+    if(listView)    listView.style.display='none';
+    if(detailView)  detailView.style.display='none';
+    if(reportsView) reportsView.style.display='';
+    renderComplaintReport();
+  } else if(sel){
+    if(listView)    listView.style.display='none';
+    if(detailView)  detailView.style.display='';
+    if(reportsView) reportsView.style.display='none';
     renderInboxDetail(sel);
   } else {
-    if(listView)   listView.style.display='';
-    if(detailView) detailView.style.display='none';
+    if(listView)    listView.style.display='';
+    if(detailView)  detailView.style.display='none';
+    if(reportsView) reportsView.style.display='none';
     renderConsoleCards();
   }
 }
@@ -7708,9 +7765,194 @@ function ccCardHTML(c, bucket){
   </div>`;
 }
 
-function ccToggleReports(){
-  const el = document.getElementById('ccReports');
-  if(el) el.style.display = (el.style.display==='none' || !el.style.display) ? 'flex' : 'none';
+// ════════════════════════════════════════════════════════════════════════════
+// PHASE 2 — clean Daily / Weekly / Custom complaint reporting.
+// Compact, dense, descriptive: 3 tables (Submitted / Resolved / Still-open),
+// ONE row per complaint (no page-per-complaint), on-screen + matching print.
+// Derived entirely from the already-loaded _inboxComplaints + frozen complaints
+// columns — no new query, data layer untouched.
+// ════════════════════════════════════════════════════════════════════════════
+function ccShowReports(){ _consoleMode='reports'; _inboxSelectedId=null; renderInbox(); }
+function ccShowTriage(){ _consoleMode='triage'; renderInbox(); }
+function crSetMode(m){ _crMode=m; renderComplaintReport(); }
+function crShiftDay(dir){ const d=new Date((_crDay||new Date().toISOString().split('T')[0])+'T00:00:00'); d.setDate(d.getDate()+dir); _crDay=d.toISOString().split('T')[0]; renderComplaintReport(); }
+function crSetDay(v){ if(v){ _crDay=v; renderComplaintReport(); } }
+function crToday(){ _crDay=new Date().toISOString().split('T')[0]; renderComplaintReport(); }
+function crShiftWeek(dir){ const d=new Date((_crWeek||inboxMondayOf())+'T00:00:00'); d.setDate(d.getDate()+dir*7); _crWeek=inboxMondayOf(d); renderComplaintReport(); }
+function crThisWeek(){ _crWeek=inboxMondayOf(); renderComplaintReport(); }
+function crSetFrom(v){ if(v){ _crFrom=v; renderComplaintReport(); } }
+function crSetTo(v){ if(v){ _crTo=v; renderComplaintReport(); } }
+function crPreset(days){ const e=new Date(); const s=new Date(); s.setDate(s.getDate()-(days-1)); _crFrom=s.toISOString().split('T')[0]; _crTo=e.toISOString().split('T')[0]; renderComplaintReport(); }
+function crPresetMonth(){ const n=new Date(); const s=new Date(n.getFullYear(),n.getMonth(),1); _crFrom=s.toISOString().split('T')[0]; _crTo=n.toISOString().split('T')[0]; renderComplaintReport(); }
+
+// Local-day ISO boundaries (matches the inboxWeekRange convention used elsewhere).
+function _crDayRange(iso){ const s=new Date(iso+'T00:00:00'); const e=new Date(s); e.setDate(e.getDate()+1); return {startISO:s.toISOString(), endISO:e.toISOString()}; }
+function crPeriod(){
+  if(_crMode==='weekly'){ const r=inboxWeekRange(_crWeek||inboxMondayOf()); return {startISO:r.startISO, endISO:r.endISO, label:r.startStr+' – '+r.endStr, kind:'Weekly'}; }
+  if(_crMode==='custom'){
+    let f=_crFrom, t=_crTo; if(f&&t&&f>t){ const x=f; f=t; t=x; }
+    const today=new Date().toISOString().split('T')[0];
+    const s=new Date((f||today)+'T00:00:00');
+    const e=new Date((t||f||today)+'T00:00:00'); e.setDate(e.getDate()+1);
+    return {startISO:s.toISOString(), endISO:e.toISOString(), label:fmtDate(f||today)+' – '+fmtDate(t||f||today), kind:'Custom'};
+  }
+  const day=_crDay||new Date().toISOString().split('T')[0];
+  const r=_crDayRange(day);
+  return {startISO:r.startISO, endISO:r.endISO, label:new Date(day+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}), kind:'Daily'};
+}
+function crData(){
+  const p=crPeriod();
+  const inP=(ts)=> ts && ts>=p.startISO && ts<p.endISO;
+  const submitted=_inboxComplaints.filter(c=>inP(c.logged_at)).sort((a,b)=>(a.logged_at||'').localeCompare(b.logged_at||''));
+  const resolved =_inboxComplaints.filter(c=>c.status==='resolved' && inP(c.resolved_at)).sort((a,b)=>(a.resolved_at||'').localeCompare(b.resolved_at||''));
+  const stillOpen=_inboxComplaints.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).sort((a,b)=>(a.logged_at||'').localeCompare(b.logged_at||''));
+  const durs=resolved.filter(c=>c.logged_at).map(c=>new Date(c.resolved_at)-new Date(c.logged_at));
+  const avgMs=durs.length? durs.reduce((s,x)=>s+x,0)/durs.length : null;
+  return {p, submitted, resolved, stillOpen, avgMs};
+}
+
+// ── On-screen report ─────────────────────────────────────────────────────────
+function crTime(ts){ if(!ts) return '—'; const d=new Date(ts); return _crMode==='daily' ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+function crTypeChip(c){ return `<span class="action-tag at-complaint" style="font-size:9.5px;">${esc(complaintTypeLabel(c.type))}</span>`; }
+function crClientCell(c){ return `<div class="cr-cl">${esc(c.client_name||('Acct '+c.client_id))}</div><div class="cr-cl-sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.type==='DRIVER'&&c.driver_name)?(' · '+esc(c.driver_name)):''}</div>`; }
+function crRoute(c){ return (c.client_route!=null&&c.client_route!=='')?('R'+esc(c.client_route)):'—'; }
+function crStatusChip(c){
+  const b=complaintBucketOf(c);
+  if(b==='resolved') return '<span class="cr-pill cr-res">Resolved</span>';
+  if(b==='ignored')  return '<span class="cr-pill cr-ign">Ignored</span>';
+  if(b==='open')     return '<span class="cr-pill cr-open">Open</span>'+(c.routed_to_supervisor?`<br><span class="cr-sup">👤 ${esc(c.assigned_to||'pool')}</span>`:'');
+  return '<span class="cr-pill cr-new">New</span>';
+}
+function crAgeCell(c){ const t=ccAgeTint(c); return `<span class="cr-pill" style="background:${t.bg};color:${t.bd};border:1px solid ${t.bd};">${esc(ccFriendlyAge(c))}</span>`; }
+function crOpenCase(id){ _consoleMode='triage'; _inboxSelectedId=id; renderInbox(); }
+
+function crSection(title, rows, kind){
+  const head=`<div class="cr-sec-hdr"><span>${esc(title)}</span><span class="cr-sec-n">${rows.length}</span></div>`;
+  if(!rows.length) return head+`<div class="cr-sec-empty">None.</div>`;
+  let cols, body;
+  if(kind==='resolved'){
+    cols=`<th>Resolved</th><th>Type</th><th>Client</th><th>Complaint</th><th>Resolution</th><th class="nw">In</th><th>By</th>`;
+    body=rows.map(c=>`<tr onclick="crOpenCase(${c.id})">
+      <td class="nw">${esc(crTime(c.resolved_at))}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td>
+      <td class="cr-note">${esc(c.notes||'—')}</td><td class="cr-note">${esc(c.resolution_notes||'—')}</td>
+      <td class="nw">${(c.resolved_at&&c.logged_at)?esc(ccFmtDuration(new Date(c.resolved_at)-new Date(c.logged_at))):'—'}</td>
+      <td class="nw">${esc(c.resolved_by||'—')}</td></tr>`).join('');
+  } else if(kind==='open'){
+    cols=`<th>Age</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>By</th><th>Status</th>`;
+    body=rows.map(c=>`<tr onclick="crOpenCase(${c.id})">
+      <td class="nw">${crAgeCell(c)}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td><td class="nw">${crRoute(c)}</td>
+      <td class="cr-note">${esc(c.notes||'—')}</td><td class="nw">${esc(c.logged_by||'—')}</td><td class="nw">${crStatusChip(c)}</td></tr>`).join('');
+  } else {
+    cols=`<th>Time</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>By</th><th>Status</th>`;
+    body=rows.map(c=>`<tr onclick="crOpenCase(${c.id})">
+      <td class="nw">${esc(crTime(c.logged_at))}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td><td class="nw">${crRoute(c)}</td>
+      <td class="cr-note">${esc(c.notes||'—')}</td><td class="nw">${esc(c.logged_by||'—')}</td><td class="nw">${crStatusChip(c)}</td></tr>`).join('');
+  }
+  return head+`<div class="cr-tablewrap"><table class="cr-table"><thead><tr>${cols}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function renderComplaintReport(){
+  const d=crData();
+  const tabs=document.getElementById('crModeTabs');
+  if(tabs){
+    const tb=(m,l)=>`<button class="cr-tab ${_crMode===m?'active':''}" onclick="crSetMode('${m}')">${l}</button>`;
+    tabs.innerHTML=tb('daily','Daily')+tb('weekly','Weekly')+tb('custom','Custom');
+  }
+  const dr=document.getElementById('crDateRow');
+  if(dr){
+    if(_crMode==='daily'){
+      dr.innerHTML=`<button class="cr-navbtn" onclick="crShiftDay(-1)" title="Previous day">‹</button>
+        <input type="date" value="${esc(_crDay||'')}" onchange="crSetDay(this.value)"/>
+        <button class="cr-navbtn" onclick="crShiftDay(1)" title="Next day">›</button>
+        <button class="cr-chiplink" onclick="crToday()">Today</button>`;
+    } else if(_crMode==='weekly'){
+      const r=inboxWeekRange(_crWeek||inboxMondayOf());
+      dr.innerHTML=`<button class="cr-navbtn" onclick="crShiftWeek(-1)" title="Previous week">‹</button>
+        <span class="cr-weeklbl">${esc(r.startStr)} – ${esc(r.endStr)}</span>
+        <button class="cr-navbtn" onclick="crShiftWeek(1)" title="Next week">›</button>
+        <button class="cr-chiplink" onclick="crThisWeek()">This week</button>`;
+    } else {
+      dr.innerHTML=`<input type="date" value="${esc(_crFrom||'')}" onchange="crSetFrom(this.value)"/>
+        <span style="color:var(--gray-400);font-size:12px;">to</span>
+        <input type="date" value="${esc(_crTo||'')}" onchange="crSetTo(this.value)"/>
+        <button class="cr-chiplink" onclick="crPreset(7)">Last 7d</button>
+        <button class="cr-chiplink" onclick="crPreset(30)">Last 30d</button>
+        <button class="cr-chiplink" onclick="crPresetMonth()">This month</button>`;
+    }
+  }
+  const sm=document.getElementById('crSummary');
+  if(sm){
+    const kpi=(v,l)=>`<div class="cr-kpi"><div class="cr-kpi-v">${esc(String(v))}</div><div class="cr-kpi-l">${esc(l)}</div></div>`;
+    sm.innerHTML=kpi(d.submitted.length,'Submitted')+kpi(d.resolved.length,'Resolved')+kpi(d.stillOpen.length,'Still open (now)')+kpi(d.avgMs==null?'—':ccFmtDuration(d.avgMs),'Avg. resolve');
+  }
+  const body=document.getElementById('crBody');
+  if(body){
+    body.innerHTML =
+      crSection('Submitted in this period', d.submitted, 'submitted') +
+      crSection('Resolved in this period', d.resolved, 'resolved') +
+      crSection('Still open — current backlog', d.stillOpen, 'open');
+  }
+}
+
+// ── Compact print (one document, dense tables, NO page-per-complaint) ─────────
+// NB: named printConsoleReport to avoid colliding with the Reports-tab weekly
+// printComplaintReport(start) (David + Esme) — that one is left untouched.
+function printConsoleReport(){
+  if(!userIsDavid()) return;
+  const d=crData();
+  const full=_crMode!=='daily';
+  const tm=(ts)=> ts ? (full ? new Date(ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})) : '—';
+  const stat=(c)=>{ const b=complaintBucketOf(c); if(b==='resolved')return 'Resolved'; if(b==='ignored')return 'Ignored'; if(b==='open')return 'Open'+(c.routed_to_supervisor?(' · '+(c.assigned_to||'pool')):''); return 'New'; };
+  const cl=(c)=>`<b>${esc(c.client_name||('Acct '+c.client_id))}</b><br><span class="sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.type==='DRIVER'&&c.driver_name)?(' · '+esc(c.driver_name)):''}</span>`;
+  const rt=(c)=>(c.client_route!=null&&c.client_route!=='')?('R'+esc(c.client_route)):'—';
+  const dur=(c)=>(c.resolved_at&&c.logged_at)?ccFmtDuration(new Date(c.resolved_at)-new Date(c.logged_at)):'—';
+  const sec=(title,n,headHtml,bodyHtml)=>`<div class="sec"><div class="sec-h">${esc(title)} <span>${n}</span></div>${n?`<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`:'<div class="none">None.</div>'}</div>`;
+
+  const subBody=d.submitted.map(c=>`<tr><td class="nw">${esc(tm(c.logged_at))}</td><td class="nw">${esc(complaintTypeLabel(c.type))}</td><td>${cl(c)}</td><td class="nw">${rt(c)}</td><td>${esc(c.notes||'—')}</td><td class="nw">${esc(c.logged_by||'—')}</td><td class="nw">${esc(stat(c))}</td></tr>`).join('');
+  const resBody=d.resolved.map(c=>`<tr><td class="nw">${esc(tm(c.resolved_at))}</td><td class="nw">${esc(complaintTypeLabel(c.type))}</td><td>${cl(c)}</td><td>${esc(c.notes||'—')}</td><td>${esc(c.resolution_notes||'—')}</td><td class="nw">${esc(dur(c))}</td><td class="nw">${esc(c.resolved_by||'—')}</td></tr>`).join('');
+  const openBody=d.stillOpen.map(c=>`<tr><td class="nw">${esc(ccFriendlyAge(c))}</td><td class="nw">${esc(complaintTypeLabel(c.type))}</td><td>${cl(c)}</td><td class="nw">${rt(c)}</td><td>${esc(c.notes||'—')}</td><td class="nw">${esc(c.logged_by||'—')}</td><td class="nw">${esc(stat(c))}</td></tr>`).join('');
+
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>HELM Complaint Report — ${esc(d.p.kind)} — ${esc(d.p.label)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:16px;}
+h1{font-size:18px;color:#991b1b;}
+.range{font-size:13px;font-weight:700;margin:2px 0 12px;}
+.kpis{display:flex;gap:22px;flex-wrap:wrap;border:1px solid #ddd;border-radius:6px;padding:10px 16px;margin-bottom:14px;}
+.kpis .k{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.04em;}
+.kpis .k b{display:block;font-size:19px;color:#111;}
+.sec{margin-bottom:14px;}
+.sec-h{background:#0f1f3d;color:#fff;padding:5px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
+.sec-h span{background:rgba(255,255,255,.22);border-radius:8px;padding:0 7px;margin-left:4px;}
+.none{padding:8px 10px;border:1px solid #eee;border-top:none;color:#999;font-style:italic;font-size:11px;}
+table{width:100%;border-collapse:collapse;}
+th{background:#f3f6fa;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.03em;color:#555;padding:3px 6px;border-bottom:1px solid #cfd6df;}
+td{font-size:10px;padding:3px 6px;border-bottom:1px solid #e6e9ee;vertical-align:top;line-height:1.3;}
+td.nw{white-space:nowrap;}
+.sub{color:#666;font-size:9px;}
+tr{page-break-inside:avoid;}
+thead{display:table-header-group;}
+tbody tr:nth-child(even){background:#fafbfd;}
+.foot{margin-top:16px;font-size:9px;color:#888;border-top:1px solid #ddd;padding-top:6px;display:flex;justify-content:space-between;}
+@media print{@page{margin:0.5cm;}body{padding:0;}}
+</style></head><body>
+<h1>HELM — Complaint Report</h1>
+<div class="range">${esc(d.p.kind)} · ${esc(d.p.label)}</div>
+<div class="kpis">
+  <div class="k"><b>${d.submitted.length}</b>Submitted</div>
+  <div class="k"><b>${d.resolved.length}</b>Resolved</div>
+  <div class="k"><b>${d.stillOpen.length}</b>Still open (now)</div>
+  <div class="k"><b>${d.avgMs==null?'—':esc(ccFmtDuration(d.avgMs))}</b>Avg. resolve</div>
+</div>
+${sec('Submitted in this period', d.submitted.length, '<th>Time</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>By</th><th>Status</th>', subBody)}
+${sec('Resolved in this period', d.resolved.length, '<th>Resolved</th><th>Type</th><th>Client</th><th>Complaint</th><th>Resolution</th><th>In</th><th>By</th>', resBody)}
+${sec('Still open — current backlog', d.stillOpen.length, '<th>Age</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>By</th><th>Status</th>', openBody)}
+<div class="foot"><span>Reis Trucking — Nantucket, MA</span><span>HELM Complaint Report · Printed ${esc(new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}))}</span></div>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`);
+  win.document.close();
+  logActivity('complaint_report_print', d.p.kind+' · '+d.p.label);
 }
 
 function _mcCard(label, val, color){
