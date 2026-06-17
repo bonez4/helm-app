@@ -3156,6 +3156,10 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         </svg>
         <span id="complaintInboxBadge" class="topbar-inbox-badge" style="display:none">0</span>
       </button>
+      <button id="supervisorBtn" class="topbar-inbox" style="display:none" onclick="openSupervisorQueue()" title="Supervisor queue" aria-label="Supervisor queue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span id="supervisorBadge" class="topbar-inbox-badge" style="display:none">0</span>
+      </button>
       <div class="live-dot"></div>
       <div class="live-label" id="topbarUser"></div>
       <button class="btn-logout" onclick="logout()">Sign out</button>
@@ -3364,6 +3368,17 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <div class="inbox-detail" id="inboxDetail" style="padding:0;overflow:visible;flex:none;"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ── SUPERVISOR QUEUE (supervisors + David/admin) ─────────────────── -->
+<div class="helm-modal-backdrop" id="supervisorQueue" onclick="if(event.target===this)closeSupervisorQueue()">
+  <div class="helm-modal-sheet wide helm-inbox-sheet" onclick="event.stopPropagation()">
+    <div class="helm-modal-header" style="background:var(--navy);color:#fff;">
+      <h3>Supervisor Queue</h3>
+      <button class="close-x" onclick="closeSupervisorQueue()" aria-label="Close" style="color:#fff;">&times;</button>
+    </div>
+    <div class="helm-modal-body" id="supervisorBody" style="max-height:78vh;overflow:auto;"></div>
   </div>
 </div>
 
@@ -4001,8 +4016,17 @@ async function login() {
     document.getElementById('rolloffsSolo').style.display='none';
     document.getElementById('navGroup-dispatch').style.display='none';
   }
+  // Supervisor queue — supervisors (Dane/Brian) + David/admin for oversight.
+  if(userCanSupervise()){
+    document.getElementById('supervisorBtn').style.display='';
+    loadSupervisors();
+    if(userIsSupervisor()) startSupervisorBadgePoll();
+    initComplaintRealtime();
+  }
   startHeartbeat();
   init();
+  // Supervisors land on their queue right after sign-in.
+  if(userIsSupervisor()) setTimeout(openSupervisorQueue, 500);
 }
 function logout() {
   if(heartbeatTimer) clearInterval(heartbeatTimer);
@@ -7024,12 +7048,14 @@ async function submitComplaint(){
     notes:          notes,
     logged_by:      loggedBy,
     status:         'new',
+    routed_to_supervisor: SUP_AUTOROUTE_TYPES.includes(type),
   });
   if(error){ toast('Error: '+error.message); return; }
   closeComplaintModal();
-  toast('Complaint logged — sent to David\'s inbox', true);
+  toast(SUP_AUTOROUTE_TYPES.includes(type)?'Complaint logged — routed to supervisors + David':'Complaint logged — sent to David\'s inbox', true);
   logActivity('complaint_logged', `${c.client_id} ${type}`);
   refreshComplaintBadge();
+  if(SUP_AUTOROUTE_TYPES.includes(type)){ complaintRoutedBroadcast({id:null, assignee:null, name:c.client_name||'', address:c.address||''}); refreshSupervisorBadge(); }
   // If the rep still has this client's card open, refresh the notes history
   // so their new complaint entry appears immediately in the timeline.
   if(activeClient && activeClient.client_id === c.client_id){
@@ -7135,6 +7161,295 @@ function closeComplaintInbox(){
   document.getElementById('complaintInbox').classList.remove('open');
   document.body.style.overflow = '';
   refreshComplaintBadge();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SUPERVISOR COMPLAINT QUEUE (users.is_supervisor — Dane / Brian; David +
+// admin oversee). Supervisors work complaints routed to them; every tap +
+// note writes to complaint_actions (timestamped + attributed) so it all
+// flows into the existing reports + case-file prints. Mobile-first.
+// ════════════════════════════════════════════════════════════════════
+const SUP_AUTOROUTE_TYPES = ['DRIVER','MISSED_STOP'];   // auto-dropped into the pool on log
+let _supComplaints = [];
+let _supView = 'mine';            // 'mine' | 'pool' | 'solved'
+let _supSelectedId = null;
+let _supBadgeTimer = null;
+let _supervisors = [];            // [{username, display_name}] for the assign dropdown
+let _complaintChannel = null;     // realtime channel (wired in Phase 3); senders no-op until then
+
+function userIsSupervisor(){ return !!(currentUser && currentUser.is_supervisor); }
+function userCanSupervise(){ return userIsSupervisor() || userIsDavid() || !!(currentUser && currentUser.role==='admin'); }
+function _supMe(){ return currentUser ? (currentUser.display_name || currentUser.username) : ''; }
+function supBroadcast(p){ try{ if(_complaintChannel) _complaintChannel.send({type:'broadcast',event:'sup',payload:p}); }catch(_){} }
+function complaintRoutedBroadcast(p){ try{ if(_complaintChannel) _complaintChannel.send({type:'broadcast',event:'routed',payload:p}); }catch(_){} }
+function requestComplaintNotifPermission(){ try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(_){} }
+// Realtime ping (Supabase broadcast — no DB/replication needed). Supervisors get
+// buzzed when a complaint is routed to them; David/admin when one is solved or
+// sent back. Recipients must have HELM open in a tab.
+function initComplaintRealtime(){
+  if(_complaintChannel || !currentUser) return;
+  requestComplaintNotifPermission();
+  try{
+    _complaintChannel = db.channel('helm-complaints');
+    _complaintChannel
+      .on('broadcast',{event:'routed'}, ({payload})=>handleComplaintRouted(payload))
+      .on('broadcast',{event:'sup'},    ({payload})=>handleSupEvent(payload))
+      .subscribe();
+  }catch(_){ _complaintChannel=null; }
+}
+function handleComplaintRouted(p){
+  if(!p || !userIsSupervisor()) return;
+  refreshSupervisorBadge();
+  if(document.getElementById('supervisorQueue').classList.contains('open')) loadSupervisorComplaints();
+  const me=_supMe();
+  if(!p.assignee || p.assignee===me){
+    const name=p.name||'a client';
+    toast('📋 New complaint in your queue: '+name, true);
+    try{ if('Notification' in window && Notification.permission==='granted') new Notification('📋 New complaint to handle', {body:name+(p.address?' — '+p.address:''), tag:'helm-complaint-'+(p.id||Date.now())}); }catch(_){}
+  }
+}
+function handleSupEvent(p){
+  if(!p) return;
+  if(userCanSupervise() && document.getElementById('supervisorQueue').classList.contains('open')) loadSupervisorComplaints();
+  if((userIsDavid() || (currentUser&&currentUser.role==='admin')) && p.by!==_supMe()){
+    refreshComplaintBadge();
+    const label = p.kind==='resolved' ? '✓ Complaint resolved by '+(p.by||'a supervisor')
+      : p.kind==='escalated' ? '↩ Complaint sent back to you by '+(p.by||'a supervisor')
+      : p.kind==='claimed' ? 'A supervisor claimed a complaint' : 'Complaint update';
+    toast(label, true);
+    if(p.kind==='escalated'){ try{ if('Notification' in window && Notification.permission==='granted') new Notification('↩ Complaint escalated back to you', {body:p.name||'', tag:'helm-esc-'+(p.id||Date.now())}); }catch(_){} }
+  }
+}
+
+async function loadSupervisors(){
+  try{ const {data}=await db.from('users').select('username,display_name').eq('is_supervisor',true).order('display_name'); _supervisors=data||[]; }catch(_){ _supervisors=[]; }
+}
+async function refreshSupervisorBadge(){
+  if(!userIsSupervisor()) return;          // only supervisors get the nagging badge
+  const badge=document.getElementById('supervisorBadge'); if(!badge) return;
+  try{
+    const {data}=await db.from('complaints').select('status,assigned_to').eq('routed_to_supervisor',true);
+    const me=_supMe();
+    const open=(data||[]).filter(c=>c.status!=='resolved'&&c.status!=='ignored');
+    const n=open.filter(c=>c.assigned_to===me||!c.assigned_to).length;   // mine + unclaimed pool
+    if(n>0){ badge.textContent=n>99?'99+':String(n); badge.style.display='flex'; } else badge.style.display='none';
+  }catch(_){}
+}
+function startSupervisorBadgePoll(){
+  if(!userIsSupervisor()) return;
+  refreshSupervisorBadge();
+  if(_supBadgeTimer) clearInterval(_supBadgeTimer);
+  _supBadgeTimer=setInterval(refreshSupervisorBadge, 60000);
+  window.addEventListener('focus', refreshSupervisorBadge);
+}
+
+async function openSupervisorQueue(){
+  if(!userCanSupervise()){ toast('Supervisors only'); return; }
+  document.getElementById('supervisorQueue').classList.add('open');
+  document.body.style.overflow='hidden';
+  _supSelectedId=null;
+  _supView = userIsSupervisor() ? 'mine' : 'pool';
+  await ensureTaxonomies();
+  await loadSupervisorComplaints();
+}
+function closeSupervisorQueue(){
+  document.getElementById('supervisorQueue').classList.remove('open');
+  document.body.style.overflow='';
+  refreshSupervisorBadge();
+}
+async function loadSupervisorComplaints(){
+  const body=document.getElementById('supervisorBody');
+  if(body && !_supComplaints.length) body.innerHTML='<div style="padding:30px;text-align:center;color:var(--gray-400);font-size:13px;">Loading…</div>';
+  const {data,error}=await db.from('complaints').select('*').eq('routed_to_supervisor',true).order('logged_at',{ascending:false});
+  _supComplaints = error ? [] : (data||[]);
+  if(_supSelectedId) renderSupervisorDetail(); else renderSupervisorList();
+}
+function supSetView(v){ _supView=v; _supSelectedId=null; renderSupervisorList(); }
+
+function renderSupervisorList(){
+  const body=document.getElementById('supervisorBody'); if(!body) return;
+  const me=_supMe();
+  const open=_supComplaints.filter(c=>c.status!=='resolved'&&c.status!=='ignored');
+  const mine=open.filter(c=>c.assigned_to===me);
+  const pool=open.filter(c=>!c.assigned_to);
+  const solved=_supComplaints.filter(c=>c.status==='resolved');
+  let rows = _supView==='mine'?mine : _supView==='pool'?pool : solved;
+  rows=rows.slice().sort((a,b)=>(PRIORITY_RANK[complaintPriority(a)]-PRIORITY_RANK[complaintPriority(b)])||(new Date(a.logged_at)-new Date(b.logged_at)));
+  const tab=(k,label,n)=>`<button onclick="supSetView('${k}')" style="flex:1;padding:10px 6px;border:none;border-bottom:3px solid ${_supView===k?'var(--teal)':'transparent'};background:none;font-weight:700;font-size:13px;color:${_supView===k?'var(--navy)':'var(--gray-500)'};cursor:pointer;">${label} <span style="background:${_supView===k?'var(--teal)':'var(--gray-200)'};color:${_supView===k?'#fff':'var(--gray-600)'};border-radius:9px;padding:1px 7px;font-size:11px;">${n}</span></button>`;
+  const cards = rows.length ? rows.map(c=>supCardHtml(c)).join('')
+    : `<div style="padding:40px;text-align:center;color:var(--gray-400);font-style:italic;font-size:13px;">${_supView==='pool'?'No unclaimed complaints right now.':_supView==='mine'?'Nothing assigned to you — check “Available”.':'Nothing solved yet.'}</div>`;
+  body.innerHTML=`
+    <div style="display:flex;gap:2px;margin-bottom:14px;border-bottom:1px solid var(--gray-200);position:sticky;top:0;background:#fff;z-index:2;">
+      ${tab('mine','My cases',mine.length)}${tab('pool','Available',pool.length)}${tab('solved','Solved',solved.length)}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">${cards}</div>`;
+}
+function supCardHtml(c){
+  const resolved=c.status==='resolved';
+  const age=complaintAgeDays(c);
+  const overdue=!resolved && complaintOverdue(c);
+  const prio=complaintPriority(c);
+  const co=getCompany(c.client_id);
+  const right = (_supView==='pool')
+    ? `<button onclick="event.stopPropagation();supClaim(${c.id})" style="margin-left:auto;background:var(--teal);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;">Claim →</button>`
+    : `<span style="margin-left:auto;color:var(--gray-300);font-size:20px;">›</span>`;
+  return `<div onclick="supOpen(${c.id})" style="border:1px solid var(--gray-200);border-left:4px solid ${overdue?'#dc2626':(resolved?'#16a34a':'var(--teal)')};border-radius:11px;padding:13px 15px;cursor:pointer;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap;">
+      <span class="action-tag at-complaint" style="font-size:10px;">${esc(complaintTypeLabel(c.type))}</span>
+      <span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;${priorityChipStyle(prio)}">${prio.toUpperCase()}</span>
+      ${!resolved?`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:9px;${overdue?'background:#fee2e2;color:#991b1b;':'background:var(--gray-100);color:var(--gray-600);'}">${age}d</span>`:'<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:9px;background:#dcfce7;color:#166534;">resolved</span>'}
+      ${(c.assigned_to&&_supView!=='mine')?`<span style="font-size:10px;color:var(--gray-500);">→ ${esc(c.assigned_to)}</span>`:''}
+    </div>
+    <div style="display:flex;align-items:flex-start;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:800;color:var(--navy);font-size:15px;">${esc(c.client_name||'Account '+c.client_id)}</div>
+        <div style="font-size:12.5px;color:var(--gray-600);">${esc(c.client_address||'—')}</div>
+        <div style="font-size:11.5px;color:var(--gray-400);margin-top:2px;">#${esc(c.client_id)}${(c.client_route!=null&&c.client_route!=='')?' · R'+esc(c.client_route):''}${c.driver_name?' · '+esc(c.driver_name):''}${co.name?' · '+co.name:''}</div>
+      </div>
+      ${right}
+    </div>
+  </div>`;
+}
+function supOpen(id){ _supSelectedId=id; renderSupervisorDetail(); }
+function supBackToList(){ _supSelectedId=null; renderSupervisorList(); }
+
+async function renderSupervisorDetail(){
+  const body=document.getElementById('supervisorBody'); if(!body) return;
+  const c=_supComplaints.find(x=>x.id===_supSelectedId);
+  if(!c){ renderSupervisorList(); return; }
+  const me=_supMe();
+  const mineClaim = c.assigned_to===me;
+  const resolved = c.status==='resolved';
+  const when=c.logged_at?new Date(c.logged_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+  const days=c.client_days?c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', '):'—';
+  const route=(c.client_route!=null&&c.client_route!=='')?('Route '+c.client_route):'No route';
+  const {data:actions}=await db.from('complaint_actions').select('*').eq('complaint_id',c.id).order('performed_at',{ascending:true});
+  const logHtml=(actions||[]).map(a=>{
+    const ts=a.performed_at?new Date(a.performed_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'';
+    return `<div style="padding:7px 0;border-bottom:1px solid var(--gray-100);font-size:12.5px;"><b style="color:var(--navy);">${esc(caseActionLabel(a.action_type))}</b> <span style="color:var(--gray-400);">· ${esc(a.performed_by||'—')} · ${esc(ts)}</span>${a.notes?`<div style="color:var(--gray-600);margin-top:2px;">${esc(a.notes)}</div>`:''}</div>`;
+  }).join('') || '<div style="color:var(--gray-400);font-style:italic;font-size:12px;">No actions logged yet.</div>';
+  const prior=_supComplaints.filter(x=>x.client_id===c.client_id && x.id!==c.id).length;
+  const actBtns=CASE_ACTION_TYPES.map(t=>`<button onclick="supLogAction(${c.id},'${esc(t.value)}')" style="background:#eef7f6;color:#0a6b5f;border:1px solid var(--teal);border-radius:9px;padding:10px 13px;font-weight:700;font-size:13px;cursor:pointer;">${esc(t.label)}</button>`).join('');
+  body.innerHTML=`
+    <button class="btn-edit-sm" onclick="supBackToList()" style="margin-bottom:12px;">← Back to queue</button>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+      <span class="action-tag at-complaint">${esc(complaintTypeLabel(c.type))}</span>
+      <span class="status-pill-lg status-${c.status}">${c.status==='case_open'?'CASE OPEN':String(c.status).toUpperCase()}</span>
+      ${prior>0?`<span style="font-size:11px;color:#92400e;background:#fef3c7;border-radius:8px;padding:2px 9px;font-weight:700;">⚠ ${prior} other open for this client</span>`:''}
+    </div>
+    <h2 style="margin:2px 0;font-size:21px;color:var(--navy);">${esc(c.client_name||'Account '+c.client_id)}</h2>
+    <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;">Logged by ${esc(c.logged_by||'—')} · ${esc(when)}${c.assigned_to?` · assigned to ${esc(c.assigned_to)}`:''}</div>
+    <div style="background:#f8fafc;border:1px solid var(--gray-200);border-radius:11px;padding:13px 15px;margin-bottom:12px;font-size:13px;line-height:1.8;">
+      <div><b>Acct #:</b> ${esc(c.client_id)}</div>
+      <div><b>Address:</b> ${esc(c.client_address||'—')}</div>
+      <div><b>Phone:</b> ${c.client_phone?`<a href="tel:${esc(c.client_phone)}" style="color:#0a7a6a;font-weight:700;">${esc(c.client_phone)}</a>`:'—'}</div>
+      <div><b>Route / Days:</b> ${esc(route)} · ${esc(days)}</div>
+      ${c.driver_name?`<div><b>Driver:</b> <span style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</span></div>`:''}
+    </div>
+    <div style="background:#fef9e7;border-left:4px solid #f59e0b;border-radius:7px;padding:11px 13px;margin-bottom:16px;font-size:13.5px;line-height:1.55;"><b>Complaint:</b> ${esc(c.notes||'—')}</div>
+    ${resolved ? `
+      <div style="background:#dcfce7;border:1px solid #16a34a;border-radius:9px;padding:13px;font-size:13px;color:#14532d;"><b style="color:#166534;">✓ Resolved</b> by ${esc(c.resolved_by||'—')}${c.resolution_notes?`<div style="margin-top:5px;">${esc(c.resolution_notes)}</div>`:''}</div>
+      <button class="btn-edit-sm" onclick="supReopen(${c.id})" style="margin-top:12px;">↩ Reopen</button>
+    ` : `
+      ${!mineClaim?`<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:9px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;color:#9a3412;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">This case is ${c.assigned_to?('assigned to <b>'+esc(c.assigned_to)+'</b>'):'unclaimed'}.<button onclick="supClaim(${c.id})" style="background:var(--teal);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-weight:700;cursor:pointer;">Claim it</button></div>`:''}
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;margin-bottom:7px;">Log what you did — tap any that apply (each is timestamped &amp; recorded)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">${actBtns}</div>
+      <textarea id="supNote" placeholder="Notes — type here, then tap an action above to attach it, or “Add note” to log it on its own." style="width:100%;min-height:64px;border:1px solid var(--gray-200);border-radius:9px;padding:10px;font-size:13px;font-family:inherit;box-sizing:border-box;"></textarea>
+      <button class="btn-edit-sm" onclick="supAddNote(${c.id})" style="margin:7px 0 16px;">+ Add note</button>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;border-top:1px solid var(--gray-200);padding-top:14px;">
+        <button onclick="supResolve(${c.id})" style="background:#16a34a;color:#fff;border:none;border-radius:9px;padding:12px 22px;font-weight:800;font-size:14px;cursor:pointer;">✓ Resolve complaint</button>
+        <button onclick="supEscalate(${c.id})" style="background:none;border:1px solid var(--gray-300);border-radius:9px;padding:12px 16px;font-weight:700;font-size:13px;cursor:pointer;color:var(--gray-600);">↩ Send back to David</button>
+      </div>
+    `}
+    <div style="margin-top:20px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;margin-bottom:6px;">Action log</div>
+      <div>${logHtml}</div>
+    </div>`;
+}
+
+async function supClaim(id){
+  const me=_supMe(); const now=new Date().toISOString();
+  const c=_supComplaints.find(x=>x.id===id);
+  const wasNew = c && c.status==='new';
+  const patch={assigned_to:me, assigned_at:now, assigned_by:me};
+  if(wasNew){ patch.status='case_open'; patch.case_opened_at=now; patch.case_opened_by=me; }
+  const {error}=await db.from('complaints').update(patch).eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  if(wasNew){ try{ await db.from('complaint_actions').insert({complaint_id:id,action_type:'opened',performed_by:me}); }catch(_){} }
+  if(c) Object.assign(c,patch);
+  toast('Claimed — it\'s in your queue', true);
+  logActivity('complaint_claimed', String(id));
+  _supView='mine'; _supSelectedId=id; renderSupervisorDetail(); refreshSupervisorBadge();
+  supBroadcast({kind:'claimed', id, by:me});
+}
+async function supLogAction(id, type){
+  const me=_supMe(); const c=_supComplaints.find(x=>x.id===id);
+  const noteEl=document.getElementById('supNote'); const note=noteEl?noteEl.value.trim():'';
+  const now=new Date().toISOString(); const patch={};
+  if(c){
+    if(c.status==='new'){ patch.status='case_open'; patch.case_opened_at=now; patch.case_opened_by=me; }
+    if(!c.assigned_to){ patch.assigned_to=me; patch.assigned_at=now; patch.assigned_by=me; }
+  }
+  if(Object.keys(patch).length){ await db.from('complaints').update(patch).eq('id',id); if(c) Object.assign(c,patch); }
+  const {error}=await db.from('complaint_actions').insert({complaint_id:id, action_type:type, notes:note||null, performed_by:me});
+  if(error){ toast('Error: '+error.message); return; }
+  if(noteEl) noteEl.value='';
+  toast(caseActionLabel(type)+' logged', true);
+  logActivity('complaint_sup_action', id+' '+type);
+  renderSupervisorDetail(); refreshSupervisorBadge();
+}
+async function supAddNote(id){
+  const noteEl=document.getElementById('supNote'); const note=noteEl?noteEl.value.trim():'';
+  if(!note){ toast('Type a note first'); return; }
+  await supLogAction(id, 'note');
+}
+function supResolve(id){
+  const c=_supComplaints.find(x=>x.id===id); if(!c) return;
+  const m=document.getElementById('resolveModal');
+  m.dataset.complaintId=id; m.dataset.supervisor='1';
+  document.getElementById('resolveClient').textContent=c.client_name||('Account '+c.client_id);
+  document.getElementById('resolveNotes').value='';
+  m.classList.add('open');
+}
+async function supEscalate(id){
+  const me=_supMe(); const c=_supComplaints.find(x=>x.id===id);
+  const reason=prompt('Send back to David — add a reason (optional):');
+  if(reason===null) return;
+  const now=new Date().toISOString(); const patch={routed_to_supervisor:false, assigned_to:null};
+  if(c && c.status==='new'){ patch.status='case_open'; patch.case_opened_at=now; patch.case_opened_by=me; }
+  const {error}=await db.from('complaints').update(patch).eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'escalated', notes:'Sent back to David'+(reason?': '+reason:''), performed_by:me}); }catch(_){}
+  toast('Sent back to David', true);
+  logActivity('complaint_escalated', String(id));
+  _supSelectedId=null; await loadSupervisorComplaints(); refreshSupervisorBadge();
+  supBroadcast({kind:'escalated', id, by:me, name:(c&&c.client_name)||''});
+}
+async function supReopen(id){
+  const me=_supMe();
+  const {error}=await db.from('complaints').update({status:'case_open', resolved_at:null, resolved_by:null, resolution_notes:null}).eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'reopened', performed_by:me}); }catch(_){}
+  const c=_supComplaints.find(x=>x.id===id); if(c){ c.status='case_open'; c.resolved_at=null; c.resolved_by=null; c.resolution_notes=null; }
+  toast('Reopened', true); renderSupervisorDetail(); refreshSupervisorBadge();
+}
+// David/admin: route a complaint into the supervisor queue (assigned to one, or the open pool).
+async function davidSendToSupervisor(id, assignee){
+  const me=_supMe(); const now=new Date().toISOString();
+  const c=_inboxComplaints.find(x=>x.id===id);
+  const wasNew = c && c.status==='new';
+  const patch={routed_to_supervisor:true, assigned_to:assignee||null, assigned_at:assignee?now:null, assigned_by:assignee?me:null};
+  if(wasNew){ patch.status='case_open'; patch.case_opened_at=now; patch.case_opened_by=me; }
+  const {error}=await db.from('complaints').update(patch).eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  if(wasNew){ try{ await db.from('complaint_actions').insert({complaint_id:id,action_type:'opened',performed_by:me}); }catch(_){} }
+  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'routed', notes:assignee?('Assigned to '+assignee):'Sent to supervisor pool', performed_by:me}); }catch(_){}
+  if(c) Object.assign(c,patch);
+  toast(assignee?('Assigned to '+assignee):'Sent to supervisor pool', true);
+  logActivity('complaint_routed', id+' '+(assignee||'pool'));
+  complaintRoutedBroadcast({id, assignee:assignee||null, name:(c&&c.client_name)||'', address:(c&&c.client_address)||''});
+  refreshComplaintBadge();
+  const cur=_inboxComplaints.find(x=>x.id===id); if(cur) renderInboxDetail(cur);
 }
 
 async function loadInboxComplaints(){
@@ -7389,6 +7704,15 @@ async function renderInboxDetail(c){
       </div>
     </div>
     ${snapshot}
+    ${(c.status==='new'||c.status==='case_open') ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px 12px;background:#eef4ff;border:1px solid #c7ddff;border-radius:8px;">
+      <span style="font-size:12px;font-weight:700;color:var(--navy);">Hand to a supervisor:</span>
+      <select id="sendSupSelect" style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-300);border-radius:6px;">
+        <option value="">— Pool (any supervisor) —</option>
+        ${_supervisors.map(s=>`<option value="${esc(s.display_name||s.username)}">${esc(s.display_name||s.username)}</option>`).join('')}
+      </select>
+      <button class="btn-edit-sm" onclick="davidSendToSupervisor(${c.id}, document.getElementById('sendSupSelect').value||null)" style="background:var(--navy);color:#fff;">Send →</button>
+      ${c.routed_to_supervisor?`<span style="font-size:11px;color:#166534;font-weight:700;">✓ ${c.assigned_to?('with '+esc(c.assigned_to)):'in pool'}</span>`:''}
+    </div>` : ''}
     <div class="inbox-section">
       <div class="inbox-section-hdr">Original Complaint</div>
       <div class="inbox-original-note">${esc(c.notes||'(no description)')}</div>
@@ -7516,6 +7840,16 @@ async function confirmResolveCase(){
   closeResolveModal();
   toast('Case resolved', true);
   logActivity('complaint_resolved', String(complaintId));
+  // Supervisor-initiated resolve → refresh the supervisor queue, not David's console.
+  const _supMode = document.getElementById('resolveModal').dataset.supervisor==='1';
+  document.getElementById('resolveModal').dataset.supervisor='';
+  if(_supMode){
+    supBroadcast({kind:'resolved', id:complaintId, by});
+    _supSelectedId=null;
+    if(document.getElementById('supervisorQueue').classList.contains('open')) await loadSupervisorComplaints();
+    refreshSupervisorBadge(); refreshComplaintBadge();
+    return;
+  }
   const idx = _inboxComplaints.findIndex(c=>c.id===complaintId);
   if(idx>=0){
     _inboxComplaints[idx].status='resolved';
@@ -16257,6 +16591,12 @@ function toast(msg,ok=false){
       document.getElementById('addClientChild').style.display='none';
       document.getElementById('rolloffsSolo').style.display='none';
       document.getElementById('navGroup-dispatch').style.display='none';
+    }
+    if(userCanSupervise()){
+      document.getElementById('supervisorBtn').style.display='';
+      loadSupervisors();
+      if(userIsSupervisor()) startSupervisorBadgePoll();
+      initComplaintRealtime();
     }
     applyNavGroupState();
     applyNavRailState();
