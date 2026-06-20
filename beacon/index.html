@@ -1215,6 +1215,7 @@ function renderJobModalBody(j){
     <label class="jm-label">Driver</label>
     <input type="text" id="jmDriver" value="${esc(j.driver||'')}" placeholder="Driver name…" autocomplete="off"/>
     <div class="jm-actions">
+      <button class="btn danger" onclick="voidJob(${j.id})" title="Permanently remove this ticket — won't appear in reporting">Void</button>
       ${live?'<span class="live-badge">● LIVE</span>':''}
       <div style="flex:1"></div>
       ${live
@@ -1228,6 +1229,7 @@ function renderJobModalBody(j){
     ${j.completed_at?`<div class="dim" style="font-size:12px;margin:0 0 10px;">✓ Completed ${esc(fmtDateTime(j.completed_at))}</div>`:''}
     <div class="jm-actions">
       <button class="btn" onclick="printJob(${j.id})">🖨 Print ticket</button>
+      <button class="btn danger" onclick="voidJob(${j.id})" title="Permanently remove this ticket — won't appear in reporting">Void</button>
       <div style="flex:1"></div>
       <button class="btn" onclick="saveJob()">Save</button>
       <button class="btn-primary" onclick="archiveJob(${j.id})">Archive</button>
@@ -1469,6 +1471,20 @@ async function deleteJob(id){
   if(error){ toast('Delete failed: '+error.message,'err'); return; }
   if(j && (j.photos||[]).length){ try{ await db.storage.from(BUCKET).remove((j.photos||[]).map(p=>p.path)); }catch(_){} }
   _jobs=_jobs.filter(x=>x.id!==id); toast('Deleted','ok'); closeJobModal();
+}
+// Void a dispatch/completion ticket: a TRUE removal (not a status), so it never
+// shows on the board, in History, or in the conversion reporting — exactly as if
+// it had never been entered. Reporting reads _jobs, so the DB delete + dropping
+// the row makes it vanish everywhere. Photos are cleaned from storage too.
+async function voidJob(id){
+  const j=_jobs.find(x=>x.id===id); if(!j) return;
+  if(!confirm('Void this ticket?\n\nIt will be permanently removed — as if it was never entered. It will NOT appear on the board, in History, or in any conversion reporting. This cannot be undone.')) return;
+  const {error}=await db.from('dispatch_jobs').delete().eq('id',id);
+  if(error){ toast('Void failed: '+error.message,'err'); return; }
+  if((j.photos||[]).length){ try{ await db.storage.from(BUCKET).remove((j.photos||[]).map(p=>p.path)); }catch(_){} }
+  _jobs=_jobs.filter(x=>x.id!==id);
+  toast('Ticket voided','ok');
+  closeJobModal();
 }
 async function renderDispatchHistory(){
   showSecondary(`<div class="detail-back" onclick="location.hash='#dispatch'">‹ Back to board</div><div class="card"><div class="dim">Loading…</div></div>`);

@@ -165,6 +165,7 @@ Four columns; a card is pushed to the next stage by a per-stage button (`moveSta
 
 - **Live client data:** for jobs linked to an account, name/address/phone are pulled live from the HELM `clients` table on every load (`overlayLiveClients`) — HELM edits always show, even mid-pipeline. The stored snapshot is a fallback only for free-address jobs.
 - **History** (`renderDispatchHistory`) — denied / unreachable / archived jobs by day, with photo thumbnails + lightbox.
+- **Void** (`voidJob`, on dispatch + completion cards) — a **true removal**: hard-deletes the row + its photos so the ticket disappears from the board, History, **and** the conversion reporting, exactly as if it was never entered. Distinct from **Archive** (which keeps the job as a completed **sale**). Use it for mistakes / cancellations that shouldn't count.
 
 ## 2.3 Cross-user notifications (realtime)
 Supabase broadcast, channel `beacon-dispatch-moves` (`initDispatchRealtime` / `broadcastDispatchMove` / `handleDispatchMove`, centralized in `persistJob`): the `admin` user is alerted when a card enters **Outreach** (he makes the calls); `david` on **every** stage move. The actor isn't self-alerted; recipients need BEACON open.
@@ -177,7 +178,7 @@ Under the Kanban, `renderDispatchStats` shows cards created → conversions, fil
 - **🖨 Print** (`printBulkyReport`) and **Excel** (`exportBulkyReport`) emit the same figures.
 
 ## 2.5 Key functions (quick index)
-`loadDispatch` · `overlayLiveClients` · `renderDispatchBoard` · `jobCardHtml` · `newJob` · `collectPatch` · `persistJob` · `moveStage` · `dispatchGoLive` · `scheduleCallback` / `notifyCallback` · `renderDispatchHistory` · `bulkPrintCompleted` · `renderDispatchStats` · `bulkyOutcome` · `printBulkyReport` · `exportBulkyReport` · `initDispatchRealtime` / `broadcastDispatchMove` / `handleDispatchMove`.
+`loadDispatch` · `overlayLiveClients` · `renderDispatchBoard` · `jobCardHtml` · `newJob` · `collectPatch` · `persistJob` · `advance` (push stage) · `dispatchGoLive` · `scheduleCallback` / `notifyCallback` · `archiveJob` · `deleteJob` (Verify) · `voidJob` (dispatch/completion — true removal) · `renderDispatchHistory` · `bulkPrintCompleted` · `renderDispatchStats` · `bulkyOutcome` · `printBulkyReport` · `exportBulkyReport` · `initDispatchRealtime` / `broadcastDispatchMove` / `handleDispatchMove`.
 
 ---
 
