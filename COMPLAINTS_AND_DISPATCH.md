@@ -105,15 +105,14 @@ Mobile-first modal (`openSupervisorQueue`). Same `complaints` / `complaint_actio
 
 Reached from the Console's **📊 Reports** button (`ccShowReports`). Compact, dense, descriptive — **one row per complaint** (not a page per case). Derived entirely from the already-loaded complaints; no extra query.
 - **Modes:** Daily (day ‹ › + Today), Weekly (week ‹ › + This week), Custom (from–to + Last 7d / 30d / This month).
-- **Summary KPIs:** Submitted · Resolved · Still open (now) · Avg. resolve.
-- **Three tables:**
-  | Section | Columns |
+- **Summary KPIs:** Submitted · Resolved · Still open (now) · Avg. resolve — plus a **Submitted-by-type** breakdown (Driver / Billing / Missed Stop / Other + any custom types, with counts).
+- **Two sections:**
+  | Section | Rows |
   |---|---|
-  | **Submitted in period** | time · type · client+address · route · complaint · by · status |
-  | **Resolved in period** | resolved · type · client · complaint · **resolution** · **duration** · by |
+  | **Submitted in this period** | one row per complaint (time · type · client+address · route · complaint · by · status); **the resolution — or ignore reason — shows inline directly beneath** each complaint that has one (`crComplaintsSection`) |
   | **Still open — current backlog** | age (color) · type · client · route · complaint · by · status |
   - Routed rows show the supervisor inline; click a row to drill into the case detail.
-- **🖨 Print** (`printConsoleReport`) → the same dense tables, `page-break-inside:avoid` per row + repeating headers, so a busy week is a few pages, not dozens.
+- **🖨 Print** (`printConsoleReport`) → the same dense layout (inline resolutions + the by-type header), `page-break-inside:avoid` per row + repeating headers, so a busy week is a few pages, not dozens.
 
 > The older per-case print functions (`printComplaintDay` / `Week` / `Range` / `List`) are superseded and unwired (kept only as dead code). The single-case **Print** in the detail view (`printComplaintCase`) remains.
 

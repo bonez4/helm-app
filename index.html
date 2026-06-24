@@ -1149,6 +1149,13 @@ body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
 .cr-pill.cr-res{background:#dcfce7;color:#166534;}
 .cr-pill.cr-ign{background:var(--gray-100);color:var(--gray-500);}
 .cr-sup{font-size:9.5px;color:#1e40af;background:#eef4ff;border:1px solid #c7ddff;border-radius:7px;padding:1px 6px;font-weight:700;white-space:nowrap;display:inline-block;margin-top:2px;}
+.cr-typestrip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 18px;}
+.cr-typestrip-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;}
+.cr-typechip{font-size:12px;color:var(--gray-700);background:#f3f6fa;border:1px solid var(--gray-200);border-radius:20px;padding:4px 11px;}
+.cr-typechip b{color:var(--navy);}
+.cr-table tr.cr-subrow td{border-top:none;}
+.cr-table td.cr-resed{background:#f0fdf4;color:#166534;font-size:11.5px;line-height:1.4;padding-left:26px;}
+.cr-table td.cr-igned{background:var(--gray-100);color:var(--gray-500);font-size:11.5px;line-height:1.4;padding-left:26px;font-style:italic;}
 @media (max-width:768px){
   .cr-note{max-width:none;-webkit-line-clamp:3;}
   .cr-summary{grid-template-columns:repeat(2,1fr);}
@@ -3459,6 +3466,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         </div>
         <div class="cr-daterow" id="crDateRow"></div>
         <div class="cr-summary" id="crSummary"></div>
+        <div class="cr-typestrip" id="crTypeStrip"></div>
         <div id="crBody"></div>
       </div>
     </div>
@@ -7851,6 +7859,40 @@ function crSection(title, rows, kind){
   return head+`<div class="cr-tablewrap"><table class="cr-table"><thead><tr>${cols}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
+// Submitted-by-type breakdown for the report header. The built-in 4 always show
+// (even at 0); any custom types appear when present. Ordered by count desc.
+function crTypeCounts(rows){
+  const counts={};
+  rows.forEach(c=>{ counts[c.type]=(counts[c.type]||0)+1; });
+  const builtins=['DRIVER','BILLING','MISSED_STOP','OTHER'];
+  const values=[...new Set([...builtins, ...Object.keys(counts)])];
+  return values.map(v=>({value:v, label:complaintTypeLabel(v), count:counts[v]||0}))
+    .sort((a,b)=> (b.count-a.count) || a.label.localeCompare(b.label));
+}
+// One merged list: each complaint, with its resolution (or ignore reason) inline
+// directly beneath. Replaces the old separate Submitted + Resolved sections.
+function crComplaintsSection(rows){
+  const head=`<div class="cr-sec-hdr"><span>Submitted in this period</span><span class="cr-sec-n">${rows.length}</span></div>`;
+  if(!rows.length) return head+`<div class="cr-sec-empty">None.</div>`;
+  const cols=`<th>Time</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>By</th><th>Status</th>`;
+  const body=rows.map(c=>{
+    const main=`<tr onclick="crOpenCase(${c.id})">
+      <td class="nw">${esc(crTime(c.logged_at))}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td><td class="nw">${crRoute(c)}</td>
+      <td class="cr-note">${esc(c.notes||'—')}</td><td class="nw">${esc(c.logged_by||'—')}</td><td class="nw">${crStatusChip(c)}</td></tr>`;
+    let sub='';
+    if(c.status==='resolved'){
+      const dur=(c.resolved_at&&c.logged_at)?ccFmtDuration(new Date(c.resolved_at)-new Date(c.logged_at)):'—';
+      const rwhen=c.resolved_at?new Date(c.resolved_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+      sub=`<tr class="cr-subrow" onclick="crOpenCase(${c.id})"><td colspan="7" class="cr-resed">✓ <b>Resolved</b> in ${esc(dur)} · ${esc(rwhen)}${c.resolved_by?(' · '+esc(c.resolved_by)):''}${c.resolution_notes?(' — '+esc(c.resolution_notes)):''}</td></tr>`;
+    } else if(c.status==='ignored'){
+      const iwhen=c.ignored_at?new Date(c.ignored_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+      sub=`<tr class="cr-subrow" onclick="crOpenCase(${c.id})"><td colspan="7" class="cr-igned">⊘ <b>Ignored</b> · ${esc(iwhen)}${c.ignored_by?(' · '+esc(c.ignored_by)):''}${c.ignored_reason?(' — '+esc(c.ignored_reason)):''}</td></tr>`;
+    }
+    return main+sub;
+  }).join('');
+  return head+`<div class="cr-tablewrap"><table class="cr-table"><thead><tr>${cols}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
 function renderComplaintReport(){
   const d=crData();
   const tabs=document.getElementById('crModeTabs');
@@ -7885,11 +7927,15 @@ function renderComplaintReport(){
     const kpi=(v,l)=>`<div class="cr-kpi"><div class="cr-kpi-v">${esc(String(v))}</div><div class="cr-kpi-l">${esc(l)}</div></div>`;
     sm.innerHTML=kpi(d.submitted.length,'Submitted')+kpi(d.resolved.length,'Resolved')+kpi(d.stillOpen.length,'Still open (now)')+kpi(d.avgMs==null?'—':ccFmtDuration(d.avgMs),'Avg. resolve');
   }
+  const ts=document.getElementById('crTypeStrip');
+  if(ts){
+    ts.innerHTML = `<span class="cr-typestrip-lbl">Submitted by type:</span>` +
+      crTypeCounts(d.submitted).map(t=>`<span class="cr-typechip"><b>${t.count}</b> ${esc(t.label)}</span>`).join('');
+  }
   const body=document.getElementById('crBody');
   if(body){
     body.innerHTML =
-      crSection('Submitted in this period', d.submitted, 'submitted') +
-      crSection('Resolved in this period', d.resolved, 'resolved') +
+      crComplaintsSection(d.submitted) +
       crSection('Still open — current backlog', d.stillOpen, 'open');
   }
 }
@@ -7908,8 +7954,12 @@ function printConsoleReport(){
   const dur=(c)=>(c.resolved_at&&c.logged_at)?ccFmtDuration(new Date(c.resolved_at)-new Date(c.logged_at)):'—';
   const sec=(title,n,headHtml,bodyHtml)=>`<div class="sec"><div class="sec-h">${esc(title)} <span>${n}</span></div>${n?`<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`:'<div class="none">None.</div>'}</div>`;
 
-  const subBody=d.submitted.map(c=>`<tr><td class="nw">${esc(tm(c.logged_at))}</td><td class="nw">${esc(complaintTypeLabel(c.type))}</td><td>${cl(c)}</td><td class="nw">${rt(c)}</td><td>${esc(c.notes||'—')}</td><td class="nw">${esc(c.logged_by||'—')}</td><td class="nw">${esc(stat(c))}</td></tr>`).join('');
-  const resBody=d.resolved.map(c=>`<tr><td class="nw">${esc(tm(c.resolved_at))}</td><td class="nw">${esc(complaintTypeLabel(c.type))}</td><td>${cl(c)}</td><td>${esc(c.notes||'—')}</td><td>${esc(c.resolution_notes||'—')}</td><td class="nw">${esc(dur(c))}</td><td class="nw">${esc(c.resolved_by||'—')}</td></tr>`).join('');
+  const subBody=d.submitted.map(c=>{
+    const main=`<tr><td class="nw">${esc(tm(c.logged_at))}</td><td class="nw">${esc(complaintTypeLabel(c.type))}</td><td>${cl(c)}</td><td class="nw">${rt(c)}</td><td>${esc(c.notes||'—')}</td><td class="nw">${esc(c.logged_by||'—')}</td><td class="nw">${esc(stat(c))}</td></tr>`;
+    if(c.status==='resolved') return main+`<tr class="res"><td colspan="7">✓ <b>Resolved</b> in ${esc(dur(c))} · ${esc(tm(c.resolved_at))}${c.resolved_by?(' · '+esc(c.resolved_by)):''}${c.resolution_notes?(' — '+esc(c.resolution_notes)):''}</td></tr>`;
+    if(c.status==='ignored') return main+`<tr class="ign"><td colspan="7">⊘ <b>Ignored</b>${c.ignored_by?(' · '+esc(c.ignored_by)):''}${c.ignored_reason?(' — '+esc(c.ignored_reason)):''}</td></tr>`;
+    return main;
+  }).join('');
   const openBody=d.stillOpen.map(c=>`<tr><td class="nw">${esc(ccFriendlyAge(c))}</td><td class="nw">${esc(complaintTypeLabel(c.type))}</td><td>${cl(c)}</td><td class="nw">${rt(c)}</td><td>${esc(c.notes||'—')}</td><td class="nw">${esc(c.logged_by||'—')}</td><td class="nw">${esc(stat(c))}</td></tr>`).join('');
 
   const win=window.open('','_blank');
@@ -7934,6 +7984,9 @@ td.nw{white-space:nowrap;}
 tr{page-break-inside:avoid;}
 thead{display:table-header-group;}
 tbody tr:nth-child(even){background:#fafbfd;}
+tr.res td{background:#f0fdf4;color:#166534;padding-left:22px;}
+tr.ign td{background:#f4f4f5;color:#555;font-style:italic;padding-left:22px;}
+.typeline{font-size:12px;color:#222;margin:-4px 0 14px;}
 .foot{margin-top:16px;font-size:9px;color:#888;border-top:1px solid #ddd;padding-top:6px;display:flex;justify-content:space-between;}
 @media print{@page{margin:0.5cm;}body{padding:0;}}
 </style></head><body>
@@ -7945,8 +7998,8 @@ tbody tr:nth-child(even){background:#fafbfd;}
   <div class="k"><b>${d.stillOpen.length}</b>Still open (now)</div>
   <div class="k"><b>${d.avgMs==null?'—':esc(ccFmtDuration(d.avgMs))}</b>Avg. resolve</div>
 </div>
+<div class="typeline"><b>Submitted by type:</b> ${crTypeCounts(d.submitted).map(t=>`${esc(t.label)} <b>${t.count}</b>`).join(' · ')}</div>
 ${sec('Submitted in this period', d.submitted.length, '<th>Time</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>By</th><th>Status</th>', subBody)}
-${sec('Resolved in this period', d.resolved.length, '<th>Resolved</th><th>Type</th><th>Client</th><th>Complaint</th><th>Resolution</th><th>In</th><th>By</th>', resBody)}
 ${sec('Still open — current backlog', d.stillOpen.length, '<th>Age</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>By</th><th>Status</th>', openBody)}
 <div class="foot"><span>Reis Trucking — Nantucket, MA</span><span>HELM Complaint Report · Printed ${esc(new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}))}</span></div>
 <script>window.onload=function(){window.print();}<\/script>
