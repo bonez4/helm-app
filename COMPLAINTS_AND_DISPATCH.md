@@ -170,11 +170,12 @@ Four columns; a card is pushed to the next stage by a per-stage button (`moveSta
 Supabase broadcast, channel `beacon-dispatch-moves` (`initDispatchRealtime` / `broadcastDispatchMove` / `handleDispatchMove`, centralized in `persistJob`): the `admin` user is alerted when a card enters **Outreach** (he makes the calls); `david` on **every** stage move. The actor isn't self-alerted; recipients need BEACON open.
 
 ## 2.4 Conversion reporting (on the board)
-Under the Kanban, `renderDispatchStats` shows cards created → conversions, filterable by **Day / Week / Month**:
+Under the Kanban, `renderDispatchStats` shows cards created → conversions, filterable by **Day / Week / Month / Custom (From–To)**:
 - **Outcome model** (`bulkyOutcome`): **sale** = `dispatch` / `completion` / `archived`; **denied** = `denied` / `unreachable`; else **in progress**.
-- **Cohort** = cards **created** in the selected period (by `created_at`), computed from the already-loaded `_jobs` (no extra fetch).
-- Shows: cards created · converted-to-sale + **rate** · denied · in-progress · sales value vs total value · **denied-by-reason** breakdown · a per-card table (incl. **Service Address**).
-- **🖨 Print** (`printBulkyReport`) and **Excel** (`exportBulkyReport`) emit the same figures.
+- **Cohort** = cards **created** in the selected period (by `created_at`), computed from the already-loaded `_jobs` (no extra fetch). **Custom** mode (`_dispStatsFrom` / `_dispStatsTo`, defaulting to the last 30 days) takes a From/To date-range picker.
+- Shows: cards created · converted-to-sale + **rate** · denied · in-progress · sales value vs total value · **Avg $ / trip** · **denied-by-reason** · **completed-by-driver** counts (with $ each) · a per-card table (incl. **Service Address**, Driver, Completed).
+- A **"trip"** = a job actually completed (`completed_at` set). **Avg $ / trip** = average final charge over completed trips; **completed-by-driver** counts those completed jobs per `driver`.
+- **🖨 Print** (`printBulkyReport`) and **Excel** (`exportBulkyReport`) emit the same figures (incl. avg $/trip + a completed-by-driver table).
 
 ## 2.5 Key functions (quick index)
 `loadDispatch` · `overlayLiveClients` · `renderDispatchBoard` · `jobCardHtml` · `newJob` · `collectPatch` · `persistJob` · `advance` (push stage) · `dispatchGoLive` · `scheduleCallback` / `notifyCallback` · `archiveJob` · `deleteJob` (Verify) · `voidJob` (dispatch/completion — true removal) · `renderDispatchHistory` · `bulkPrintCompleted` · `renderDispatchStats` · `bulkyOutcome` · `printBulkyReport` · `exportBulkyReport` · `initDispatchRealtime` / `broadcastDispatchMove` / `handleDispatchMove`.

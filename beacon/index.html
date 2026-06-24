@@ -1032,7 +1032,7 @@ async function renderDispatchBoard(){
 // sale = dispatch/completion/archived, denied = denied/unreachable, else in-progress.
 // Cohort = cards CREATED in the selected period (by created_at), computed straight from
 // the already-loaded _jobs (no extra fetch). Same created_at filtering convention as the report.
-let _dispStatsMode='week', _dispStatsOffset=0;
+let _dispStatsMode='week', _dispStatsOffset=0, _dispStatsFrom=null, _dispStatsTo=null;
 function dispStatsRange(mode, offset){
   const now=new Date(); now.setHours(0,0,0,0);
   if(mode==='day'){
@@ -1044,11 +1044,24 @@ function dispStatsRange(mode, offset){
     const last=new Date(first.getFullYear(), first.getMonth()+1, 0);
     return {from:isoOf(first), to:isoOf(last), label:first.toLocaleDateString('en-US',{month:'long',year:'numeric'})};
   }
+  if(mode==='custom'){
+    let f=_dispStatsFrom, t=_dispStatsTo; if(f&&t&&f>t){ const x=f; f=t; t=x; }
+    return {from:f, to:t, label:'Custom · '+fmtDate(f)+' – '+fmtDate(t)};
+  }
   const [from,to]=weekRange(offset);
   return {from, to, label:'Week of '+fmtDate(from)+' – '+fmtDate(to)};
 }
-function dispStatsSetMode(mode){ _dispStatsMode=mode; _dispStatsOffset=0; renderDispatchStats(); }
+function dispStatsSetMode(mode){
+  _dispStatsMode=mode; _dispStatsOffset=0;
+  if(mode==='custom' && (!_dispStatsFrom || !_dispStatsTo)){
+    const t=new Date(), f=new Date(); f.setDate(f.getDate()-29);
+    _dispStatsTo=isoOf(t); _dispStatsFrom=isoOf(f);   // default to the last 30 days
+  }
+  renderDispatchStats();
+}
 function dispStatsNav(delta){ if(delta==='this'){ _dispStatsOffset=0; } else { _dispStatsOffset+=delta; } if(_dispStatsOffset>0) _dispStatsOffset=0; renderDispatchStats(); }
+function dispStatsSetFrom(v){ if(v){ _dispStatsFrom=v; renderDispatchStats(); } }
+function dispStatsSetTo(v){ if(v){ _dispStatsTo=v; renderDispatchStats(); } }
 function renderDispatchStats(){
   const box=document.getElementById('dispStats'); if(!box) return;
   const {from,to,label}=dispStatsRange(_dispStatsMode,_dispStatsOffset);
@@ -1067,8 +1080,17 @@ function renderDispatchStats(){
   const reasonCounts={};
   rows.filter(r=>r.oc==='denied').forEach(r=>{ const key=(r.j.denial_note||'').trim()||'Other'; reasonCounts[key]=(reasonCounts[key]||0)+1; });
   const reasonOrder=Object.keys(reasonCounts).sort((a,b)=>reasonCounts[b]-reasonCounts[a]);
+  // Completed-trip metrics: a "trip" = a job that was actually completed (completed_at set).
+  // Avg $/trip = average final charge over completed trips; by-driver = completed jobs per driver.
+  const completedRows=rows.filter(r=>r.j.completed_at);
+  const completed=completedRows.length;
+  const completedValue=completedRows.reduce((s,r)=>s+r.total,0);
+  const avgPerTrip=completed?completedValue/completed:null;
+  const driverMap={};
+  completedRows.forEach(r=>{ const dn=(r.j.driver||'').trim()||'(unassigned)'; const e=driverMap[dn]||(driverMap[dn]={count:0,value:0}); e.count++; e.value+=r.total; });
+  const byDriver=Object.entries(driverMap).map(([driver,e])=>({driver,count:e.count,value:e.value})).sort((a,b)=>(b.count-a.count)||(b.value-a.value));
   // Shared store read by the Print/Excel exporters (printBulkyReport / exportBulkyReport).
-  _bulkyReportData={label, from, to, created, sales, denied, progress, decided, pctCreated:pct, pctDecided, salesValue, totalValue, deniedValue, rows, reasonCounts, reasonOrder};
+  _bulkyReportData={label, from, to, created, sales, denied, progress, decided, pctCreated:pct, pctDecided, salesValue, totalValue, deniedValue, completed, completedValue, avgPerTrip, byDriver, rows, reasonCounts, reasonOrder};
   const modeBtn=(m,lbl)=>`<button class="btn${_dispStatsMode===m?' btn-primary':''}" onclick="dispStatsSetMode('${m}')">${lbl}</button>`;
   const ocChip=oc=> oc==='sale'?'<span class="pill new">Sale</span>':oc==='denied'?'<span class="pill lost">Denied</span>':'<span class="pill">In progress</span>';
   const table = rows.length ? `<div class="table-wrap" style="box-shadow:none;margin-top:12px"><table>
@@ -1089,10 +1111,10 @@ function renderDispatchStats(){
     <div class="card" style="margin-top:18px">
       <div class="act-controls" style="flex-wrap:wrap;gap:8px;align-items:center">
         <b style="font-size:14px">Conversion stats</b>
-        <span style="display:inline-flex;gap:4px;margin-left:6px">${modeBtn('day','Day')}${modeBtn('week','Week')}${modeBtn('month','Month')}</span>
-        <button class="btn" onclick="dispStatsNav(-1)">‹ Prev</button>
-        <button class="btn" onclick="dispStatsNav('this')">Current</button>
-        <button class="btn" onclick="dispStatsNav(1)">Next ›</button>
+        <span style="display:inline-flex;gap:4px;margin-left:6px">${modeBtn('day','Day')}${modeBtn('week','Week')}${modeBtn('month','Month')}${modeBtn('custom','Custom')}</span>
+        ${_dispStatsMode==='custom'
+          ? `<input type="date" value="${esc(_dispStatsFrom||'')}" onchange="dispStatsSetFrom(this.value)" style="padding:6px 8px;border:1px solid #d6d3cd;border-radius:6px;font-size:13px;font-family:inherit"/><span class="dim" style="font-size:12px">to</span><input type="date" value="${esc(_dispStatsTo||'')}" onchange="dispStatsSetTo(this.value)" style="padding:6px 8px;border:1px solid #d6d3cd;border-radius:6px;font-size:13px;font-family:inherit"/>`
+          : `<button class="btn" onclick="dispStatsNav(-1)">‹ Prev</button><button class="btn" onclick="dispStatsNav('this')">Current</button><button class="btn" onclick="dispStatsNav(1)">Next ›</button>`}
         <span class="mini-label">${esc(label)}</span>
         <span style="flex:1"></span>
         <button class="btn" onclick="printBulkyReport()">🖨 Print</button>
@@ -1103,11 +1125,13 @@ function renderDispatchStats(){
         <div class="kpi new"><div class="kpi-num">${sales}</div><div class="kpi-label">Conversions</div></div>
         <div class="kpi"><div class="kpi-num">${pct}%</div><div class="kpi-label">Conversion rate</div></div>
         <div class="kpi"><div class="kpi-num" style="font-size:18px">$${salesValue.toFixed(2)} / $${totalValue.toFixed(2)}</div><div class="kpi-label">Converted $ / total $</div></div>
+        <div class="kpi"><div class="kpi-num">${avgPerTrip==null?'—':('$'+avgPerTrip.toFixed(2))}</div><div class="kpi-label">Avg $ / trip</div></div>
       </div>
       <div class="dim" style="margin-top:8px;font-size:12px;line-height:1.5">
-        ${created ? `<b>${sales}</b> of <b>${created}</b> cards created converted (<b>${pct}%</b>). Denied <b>${denied}</b> ($${deniedValue.toFixed(2)}) · in progress <b>${progress}</b>.${decided?` Excluding in-progress: ${sales}/${decided} → <b>${pctDecided}%</b>.`:''}` : 'No cards created in this period.'}
+        ${created ? `<b>${sales}</b> of <b>${created}</b> cards created converted (<b>${pct}%</b>). Denied <b>${denied}</b> ($${deniedValue.toFixed(2)}) · in progress <b>${progress}</b>. Completed <b>${completed}</b>${avgPerTrip!=null?` · avg <b>$${avgPerTrip.toFixed(2)}</b>/trip`:''}.${decided?` Excluding in-progress: ${sales}/${decided} → <b>${pctDecided}%</b>.`:''}` : 'No cards created in this period.'}
       </div>
       ${denied?`<div style="margin-top:6px;font-size:12px;line-height:1.5"><b>Denied by reason:</b> ${reasonOrder.map(rs=>`${esc(rs)} <b>${reasonCounts[rs]}</b>`).join(' · ')}</div>`:''}
+      ${byDriver.length?`<div style="margin-top:6px;font-size:12px;line-height:1.5"><b>Completed by driver:</b> ${byDriver.map(d=>`${esc(d.driver)} <b>${d.count}</b>${d.value?` ($${d.value.toFixed(2)})`:''}`).join(' · ')}</div>`:''}
       ${table}
     </div>`;
 }
@@ -1954,7 +1978,9 @@ function printBulkyReport(){
     <h1>Bulky Pickup Conversion Report</h1>
     <div class="rng">${esc(d.label||('Week of '+fmtDate(d.from)+' – '+fmtDate(d.to)))}</div>
     <div class="tot"><b>${d.created}</b> cards created · <b>${d.sales}</b> converted to sale (<b>${d.pctCreated}%</b>) · <b>${d.denied}</b> denied · <b>${d.progress}</b> in progress · sales value <b>$${d.salesValue.toFixed(2)}</b>${d.decided?` · ${d.pctDecided}% of decided`:''}</div>
+    <div class="tot" style="margin-top:-4px"><b>${d.completed||0}</b> completed${d.avgPerTrip!=null?` · avg <b>$${d.avgPerTrip.toFixed(2)}</b> per trip`:''}</div>
     ${d.denied?`<div class="tot" style="margin-top:-4px">Denied by reason: ${d.reasonOrder.map(rs=>`${esc(rs)}: <b>${d.reasonCounts[rs]}</b>`).join(' · ')}</div>`:''}
+    ${d.byDriver&&d.byDriver.length?`<div class="tot" style="margin-top:-4px">Completed by driver: ${d.byDriver.map(x=>`${esc(x.driver)}: <b>${x.count}</b>${x.value?` ($${x.value.toFixed(2)})`:''}`).join(' · ')}</div>`:''}
     <table><thead><tr><th>Created</th><th>Client</th><th>Service Address</th><th>Outcome</th><th>Reason not converted</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr></thead><tbody>${rows||'<tr><td colspan="9">No cards created in this week.</td></tr>'}</tbody></table>
   </body></html>`);
   w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
@@ -1973,8 +1999,11 @@ function exportBulkyReport(){
       <tr><td>Conversion rate (of cards created)</td><td>${d.pctCreated}%</td></tr>
       <tr><td>Conversion rate (of decided)</td><td>${d.decided?d.pctDecided+'%':'n/a'}</td></tr>
       <tr><td>Sales value</td><td>$${d.salesValue.toFixed(2)}</td></tr>
+      <tr><td>Completed trips</td><td>${d.completed||0}</td></tr>
+      <tr><td>Avg $ / trip</td><td>${d.avgPerTrip!=null?('$'+d.avgPerTrip.toFixed(2)):'n/a'}</td></tr>
     </table>
     ${d.denied?`<br/><table border="1"><tr><th colspan="2" style="text-align:left">Denied by reason</th></tr>${d.reasonOrder.map(rs=>`<tr><td>${esc(rs)}</td><td>${d.reasonCounts[rs]}</td></tr>`).join('')}</table>`:''}
+    ${d.byDriver&&d.byDriver.length?`<br/><table border="1"><tr><th colspan="3" style="text-align:left">Completed by driver</th></tr><tr><th>Driver</th><th>Jobs</th><th>$ Value</th></tr>${d.byDriver.map(x=>`<tr><td>${esc(x.driver)}</td><td>${x.count}</td><td>${x.value?x.value.toFixed(2):''}</td></tr>`).join('')}</table>`:''}
     <br/>
     <table border="1">
       <tr><th>Created</th><th>Client</th><th>Service Address</th><th>Outcome</th><th>Reason not converted</th><th>Stage</th><th>Items</th><th>$ Total</th><th>Driver</th></tr>
