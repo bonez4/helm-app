@@ -91,7 +91,7 @@ The existing case-management UI (`renderInboxDetail`), unchanged by the rebuild:
 - **case_open** → action-log timeline + **＋ Add Entry** (typed case-note) + **✓ Mark Resolved** (resolution notes required).
 - **Hand to a supervisor** → assign to Dane/Brian or drop in the pool.
 - **📧 Email complaint** (Gmail compose prefilled) · **Print** (single case file).
-- resolved / ignored → read-only banner with who/when/notes.
+- **resolved / ignored** → read-only banner with who/when/notes, plus **↩ Reopen & add entries** (`reopenComplaint`) — flips it back to Open (writes a `reopened` audit entry; the prior resolution/ignore stays in the action log), so David can add entries and re-resolve. A reopened supervisor-handled case returns to that supervisor's queue.
 
 Acting on a card moves it between boxes (New → Open → Resolved). The topbar badge counts **new & not-routed**, matching the New box.
 

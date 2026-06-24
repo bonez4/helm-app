@@ -8139,7 +8139,10 @@ async function renderInboxDetail(c){
         <div class="inbox-section-hdr">Resolution</div>
         <div class="resolution-display">${c.resolution_notes?esc(c.resolution_notes):'<em>No resolution notes recorded.</em>'}<div style="margin-top:6px;font-size:11px;color:var(--gray-500);">Resolved by ${esc(resBy)} on ${esc(resAt)}</div></div>
       </div>
-      ${await renderCaseActionLog(c, true)}`;
+      ${await renderCaseActionLog(c, true)}
+      <div class="inbox-action-row">
+        <button class="btn-case-open" onclick="reopenComplaint(${c.id})" style="background:var(--navy);">↩ Reopen &amp; add entries</button>
+      </div>`;
   } else if(c.status === 'ignored'){
     const ignBy = c.ignored_by || '—';
     const ignAt = c.ignored_at ? new Date(c.ignored_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
@@ -8147,6 +8150,10 @@ async function renderInboxDetail(c){
       <div class="inbox-section">
         <div class="inbox-section-hdr">Ignored</div>
         <div class="ignored-display">${c.ignored_reason?esc(c.ignored_reason):'<em>No reason recorded.</em>'}<div style="margin-top:6px;font-size:11px;color:var(--gray-500);font-style:normal;">By ${esc(ignBy)} on ${esc(ignAt)}</div></div>
+      </div>
+      ${await renderCaseActionLog(c, true)}
+      <div class="inbox-action-row">
+        <button class="btn-case-open" onclick="reopenComplaint(${c.id})" style="background:var(--navy);">↩ Reopen &amp; add entries</button>
       </div>`;
   }
 
@@ -8259,6 +8266,33 @@ async function openCase(complaintId){
   _inboxFilter = 'open';
   _inboxSelectedId = complaintId;
   renderInbox();
+}
+
+// David: reopen a resolved OR ignored complaint back to case_open so he can add
+// more entries and resolve it again. The full audit trail (complaint_actions) is
+// preserved — including the prior resolution/ignore — and a 'reopened' row is
+// written. Routing is left as-is, so a supervisor-handled case returns to that
+// supervisor's queue. Mirrors supReopen on the supervisor side.
+async function reopenComplaint(complaintId){
+  if(!userIsDavid()){ toast('David only'); return; }
+  const c = _inboxComplaints.find(x=>x.id===complaintId);
+  if(!c) return;
+  if(!confirm('Reopen this complaint? It goes back to Open so you can add entries and resolve it again.')) return;
+  const by = currentUser ? (currentUser.display_name||currentUser.username) : '';
+  const now = new Date().toISOString();
+  const patch = {status:'case_open', case_opened_at:now, case_opened_by:by,
+    resolved_at:null, resolved_by:null, resolution_notes:null,
+    ignored_at:null, ignored_by:null, ignored_reason:null};
+  const {error} = await db.from('complaints').update(patch).eq('id', complaintId);
+  if(error){ toast('Error: '+error.message); return; }
+  try{ await db.from('complaint_actions').insert({complaint_id:complaintId, action_type:'reopened', performed_by:by}); }catch(_){}
+  toast('Complaint reopened', true);
+  logActivity('complaint_reopened', String(complaintId));
+  Object.assign(c, patch);
+  _inboxFilter = 'open';
+  _inboxSelectedId = complaintId;
+  renderInbox();
+  refreshComplaintBadge();
 }
 
 async function submitCaseAction(complaintId){
