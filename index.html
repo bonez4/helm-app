@@ -3450,6 +3450,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
           <input type="text" id="consoleSearch" class="cc-search" placeholder="Search client, address, driver, note, acct…" oninput="setInboxSearch(this.value)"/>
           <div class="cc-subfilters" id="ccSubFilters"></div>
           <button class="btn-edit-sm" id="ccReportsToggle" onclick="ccShowReports()">📊 Reports</button>
+          <button class="btn-edit-sm" onclick="ccShowDrivers()">🚛 Drivers</button>
         </div>
         <div class="cc-grid" id="ccCardGrid"></div>
       </div>
@@ -3468,6 +3469,16 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <div class="cr-summary" id="crSummary"></div>
         <div class="cr-typestrip" id="crTypeStrip"></div>
         <div id="crBody"></div>
+      </div>
+      <!-- ── Driver Complaints view (interactive leaderboard + drill-in) ── -->
+      <div id="consoleDriversView" style="display:none;">
+        <div class="cr-head">
+          <button class="btn-edit-sm" onclick="ccShowTriage()">&larr; Back to complaints</button>
+          <div style="font-weight:800;color:var(--navy);font-size:16px;margin-left:4px;">🚛 Driver Complaints</div>
+        </div>
+        <div class="cr-daterow" id="drvDateRow"></div>
+        <div class="cr-summary" id="drvSummary"></div>
+        <div id="drvBody"></div>
       </div>
     </div>
   </div>
@@ -4867,7 +4878,7 @@ function renderComplaintHistoryRow(c){
     outcome = `<div class="note-row-ignored" style="color:#92400e;background:#fef3c7;border-left-color:#d97706;font-style:normal;">Under review</div>`;
   }
   const typeUpper = String(complaintTypeLabel(c.type)).toUpperCase();
-  const driverChip = (c.type === 'DRIVER' && c.driver_name)
+  const driverChip = (c.driver_name)
     ? `<span class="status-pill-sm" style="background:#fff7ed;color:#9a3412;border:1px solid #ea580c;">Driver: ${esc(c.driver_name)}</span>`
     : '';
   return `<div class="note-row note-row-complaint">
@@ -7217,6 +7228,8 @@ let _crMode = 'daily';       // 'daily' | 'weekly' | 'custom'
 let _crDay  = null;          // 'YYYY-MM-DD'
 let _crWeek = null;          // Monday 'YYYY-MM-DD'
 let _crFrom = null, _crTo = null;
+// Driver Complaints view state
+let _drvFrom = null, _drvTo = null, _drvSelected = null;
 const PRIORITY_RANK = {urgent:0, high:1, normal:2, low:3};
 
 // ISO Monday string for the week containing the given date (or today by default).
@@ -7691,23 +7704,13 @@ function renderInbox(){
   const listView    = document.getElementById('consoleListView');
   const detailView  = document.getElementById('consoleDetailView');
   const reportsView = document.getElementById('consoleReportsView');
+  const driversView = document.getElementById('consoleDriversView');
+  const hideAll = ()=>{ [listView,detailView,reportsView,driversView].forEach(el=>{ if(el) el.style.display='none'; }); };
   const sel = (_consoleMode==='triage' && _inboxSelectedId) ? all.find(c=>c.id===_inboxSelectedId) : null;
-  if(_consoleMode==='reports'){
-    if(listView)    listView.style.display='none';
-    if(detailView)  detailView.style.display='none';
-    if(reportsView) reportsView.style.display='';
-    renderComplaintReport();
-  } else if(sel){
-    if(listView)    listView.style.display='none';
-    if(detailView)  detailView.style.display='';
-    if(reportsView) reportsView.style.display='none';
-    renderInboxDetail(sel);
-  } else {
-    if(listView)    listView.style.display='';
-    if(detailView)  detailView.style.display='none';
-    if(reportsView) reportsView.style.display='none';
-    renderConsoleCards();
-  }
+  if(_consoleMode==='reports'){      hideAll(); if(reportsView) reportsView.style.display=''; renderComplaintReport(); }
+  else if(_consoleMode==='drivers'){ hideAll(); if(driversView) driversView.style.display=''; renderDriverReport(); }
+  else if(sel){                      hideAll(); if(detailView)  detailView.style.display='';  renderInboxDetail(sel); }
+  else {                             hideAll(); if(listView)    listView.style.display='';     renderConsoleCards(); }
 }
 
 function renderConsoleCards(){
@@ -7822,7 +7825,7 @@ function crData(){
 // ── On-screen report ─────────────────────────────────────────────────────────
 function crTime(ts){ if(!ts) return '—'; const d=new Date(ts); return _crMode==='daily' ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function crTypeChip(c){ return `<span class="action-tag at-complaint" style="font-size:9.5px;">${esc(complaintTypeLabel(c.type))}</span>`; }
-function crClientCell(c){ return `<div class="cr-cl">${esc(c.client_name||('Acct '+c.client_id))}</div><div class="cr-cl-sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.type==='DRIVER'&&c.driver_name)?(' · '+esc(c.driver_name)):''}</div>`; }
+function crClientCell(c){ return `<div class="cr-cl">${esc(c.client_name||('Acct '+c.client_id))}</div><div class="cr-cl-sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.driver_name)?(' · '+esc(c.driver_name)):''}</div>`; }
 function crRoute(c){ return (c.client_route!=null&&c.client_route!=='')?('R'+esc(c.client_route)):'—'; }
 function crStatusChip(c){
   const b=complaintBucketOf(c);
@@ -7949,7 +7952,7 @@ function printConsoleReport(){
   const full=_crMode!=='daily';
   const tm=(ts)=> ts ? (full ? new Date(ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})) : '—';
   const stat=(c)=>{ const b=complaintBucketOf(c); if(b==='resolved')return 'Resolved'; if(b==='ignored')return 'Ignored'; if(b==='open')return 'Open'+(c.routed_to_supervisor?(' · '+(c.assigned_to||'pool')):''); return 'New'; };
-  const cl=(c)=>`<b>${esc(c.client_name||('Acct '+c.client_id))}</b><br><span class="sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.type==='DRIVER'&&c.driver_name)?(' · '+esc(c.driver_name)):''}</span>`;
+  const cl=(c)=>`<b>${esc(c.client_name||('Acct '+c.client_id))}</b><br><span class="sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.driver_name)?(' · '+esc(c.driver_name)):''}</span>`;
   const rt=(c)=>(c.client_route!=null&&c.client_route!=='')?('R'+esc(c.client_route)):'—';
   const dur=(c)=>(c.resolved_at&&c.logged_at)?ccFmtDuration(new Date(c.resolved_at)-new Date(c.logged_at)):'—';
   const sec=(title,n,headHtml,bodyHtml)=>`<div class="sec"><div class="sec-h">${esc(title)} <span>${n}</span></div>${n?`<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`:'<div class="none">None.</div>'}</div>`;
@@ -8006,6 +8009,88 @@ ${sec('Still open — current backlog', d.stillOpen.length, '<th>Age</th><th>Typ
 </body></html>`);
   win.document.close();
   logActivity('complaint_report_print', d.p.kind+' · '+d.p.label);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DRIVER COMPLAINTS — interactive view (David). Every complaint that has a
+// driver_name (captured on Driver-type at log time, or back-filled when a
+// supervisor logs "Spoke to Driver") rolls up into a per-driver leaderboard with
+// drill-in, over an optional date range — to spot driver trends. Reads
+// _inboxComplaints only; no new query.
+// ════════════════════════════════════════════════════════════════════════════
+function ccShowDrivers(){ _consoleMode='drivers'; _drvSelected=null; renderInbox(); }
+function drvSetFrom(v){ _drvFrom=v||null; renderDriverReport(); }
+function drvSetTo(v){ _drvTo=v||null; renderDriverReport(); }
+function drvAllTime(){ _drvFrom=null; _drvTo=null; renderDriverReport(); }
+function drvPreset(days){ const e=new Date(), s=new Date(); s.setDate(s.getDate()-(days-1)); _drvFrom=s.toISOString().split('T')[0]; _drvTo=e.toISOString().split('T')[0]; renderDriverReport(); }
+function drvSelect(i){ const dd=drvData().drivers[i]; _drvSelected=dd?dd.driver:null; renderDriverReport(); }
+function drvBack(){ _drvSelected=null; renderDriverReport(); }
+function drvData(){
+  let rows=_inboxComplaints.filter(c=>c.driver_name && String(c.driver_name).trim());
+  if(_drvFrom) rows=rows.filter(c=>c.logged_at && c.logged_at >= _drvFrom+'T00:00:00');
+  if(_drvTo)   rows=rows.filter(c=>c.logged_at && c.logged_at <= _drvTo+'T23:59:59.999');
+  const byDriver={};
+  rows.forEach(c=>{ const d=String(c.driver_name).trim(); (byDriver[d]=byDriver[d]||[]).push(c); });
+  const drivers=Object.keys(byDriver).map(driver=>{
+    const list=byDriver[driver];
+    const byType={}; list.forEach(c=>{ byType[c.type]=(byType[c.type]||0)+1; });
+    const open=list.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).length;
+    const resolved=list.filter(c=>c.status==='resolved').length;
+    const last=list.reduce((m,c)=> ((c.logged_at||'')>m?(c.logged_at||''):m), '');
+    return {driver, list, count:list.length, byType, open, resolved, last};
+  }).sort((a,b)=> (b.count-a.count) || (b.last||'').localeCompare(a.last||''));
+  return {rows, drivers, totalOpen:drivers.reduce((s,d)=>s+d.open,0)};
+}
+function renderDriverReport(){
+  const dr=document.getElementById('drvDateRow');
+  if(dr){
+    dr.innerHTML=`<span style="font-size:12px;font-weight:700;color:var(--gray-600)">Range:</span>
+      <input type="date" value="${esc(_drvFrom||'')}" onchange="drvSetFrom(this.value)"/>
+      <span style="color:var(--gray-400);font-size:12px;">to</span>
+      <input type="date" value="${esc(_drvTo||'')}" onchange="drvSetTo(this.value)"/>
+      <button class="cr-chiplink" onclick="drvAllTime()">All time</button>
+      <button class="cr-chiplink" onclick="drvPreset(30)">Last 30d</button>
+      <button class="cr-chiplink" onclick="drvPreset(90)">Last 90d</button>
+      ${(_drvFrom||_drvTo)?'':'<span style="font-size:11px;color:var(--gray-400);">Showing all time</span>'}`;
+  }
+  const d=drvData();
+  const sm=document.getElementById('drvSummary');
+  if(sm){
+    const top=d.drivers[0];
+    const kpi=(v,l)=>`<div class="cr-kpi"><div class="cr-kpi-v">${esc(String(v))}</div><div class="cr-kpi-l">${esc(l)}</div></div>`;
+    sm.innerHTML=kpi(d.rows.length,'Driver complaints')+kpi(d.drivers.length,'Drivers named')+kpi(d.totalOpen,'Still open')+kpi(top?(esc(top.driver)+' ('+top.count+')'):'—','Most complaints');
+  }
+  const body=document.getElementById('drvBody');
+  if(!body) return;
+  if(_drvSelected){
+    const dd=d.drivers.find(x=>x.driver===_drvSelected);
+    if(!dd){ body.innerHTML=`<button class="btn-edit-sm" onclick="drvBack()" style="margin-bottom:12px;">&larr; All drivers</button><div class="cr-empty">No complaints for ${esc(_drvSelected)} in this range.</div>`; return; }
+    const rowsHtml=dd.list.slice().sort((a,b)=>(b.logged_at||'').localeCompare(a.logged_at||'')).map(c=>{
+      const when=c.logged_at?new Date(c.logged_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+      const res = c.status==='resolved' ? (c.resolution_notes?esc(c.resolution_notes):'resolved')
+        : c.status==='ignored' ? `<span style="color:var(--gray-400)">ignored</span>`
+        : `<span style="color:var(--gray-400)">—</span>`;
+      return `<tr onclick="crOpenCase(${c.id})"><td class="nw">${esc(when)}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td><td class="cr-note">${esc(c.notes||'—')}</td><td class="nw">${crStatusChip(c)}</td><td class="cr-note">${res}</td></tr>`;
+    }).join('');
+    body.innerHTML=`
+      <button class="btn-edit-sm" onclick="drvBack()" style="margin-bottom:12px;">&larr; All drivers</button>
+      <div class="cr-sec-hdr"><span>🚛 ${esc(dd.driver)} — ${dd.count} complaint${dd.count===1?'':'s'}</span><span class="cr-sec-n">${dd.open} open</span></div>
+      <div class="cr-tablewrap"><table class="cr-table"><thead><tr><th>Logged</th><th>Type</th><th>Client</th><th>Complaint</th><th>Status</th><th>Resolution</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+    return;
+  }
+  if(!d.drivers.length){ body.innerHTML=`<div class="cr-empty">No complaints with a driver named${(_drvFrom||_drvTo)?' in this range':' yet'}. Drivers are captured on Driver complaints, or when a supervisor logs “Spoke to Driver.”</div>`; return; }
+  body.innerHTML=`<div style="font-size:12px;color:var(--gray-500);margin-bottom:8px;">Tap a driver to see their complaints. Sorted by complaint count.</div><div class="cc-grid">${d.drivers.map((dd,i)=>drvCardHTML(dd,i)).join('')}</div>`;
+}
+function drvCardHTML(dd, i){
+  const typeBits=Object.entries(dd.byType).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`${esc(complaintTypeLabel(t))} ${n}`).join(' · ');
+  return `<div class="cc-card" style="cursor:pointer;border-left-color:#b91c1c;" onclick="drvSelect(${i})">
+    <div class="cc-card-top">
+      <span style="font-weight:800;color:var(--navy);font-size:15px;">🚛 ${esc(dd.driver)}</span>
+      <span style="margin-left:auto;font-size:22px;font-weight:800;color:#b91c1c;line-height:1;">${dd.count}</span>
+    </div>
+    <div class="cc-card-sub" style="margin-top:2px;">${esc(typeBits)}</div>
+    <div class="cc-card-time">${dd.open} open · ${dd.resolved} resolved${dd.last?` · last ${esc(new Date(dd.last).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}`:''}</div>
+  </div>`;
 }
 
 function _mcCard(label, val, color){
@@ -8107,7 +8192,7 @@ async function renderInboxDetail(c){
   // Build snapshot grid
   const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '—';
   const route = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
-  const driverRow = (c.type === 'DRIVER' && c.driver_name)
+  const driverRow = (c.driver_name)
     ? `<div class="field" style="grid-column:1 / span 2;"><label>Driver involved</label><div class="val" style="color:#991b1b;font-weight:700;font-size:14px;">${esc(c.driver_name)}</div></div>`
     : '';
   const snapshot = `
@@ -8463,7 +8548,7 @@ async function printComplaintList(complaints, rangeLabel){
         <label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div>
         <label>Email</label><div class="val">${esc(c.client_email||'—')}</div>
         <label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div>
-        ${(c.type==='DRIVER' && c.driver_name) ? `<label>Driver Involved</label><div class="val" style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</div>` : ''}
+        ${(c.driver_name) ? `<label>Driver Involved</label><div class="val" style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</div>` : ''}
       </div>
     </div>
     <div class="section"><h3>Original Complaint</h3>
@@ -8631,7 +8716,7 @@ async function printComplaintWeek(){
         <label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div>
         <label>Email</label><div class="val">${esc(c.client_email||'—')}</div>
         <label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div>
-        ${(c.type==='DRIVER' && c.driver_name) ? `<label>Driver Involved</label><div class="val" style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</div>` : ''}
+        ${(c.driver_name) ? `<label>Driver Involved</label><div class="val" style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</div>` : ''}
       </div>
     </div>
     <div class="section"><h3>Original Complaint</h3>
@@ -8990,7 +9075,7 @@ ${statusLine}
     <label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div>
     <label>Email</label><div class="val">${esc(c.client_email||'—')}</div>
     <label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div>
-    ${(c.type==='DRIVER' && c.driver_name) ? `<label>Driver Involved</label><div class="val" style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</div>` : ''}
+    ${(c.driver_name) ? `<label>Driver Involved</label><div class="val" style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</div>` : ''}
   </div>
 </div>
 <div class="section"><h2>Original Complaint</h2>
