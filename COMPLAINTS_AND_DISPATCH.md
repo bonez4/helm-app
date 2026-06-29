@@ -87,6 +87,7 @@ The topbar complaint icon (`openComplaintInbox`) opens a **full-viewport page** 
 ### Case detail (click any card)
 The existing case-management UI (`renderInboxDetail`), unchanged by the rebuild:
 - Client snapshot + original complaint.
+- **Re-categorize** — the complaint **type** in the case header is an editable dropdown (`setComplaintType`, populated from the live taxonomy). David can fix a miscategorized complaint at **any** status; the change is logged to the audit trail as a `recategorized` entry ("Re-categorized: X → Y"). Routing/driver are left as-is.
 - **new** → **▸ Open Case** / **Ignore** (reason required).
 - **case_open** → action-log timeline + **＋ Add Entry** (typed case-note) + **✓ Mark Resolved** (resolution notes required).
 - **Hand to a supervisor** → assign to Dane/Brian or drop in the pool.

@@ -1153,6 +1153,8 @@ body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
 .cr-typestrip-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;}
 .cr-typechip{font-size:12px;color:var(--gray-700);background:#f3f6fa;border:1px solid var(--gray-200);border-radius:20px;padding:4px 11px;}
 .cr-typechip b{color:var(--navy);}
+.cmp-type-edit{font-size:11px;font-weight:700;padding:2px 7px;border-radius:8px;border:1px solid #ea580c;background:#fff7ed;color:#9a3412;cursor:pointer;font-family:inherit;}
+.cmp-type-edit:focus{outline:none;border-color:#c2410c;box-shadow:0 0 0 2px rgba(234,88,12,.2);}
 .cr-table tr.cr-subrow td{border-top:none;}
 .cr-table td.cr-resed{background:#f0fdf4;color:#166534;font-size:11.5px;line-height:1.4;padding-left:26px;}
 .cr-table td.cr-igned{background:var(--gray-100);color:var(--gray-500);font-size:11.5px;line-height:1.4;padding-left:26px;font-style:italic;}
@@ -6979,6 +6981,7 @@ function caseActionLabel(v){
   if(v==='reopened') return 'Reopened';
   if(v==='escalated') return 'Sent back to David';
   if(v==='routed')    return 'Sent to supervisor';
+  if(v==='recategorized') return 'Re-categorized';
   if(v==='spoke_to_client')  return 'Spoke to Client';
   if(v==='contacted_office') return 'Contacted Office';
   if(v==='on_site_visit')    return 'On-site Visit';
@@ -8192,6 +8195,11 @@ async function renderInboxDetail(c){
   // Build snapshot grid
   const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '—';
   const route = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
+  // Editable complaint-type dropdown (fix a miscategorization). Ensure the current
+  // type is always an option even if it's a hidden/custom taxonomy value.
+  const _typeList = COMPLAINT_TYPES.slice();
+  if(!_typeList.some(t=>t.value===c.type)) _typeList.unshift({value:c.type, label:complaintTypeLabel(c.type)});
+  const typeOptsHtml = _typeList.map(t=>`<option value="${esc(t.value)}"${c.type===t.value?' selected':''}>${esc(t.label)}</option>`).join('');
   const driverRow = (c.driver_name)
     ? `<div class="field" style="grid-column:1 / span 2;"><label>Driver involved</label><div class="val" style="color:#991b1b;font-weight:700;font-size:14px;">${esc(c.driver_name)}</div></div>`
     : '';
@@ -8249,7 +8257,7 @@ async function renderInboxDetail(c){
         <div class="id-row">
           <span class="acct">#${esc(c.client_id)}</span>
           <span>·</span>
-          <span class="action-tag at-complaint">${esc(complaintTypeLabel(c.type))}</span>
+          <select class="cmp-type-edit" title="Change the complaint type — fixes a miscategorization" onchange="setComplaintType(${c.id}, this.value)">${typeOptsHtml}</select>
           <span class="status-pill-lg status-${c.status}">${c.status==='case_open'?'CASE OPEN':c.status.toUpperCase()}</span>
         </div>
         <div style="font-size:12px;color:var(--gray-500);">Logged by <strong>${esc(c.logged_by||'—')}</strong> on ${esc(when)}</div>
@@ -8378,6 +8386,25 @@ async function reopenComplaint(complaintId){
   _inboxSelectedId = complaintId;
   renderInbox();
   refreshComplaintBadge();
+}
+
+// David: fix a miscategorized complaint by switching its type. Writes a
+// 'recategorized' audit entry so the case file shows the correction. Routing /
+// driver are left as-is (changing type doesn't re-trigger the log-time auto-route).
+async function setComplaintType(id, val){
+  if(!userIsDavid()){ toast('David only'); return; }
+  const c = _inboxComplaints.find(x=>x.id===id);
+  if(!c || !val || val===c.type) return;
+  const oldLabel = complaintTypeLabel(c.type);
+  const newLabel = complaintTypeLabel(val);
+  const by = currentUser ? (currentUser.display_name||currentUser.username) : '';
+  const {error} = await db.from('complaints').update({type:val}).eq('id', id);
+  if(error){ toast('Type change failed: '+error.message); return; }
+  c.type = val;
+  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'recategorized', notes:oldLabel+' → '+newLabel, performed_by:by}); }catch(_){}
+  toast('Re-categorized to '+newLabel, true);
+  logActivity('complaint_recategorized', id+' '+oldLabel+' → '+newLabel);
+  renderInbox();
 }
 
 async function submitCaseAction(complaintId){
