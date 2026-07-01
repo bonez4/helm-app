@@ -6670,6 +6670,7 @@ async function generateComplaintReport(){
   const endISO   = endDt.toISOString();
   const {data:cmpData, error} = await db.from('complaints')
     .select('*')
+    .neq('client_id','999999')                 // exclude QA/test client
     .gte('logged_at', startISO).lt('logged_at', endISO)
     .order('logged_at',{ascending:false});
   if(error){
@@ -6829,6 +6830,7 @@ async function printComplaintReport(start){
     const startISO = startDt.toISOString();
     const endISO   = endDt.toISOString();
     const {data:fetched} = await db.from('complaints').select('*')
+      .neq('client_id','999999')                 // exclude QA/test client
       .gte('logged_at', startISO).lt('logged_at', endISO)
       .order('logged_at',{ascending:false});
     raw = (fetched || []).map(c => ({
@@ -7665,6 +7667,11 @@ async function loadInboxComplaints(){
 //   open  = in progress: case_open OR routed to a supervisor, and not resolved/ignored
 //   resolved / avgresolve = resolved with resolved_at in the current (Mon–Sun) week
 //   ignored = status 'ignored' (reachable via the low-key chip; nothing is deleted)
+// QA/test accounts excluded from all complaint REPORTS + INSIGHTS (the weekly +
+// monthly Reports-tab queries exclude the same id via .neq). Kept visible in the
+// operational triage console so the log→triage→resolve flow can still be tested.
+const TEST_CLIENT_IDS = new Set(['999999']);
+function isTestComplaint(c){ return !!(c && TEST_CLIENT_IDS.has(String(c.client_id))); }
 function complaintBucketOf(c){
   if(c.status==='resolved') return 'resolved';
   if(c.status==='ignored')  return 'ignored';
@@ -7842,9 +7849,10 @@ function crPeriod(){
 function crData(){
   const p=crPeriod();
   const inP=(ts)=> ts && ts>=p.startISO && ts<p.endISO;
-  const submitted=_inboxComplaints.filter(c=>inP(c.logged_at)).sort((a,b)=>(a.logged_at||'').localeCompare(b.logged_at||''));
-  const resolved =_inboxComplaints.filter(c=>c.status==='resolved' && inP(c.resolved_at)).sort((a,b)=>(a.resolved_at||'').localeCompare(b.resolved_at||''));
-  const stillOpen=_inboxComplaints.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).sort((a,b)=>(a.logged_at||'').localeCompare(b.logged_at||''));
+  const src=_inboxComplaints.filter(c=>!isTestComplaint(c));   // drop QA/test clients from reporting
+  const submitted=src.filter(c=>inP(c.logged_at)).sort((a,b)=>(a.logged_at||'').localeCompare(b.logged_at||''));
+  const resolved =src.filter(c=>c.status==='resolved' && inP(c.resolved_at)).sort((a,b)=>(a.resolved_at||'').localeCompare(b.resolved_at||''));
+  const stillOpen=src.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).sort((a,b)=>(a.logged_at||'').localeCompare(b.logged_at||''));
   const durs=resolved.filter(c=>c.logged_at).map(c=>new Date(c.resolved_at)-new Date(c.logged_at));
   const avgMs=durs.length? durs.reduce((s,x)=>s+x,0)/durs.length : null;
   return {p, submitted, resolved, stillOpen, avgMs};
@@ -8054,7 +8062,7 @@ function drvPreset(days){ const e=new Date(), s=new Date(); s.setDate(s.getDate(
 function drvSelect(i){ const dd=drvData().drivers[i]; _drvSelected=dd?dd.driver:null; renderDriverReport(); }
 function drvBack(){ _drvSelected=null; renderDriverReport(); }
 function drvData(){
-  let rows=_inboxComplaints.filter(c=>c.driver_name && String(c.driver_name).trim());
+  let rows=_inboxComplaints.filter(c=>c.driver_name && String(c.driver_name).trim() && !isTestComplaint(c));
   if(_drvFrom) rows=rows.filter(c=>c.logged_at && c.logged_at >= _drvFrom+'T00:00:00');
   if(_drvTo)   rows=rows.filter(c=>c.logged_at && c.logged_at <= _drvTo+'T23:59:59.999');
   const byDriver={};
@@ -8139,7 +8147,7 @@ function ciDrillRoute(key){ _ciDrill={kind:'route', key, label:key}; renderCompl
 function ciClearDrill(){ _ciDrill=null; renderComplaintInsights(); }
 
 function ciData(){
-  let rows=_inboxComplaints.slice();
+  let rows=_inboxComplaints.filter(c=>!isTestComplaint(c));
   if(_ciFrom) rows=rows.filter(c=>c.logged_at && c.logged_at>=_ciFrom+'T00:00:00');
   if(_ciTo)   rows=rows.filter(c=>c.logged_at && c.logged_at<=_ciTo+'T23:59:59.999');
   const open=rows.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).length;
@@ -10348,6 +10356,7 @@ async function generateMonthlySummary(){
   results.innerHTML = '<div class="loading">Loading complaints for '+esc(range.label)+'…</div>';
   await ensureTaxonomies();
   const {data, error} = await db.from('complaints').select('*')
+    .neq('client_id','999999')                 // exclude QA/test client
     .gte('logged_at', range.startISO).lt('logged_at', range.endISO)
     .order('logged_at', {ascending:true});
   if(error){

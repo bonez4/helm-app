@@ -129,6 +129,8 @@ A **📈 Insights** button opens a dynamic dashboard (`ccShowInsights` / `render
 - **Repeat-customer table** (`ciData().repeat`): every client with **2+ complaints** is flagged (amber for 2, red for 3+), sorted by count — click a row to drill into that client's complaints. Every drilled complaint clicks through to the case detail.
 - Reads `_inboxComplaints` only (no new query); charts are destroyed + rebuilt on each filter change (`_ciCharts`).
 
+> **Test/QA clients are excluded from all reporting.** `TEST_CLIENT_IDS` (currently `999999`) + `isTestComplaint()` drop them from every complaint **report + insight** — the Console Daily/Weekly/Custom (`crData`), Insights (`ciData`), Drivers (`drvData`), and the Reports-tab weekly + Monthly summaries (`.neq('client_id','999999')` on the fetch). They stay visible in the **operational triage console** so the log → triage → resolve flow can still be tested. Add IDs to the set to exclude more.
+
 > The older per-case print functions (`printComplaintDay` / `Week` / `Range` / `List`) are superseded and unwired (kept only as dead code). The single-case **Print** in the detail view (`printComplaintCase`) remains.
 
 ## 1.7 Cross-app integration ("the seams" — read-only consumers of the data)
