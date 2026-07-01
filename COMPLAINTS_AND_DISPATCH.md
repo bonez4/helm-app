@@ -122,6 +122,13 @@ A **🚛 Drivers** button in the Console opens a per-driver rollup (`ccShowDrive
 - Summary KPIs: driver complaints · drivers named · still open · most complaints.
 - Driver names come from Driver-type complaints (logged) **and** the supervisor "Spoke to Driver" back-fill, so Missed Stops with a known driver show up too. No new capture step + no new query (reads `_inboxComplaints`).
 
+### Complaint Insights — analytics dashboard
+A **📈 Insights** button opens a dynamic dashboard (`ccShowInsights` / `renderComplaintInsights`) over an optional date range (All time / 30d / 90d / This year / Custom):
+- **KPI strip:** complaints · open now · resolved · avg resolve · repeat clients · % of complaints from repeat clients.
+- **Live Chart.js charts:** complaints over time (stacked unresolved / resolved / ignored — weekly buckets when the span ≤120 days, else monthly), a by-type doughnut, and a by-route bar — **click a route bar to drill into that route's complaints**.
+- **Repeat-customer table** (`ciData().repeat`): every client with **2+ complaints** is flagged (amber for 2, red for 3+), sorted by count — click a row to drill into that client's complaints. Every drilled complaint clicks through to the case detail.
+- Reads `_inboxComplaints` only (no new query); charts are destroyed + rebuilt on each filter change (`_ciCharts`).
+
 > The older per-case print functions (`printComplaintDay` / `Week` / `Range` / `List`) are superseded and unwired (kept only as dead code). The single-case **Print** in the detail view (`printComplaintCase`) remains.
 
 ## 1.7 Cross-app integration ("the seams" — read-only consumers of the data)

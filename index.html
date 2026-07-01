@@ -1155,6 +1155,17 @@ body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
 .cr-typechip b{color:var(--navy);}
 .cmp-type-edit{font-size:11px;font-weight:700;padding:2px 7px;border-radius:8px;border:1px solid #ea580c;background:#fff7ed;color:#9a3412;cursor:pointer;font-family:inherit;}
 .cmp-type-edit:focus{outline:none;border-color:#c2410c;box-shadow:0 0 0 2px rgba(234,88,12,.2);}
+/* ── Complaint Insights dashboard ── */
+.ci-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:4px 0 20px;}
+.ci-span2{grid-column:span 2;}
+.ci-span3{grid-column:span 3;}
+.ci-chartcard{border:1px solid var(--gray-200);border-radius:12px;padding:12px 14px;background:#fff;box-shadow:0 1px 2px rgba(15,31,61,.05);min-width:0;}
+.ci-chart-title{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);font-weight:700;margin-bottom:8px;}
+.ci-canvas-wrap{position:relative;height:220px;}
+.ci-canvas-wrap.tall{height:280px;}
+.cr-table tbody tr.ci-rep2 td{background:#fffbeb;}
+.cr-table tbody tr.ci-rep3 td{background:#fef2f2;}
+@media(max-width:900px){ .ci-charts{grid-template-columns:1fr;} .ci-span2,.ci-span3{grid-column:auto;} }
 .cr-table tr.cr-subrow td{border-top:none;}
 .cr-table td.cr-resed{background:#f0fdf4;color:#166534;font-size:11.5px;line-height:1.4;padding-left:26px;}
 .cr-table td.cr-igned{background:var(--gray-100);color:var(--gray-500);font-size:11.5px;line-height:1.4;padding-left:26px;font-style:italic;}
@@ -3453,6 +3464,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
           <div class="cc-subfilters" id="ccSubFilters"></div>
           <button class="btn-edit-sm" id="ccReportsToggle" onclick="ccShowReports()">📊 Reports</button>
           <button class="btn-edit-sm" onclick="ccShowDrivers()">🚛 Drivers</button>
+          <button class="btn-edit-sm" onclick="ccShowInsights()">📈 Insights</button>
         </div>
         <div class="cc-grid" id="ccCardGrid"></div>
       </div>
@@ -3481,6 +3493,15 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <div class="cr-daterow" id="drvDateRow"></div>
         <div class="cr-summary" id="drvSummary"></div>
         <div id="drvBody"></div>
+      </div>
+      <!-- ── Complaint Insights dashboard (charts + repeat-customer + route drill-through) ── -->
+      <div id="consoleInsightsView" style="display:none;">
+        <div class="cr-head">
+          <button class="btn-edit-sm" onclick="ccShowTriage()">&larr; Back to complaints</button>
+          <div style="font-weight:800;color:var(--navy);font-size:16px;margin-left:4px;">📈 Complaint Insights</div>
+        </div>
+        <div class="cr-daterow" id="ciFilter"></div>
+        <div id="ciBody"></div>
       </div>
     </div>
   </div>
@@ -7233,6 +7254,8 @@ let _crWeek = null;          // Monday 'YYYY-MM-DD'
 let _crFrom = null, _crTo = null;
 // Driver Complaints view state
 let _drvFrom = null, _drvTo = null, _drvSelected = null;
+// Complaint Insights dashboard state
+let _ciFrom = null, _ciTo = null, _ciDrill = null, _ciCharts = [];
 const PRIORITY_RANK = {urgent:0, high:1, normal:2, low:3};
 
 // ISO Monday string for the week containing the given date (or today by default).
@@ -7708,12 +7731,14 @@ function renderInbox(){
   const detailView  = document.getElementById('consoleDetailView');
   const reportsView = document.getElementById('consoleReportsView');
   const driversView = document.getElementById('consoleDriversView');
-  const hideAll = ()=>{ [listView,detailView,reportsView,driversView].forEach(el=>{ if(el) el.style.display='none'; }); };
+  const insightsView= document.getElementById('consoleInsightsView');
+  const hideAll = ()=>{ [listView,detailView,reportsView,driversView,insightsView].forEach(el=>{ if(el) el.style.display='none'; }); };
   const sel = (_consoleMode==='triage' && _inboxSelectedId) ? all.find(c=>c.id===_inboxSelectedId) : null;
-  if(_consoleMode==='reports'){      hideAll(); if(reportsView) reportsView.style.display=''; renderComplaintReport(); }
-  else if(_consoleMode==='drivers'){ hideAll(); if(driversView) driversView.style.display=''; renderDriverReport(); }
-  else if(sel){                      hideAll(); if(detailView)  detailView.style.display='';  renderInboxDetail(sel); }
-  else {                             hideAll(); if(listView)    listView.style.display='';     renderConsoleCards(); }
+  if(_consoleMode==='reports'){       hideAll(); if(reportsView)  reportsView.style.display='';  renderComplaintReport(); }
+  else if(_consoleMode==='drivers'){  hideAll(); if(driversView)  driversView.style.display='';  renderDriverReport(); }
+  else if(_consoleMode==='insights'){ hideAll(); if(insightsView) insightsView.style.display=''; renderComplaintInsights(); }
+  else if(sel){                       hideAll(); if(detailView)   detailView.style.display='';   renderInboxDetail(sel); }
+  else {                              hideAll(); if(listView)     listView.style.display='';      renderConsoleCards(); }
 }
 
 function renderConsoleCards(){
@@ -8094,6 +8119,157 @@ function drvCardHTML(dd, i){
     <div class="cc-card-sub" style="margin-top:2px;">${esc(typeBits)}</div>
     <div class="cc-card-time">${dd.open} open · ${dd.resolved} resolved${dd.last?` · last ${esc(new Date(dd.last).toLocaleDateString('en-US',{month:'short',day:'numeric'}))}`:''}</div>
   </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// COMPLAINT INSIGHTS — dynamic analytics dashboard (David). Flags repeat
+// customers, shows route hot-spots, complaint flow over time + type mix, with a
+// date filter and click-through drill-downs. Live Chart.js charts. Reads
+// _inboxComplaints only; no new query.
+// ════════════════════════════════════════════════════════════════════════════
+const CI_PALETTE = ['#dc2626','#f59e0b','#3b82f6','#8b5cf6','#14b8a6','#ec4899','#84cc16','#64748b','#0ea5e9','#a3a3a3'];
+function ccShowInsights(){ _consoleMode='insights'; _ciDrill=null; renderInbox(); }
+function ciSetFrom(v){ _ciFrom=v||null; renderComplaintInsights(); }
+function ciSetTo(v){ _ciTo=v||null; renderComplaintInsights(); }
+function ciAllTime(){ _ciFrom=null; _ciTo=null; renderComplaintInsights(); }
+function ciPreset(days){ const e=new Date(), s=new Date(); s.setDate(s.getDate()-(days-1)); _ciFrom=s.toISOString().split('T')[0]; _ciTo=e.toISOString().split('T')[0]; renderComplaintInsights(); }
+function ciThisYear(){ const n=new Date(); _ciFrom=n.getFullYear()+'-01-01'; _ciTo=n.toISOString().split('T')[0]; renderComplaintInsights(); }
+function ciDrillClientByIdx(i){ const c=ciData().repeat[i]; if(c){ _ciDrill={kind:'client', key:c.client_id, label:(c.name||('Acct '+c.client_id))}; renderComplaintInsights(); } }
+function ciDrillRoute(key){ _ciDrill={kind:'route', key, label:key}; renderComplaintInsights(); }
+function ciClearDrill(){ _ciDrill=null; renderComplaintInsights(); }
+
+function ciData(){
+  let rows=_inboxComplaints.slice();
+  if(_ciFrom) rows=rows.filter(c=>c.logged_at && c.logged_at>=_ciFrom+'T00:00:00');
+  if(_ciTo)   rows=rows.filter(c=>c.logged_at && c.logged_at<=_ciTo+'T23:59:59.999');
+  const open=rows.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).length;
+  const resolvedN=rows.filter(c=>c.status==='resolved').length;
+  const ignored=rows.filter(c=>c.status==='ignored').length;
+  const durs=rows.filter(c=>c.status==='resolved'&&c.resolved_at&&c.logged_at).map(c=>new Date(c.resolved_at)-new Date(c.logged_at));
+  const avgMs=durs.length?durs.reduce((s,x)=>s+x,0)/durs.length:null;
+  const byClientMap={};
+  rows.forEach(c=>{ const k=c.client_id; (byClientMap[k]=byClientMap[k]||{client_id:k,name:c.client_name,address:c.client_address,route:c.client_route,list:[]}).list.push(c); });
+  const clients=Object.values(byClientMap).map(o=>({ ...o, count:o.list.length,
+    open:o.list.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).length,
+    resolved:o.list.filter(c=>c.status==='resolved').length,
+    byType:(()=>{ const t={}; o.list.forEach(c=>t[c.type]=(t[c.type]||0)+1); return t; })(),
+    last:o.list.reduce((m,c)=>((c.logged_at||'')>m?(c.logged_at||''):m),'') }))
+    .sort((a,b)=> (b.count-a.count) || (b.last||'').localeCompare(a.last||''));
+  const repeat=clients.filter(c=>c.count>=2);
+  const repeatComplaints=repeat.reduce((s,c)=>s+c.count,0);
+  const byRoute={};
+  rows.forEach(c=>{ const k=(c.client_route!=null&&c.client_route!=='')?('R'+c.client_route):'No route'; (byRoute[k]=byRoute[k]||[]).push(c); });
+  const byType={}; rows.forEach(c=>byType[c.type]=(byType[c.type]||0)+1);
+  return {rows, open, resolvedN, ignored, avgMs, clients, repeat, repeatComplaints, byRoute, byType};
+}
+
+// Time series of complaints per period (weekly when the span ≤120d, else monthly),
+// split into unresolved / resolved / ignored so the trend shows how they flow.
+function ciTimeSeries(rows){
+  const withDates=rows.filter(c=>c.logged_at);
+  if(!withDates.length) return {labels:[],open:[],resolved:[],ignored:[]};
+  const times=withDates.map(c=>new Date(c.logged_at).getTime());
+  const start=new Date(_ciFrom?_ciFrom+'T00:00:00':Math.min(...times));
+  const end  =new Date(_ciTo?_ciTo+'T23:59:59':Math.max(...times));
+  const weekly=((end-start)/86400000)<=120;
+  const keyOf=(d)=>{ if(weekly){ const m=new Date(d); const off=m.getDay()===0?-6:1-m.getDay(); m.setDate(m.getDate()+off); m.setHours(0,0,0,0); return m.toISOString().slice(0,10); } return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
+  const labelOf=(k)=>{ if(weekly){ return new Date(k+'T00:00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric'}); } const p=k.split('-'); return new Date(p[0],p[1]-1,1).toLocaleDateString('en-US',{month:'short',year:'2-digit'}); };
+  const keys=[]; const cur=new Date(start); let guard=0;
+  if(weekly){ const off=cur.getDay()===0?-6:1-cur.getDay(); cur.setDate(cur.getDate()+off); cur.setHours(0,0,0,0); while(cur<=end && guard++<520){ keys.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+7); } }
+  else{ cur.setDate(1); while(cur<=end && guard++<240){ keys.push(cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')); cur.setMonth(cur.getMonth()+1); } }
+  const counts={}; keys.forEach(k=>counts[k]={open:0,resolved:0,ignored:0});
+  withDates.forEach(c=>{ const k=keyOf(new Date(c.logged_at)); if(!counts[k])counts[k]={open:0,resolved:0,ignored:0}; if(c.status==='resolved')counts[k].resolved++; else if(c.status==='ignored')counts[k].ignored++; else counts[k].open++; });
+  const allKeys=Object.keys(counts).sort();
+  return { labels:allKeys.map(labelOf), open:allKeys.map(k=>counts[k].open), resolved:allKeys.map(k=>counts[k].resolved), ignored:allKeys.map(k=>counts[k].ignored) };
+}
+
+function renderComplaintInsights(){
+  _ciCharts.forEach(c=>{ try{ c.destroy(); }catch(_){} }); _ciCharts=[];
+  const fb=document.getElementById('ciFilter');
+  if(fb){
+    fb.innerHTML=`<span style="font-size:12px;font-weight:700;color:var(--gray-600)">Range:</span>
+      <input type="date" value="${esc(_ciFrom||'')}" onchange="ciSetFrom(this.value)"/>
+      <span style="color:var(--gray-400);font-size:12px;">to</span>
+      <input type="date" value="${esc(_ciTo||'')}" onchange="ciSetTo(this.value)"/>
+      <button class="cr-chiplink" onclick="ciAllTime()">All time</button>
+      <button class="cr-chiplink" onclick="ciPreset(30)">30d</button>
+      <button class="cr-chiplink" onclick="ciPreset(90)">90d</button>
+      <button class="cr-chiplink" onclick="ciThisYear()">This year</button>
+      ${(_ciFrom||_ciTo)?'':'<span style="font-size:11px;color:var(--gray-400);">Showing all time</span>'}`;
+  }
+  const d=ciData();
+  const body=document.getElementById('ciBody'); if(!body) return;
+
+  // ── Drill-through: a repeat client or a route → that subset's complaints ──
+  if(_ciDrill){
+    const rows=(_ciDrill.kind==='client'
+      ? d.rows.filter(c=>c.client_id===_ciDrill.key)
+      : d.rows.filter(c=>((c.client_route!=null&&c.client_route!=='')?('R'+c.client_route):'No route')===_ciDrill.key))
+      .slice().sort((a,b)=>(b.logged_at||'').localeCompare(a.logged_at||''));
+    const rowHtml=rows.map(c=>{
+      const when=c.logged_at?new Date(c.logged_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+      const res=c.status==='resolved'?(c.resolution_notes?esc(c.resolution_notes):'resolved'):`<span style="color:var(--gray-400)">—</span>`;
+      return `<tr onclick="crOpenCase(${c.id})"><td class="nw">${esc(when)}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td><td class="nw">${(c.client_route!=null&&c.client_route!=='')?('R'+esc(c.client_route)):'—'}</td><td class="cr-note">${esc(c.notes||'—')}</td><td class="nw">${crStatusChip(c)}</td><td class="cr-note">${res}</td></tr>`;
+    }).join('');
+    body.innerHTML=`<button class="btn-edit-sm" onclick="ciClearDrill()" style="margin-bottom:12px;">&larr; Back to insights</button>
+      <div class="cr-sec-hdr"><span>${_ciDrill.kind==='client'?'🔁':'🛣'} ${esc(_ciDrill.label)} — ${rows.length} complaint${rows.length===1?'':'s'}</span></div>
+      <div class="cr-tablewrap"><table class="cr-table"><thead><tr><th>Logged</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>Status</th><th>Resolution</th></tr></thead><tbody>${rowHtml}</tbody></table></div>`;
+    return;
+  }
+
+  // ── Dashboard: KPIs + charts + repeat-customer table ──
+  const kpi=(v,l)=>`<div class="cr-kpi"><div class="cr-kpi-v">${esc(String(v))}</div><div class="cr-kpi-l">${esc(l)}</div></div>`;
+  const kpis=`<div class="cr-summary">${
+    kpi(d.rows.length,'Complaints')+kpi(d.open,'Open now')+kpi(d.resolvedN,'Resolved')+
+    kpi(d.avgMs==null?'—':ccFmtDuration(d.avgMs),'Avg resolve')+kpi(d.repeat.length,'Repeat clients')+
+    kpi(d.rows.length?Math.round(d.repeatComplaints/d.rows.length*100)+'%':'—','From repeat clients')}</div>`;
+  const charts=`<div class="ci-charts">
+    <div class="ci-chartcard ci-span2"><div class="ci-chart-title">Complaints over time</div><div class="ci-canvas-wrap"><canvas id="ciTrend"></canvas></div></div>
+    <div class="ci-chartcard"><div class="ci-chart-title">By type</div><div class="ci-canvas-wrap"><canvas id="ciType"></canvas></div></div>
+    <div class="ci-chartcard ci-span3"><div class="ci-chart-title">By route — click a bar to drill in</div><div class="ci-canvas-wrap tall"><canvas id="ciRoute"></canvas></div></div>
+  </div>`;
+  const repeatRows=d.repeat.map((c,i)=>{
+    const cls=c.count>=3?'ci-rep3':'ci-rep2';
+    const typeBits=Object.entries(c.byType).sort((a,b)=>b[1]-a[1]).map(([t,n])=>esc(complaintTypeLabel(t))+' '+n).join(', ');
+    return `<tr class="${cls}" onclick="ciDrillClientByIdx(${i})">
+      <td><div class="cr-cl">${esc(c.name||('Acct '+c.client_id))}</div><div class="cr-cl-sub">#${esc(c.client_id)}${c.address?(' · '+esc(c.address)):''}</div></td>
+      <td class="nw">${(c.route!=null&&c.route!=='')?('R'+esc(c.route)):'—'}</td>
+      <td class="nw" style="font-weight:800;font-size:15px;color:${c.count>=3?'#b91c1c':'#92400e'};">${c.count}</td>
+      <td>${typeBits}</td>
+      <td class="nw">${c.open} open · ${c.resolved} resolved</td>
+      <td class="nw">${c.last?esc(new Date(c.last).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'})):'—'}</td>
+    </tr>`;
+  }).join('');
+  const repeatTable=`<div class="cr-sec-hdr"><span>🔁 Repeat customers (2+ complaints) — click a row</span><span class="cr-sec-n">${d.repeat.length}</span></div>${
+    d.repeat.length ? `<div class="cr-tablewrap"><table class="cr-table"><thead><tr><th>Client</th><th>Rt</th><th>#</th><th>Types</th><th>Status</th><th>Last</th></tr></thead><tbody>${repeatRows}</tbody></table></div>`
+    : `<div class="cr-sec-empty">No repeat customers in this range — nobody has 2+ complaints.</div>`}`;
+  body.innerHTML=kpis+charts+repeatTable;
+  if(!d.rows.length){ body.insertAdjacentHTML('afterbegin','<div class="cr-empty" style="margin-bottom:14px;">No complaints in this range.</div>'); }
+
+  // ── Build the live charts ──
+  const ts=ciTimeSeries(d.rows);
+  const trendEl=document.getElementById('ciTrend');
+  if(trendEl && window.Chart){ _ciCharts.push(new Chart(trendEl,{ type:'bar',
+    data:{ labels:ts.labels, datasets:[
+      {label:'Unresolved',data:ts.open,backgroundColor:'#f59e0b',stack:'s'},
+      {label:'Resolved',data:ts.resolved,backgroundColor:'#16a34a',stack:'s'},
+      {label:'Ignored',data:ts.ignored,backgroundColor:'#cbd5e1',stack:'s'}]},
+    options:{ responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,usePointStyle:true}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:9},maxRotation:0,autoSkip:true}},y:{stacked:true,beginAtZero:true,ticks:{font:{size:10},precision:0},grid:{color:'rgba(0,0,0,.05)'}}}} })); }
+  const typeEl=document.getElementById('ciType');
+  const te=Object.entries(d.byType).sort((a,b)=>b[1]-a[1]);
+  if(typeEl && window.Chart){ _ciCharts.push(new Chart(typeEl,{ type:'doughnut',
+    data:{ labels:te.map(e=>complaintTypeLabel(e[0])), datasets:[{data:te.map(e=>e[1]),backgroundColor:CI_PALETTE,borderColor:'#fff',borderWidth:1}] },
+    options:{ responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:10,usePointStyle:true}}}} })); }
+  const routeEl=document.getElementById('ciRoute');
+  const re=Object.entries(d.byRoute).map(([r,l])=>[r,l.length]).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  if(routeEl && window.Chart){ _ciCharts.push(new Chart(routeEl,{ type:'bar',
+    data:{ labels:re.map(e=>e[0]), datasets:[{data:re.map(e=>e[1]),backgroundColor:'#3b82f6',borderRadius:4}] },
+    options:{ indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      onClick:(e,els)=>{ if(els&&els.length){ ciDrillRoute(re[els[0].index][0]); } },
+      scales:{x:{beginAtZero:true,ticks:{precision:0,font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}},y:{ticks:{font:{size:11}},grid:{display:false}}}} })); }
 }
 
 function _mcCard(label, val, color){
