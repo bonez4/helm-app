@@ -129,6 +129,8 @@ A **📈 Insights** button opens a dynamic dashboard (`ccShowInsights` / `render
 - **Repeat-customer table** (`ciData().repeat`): every client with **2+ complaints** is flagged (amber for 2, red for 3+), sorted by count — click a row to drill into that client's complaints. Every drilled complaint clicks through to the case detail.
 - Reads `_inboxComplaints` only (no new query); charts are destroyed + rebuilt on each filter change (`_ciCharts`).
 
+> **By-route labels are day-prefixed in reporting.** Every complaint report + insight labels a client's route as **pickup-day letters + zero-padded route** (`complaintRouteLabel`), e.g. a Tue/Fri Route-3 client → **`t/f-03`** (m=Mon, t=Tue, w=Wed, r=Thu, f=Fri, s=Sat). This distinguishes the day-instances of a route in the by-route breakdowns (Console reports, Insights grouping/chart/drill/repeat-table, Monthly Summary). The operational **case detail + cards keep the plain `Route 3 · Tue, Fri`** form.
+
 > **Test/QA clients are excluded from all reporting.** `TEST_CLIENT_IDS` (currently `999999`) + `isTestComplaint()` drop them from every complaint **report + insight** — the Console Daily/Weekly/Custom (`crData`), Insights (`ciData`), Drivers (`drvData`), and the Reports-tab weekly + Monthly summaries (`.neq('client_id','999999')` on the fetch). They stay visible in the **operational triage console** so the log → triage → resolve flow can still be tested. Add IDs to the set to exclude more.
 
 > The older per-case print functions (`printComplaintDay` / `Week` / `Range` / `List`) are superseded and unwired (kept only as dead code). The single-case **Print** in the detail view (`printComplaintCase`) remains.

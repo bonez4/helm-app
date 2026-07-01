@@ -7672,6 +7672,17 @@ async function loadInboxComplaints(){
 // operational triage console so the log→triage→resolve flow can still be tested.
 const TEST_CLIENT_IDS = new Set(['999999']);
 function isTestComplaint(c){ return !!(c && TEST_CLIENT_IDS.has(String(c.client_id))); }
+// Reporting-only route label: pickup-day letters + zero-padded route number, e.g.
+// Route 3 on Tue+Fri → "t/f-03" (M=m, Tue=t, Wed=w, Thu=r, Fri=f, Sat=s, Sun=n).
+// Distinguishes the day-instances of a route in the by-route breakdowns. Falls
+// back to "R{NN}" when the pickup days are unknown, "No route" when unrouted.
+const _CMP_DAY_LETTER = {monday:'m',tuesday:'t',wednesday:'w',thursday:'r',friday:'f',saturday:'s',sunday:'n'};
+function complaintRouteLabel(c){
+  if(!c || c.client_route==null || c.client_route==='') return 'No route';
+  const nn=String(c.client_route).padStart(2,'0');
+  const letters=String(c.client_days||'').split(',').map(d=>_CMP_DAY_LETTER[d.trim().toLowerCase()]).filter(Boolean).join('/');
+  return letters ? (letters+'-'+nn) : ('R'+nn);
+}
 function complaintBucketOf(c){
   if(c.status==='resolved') return 'resolved';
   if(c.status==='ignored')  return 'ignored';
@@ -7862,7 +7873,7 @@ function crData(){
 function crTime(ts){ if(!ts) return '—'; const d=new Date(ts); return _crMode==='daily' ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function crTypeChip(c){ return `<span class="action-tag at-complaint" style="font-size:9.5px;">${esc(complaintTypeLabel(c.type))}</span>`; }
 function crClientCell(c){ return `<div class="cr-cl">${esc(c.client_name||('Acct '+c.client_id))}</div><div class="cr-cl-sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.driver_name)?(' · '+esc(c.driver_name)):''}</div>`; }
-function crRoute(c){ return (c.client_route!=null&&c.client_route!=='')?('R'+esc(c.client_route)):'—'; }
+function crRoute(c){ return (c.client_route!=null&&c.client_route!=='')?esc(complaintRouteLabel(c)):'—'; }
 function crStatusChip(c){
   const b=complaintBucketOf(c);
   if(b==='resolved') return '<span class="cr-pill cr-res">Resolved</span>';
@@ -7989,7 +8000,7 @@ function printConsoleReport(){
   const tm=(ts)=> ts ? (full ? new Date(ts).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})) : '—';
   const stat=(c)=>{ const b=complaintBucketOf(c); if(b==='resolved')return 'Resolved'; if(b==='ignored')return 'Ignored'; if(b==='open')return 'Open'+(c.routed_to_supervisor?(' · '+(c.assigned_to||'pool')):''); return 'New'; };
   const cl=(c)=>`<b>${esc(c.client_name||('Acct '+c.client_id))}</b><br><span class="sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.driver_name)?(' · '+esc(c.driver_name)):''}</span>`;
-  const rt=(c)=>(c.client_route!=null&&c.client_route!=='')?('R'+esc(c.client_route)):'—';
+  const rt=(c)=>(c.client_route!=null&&c.client_route!=='')?esc(complaintRouteLabel(c)):'—';
   const dur=(c)=>(c.resolved_at&&c.logged_at)?ccFmtDuration(new Date(c.resolved_at)-new Date(c.logged_at)):'—';
   const sec=(title,n,headHtml,bodyHtml)=>`<div class="sec"><div class="sec-h">${esc(title)} <span>${n}</span></div>${n?`<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`:'<div class="none">None.</div>'}</div>`;
 
@@ -8157,7 +8168,7 @@ function ciData(){
   const avgMs=durs.length?durs.reduce((s,x)=>s+x,0)/durs.length:null;
   const byClientMap={};
   rows.forEach(c=>{ const k=c.client_id; (byClientMap[k]=byClientMap[k]||{client_id:k,name:c.client_name,address:c.client_address,route:c.client_route,list:[]}).list.push(c); });
-  const clients=Object.values(byClientMap).map(o=>({ ...o, count:o.list.length,
+  const clients=Object.values(byClientMap).map(o=>({ ...o, count:o.list.length, routeLabel:complaintRouteLabel(o.list[0]),
     open:o.list.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).length,
     resolved:o.list.filter(c=>c.status==='resolved').length,
     byType:(()=>{ const t={}; o.list.forEach(c=>t[c.type]=(t[c.type]||0)+1); return t; })(),
@@ -8166,7 +8177,7 @@ function ciData(){
   const repeat=clients.filter(c=>c.count>=2);
   const repeatComplaints=repeat.reduce((s,c)=>s+c.count,0);
   const byRoute={};
-  rows.forEach(c=>{ const k=(c.client_route!=null&&c.client_route!=='')?('R'+c.client_route):'No route'; (byRoute[k]=byRoute[k]||[]).push(c); });
+  rows.forEach(c=>{ const k=complaintRouteLabel(c); (byRoute[k]=byRoute[k]||[]).push(c); });
   const byType={}; rows.forEach(c=>byType[c.type]=(byType[c.type]||0)+1);
   return {rows, open, resolvedN, ignored, avgMs, clients, repeat, repeatComplaints, byRoute, byType};
 }
@@ -8212,12 +8223,12 @@ function renderComplaintInsights(){
   if(_ciDrill){
     const rows=(_ciDrill.kind==='client'
       ? d.rows.filter(c=>c.client_id===_ciDrill.key)
-      : d.rows.filter(c=>((c.client_route!=null&&c.client_route!=='')?('R'+c.client_route):'No route')===_ciDrill.key))
+      : d.rows.filter(c=>complaintRouteLabel(c)===_ciDrill.key))
       .slice().sort((a,b)=>(b.logged_at||'').localeCompare(a.logged_at||''));
     const rowHtml=rows.map(c=>{
       const when=c.logged_at?new Date(c.logged_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
       const res=c.status==='resolved'?(c.resolution_notes?esc(c.resolution_notes):'resolved'):`<span style="color:var(--gray-400)">—</span>`;
-      return `<tr onclick="crOpenCase(${c.id})"><td class="nw">${esc(when)}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td><td class="nw">${(c.client_route!=null&&c.client_route!=='')?('R'+esc(c.client_route)):'—'}</td><td class="cr-note">${esc(c.notes||'—')}</td><td class="nw">${crStatusChip(c)}</td><td class="cr-note">${res}</td></tr>`;
+      return `<tr onclick="crOpenCase(${c.id})"><td class="nw">${esc(when)}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td><td class="nw">${crRoute(c)}</td><td class="cr-note">${esc(c.notes||'—')}</td><td class="nw">${crStatusChip(c)}</td><td class="cr-note">${res}</td></tr>`;
     }).join('');
     body.innerHTML=`<button class="btn-edit-sm" onclick="ciClearDrill()" style="margin-bottom:12px;">&larr; Back to insights</button>
       <div class="cr-sec-hdr"><span>${_ciDrill.kind==='client'?'🔁':'🛣'} ${esc(_ciDrill.label)} — ${rows.length} complaint${rows.length===1?'':'s'}</span></div>
@@ -8241,7 +8252,7 @@ function renderComplaintInsights(){
     const typeBits=Object.entries(c.byType).sort((a,b)=>b[1]-a[1]).map(([t,n])=>esc(complaintTypeLabel(t))+' '+n).join(', ');
     return `<tr class="${cls}" onclick="ciDrillClientByIdx(${i})">
       <td><div class="cr-cl">${esc(c.name||('Acct '+c.client_id))}</div><div class="cr-cl-sub">#${esc(c.client_id)}${c.address?(' · '+esc(c.address)):''}</div></td>
-      <td class="nw">${(c.route!=null&&c.route!=='')?('R'+esc(c.route)):'—'}</td>
+      <td class="nw">${(c.route!=null&&c.route!=='')?esc(c.routeLabel):'—'}</td>
       <td class="nw" style="font-weight:800;font-size:15px;color:${c.count>=3?'#b91c1c':'#92400e'};">${c.count}</td>
       <td>${typeBits}</td>
       <td class="nw">${c.open} open · ${c.resolved} resolved</td>
@@ -10384,7 +10395,7 @@ function renderMonthlySummary(){
   const byType = {};
   data.forEach(c => { const k=c.type||'OTHER'; (byType[k]=byType[k]||[]).push(c); });
   const byRoute = {};
-  data.forEach(c => { const k=(c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route'; byRoute[k]=(byRoute[k]||0)+1; });
+  data.forEach(c => { const k=complaintRouteLabel(c); byRoute[k]=(byRoute[k]||0)+1; });
   const routeKeys = Object.keys(byRoute).sort((a,b)=> (byRoute[b]-byRoute[a]) || a.localeCompare(b));
 
   let html = `
@@ -10504,7 +10515,7 @@ async function printMonthlySummary(){
   const byType = {};
   data.forEach(c => { const k=c.type||'OTHER'; (byType[k]=byType[k]||[]).push(c); });
   const byRoute = {};
-  data.forEach(c => { const k=(c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route'; byRoute[k]=(byRoute[k]||0)+1; });
+  data.forEach(c => { const k=complaintRouteLabel(c); byRoute[k]=(byRoute[k]||0)+1; });
   const routeKeys = Object.keys(byRoute).sort((a,b)=> (byRoute[b]-byRoute[a]) || a.localeCompare(b));
 
   const sectionHTML = (type) => {
