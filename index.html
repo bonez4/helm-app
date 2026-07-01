@@ -4105,7 +4105,7 @@ async function login() {
   document.getElementById('topbarUser').textContent = data.display_name;
   applyUserTheme(data);
   if(data.role==='admin' || data.username==='jack') document.getElementById('importTabBtn').style.display='';
-  if(data.username==='david'||data.username==='jack'||data.role==='admin') {
+  if(data.username==='david'||data.username==='chris'||data.username==='jack'||data.role==='admin') {
     document.getElementById('filesTabBtn').style.display='';
   }
   if(['david','chris','jack','admin'].includes(data.username) || data.role==='admin') {
@@ -4129,16 +4129,16 @@ async function login() {
   // Restore persisted nav-group collapsed state + rail collapsed state
   applyNavGroupState();
   applyNavRailState();
-  if(data.username==='david'){
+  if(data.username==='david'||data.username==='chris'){
     document.getElementById('actionTabBtn').style.display='';
     document.getElementById('navGroup-routing').style.display='';
     document.getElementById('resiRoutesTabBtn').style.display='';
-    // Complaint inbox icon + badge poll (David only).
+    // Complaint inbox icon + badge poll (David + Chris).
     document.getElementById('complaintInboxBtn').style.display='';
     startComplaintBadgePoll();
   }
-  // Bulky Pickups nav button — David + admin role only.
-  if(data.username==='david' || data.role==='admin'){
+  // Bulky Pickups nav button — David + Chris + admin role.
+  if(data.username==='david' || data.username==='chris' || data.role==='admin'){
     document.getElementById('bulkyTabBtn').style.display='';
   }
   // BEACON topbar launcher — David, Chris, admin, Jarrett.
@@ -4228,7 +4228,10 @@ function fmtDate(iso){
 // Per-pickup rate helpers (R1 Trash, R2 Extra Bag, R3 Recycle, R4 Intermitt, R5 Cardboard)
 // Gated to user 'david' for now while the feature stabilizes — other users see no change.
 function userIsDavid(){
-  return !!(currentUser && currentUser.username==='david');
+  // Chris granted full David-level access (2026-07). Centralised here so every
+  // David-gated feature (complaint console + case mgmt, Manage Types, reopen /
+  // recategorize, Workflow, Routing, supervisor oversight) includes Chris at once.
+  return !!(currentUser && (currentUser.username==='david' || currentUser.username==='chris'));
 }
 
 // BEACON access gate — same allow-list as the standalone app uses, so the
@@ -4258,7 +4261,7 @@ function goToBeacon(){
 function userCanSeeComplaints(){
   if(!currentUser) return false;
   const u = (currentUser.username||'').toLowerCase();
-  return u==='david' || u==='esme';
+  return u==='david' || u==='esme' || u==='chris';
 }
 
 // Any action string that starts with "Complaint" — covers the canonical
@@ -9331,7 +9334,7 @@ ${statusLine}
 
 function userCanSeeBulky(){
   if(!currentUser) return false;
-  return currentUser.username === 'david' || currentUser.role === 'admin';
+  return currentUser.username === 'david' || currentUser.username === 'chris' || currentUser.role === 'admin';
 }
 
 let _bulkyRecords    = [];          // all rows from bulky_pickups, sorted newest received_at first
@@ -17358,7 +17361,7 @@ function toast(msg,ok=false){
     document.getElementById('topbarUser').textContent = currentUser.display_name;
     applyUserTheme(currentUser);
     if(currentUser.role==='admin' || currentUser.username==='jack') document.getElementById('importTabBtn').style.display='';
-    if(currentUser.username==='david'||currentUser.username==='jack'||currentUser.role==='admin') {
+    if(currentUser.username==='david'||currentUser.username==='chris'||currentUser.username==='jack'||currentUser.role==='admin') {
       document.getElementById('filesTabBtn').style.display='';
     }
     if(['david','chris','jack','admin'].includes(currentUser.username) || currentUser.role==='admin') {
@@ -17376,16 +17379,16 @@ function toast(msg,ok=false){
       document.getElementById('rolloffsSolo').style.display='none';
       document.getElementById('rolloffQueueTabBtn').style.display='';
     }
-    if(currentUser.username==='david'){
+    if(currentUser.username==='david'||currentUser.username==='chris'){
       document.getElementById('actionTabBtn').style.display='';
       document.getElementById('navGroup-routing').style.display='';
       document.getElementById('resiRoutesTabBtn').style.display='';
-      // Complaint inbox icon + badge poll (David only) — survives refresh too.
+      // Complaint inbox icon + badge poll (David + Chris) — survives refresh too.
       document.getElementById('complaintInboxBtn').style.display='';
       startComplaintBadgePoll();
     }
-    // Bulky Pickups nav button — David + admin role only (survives refresh).
-    if(currentUser.username==='david' || currentUser.role==='admin'){
+    // Bulky Pickups nav button — David + Chris + admin role (survives refresh).
+    if(currentUser.username==='david' || currentUser.username==='chris' || currentUser.role==='admin'){
       document.getElementById('bulkyTabBtn').style.display='';
     }
     // BEACON topbar launcher — David, Chris, admin, Jarrett (survives refresh).
