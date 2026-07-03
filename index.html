@@ -1022,6 +1022,17 @@ body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
 .btn-complaint:hover{background:#b91c1c;border-color:#991b1b;box-shadow:0 2px 6px rgba(220,38,38,0.3);}
 .btn-complaint svg{width:14px;height:14px;}
 
+/* Compact "General Complaint" launcher in the topbar (all users). */
+.btn-topbar-complaint{
+  background:#dc2626;color:#fff;border:1px solid #f87171;
+  font-size:11px;font-weight:700;letter-spacing:.03em;padding:5px 12px;margin-right:8px;
+  border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.btn-topbar-complaint:hover{background:#b91c1c;box-shadow:0 2px 8px rgba(220,38,38,0.45);}
+.btn-topbar-complaint svg{width:13px;height:13px;}
+@media(max-width:640px){ .btn-topbar-complaint .btc-label{display:none;} .btn-topbar-complaint{padding:6px 9px;} }
+
 /* Edit Client button in its new top-right slot */
 .btn-edit-top{
   background:transparent;border:1px solid var(--gray-200);
@@ -3280,6 +3291,10 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     </div>
     <div class="topbar-center" id="topbarCenter"></div>
     <div class="topbar-right">
+      <button id="generalComplaintBtn" class="btn-topbar-complaint" onclick="openGeneralComplaintModal()" title="Log a general / non-customer complaint (e.g. a caller reporting a truck's driving)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span class="btc-label">General Complaint</span>
+      </button>
       <button id="complaintInboxBtn" class="topbar-inbox" style="display:none" onclick="openComplaintInbox()" title="Complaint inbox" aria-label="Complaint inbox">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
@@ -3431,11 +3446,11 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
 <div class="helm-modal-backdrop" id="complaintModal" onclick="if(event.target===this)closeComplaintModal()">
   <div class="helm-modal-sheet" onclick="event.stopPropagation()">
     <div class="helm-modal-header danger">
-      <h3>Log Complaint</h3>
+      <h3 id="cmpModalTitle">Log Complaint</h3>
       <button class="close-x" onclick="closeComplaintModal()" aria-label="Close">&times;</button>
     </div>
     <div class="helm-modal-body">
-      <div class="cmp-snapshot">
+      <div class="cmp-snapshot" id="cmpSnapshot">
         <div class="row"><label>Client</label><div class="val" id="cmpName">—</div></div>
         <div class="row"><label>Acct #</label><div class="val" id="cmpAcct">—</div></div>
         <div class="row"><label>Address</label><div class="val" id="cmpAddr">—</div></div>
@@ -3443,6 +3458,14 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <div class="row"><label>Email</label><div class="val" id="cmpEmail">—</div></div>
         <div class="row"><label>Route</label><div class="val" id="cmpRoute">—</div></div>
         <div class="row"><label>Pickup Days</label><div class="val" id="cmpDays">—</div></div>
+      </div>
+      <div id="cmpGeneralFields" style="display:none;">
+        <div class="cmp-snapshot" style="background:#fef2f2;border:1px solid #fecaca;">
+          <div class="row" style="margin-bottom:8px;"><div class="val" style="font-weight:700;color:#991b1b;">General / non-customer complaint — not tied to a client account.</div></div>
+          <div class="row"><label>Caller</label><input type="text" id="cmpCallerName" autocomplete="off" placeholder="Caller's name (optional)" style="flex:1;padding:6px 9px;border:1px solid var(--gray-200);border-radius:5px;font-family:inherit;font-size:13px;"/></div>
+          <div class="row"><label>Phone</label><input type="text" id="cmpCallerPhone" autocomplete="off" placeholder="Caller's phone (optional)" style="flex:1;padding:6px 9px;border:1px solid var(--gray-200);border-radius:5px;font-family:inherit;font-size:13px;"/></div>
+          <div class="row"><label>Location</label><input type="text" id="cmpCallerLoc" autocomplete="off" placeholder="Where it happened — road, town, plate # (optional)" style="flex:1;padding:6px 9px;border:1px solid var(--gray-200);border-radius:5px;font-family:inherit;font-size:13px;"/></div>
+        </div>
       </div>
       <div class="cmp-field">
         <label>Complaint Type *</label>
@@ -7163,6 +7186,35 @@ async function deleteTaxonomy(id){
 }
 
 // ── LOG-COMPLAINT MODAL ───────────────────────────────────────────────
+// Sentinel account for complaints that aren't tied to a real customer
+// (e.g. a passer-by calling about a truck's driving). Kept out of the
+// repeat-customer insight but counted in every other report.
+const GENERAL_COMPLAINT_ID = 'GENERAL';
+function isGeneralComplaint(c){ return !!(c && String(c.client_id)===GENERAL_COMPLAINT_ID); }
+
+// General / non-customer complaint: same type + notes flow, no client attached.
+async function openGeneralComplaintModal(){
+  await ensureTaxonomies();
+  const sel = document.getElementById('cmpTypeSelect');
+  if(sel) sel.innerHTML = '<option value="">— Choose —</option>' + COMPLAINT_TYPES.map(t=>`<option value="${esc(t.value)}">${esc(t.label)}</option>`).join('');
+  const modal = document.getElementById('complaintModal');
+  modal.dataset.general = '1';
+  modal.dataset.clientId = '';
+  document.getElementById('cmpModalTitle').textContent = 'General Complaint';
+  document.getElementById('cmpSnapshot').style.display = 'none';
+  document.getElementById('cmpGeneralFields').style.display = 'block';
+  document.getElementById('cmpCallerName').value  = '';
+  document.getElementById('cmpCallerPhone').value = '';
+  document.getElementById('cmpCallerLoc').value   = '';
+  document.getElementById('cmpTypeSelect').value  = '';
+  document.getElementById('cmpNotesField').classList.remove('show');
+  document.getElementById('cmpNotes').value = '';
+  document.getElementById('cmpDriverField').style.display = 'none';
+  document.getElementById('cmpDriver').value = '';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
 async function openComplaintModal(clientId){
   const c = clients.find(x=>x.client_id===clientId);
   if(!c){ toast('Client not found'); return; }
@@ -7170,6 +7222,11 @@ async function openComplaintModal(clientId){
   const cmpSel0 = document.getElementById('cmpTypeSelect');
   if(cmpSel0) cmpSel0.innerHTML = '<option value="">— Choose —</option>' + COMPLAINT_TYPES.map(t=>`<option value="${esc(t.value)}">${esc(t.label)}</option>`).join('');
   const days = c.service_day ? c.service_day.split(',').map(d=>d.trim()).filter(Boolean) : [];
+  // Reset general mode → this is a customer-tied complaint.
+  document.getElementById('complaintModal').dataset.general = '';
+  document.getElementById('cmpModalTitle').textContent = 'Log Complaint';
+  document.getElementById('cmpSnapshot').style.display = '';
+  document.getElementById('cmpGeneralFields').style.display = 'none';
   document.getElementById('complaintModal').dataset.clientId = clientId;
   document.getElementById('cmpName').textContent    = c.client_name || `Account ${c.client_id}`;
   document.getElementById('cmpAcct').textContent    = c.client_id;
@@ -7187,7 +7244,9 @@ async function openComplaintModal(clientId){
   document.body.style.overflow = 'hidden';
 }
 function closeComplaintModal(){
-  document.getElementById('complaintModal').classList.remove('open');
+  const modal = document.getElementById('complaintModal');
+  modal.classList.remove('open');
+  modal.dataset.general = '';
   document.body.style.overflow = '';
 }
 function onComplaintTypeChange(){
@@ -7215,9 +7274,8 @@ function onComplaintTypeChange(){
   }
 }
 async function submitComplaint(){
-  const clientId = document.getElementById('complaintModal').dataset.clientId;
-  const c = clients.find(x=>x.client_id===clientId);
-  if(!c){ toast('Client not found'); return; }
+  const modal = document.getElementById('complaintModal');
+  const isGeneral = modal.dataset.general === '1';
   const type  = document.getElementById('cmpTypeSelect').value;
   const notes = document.getElementById('cmpNotes').value.trim();
   if(!type){ toast('Pick a complaint type'); return; }
@@ -7231,14 +7289,38 @@ async function submitComplaint(){
     if(!driverName){ toast('Enter the driver\'s name'); return; }
   }
   const loggedBy = currentUser ? (currentUser.display_name || currentUser.username) : '';
+
+  // Build the row — customer-tied vs. general/non-customer.
+  let row;
+  if(isGeneral){
+    const callerName  = (document.getElementById('cmpCallerName').value || '').trim();
+    const callerPhone = (document.getElementById('cmpCallerPhone').value || '').trim();
+    const callerLoc   = (document.getElementById('cmpCallerLoc').value || '').trim();
+    row = {
+      client_id:      GENERAL_COMPLAINT_ID,
+      client_name:    callerName || 'General / Non-customer',
+      client_address: callerLoc || null,
+      client_phone:   callerPhone || null,
+      client_email:   null,
+      client_route:   null,
+      client_days:    null,
+    };
+  } else {
+    const c = clients.find(x=>x.client_id===modal.dataset.clientId);
+    if(!c){ toast('Client not found'); return; }
+    row = {
+      client_id:      c.client_id,
+      client_name:    c.client_name || null,
+      client_address: c.address || null,
+      client_phone:   c.phone || null,
+      client_email:   c.email || null,
+      client_route:   (c.route===''||c.route==null) ? null : c.route,
+      client_days:    c.service_day || null,
+    };
+  }
+
   const {error} = await db.from('complaints').insert({
-    client_id:      c.client_id,
-    client_name:    c.client_name || null,
-    client_address: c.address || null,
-    client_phone:   c.phone || null,
-    client_email:   c.email || null,
-    client_route:   (c.route===''||c.route==null) ? null : c.route,
-    client_days:    c.service_day || null,
+    ...row,
     type:           type,
     driver_name:    driverName,
     notes:          notes,
@@ -7249,13 +7331,13 @@ async function submitComplaint(){
   if(error){ toast('Error: '+error.message); return; }
   closeComplaintModal();
   toast(SUP_AUTOROUTE_TYPES.includes(type)?'Complaint logged — routed to supervisors + David':'Complaint logged — sent to David\'s inbox', true);
-  logActivity('complaint_logged', `${c.client_id} ${type}`);
+  logActivity('complaint_logged', `${row.client_id} ${type}`);
   refreshComplaintBadge();
-  if(SUP_AUTOROUTE_TYPES.includes(type)){ complaintRoutedBroadcast({id:null, assignee:null, name:c.client_name||'', address:c.address||''}); refreshSupervisorBadge(); }
+  if(SUP_AUTOROUTE_TYPES.includes(type)){ complaintRoutedBroadcast({id:null, assignee:null, name:row.client_name||'', address:row.client_address||''}); refreshSupervisorBadge(); }
   // If the rep still has this client's card open, refresh the notes history
   // so their new complaint entry appears immediately in the timeline.
-  if(activeClient && activeClient.client_id === c.client_id){
-    const refreshed = await loadNotes(c.client_id);
+  if(!isGeneral && activeClient && activeClient.client_id === row.client_id){
+    const refreshed = await loadNotes(row.client_id);
     renderNotesTable(refreshed);
   }
 }
@@ -8219,7 +8301,10 @@ function ciData(){
   const durs=rows.filter(c=>c.status==='resolved'&&c.resolved_at&&c.logged_at).map(c=>new Date(c.resolved_at)-new Date(c.logged_at));
   const avgMs=durs.length?durs.reduce((s,x)=>s+x,0)/durs.length:null;
   const byClientMap={};
-  rows.forEach(c=>{ const k=c.client_id; (byClientMap[k]=byClientMap[k]||{client_id:k,name:c.client_name,address:c.client_address,route:c.client_route,list:[]}).list.push(c); });
+  // General/non-customer complaints share one sentinel acct — keep them out of
+  // the per-customer + repeat-customer grouping so they don't look like one
+  // client with many complaints. (They still count in totals, types, routes.)
+  rows.forEach(c=>{ if(isGeneralComplaint(c)) return; const k=c.client_id; (byClientMap[k]=byClientMap[k]||{client_id:k,name:c.client_name,address:c.client_address,route:c.client_route,list:[]}).list.push(c); });
   const clients=Object.values(byClientMap).map(o=>({ ...o, count:o.list.length, routeLabel:complaintRouteLabel(o.list[0]),
     open:o.list.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).length,
     resolved:o.list.filter(c=>c.status==='resolved').length,
