@@ -159,6 +159,20 @@ body input,body textarea,body select,body [contenteditable=true],body [contented
 .btn-topbar-tool:hover{background:rgba(26,155,138,0.3);color:white;}
 .btn-topbar-tool.tool-open{background:var(--teal);color:white;border-color:var(--teal);}
 
+/* ── Company scope toggle (REIS · BOTH · SANTOS) — filters client search ── */
+.co-seg{display:inline-flex;align-items:center;margin-left:14px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid rgba(255,255,255,0.22);}
+.co-seg-btn{
+  background:transparent;border:none;color:rgba(255,255,255,0.55);
+  font-size:10px;font-weight:700;letter-spacing:.06em;padding:5px 10px;cursor:pointer;
+  font-family:'DM Sans',sans-serif;transition:all .15s;border-right:1px solid rgba(255,255,255,0.14);
+}
+.co-seg-btn:last-child{border-right:none;}
+.co-seg-btn:hover{background:rgba(255,255,255,0.10);color:rgba(255,255,255,0.85);}
+.co-seg-btn.co-seg-on{color:#fff;}
+.co-seg-btn.co-seg-on[data-co="REIS"]{background:#0f9d6b;}
+.co-seg-btn.co-seg-on[data-co="SANTOS"]{background:#2563eb;}
+.co-seg-btn.co-seg-on[data-co="BOTH"]{background:var(--teal);}
+
 /* ── esme pink theme: topbar takeover ─────────────── */
 body.theme-esme .topbar{
   background:linear-gradient(90deg,#ec407a 0%,#d81b60 100%);
@@ -3258,6 +3272,11 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
           BEACON
         </span>
       </button>
+      <div class="co-seg" id="coSeg" title="Filter client search by servicing company">
+        <button type="button" class="co-seg-btn" data-co="REIS" onclick="setClientCoFilter('REIS')">REIS</button>
+        <button type="button" class="co-seg-btn co-seg-on" data-co="BOTH" onclick="setClientCoFilter('BOTH')">BOTH</button>
+        <button type="button" class="co-seg-btn" data-co="SANTOS" onclick="setClientCoFilter('SANTOS')">SANTOS</button>
+      </div>
     </div>
     <div class="topbar-center" id="topbarCenter"></div>
     <div class="topbar-right">
@@ -3714,6 +3733,8 @@ const ACTION_TYPES = [
 
 let clients = [], skips = [], clientNotes = [], selectedWeek = '', activeClient = null;
 let currentUser = null;
+// Client-search scope: 'BOTH' | 'REIS' | 'SANTOS'. Persisted per-browser.
+let clientCoFilter = (function(){ try{ return localStorage.getItem('helm_co_filter') || 'BOTH'; }catch(e){ return 'BOTH'; } })();
 let lookupRendered = false;
 let pendingClient = null;
 let pendingImport = null;
@@ -4194,6 +4215,7 @@ function applyUserTheme(user){
       center.style.display = 'none';
     }
   }
+  syncCoSegUI();
   // Every signed-in user gets the vertical-nav, full-width layout. Removed
   // on logout / when no user is set so the login screen stays untouched.
   if(user){
@@ -4526,7 +4548,7 @@ function renderLookup(){
       </div>
       <button id="lookupClearBtn" onclick="clearLookup()" style="display:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:9px 16px;border:1px solid var(--gray-200);background:white;color:var(--gray-600);border-radius:var(--radius-sm);cursor:pointer;">Clear</button>
     </div>
-    <div class="search-hint" id="srchHint">${clients.length>0?`${clients.length.toLocaleString()} clients loaded — search by account #, name, address, or phone`:'Loading clients…'}</div>
+    <div class="search-hint" id="srchHint">${clients.length>0?searchHintText():'Loading clients…'}</div>
     <div id="srchResults" style="margin-top:.5rem"></div>
     <div id="clientCardInline" style="margin-top:12px"></div>
     <div id="lookupWatermark" class="lookup-watermark">
@@ -4632,6 +4654,31 @@ function clearLookup(){
   updateLookupWatermark();
 }
 
+// Search-hint copy that reflects the active company scope.
+function searchHintText(){
+  const scope = clientCoFilter==='BOTH' ? '' : ` — <strong>${clientCoFilter} only</strong>`;
+  return `${clients.length.toLocaleString()} clients loaded — search by account #, name, address, or phone${scope}`;
+}
+// Reflect the active company scope on the topbar segmented control.
+function syncCoSegUI(){
+  document.querySelectorAll('#coSeg .co-seg-btn').forEach(b=>{
+    b.classList.toggle('co-seg-on', b.dataset.co===clientCoFilter);
+  });
+}
+// Switch the client-search scope and re-run the current search.
+function setClientCoFilter(v){
+  clientCoFilter = (v==='REIS'||v==='SANTOS') ? v : 'BOTH';
+  try{ localStorage.setItem('helm_co_filter', clientCoFilter); }catch(e){}
+  syncCoSegUI();
+  const hint = document.getElementById('srchHint');
+  if(hint && clients.length>0) hint.innerHTML = searchHintText();
+  const srch = document.getElementById('srch');
+  if(srch){
+    if(srch.value.trim().length>=2){ doSearch(srch.value); }
+    else { updateLookupWatermark(); }
+  }
+}
+
 function doSearch(q){
   q=q.trim().toLowerCase();
   const res=document.getElementById('srchResults');
@@ -4643,6 +4690,8 @@ function doSearch(q){
 
   const results=clients
     .map(c=>{
+      // Company scope gate: when narrowed to REIS/SANTOS, drop the other company.
+      if(clientCoFilter!=='BOTH' && getCompany(c.client_id).name!==clientCoFilter) return {c,score:0};
       const idL=c.client_id.toLowerCase();
       const addrL=c.address.toLowerCase();
       const nameL=(c.client_name||'').toLowerCase();
