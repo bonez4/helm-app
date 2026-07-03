@@ -60,11 +60,12 @@ No build step. No npm. No framework. One file.
 - **David / Jack / admins**: Files
 - **David / Chris / Jack / admins**: every Analysis tab — Daily Scale Report, Intercompany Rolloff, Consolidated Rolloff, Scale KPIs, Rolloff Visual, Xfer Station, Business Line Analysis
 - **David / Chris / admin**: **Dispatch group → Rolloff Queue** (the dispatcher view)
-- **David + admin**: **Bulky Pickups** tab (new solo nav item) + the topbar complaint inbox icon
-- **David + Esme**: Complaint Report card + Monthly Complaint Summary card on the Reports tab
-- **Supervisors — Dane, Brian** (`users.is_supervisor`): the **Supervisor Queue** (large green topbar pill; they land on it at login) to work complaints routed to them. David + admin can open the queue too (small icon) for oversight.
+- **David + Chris + admin**: **Bulky Pickups** tab + the topbar **complaint inbox icon** (→ the full-page Complaint Console)
+- **David + Chris + Esme**: Complaint Report card + Monthly Complaint Summary card on the Reports tab
+- **Supervisors — Dane, Brian** (`users.is_supervisor`): the **Supervisor Queue** (large green topbar pill; they land on it at login) to work complaints routed to them. David/Chris/admin can open the queue too (small icon) for oversight.
 - **David / Chris / admin / Jarrett**: **BEACON** sister app launch button in the topbar (goes to `/beacon/`)
-- **David only**: Workflow tab (Action Items / project management) **and Routing group → Residential Routing tab**
+- **David + Chris**: Workflow tab (Action Items / project management) **and Routing group → Residential Routing tab**
+- **⭐ Chris = full David-level access (granted 2026-07).** Everything gated to David — the **Complaint Console** (triage + case mgmt + the Reports / Drivers / Insights views), **Workflow**, **Residential Routing**, **Bulky Pickups**, **Files**, and **supervisor-queue oversight** — now includes Chris. Implemented via `userIsDavid()` (returns `david` **or** `chris`) + Chris added to the boot nav-visibility gates (both the login *and* session-restore paths) and to `userCanSeeComplaints()` / `userCanSeeBulky()`. Chris does **not** get Import (David doesn't either).
 - **David + Chris + admin (per-user nav variant):** Roll-offs tab moves *into* the Client Management group (rather than sitting standalone). Other users still see Roll-offs as a top-level item.
 - **Sharon**: restricted view — only Client Lookup + Reports (Add Client, Roll-offs, Dispatch group all hidden)
 - **Jarrett**: regular staff access in HELM (Client Lookup, Add Client, Reports, Roll-offs, Dispatch input/history) + BEACON access
@@ -522,7 +523,7 @@ Seven cards on the Reports tab (the last two are gated to David + Esme):
    - **Complaints are hidden from every other report** (Daily Action, Notes Added Today, Everything Report — both screen and print). The only places complaints surface in HELM are this report and the Complaint Pipeline.
    - Now reads from the **`complaints` table** (not `notes`) so the weekly view includes all the case-management metadata even though Esme can't act on it.
 
-### Complaint Pipeline (logging = all users, inbox/case mgmt = David only)
+### Complaint Pipeline (logging = all users; Console / case mgmt = David + Chris)
 A dedicated workflow for tracking and resolving customer complaints. Complaints used to be a category in the notes form; they've been promoted to a first-class table because they need triage, case-management, and an audit trail of how each one was handled.
 
 **Logging a complaint (any user):**
@@ -533,19 +534,16 @@ A dedicated workflow for tracking and resolving customer complaints. Complaints 
 - Notes textarea is **hidden until a type is chosen** (prevents rep from typing without classifying first)
 - On Submit: row inserted into `complaints` with `status='new'`; David's inbox badge increments
 
-**David's Inbox (icon next to "David" in the topbar):**
-- iMessage-style red badge shows count of complaints with `status='new'` (those still needing triage)
-- Badge auto-refreshes on tab focus + every 60s; clears when complaints leave the `new` state
-- Clicking the icon opens the **Complaint Console** (rebuilt 2026-06 from the old email-style modal):
-  - **Triage strip** — needs-triage / open cases / overdue (>3 days) / resolved-this-week / avg-resolve-time: the live backlog at a glance.
-  - **Toolbar** — full-text search + sort (oldest-unresolved / priority / recently-logged); the **filter chips** (New / Open Cases / Resolved / Ignored / All) + the **week navigator** (‹ / › / This Week / All, Mon–Sun) carry over.
-  - **Table** — one row per complaint: an inline **priority** dropdown (Urgent/High/Normal/Low), a red/amber **age** chip (SLA: red >3 days), client + type · driver · route, and a status pill. A **row click** opens the case-management detail (the status-dependent action area: `new` → Open Case / Ignore · `case_open` → action-log timeline + Add Entry + Mark Resolved · `resolved`/`ignored` → banner) with a **← Back to list**.
-  - **Patterns panel** — by type / top routes / top drivers (respects the week filter).
-  - **⚙ Manage types** (header) — admin-manage the complaint + note types (see `complaint_taxonomies`).
-  - **Day report** — date picker + 🖨 Print day → a cover sheet (by status / type / route) + a detailed per-complaint block **with the full case-action steps**, then **Still-open cases** (opened date + days-open) and **Resolved today** sections, then a compact summary.
-  - **🖨 Print Week** (when a week is selected) — every complaint that week as its own page-broken case file + a by-type/by-status cover sheet. **Print** on a single case writes its full audit-trail file. **🖨 Print range** does the same for any From–To window, **any status**.
-  - **Hand to a supervisor** — from a complaint's detail, assign it to Dane/Brian or drop it in the shared pool (Driver + Missed Stop auto-route on log). Routed complaints show a `👤 <name> / pool` chip in the list so David can tell what's in supervisor hands. (See **Supervisor Queue** below.)
-  - **📧 Email complaint** — opens a Gmail compose prefilled with the key details (address / time / acct / client / route / days / driver / complaint / type) + copies to clipboard. **Address** now also shows under the client name in the console list.
+**The Complaint Console — full page (David + Chris), rebuilt 2026-07:**
+The topbar complaint icon opens a **full-page Console** (no longer a modal). A red badge shows the count of `new` **& not-routed** complaints (polls every 60s + on tab focus). Four views, switched from buttons in the Console header:
+
+- **Triage (default)** — 4 **clickable stat boxes** (**New** / **Open** / **Resolved this week** / **Avg. resolve this week**) drive one **card grid** (bulky-pickup-style). Cards show client + address, time logged, and type; **hours-based age shading** (🟢 <8h · 🟡 8–24h · 🔴 24h+); **supervisor-routed cards** get a blue "👤 name / pool" ribbon. Bucket model (`complaintBucketOf`): **New** = `new` & not routed; **Open** = `case_open` OR routed-to-supervisor (not resolved/ignored). Low-key **All / Ignored** chips + a search box. Click a card → the case detail.
+- **Case detail** — status-dependent actions: `new` → **Open Case / Ignore** · `case_open` → action-log timeline + **Add Entry** + **Mark Resolved** · `resolved`/`ignored` → banner **+ ↩ Reopen & add entries** (`reopenComplaint`, writes a `reopened` audit row). The complaint **type is an editable dropdown** here (`setComplaintType`, fixes a miscategorization, logged as `recategorized`). Plus **Hand to a supervisor** (assign to Dane/Brian or the pool; Driver + Missed-Stop auto-route on log), **📧 Email complaint** (Gmail prefill), single-case **Print**, and **⚙ Manage types**.
+- **📊 Reports** — **Daily / Weekly / Custom** (date nav + presets). Compact + dense: a KPI strip, a **"Submitted by type"** header breakdown, one **merged table** (each complaint with its **resolution / ignore reason inline beneath it**), and a **Still-open backlog** table. **🖨 Print** = the same dense layout (`printConsoleReport`) — a few pages, not one-per-complaint. (Retired the old page-broken `printComplaintDay/Week/Range/List`, now dead code.)
+- **🚛 Drivers** — a per-driver leaderboard (every complaint that has a `driver_name`) over a date range → drill into a driver's complaints. The **driver now shows on every report + card wherever it's captured** (not only DRIVER type), so Missed-Stop drivers back-filled by the supervisor "Spoke to Driver" step surface here.
+- **📈 Insights** — a dynamic analytics dashboard: KPI strip (incl. **repeat clients** + % from repeat), live **Chart.js** charts (complaints over time / by-type doughnut / by-route bar — click a route bar to drill), and a **repeat-customer table** (2+ complaints flagged; click to drill). Everything clicks through to the case.
+
+**Reporting conventions:** test client **`999999`** is excluded from *every* report + insight (`isTestComplaint` / `TEST_CLIENT_IDS`) but stays in triage for testing; by-route labels are **day-prefixed** — pickup-day letters + zero-padded route, e.g. a Tue/Fri Route-3 client → **`t/f-03`** (`complaintRouteLabel`). **Full detail: [COMPLAINTS_AND_DISPATCH.md](COMPLAINTS_AND_DISPATCH.md).**
 
 **Opening a case:**
 - Status flips to `case_open`; first `complaint_actions` entry written as `opened`
@@ -564,7 +562,7 @@ Supervisors (Dane, Brian) take complaints off David's plate. The queue and David
 - **Queue:** mobile-first **My cases / Available (pool) / Solved** tabs, sorted by priority then age, overdue (>3d) flagged. **Claim** pulls a pool case into "mine."
 - **Solve screen (stage, then commit):** ordered **toggle** buttons **Spoke to Driver** (prompts for the driver's name) · **Spoke to Client** · **Contacted Office** · **On-site Visit** — tap to highlight (tap again to undo); add a note; then **✓ Resolve** writes the staged actions + note to `complaint_actions` all at once (the note becomes the resolution, else an auto-summary of the actions). **↩ Send back to David** (escalate; also commits staged actions) + **Reopen**. Header has click-to-call + a ⚠ repeat-client flag. Staged selections are transient until Resolve/Send-back. *(Changed 2026-06-17 from auto-log-on-tap.)*
 - **Notifications:** realtime ping (Supabase broadcast, `helm-complaints`) to the supervisor on route-to-them, and to David/admin on solve/escalate. Needs HELM open in a tab.
-- **Reporting:** every action lands in `complaint_actions`, so it already shows in the Day/Week/Range **case-file prints** + the Monthly Summary resolution footer. *(A dedicated on-screen supervisor / by-outcome report is the planned next step — see the June 17 changelog.)*
+- **Reporting:** every action lands in `complaint_actions`, so supervisor activity flows into the Console **Reports / Drivers / Insights** views + the Monthly Summary — on-screen, not just in prints.
 
 **Migration on rollout:** The SQL migration block (see Supabase Setup) moves every existing `Complaint - DRIVER` / `Complaint - BILLING` / `Complaint - OTHER` note from `notes` into the new `complaints` table as `status='new'`, then deletes the source notes so they don't get double-counted.
 
@@ -700,7 +698,7 @@ Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fide
 - **Homepage dashboard** — collapsible "Business Overview" (state persisted) with three **drill-in** cards: **Lost this month**, **Gained this month**, **Contacted this month** (distinct accounts). Each opens a **Review page** (`#review/lost|new|contacted[/YYYY-MM]`) listing the underlying accounts, click-through to each.
 - **Reports tab** (`#reports`) — historical view: 12-month Lost / Gained / Net totals, a **by-month table** (Lost / Gained / Net / Contacted; counts click through to that month's Review) and a lost-by-month bar chart. Dashboard, reviews, and reports all derive from the same `commercial_events` / `commercial_outreach` data, so figures tie out.
   - **Activity Report** (`#activity`, linked from Reports) — date-range (From/To + This week / Last week / This month / Last 30d presets) tally of **images, videos, and notes added to account History** (`commercial_history`): a summary strip (totals + accounts touched) + a per-account table (counts + last activity, click-through) + Print.
-  - **Bulky Conversion report** (`#bulkyreport`, linked from Reports) — weekly dispatch **cards-created → converted-to-sale %**, with denied / in-progress counts, a **denied-by-reason** breakdown, and a per-card table (incl. **Service Address**). Excel + Print.
+  - **Bulky Pickup conversion stats** — shown **under the Dispatch board** (`renderDispatchStats`, not a separate Reports page): cards-created → converted-to-sale %, filterable by **Day / Week / Month / Custom (From–To)**, with **Avg $ / trip**, **completed-by-driver** counts, a **denied-by-reason** breakdown, and a per-card table (incl. **Service Address**). Print + Excel mirror all of it.
 - **Dispatch tab** (`#dispatch`) — a **residential** bulky-pickup Kanban board, 4 color-coded stages, cards advanced by a per-stage button:
   - **Verify** (slate) — ＋ New job → add photo(s) + address; an address typeahead against active clients autofills acct/name/phone, or save a free address. **Set the Quoted price here** (priced from the photo) — it replaced the old line-item price list.
   - **Outreach** (amber) — the **quote shows read-only** to the employee, plus a **phone check** (is the file # correct + an alternate number called) and a **call-attempt log**. Three outcomes: **Accepted → Dispatch**, **Denied** (preset reason list → History), or **No answer** — a 1st no-answer logs an attempt, sets a **30-min callback** + fires a **desktop notification** (and a "⏰ Call back" badge on the card); a **2nd** no-answer → **Unreachable** (terminal → History).
@@ -709,6 +707,7 @@ Top-level Analysis tab — stock-chart-style trend studio modeled on Schwab/Fide
   - A **Notes** field is on every stage (saved with the job, printed on the ticket). `dispatch_jobs.notes`.
   - **Live client data:** for jobs linked to an account, the name / address / phone shown (and printed) are pulled **live from the HELM `clients` table on every load** (`overlayLiveClients()` in `loadDispatch`), so HELM edits always show, even mid-pipeline. The stored snapshot is a fallback only for free-address jobs.
   - A **History** view (denied · unreachable · archived jobs by day, with each job's photo thumbnails + lightbox), photo/video upload into `helm-files/dispatch/`, and manual **Archive** to clear finished cards. *(The old Price List manager is retired — see `dispatch_price_templates`.)* Commercial work stays in the dashboard — this board is residential only.
+  - **Void** (on Dispatch + Completion cards, `voidJob`) — a **true removal**: hard-deletes the ticket row + its photos so it disappears from the board, History, **and** the conversion reporting, exactly as if it was never entered. Distinct from **Archive** (which keeps the job as a completed **sale**). Use for mistakes / cancellations that shouldn't count.
 - **Lost Clients** (`#lost`, also linked from the home list) — a log of every account whose latest event is `lost`, fetched by id so **inactive** accounts (which drop off the Active-commercial list) still show, with date + reason and click-through to the file. **＋ Add lost client** searches *all* accounts (any status, so inactive ones are findable) and logs a `commercial_events` lost row, so it also feeds the dashboard/reports. No new table.
 - **Mobile-first**, same safe-area awareness as HELM.
 
@@ -1294,6 +1293,8 @@ helm-app/
 ├── IRR_DailyScaleReport.gs                       ← Legacy Google Apps Script (not used)
 ├── irr-daily-report.html                         ← Standalone daily report tool (legacy)
 ├── sample_clients.csv                            ← Client CSV import template (fake data)
+├── COMPLAINTS_AND_DISPATCH.md                     ← Complaint system + BEACON bulky-dispatch reference (current build)
+├── SCALE_INBOUND_INTERNAL_VS_EXTERNAL.md          ← Scale parsing: internal (rolloff) vs external (walk-in) inbound tonnage — for verifying figures
 ├── README.md                                     ← This file
 ```
 
@@ -1322,6 +1323,22 @@ Open items deliberately on hold. Pick these back up when relevant — listed in 
 
 Older entries are intentionally terse — full detail lives in git history. The most recent week is given fuller context.
 
+### Early July 2026
+
+**HELM — Complaint Console rebuilt into a full-page workspace + analytics** (the June-17 "planned next", now done; full reference in the new **`COMPLAINTS_AND_DISPATCH.md`**). The topbar complaint icon opens a **full-page Console** (David + **Chris**) with four views:
+- **Triage** — 4 clickable stat boxes (New / Open / Resolved this week / Avg. resolve this week) over a **card grid**; hours-based age shading (🟢<8h / 🟡8–24h / 🔴24h+); supervisor-routed cards flagged. Buckets in `complaintBucketOf`; badge now counts `new` **& not-routed**.
+- **📊 Reports** — Daily / Weekly / Custom; compact dense tables with each complaint's **resolution inline beneath it** (merged the old Submitted + Resolved sections) + a **Submitted-by-type** header. `printConsoleReport` prints a few pages, not one-per-complaint. Old `printComplaintDay/Week/Range/List` retired (dead code).
+- **🚛 Drivers** — per-driver leaderboard + drill-in; the **driver now shows on every report/card wherever a `driver_name` exists** (not just DRIVER type — generalized the old `type==='DRIVER'` gates).
+- **📈 Insights** — dynamic dashboard: **repeat-customer** flagging (2+ complaints), by-route hot-spots, **Chart.js** trend / type / route charts, all click-through.
+- **Case detail:** David/Chris can now **↩ Reopen** resolved/ignored complaints + add entries (`reopenComplaint`), and **re-categorize** the type inline (`setComplaintType` → `recategorized` audit row).
+- **Reporting conventions:** test client **999999** excluded everywhere (`isTestComplaint` / `TEST_CLIENT_IDS`); by-route labels **day-prefixed** (`complaintRouteLabel`, e.g. `t/f-03` = a Tue/Fri Route-3 client). No schema changes — all views read the existing `complaints` / `complaint_actions` in memory.
+
+**Access — Chris granted full David-level access.** `userIsDavid()` now returns `david` **or** `chris`; Chris added to every boot nav-gate (login + refresh paths) + `userCanSeeComplaints()` / `userCanSeeBulky()`. So all "David-only" Complaint / Workflow / Routing / Bulky / Files / supervisor-oversight features = **David + Chris** (not Import — David doesn't have it). Commit `f3a68a8`.
+
+**BEACON — dispatch void + richer conversion report.** **Void** a Dispatch/Completion ticket (`voidJob`) = a true removal (row + photos) that never inflates the conversion reporting (distinct from **Archive** = a completed sale). The on-board **conversion stats** gained a **Custom date range**, **Avg $ / trip**, and **completed-by-driver** counts (Print + Excel mirror them).
+
+**Docs (new, repo root).** `COMPLAINTS_AND_DISPATCH.md` — the complaint system + BEACON bulky-dispatch reference (current build). `SCALE_INBOUND_INTERNAL_VS_EXTERNAL.md` — how the scale `.xls` parses into **internal (rolloff) vs external (walk-in)** inbound tonnage, for verifying figures.
+
 ### June 17, 2026
 
 **HELM — Supervisor complaint system (the complaint log + supervisor views are now ONE connected pipeline).** Complaints, David's Complaint Console, and the new Supervisor Queue all read/write the **same `complaints` + `complaint_actions` tables** — David triages/routes, supervisors resolve, and every action is one shared, timestamped audit trail that prints in the same case files.
@@ -1329,7 +1346,7 @@ Older entries are intentionally terse — full detail lives in git history. The 
 - **Routing.** David's console detail gains **"Hand to a supervisor"** (assign to Dane/Brian or drop in the pool); **Driver + Missed Stop** complaints **auto-route** to the pool on log. Routed complaints show a `👤 <name> / pool` chip in David's console list.
 - **Realtime** (Supabase broadcast, channel `helm-complaints`, no DB change): supervisors pinged when a complaint is routed to them; David/admin on solve/escalate. Recipients need HELM open in a tab.
 - **📧 Email complaint** (console detail) → Gmail compose prefilled with Address / Time / Acct / Client / Route / Days / Driver / Complaint / Type (+ clipboard copy). Commits `2408c5a` / `5c95405`. **Address** now shows under the client name in the console list, and **🖨 Print range** prints every complaint in any date window, **any status**, as page-broken case files + cover (shared `printComplaintList`). Commits `be01d7a` / `2111f58`.
-- **▶ Planned next (new chat):** an **overhaul of David's Complaint Console view + the printed complaint reports** so supervisor actions/outcomes are first-class on screen (by-outcome / by-supervisor / full action timeline), not just inside the case-file prints. The data is all captured in `complaint_actions` — this is a presentation/reporting overhaul, not new tracking.
+- **▶ ✅ DONE (Early July 2026 — see the entry above):** the overhaul of David's Complaint Console + reports shipped — a full-page Console with **Triage / 📊 Reports / 🚛 Drivers / 📈 Insights** views, plus reopen + re-categorize. Supervisor actions/outcomes are now first-class on screen.
 
 **BEACON — dispatch notifications, completion timestamps, on-board conversion report.**
 - **Cross-user move notifications** (Supabase broadcast, channel `beacon-dispatch-moves`, centralized in `persistJob`): the `admin` user is alerted when a card enters **Outreach** (he makes the calls); `david` on **every** stage move. The actor isn't self-alerted; recipients need BEACON open. Commits `4047489` / `cb024d9`.
