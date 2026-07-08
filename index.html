@@ -7784,15 +7784,22 @@ async function supReopen(id){
 async function davidSendToSupervisor(id, assignee){
   const me=_supMe(); const now=new Date().toISOString();
   const c=_inboxComplaints.find(x=>x.id===id);
+  const prev = c ? (c.assigned_to||null) : null;
   const wasNew = c && c.status==='new';
+  // No-op guard: re-sending an already-routed case to the same target changes nothing.
+  if(c && c.routed_to_supervisor && prev===(assignee||null)){ toast(assignee?('Already with '+assignee):'Already in the pool'); return; }
   const patch={routed_to_supervisor:true, assigned_to:assignee||null, assigned_at:assignee?now:null, assigned_by:assignee?me:null};
   if(wasNew){ patch.status='case_open'; patch.case_opened_at=now; patch.case_opened_by=me; }
   const {error}=await db.from('complaints').update(patch).eq('id',id);
   if(error){ toast('Error: '+error.message); return; }
   if(wasNew){ try{ await db.from('complaint_actions').insert({complaint_id:id,action_type:'opened',performed_by:me}); }catch(_){} }
-  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'routed', notes:assignee?('Assigned to '+assignee):'Sent to supervisor pool', performed_by:me}); }catch(_){}
+  // Audit note distinguishes first assignment / reassignment / unassignment.
+  const note = assignee
+    ? (prev ? ('Reassigned from '+prev+' to '+assignee) : ('Assigned to '+assignee))
+    : (prev ? ('Unassigned — returned '+prev+"'s case to the pool") : 'Sent to supervisor pool');
+  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'routed', notes:note, performed_by:me}); }catch(_){}
   if(c) Object.assign(c,patch);
-  toast(assignee?('Assigned to '+assignee):'Sent to supervisor pool', true);
+  toast(note, true);
   logActivity('complaint_routed', id+' '+(assignee||'pool'));
   complaintRoutedBroadcast({id, assignee:assignee||null, name:(c&&c.client_name)||'', address:(c&&c.client_address)||''});
   refreshComplaintBadge();
@@ -8619,13 +8626,14 @@ async function renderInboxDetail(c){
     </div>
     ${snapshot}
     ${(c.status==='new'||c.status==='case_open') ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px 12px;background:#eef4ff;border:1px solid #c7ddff;border-radius:8px;">
-      <span style="font-size:12px;font-weight:700;color:var(--navy);">Hand to a supervisor:</span>
+      <span style="font-size:12px;font-weight:700;color:var(--navy);">${c.assigned_to?'Reassign to:':'Assign to a supervisor:'}</span>
       <select id="sendSupSelect" style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-300);border-radius:6px;">
-        <option value="">— Pool (any supervisor) —</option>
-        ${_supervisors.map(s=>`<option value="${esc(s.display_name||s.username)}">${esc(s.display_name||s.username)}</option>`).join('')}
+        <option value=""${!c.assigned_to?' selected':''}>— Pool (any supervisor) —</option>
+        ${_supervisors.map(s=>{const nm=s.display_name||s.username;return `<option value="${esc(nm)}"${c.assigned_to===nm?' selected':''}>${esc(nm)}</option>`;}).join('')}
       </select>
       <button class="btn-edit-sm" onclick="davidSendToSupervisor(${c.id}, document.getElementById('sendSupSelect').value||null)" style="background:var(--navy);color:#fff;">Send →</button>
-      ${c.routed_to_supervisor?`<span style="font-size:11px;color:#166534;font-weight:700;">✓ ${c.assigned_to?('with '+esc(c.assigned_to)):'in pool'}</span>`:''}
+      ${c.assigned_to?`<button class="btn-edit-sm" onclick="davidSendToSupervisor(${c.id}, null)" title="Take it off ${esc(c.assigned_to)} and return it to the open pool" style="background:#fff;color:#b45309;border-color:#fdba74;">Unassign</button>`:''}
+      ${c.routed_to_supervisor?`<span style="font-size:11px;color:#166534;font-weight:700;">✓ Currently ${c.assigned_to?('with '+esc(c.assigned_to)):'in the pool'}</span>`:''}
     </div>` : ''}
     <div class="inbox-section">
       <div class="inbox-section-hdr">Original Complaint</div>
