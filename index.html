@@ -4256,6 +4256,20 @@ async function init() {
   renderLookup();
   await Promise.all([loadClients(), loadSkips()]);
   loadUserNotesFromDB(); // background sync; updates textarea in place if already rendered
+  maybeOpenClientFromURL();  // deep-link: ?client=<acct> opens that card (e.g. from a complaint's acct link)
+}
+
+// Support ?client=<acct> in the URL — used by the "open in new tab" acct-number
+// link on a complaint case so the client card + complaint can sit side by side.
+// openClient() shows a floating panel, so this works over whatever tab loads.
+function maybeOpenClientFromURL(){
+  try{
+    const id = new URLSearchParams(location.search).get('client');
+    if(!id) return;
+    const c = clients.find(x=>x.client_id===id) || clients.find(x=>x.client_id===getBaseId(id));
+    if(!c){ toast('Client '+id+' not found'); return; }
+    openClient(c);
+  }catch(_){}
 }
 
 function getTodayISO() {
@@ -8539,7 +8553,11 @@ async function renderInboxDetail(c){
     <div class="inbox-snapshot-grid">
       ${driverRow}
       <div class="field"><label>Client</label><div class="val">${esc(c.client_name||'—')}</div></div>
-      <div class="field"><label>Acct #</label><div class="val">${esc(c.client_id)}</div></div>
+      <div class="field"><label>Acct #</label><div class="val">${
+        isGeneralComplaint(c)
+          ? esc(c.client_id)
+          : `<a href="?client=${encodeURIComponent(c.client_id)}" target="_blank" rel="noopener" title="Open this client's card in a new tab" style="color:var(--teal);font-weight:700;text-decoration:none;border-bottom:1px solid currentColor;">${esc(c.client_id)} <span style="font-size:11px;">↗</span></a>`
+      }</div></div>
       <div class="field"><label>Address</label><div class="val">${esc(c.client_address||'—')}</div></div>
       <div class="field"><label>Phone</label><div class="val">${esc(c.client_phone||'—')}</div></div>
       <div class="field"><label>Email</label><div class="val">${esc(c.client_email||'—')}</div></div>
