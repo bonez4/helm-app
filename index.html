@@ -3739,6 +3739,12 @@ function getCompany(id){
   if(id.startsWith('30')) return {name:'SANTOS',tag:'co-santos',cls:'co-santos'};
   return {name:'',tag:'',cls:''};
 }
+// Highest selectable route number per company. Santos runs up to 19 routes;
+// Reis up to 14. Accepts either the add-form key ('santos'/'reis') or the
+// getCompany() name ('SANTOS'/'REIS'); anything else falls back to 14.
+function routeCountForCompany(co){
+  return String(co||'').toLowerCase()==='santos' ? 19 : 14;
+}
 const ACTION_TYPES = [
   {value:'Skip Day', label:'Skip Day', needsDate:true, tag:'at-skip'},
   {value:'1XER', label:'1XER', needsDate:true, tag:'at-1xer'},
@@ -5181,6 +5187,7 @@ function editRenderPerDayRoutes(){
     return;
   }
   const dayLabel = {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+  const maxR = routeCountForCompany(activeClient ? getCompany(activeClient.client_id).name : '');
   let html = '';
   for(const dow of selectedDows){
     const cur = editPerDayState[dow] || {};
@@ -5190,7 +5197,7 @@ function editRenderPerDayRoutes(){
       <div style="width:78px;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--navy);">${dayLabel[dow]}</div>
       <select data-rr-dow="${dow}" data-rr-field="route" onchange="editPerDayPairFill(${dow}, 'route', this.value)" style="width:100px;flex:0 0 auto;padding:6px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;">
         <option value="">No route</option>
-        ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${route===String(n)?'selected':''}>R${n}</option>`).join('')}
+        ${Array.from({length:maxR},(_,i)=>i+1).map(n=>`<option value="${n}" ${route===String(n)?'selected':''}>R${n}</option>`).join('')}
       </select>
       <input type="text" data-rr-dow="${dow}" data-rr-field="route_note" value="${esc(note)}" placeholder="Driver note for this day…" oninput="editPerDayPairFill(${dow}, 'route_note', this.value)" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;"/>
     </div>`;
@@ -11135,6 +11142,7 @@ function addRenderPerDayRoutes(){
     return;
   }
   const dayLabel = {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'};
+  const maxR = routeCountForCompany(window._addCompany);
   let html = '';
   for(const dow of selectedDows){
     const cur = addPerDayState[dow] || {};
@@ -11144,7 +11152,7 @@ function addRenderPerDayRoutes(){
       <div style="width:78px;flex:0 0 auto;font-size:12px;font-weight:600;color:var(--navy);">${dayLabel[dow]}</div>
       <select data-rr-dow="${dow}" data-rr-field="route" onchange="addPerDayPairFill(${dow}, 'route', this.value)" style="width:100px;flex:0 0 auto;padding:6px 8px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;">
         <option value="">No route</option>
-        ${Array.from({length:14},(_,i)=>i+1).map(n=>`<option value="${n}" ${route===String(n)?'selected':''}>R${n}</option>`).join('')}
+        ${Array.from({length:maxR},(_,i)=>i+1).map(n=>`<option value="${n}" ${route===String(n)?'selected':''}>R${n}</option>`).join('')}
       </select>
       <input type="text" data-rr-dow="${dow}" data-rr-field="route_note" value="${esc(note)}" placeholder="Driver note for this day…" oninput="addPerDayPairFill(${dow}, 'route_note', this.value)" style="flex:1;min-width:0;padding:6px 10px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;background:white;"/>
     </div>`;
