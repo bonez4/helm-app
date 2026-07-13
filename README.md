@@ -60,7 +60,9 @@ No build step. No npm. No framework. One file.
 - **David / Jack / admins**: Files
 - **David / Chris / Jack / admins**: every Analysis tab — Daily Scale Report, Intercompany Rolloff, Consolidated Rolloff, Scale KPIs, Rolloff Visual, Xfer Station, Business Line Analysis
 - **David / Chris / admin**: **Dispatch group → Rolloff Queue** (the dispatcher view)
-- **David + Chris + admin**: **Bulky Pickups** tab + the topbar **complaint inbox icon** (→ the full-page Complaint Console)
+- **David + Chris + admin**: **Bulky Pickups** tab + the topbar **complaint inbox icon** (→ the full-page Complaint Console, with **full** action access)
+- **Esme + Jackie + Kobie**: **view-only** Complaint Console — the same topbar icon opens the console read-only (see all complaints/callbacks/reports/insights; no action controls). `userCanViewComplaints()` opens it; `userCanActOnComplaints()` (David/Chris) gates every mutation. *(Must log out + back in once.)*
+- **All users**: topbar **⚠ General Complaint** button (log a complaint not tied to a client) + the **☎ follow-up call** flag on any complaint
 - **David + Chris + Esme**: Complaint Report card + Monthly Complaint Summary card on the Reports tab
 - **Supervisors — Dane, Brian** (`users.is_supervisor`): the **Supervisor Queue** (large green topbar pill; they land on it at login) to work complaints routed to them. David/Chris/admin can open the queue too (small icon) for oversight.
 - **David / Chris / admin / Jarrett**: **BEACON** sister app launch button in the topbar (goes to `/beacon/`)
@@ -176,6 +178,9 @@ Per-user themes live in `applyUserTheme()`:
 | resolved_at / resolved_by / resolution_notes | — | When David closed the case (or a supervisor) |
 | routed_to_supervisor | BOOLEAN | TRUE once the complaint is in the Supervisor Queue — auto for Driver/Missed Stop on log, or via David's "Hand to a supervisor". *(User-applied `ALTER`.)* |
 | assigned_to / assigned_at / assigned_by | TEXT / TIMESTAMPTZ / TEXT | The supervisor a routed complaint is assigned to (NULL = unclaimed pool) + when/by-whom (claim or David-assign). *(User-applied `ALTER`.)* |
+| needs_callback | BOOLEAN | TRUE when the rep flagged "☎ Client needs a follow-up call". Drives the callback chip/banner/filter + the resolve-time notification. *(User-applied `ALTER` — [sql_complaint_callbacks.sql](sql_complaint_callbacks.sql).)* |
+| callback_phone | TEXT | Number to call back on when it differs from the one on file (blank = use the account's number). *(User-applied `ALTER`.)* |
+| callback_note | TEXT | What the callback is about. *(User-applied `ALTER`.)* |
 
 **`complaint_actions`** — Per-case timeline of standardized steps (the shared audit trail for David AND supervisors)
 | Column | Type | Notes |
@@ -523,22 +528,24 @@ Seven cards on the Reports tab (the last two are gated to David + Esme):
    - **Complaints are hidden from every other report** (Daily Action, Notes Added Today, Everything Report — both screen and print). The only places complaints surface in HELM are this report and the Complaint Pipeline.
    - Now reads from the **`complaints` table** (not `notes`) so the weekly view includes all the case-management metadata even though Esme can't act on it.
 
-### Complaint Pipeline (logging = all users; Console / case mgmt = David + Chris)
+### Complaint Pipeline (logging = all users; Console = David + Chris full · Esme/Jackie/Kobie view-only)
 A dedicated workflow for tracking and resolving customer complaints. Complaints used to be a category in the notes form; they've been promoted to a first-class table because they need triage, case-management, and an audit trail of how each one was handled.
 
 **Logging a complaint (any user):**
 - Red **Log Complaint** button at the bottom-right of every client card opens a centered modal
+- A topbar **⚠ General Complaint** button (all users) logs a complaint **not tied to a client** — e.g. a non-customer calling about a truck's driving. Same type/notes flow, plus optional caller name/phone/location; stored under a `GENERAL` sentinel account (counted everywhere except the repeat-customer insight).
 - Auto-fills the client snapshot (name / acct / address / phone / email / route / pickup days) — frozen at log-time so the case file doesn't drift if the client record changes later
 - **Complaint type picker** (required): `Driver` / `Billing` / `Missed Stop` / `Other`
 - When type = **Driver**, a `Driver involved` text input appears (required). Autosuggests from active drivers in `bla_staff` and from any historical `driver_name` values already in `complaints`, so spellings stay consistent. Type a new name if the driver isn't on the roster yet.
 - Notes textarea is **hidden until a type is chosen** (prevents rep from typing without classifying first)
+- **☎ Client needs a follow-up call** checkbox — flags that the client (or a caller on a number we don't have) requested a call back. Reveals an optional **callback number** (for when they're calling from a number not on file) and a **callback note** (what it's about). Works for both customer and general complaints. See **Follow-up calls** below.
 - On Submit: row inserted into `complaints` with `status='new'`; David's inbox badge increments
 
-**The Complaint Console — full page (David + Chris), rebuilt 2026-07:**
+**The Complaint Console — full page (David + Chris = full; Esme/Jackie/Kobie = view-only), rebuilt 2026-07:**
 The topbar complaint icon opens a **full-page Console** (no longer a modal). A red badge shows the count of `new` **& not-routed** complaints (polls every 60s + on tab focus). Four views, switched from buttons in the Console header:
 
-- **Triage (default)** — 4 **clickable stat boxes** (**New** / **Open** / **Resolved this week** / **Avg. resolve this week**) drive one **card grid** (bulky-pickup-style). Cards show client + address, time logged, and type; **hours-based age shading** (🟢 <8h · 🟡 8–24h · 🔴 24h+); **supervisor-routed cards** get a blue "👤 name / pool" ribbon. Bucket model (`complaintBucketOf`): **New** = `new` & not routed; **Open** = `case_open` OR routed-to-supervisor (not resolved/ignored). Low-key **All / Ignored** chips + a search box. Click a card → the case detail.
-- **Case detail** — status-dependent actions: `new` → **Open Case / Ignore** · `case_open` → action-log timeline + **Add Entry** + **Mark Resolved** · `resolved`/`ignored` → banner **+ ↩ Reopen & add entries** (`reopenComplaint`, writes a `reopened` audit row). The complaint **type is an editable dropdown** here (`setComplaintType`, fixes a miscategorization, logged as `recategorized`). Plus **Hand to a supervisor** (assign to Dane/Brian or the pool; Driver + Missed-Stop auto-route on log), **📧 Email complaint** (Gmail prefill), single-case **Print**, and **⚙ Manage types**.
+- **Triage (default)** — 4 **clickable stat boxes** (**New** / **Open** / **Resolved this week** / **Avg. resolve this week**) drive one **card grid** (bulky-pickup-style). Cards show client + address, time logged, and type; **hours-based age shading** (🟢 <8h · 🟡 8–24h · 🔴 24h+); **supervisor-routed cards** get a blue "👤 name / pool" ribbon; **callback cards** get a **☎ CALLBACK** chip (blue = outstanding, green ✓ = its case closed). Bucket model (`complaintBucketOf`): **New** = `new` & not routed; **Open** = `case_open` OR routed-to-supervisor (not resolved/ignored). Low-key **All / ☎ Callbacks / Ignored** chips (the **☎ Callbacks** count = *outstanding* follow-up calls) + a search box. Click a card → the case detail.
+- **Case detail** — status-dependent actions: `new` → **Open Case / Ignore** · `case_open` → action-log timeline + **Add Entry** + **Mark Resolved** · `resolved`/`ignored` → banner **+ ↩ Reopen & add entries** (`reopenComplaint`, writes a `reopened` audit row). The complaint **type is an editable dropdown** here (`setComplaintType`, fixes a miscategorization, logged as `recategorized`). A **☎ follow-up-call banner** (number + note + outstanding/completed) shows when one is attached. The **Acct #** links to the client card in a new tab (`?client=` deep-link). Plus **Assign / Reassign / Unassign** to a supervisor (assign to Dane/Brian or the pool; Driver + Missed-Stop auto-route on log; the dropdown preselects the current owner, and **Unassign** returns a case to the pool), **📧 Email complaint** (Gmail prefill), single-case **Print**, and **⚙ Manage types**. **View-only users (Esme/Jackie/Kobie) see all of this read-only** — every action control is hidden and guarded (`userCanActOnComplaints` = David/Chris).
 - **📊 Reports** — **Daily / Weekly / Custom** (date nav + presets). Compact + dense: a KPI strip, a **"Submitted by type"** header breakdown, one **merged table** (each complaint with its **resolution / ignore reason inline beneath it**), and a **Still-open backlog** table. **🖨 Print** = the same dense layout (`printConsoleReport`) — a few pages, not one-per-complaint. (Retired the old page-broken `printComplaintDay/Week/Range/List`, now dead code.)
 - **🚛 Drivers** — a per-driver leaderboard (every complaint that has a `driver_name`) over a date range → drill into a driver's complaints. The **driver now shows on every report + card wherever it's captured** (not only DRIVER type), so Missed-Stop drivers back-filled by the supervisor "Spoke to Driver" step surface here.
 - **📈 Insights** — a dynamic analytics dashboard: KPI strip (incl. **repeat clients** + % from repeat), live **Chart.js** charts (complaints over time / by-type doughnut / by-route bar — click a route bar to drill), and a **repeat-customer table** (2+ complaints flagged; click to drill). Everything clicks through to the case.
@@ -555,13 +562,25 @@ The topbar complaint icon opens a **full-page Console** (no longer a modal). A r
 - Status flips to `ignored`; reason + when + by-whom are saved on the complaint row
 - Stays visible under the Ignored filter — nothing is deleted; full audit trail preserved
 
+**Follow-up calls / callbacks (added 2026-07):**
+So a client who asked to be called back isn't forgotten:
+- **Flagged at log time** by the **☎ Client needs a follow-up call** checkbox on the complaint modal → stores `needs_callback` + an optional `callback_phone` (a number we don't have on file) + `callback_note` (what it's about). *(Requires user-applied `ALTER` — see [sql_complaint_callbacks.sql](sql_complaint_callbacks.sql). Logging degrades gracefully until it's run: the complaint still saves, the callback just isn't stored, and a toast says so.)*
+- **Tracked** via the **☎ CALLBACK** card chip, the case-detail banner, and the **☎ Callbacks** console filter (outstanding-first list; the chip count = outstanding follow-up calls).
+- **Notified on resolve:** when a complaint that has a callback attached is resolved (from the Console **or** the Supervisor Queue), a `callback_resolved` broadcast pings **everyone with console access** (David, Chris, Esme, Jackie, Kobie) with a toast + browser notification — so nobody re-calls a client whose issue is already closed. The resolver themselves is skipped. Needs HELM open in a tab.
+
+**View-only office access (Esme, Jackie, Kobie):**
+- These three get the topbar complaint icon and can open the Console to **see all prior complaints, callbacks, case details, Reports, Drivers, and Insights** — read-only.
+- Every mutating control is hidden **and** guarded server-side-of-the-UI (`userCanViewComplaints` opens the console; `userCanActOnComplaints` = David/Chris gates Open Case, Resolve, Ignore, Reassign/Unassign, recategorize, priority, Manage Types).
+- They join the `helm-complaints` realtime channel so they receive callback-resolved alerts.
+- *(They must log out + back in once to pick up the access.)*
+
 **Supervisor Queue (supervisors + David/admin) — the resolution arm of the same pipeline:**
 Supervisors (Dane, Brian) take complaints off David's plate. The queue and David's console are the **same `complaints` / `complaint_actions` data** — David triages/routes, supervisors resolve, and it's all one audit trail.
 - **Access:** `users.is_supervisor`. Supervisors get a big green **"Complaint Queue"** topbar pill and **land on it at login**; David/admin get a small icon for oversight.
 - **How complaints arrive:** **Driver + Missed Stop** auto-route to the pool on log; David hand-routes anything else ("Hand to a supervisor" → a specific supervisor or the pool).
 - **Queue:** mobile-first **My cases / Available (pool) / Solved** tabs, sorted by priority then age, overdue (>3d) flagged. **Claim** pulls a pool case into "mine."
 - **Solve screen (stage, then commit):** ordered **toggle** buttons **Spoke to Driver** (prompts for the driver's name) · **Spoke to Client** · **Contacted Office** · **On-site Visit** — tap to highlight (tap again to undo); add a note; then **✓ Resolve** writes the staged actions + note to `complaint_actions` all at once (the note becomes the resolution, else an auto-summary of the actions). **↩ Send back to David** (escalate; also commits staged actions) + **Reopen**. Header has click-to-call + a ⚠ repeat-client flag. Staged selections are transient until Resolve/Send-back. *(Changed 2026-06-17 from auto-log-on-tap.)*
-- **Notifications:** realtime ping (Supabase broadcast, `helm-complaints`) to the supervisor on route-to-them, and to David/admin on solve/escalate. Needs HELM open in a tab.
+- **Notifications:** realtime ping (Supabase broadcast, `helm-complaints`) to the supervisor on route-to-them, to David/admin on solve/escalate, and — for **callback-flagged** complaints — a `callback_resolved` event to **everyone with console access** (David/Chris + Esme/Jackie/Kobie) when it's resolved. Needs HELM open in a tab.
 - **Reporting:** every action lands in `complaint_actions`, so supervisor activity flows into the Console **Reports / Drivers / Insights** views + the Monthly Summary — on-screen, not just in prints.
 
 **Migration on rollout:** The SQL migration block (see Supabase Setup) moves every existing `Complaint - DRIVER` / `Complaint - BILLING` / `Complaint - OTHER` note from `notes` into the new `complaints` table as `status='new'`, then deletes the source notes so they don't get double-counted.
@@ -1223,6 +1242,11 @@ ALTER TABLE complaints ADD COLUMN IF NOT EXISTS assigned_by TEXT;
 CREATE INDEX IF NOT EXISTS complaints_assigned_idx ON complaints(assigned_to);
 -- Supervisors also need an Auth login (see "add a new staff user"):
 -- UPDATE users SET is_supervisor = true WHERE username IN ('dane','brian');
+
+-- Follow-up call / callback fields (user-applied ALTERs — sql_complaint_callbacks.sql)
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS needs_callback BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS callback_phone TEXT;
+ALTER TABLE complaints ADD COLUMN IF NOT EXISTS callback_note  TEXT;
 
 -- One-time migration of legacy "Complaint - X" notes into the new complaints table.
 -- Each migrated complaint lands with status='new' so it shows up in David's inbox
