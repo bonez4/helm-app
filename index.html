@@ -3481,6 +3481,22 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <label>Describe the complaint *</label>
         <textarea id="cmpNotes" placeholder="What did the client say? Be specific."></textarea>
       </div>
+      <div class="cmp-field" id="cmpCallbackWrap" style="margin-bottom:4px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--navy);font-weight:700;">
+          <input type="checkbox" id="cmpNeedsCallback" onchange="onCallbackToggle()" style="width:16px;height:16px;flex:0 0 auto;"/>
+          ☎ Client needs a follow-up call
+        </label>
+        <div id="cmpCallbackFields" style="display:none;margin-top:9px;padding:11px 13px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
+          <div style="margin-bottom:9px;">
+            <label style="display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);margin-bottom:4px;">Best callback number <span style="text-transform:none;font-weight:400;">(if different from the number on file)</span></label>
+            <input type="text" id="cmpCallbackPhone" autocomplete="off" placeholder="e.g. 508-555-0123 — leave blank to use the number on file" style="width:100%;padding:7px 10px;border:1px solid var(--gray-200);border-radius:6px;font-family:inherit;font-size:13px;"/>
+          </div>
+          <div>
+            <label style="display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-500);margin-bottom:4px;">What's the callback about?</label>
+            <textarea id="cmpCallbackNote" placeholder="What should we tell them, or what do they want to discuss?" style="width:100%;min-height:56px;padding:7px 10px;border:1px solid var(--gray-200);border-radius:6px;font-family:inherit;font-size:13px;resize:vertical;line-height:1.4;"></textarea>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="helm-modal-footer">
       <button class="btn-edit-sm" onclick="closeComplaintModal()">Cancel</button>
@@ -3494,7 +3510,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
   <div class="helm-modal-sheet wide helm-inbox-sheet" onclick="event.stopPropagation()">
     <div class="helm-modal-header danger">
       <h3>Complaints</h3>
-      <button class="btn-edit-sm" onclick="openManageTypes()" style="margin-left:auto;margin-right:10px;background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.4);">&#9881; Manage types</button>
+      <button id="manageTypesBtn" class="btn-edit-sm" onclick="openManageTypes()" style="margin-left:auto;margin-right:10px;background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.4);">&#9881; Manage types</button>
       <button class="close-x" onclick="closeComplaintInbox()" aria-label="Close">&times;</button>
     </div>
     <div class="helm-modal-body" id="consoleBody">
@@ -4187,6 +4203,13 @@ async function login() {
     document.getElementById('complaintInboxBtn').style.display='';
     startComplaintBadgePoll();
   }
+  // Office viewers (Esme/Jackie/Kobie): read-only complaint console access —
+  // show the console icon (no badge poll; that's David's triage counter).
+  if(!userIsDavid() && COMPLAINT_VIEW_USERS.includes(data.username)){
+    document.getElementById('complaintInboxBtn').style.display='';
+  }
+  // Anyone with console access joins the realtime channel (callback-resolved alerts).
+  if(userCanViewComplaints()) initComplaintRealtime();
   // Bulky Pickups nav button — David + Chris + admin role.
   if(data.username==='david' || data.username==='chris' || data.role==='admin'){
     document.getElementById('bulkyTabBtn').style.display='';
@@ -4298,6 +4321,15 @@ function userIsDavid(){
   // recategorize, Workflow, Routing, supervisor oversight) includes Chris at once.
   return !!(currentUser && (currentUser.username==='david' || currentUser.username==='chris'));
 }
+
+// Office reps who get READ-ONLY visibility into the complaint console (see prior
+// complaints + callbacks + reports), but cannot open/resolve/ignore/reassign.
+const COMPLAINT_VIEW_USERS = ['esme','jackie','kobie'];
+// Who may OPEN the complaint console at all (David/Chris + the office viewers).
+function userCanViewComplaints(){ return userIsDavid() || !!(currentUser && COMPLAINT_VIEW_USERS.includes(currentUser.username)); }
+// Who may take ACTIONS on complaints (open case, resolve, ignore, reassign,
+// recategorize, manage types). David + Chris only — office users are view-only.
+function userCanActOnComplaints(){ return userIsDavid(); }
 
 // BEACON access gate — same allow-list as the standalone app uses, so the
 // HELM-side button and the BEACON-side auth check stay in sync.
@@ -7213,6 +7245,20 @@ async function deleteTaxonomy(id){
 const GENERAL_COMPLAINT_ID = 'GENERAL';
 function isGeneralComplaint(c){ return !!(c && String(c.client_id)===GENERAL_COMPLAINT_ID); }
 
+// Follow-up-call fields on the complaint modal. Reset on every open, toggled by
+// the checkbox. Works the same for customer + general complaints.
+function resetCallbackFields(){
+  const cb=document.getElementById('cmpNeedsCallback'); if(cb) cb.checked=false;
+  const f=document.getElementById('cmpCallbackFields'); if(f) f.style.display='none';
+  const p=document.getElementById('cmpCallbackPhone'); if(p) p.value='';
+  const n=document.getElementById('cmpCallbackNote');  if(n) n.value='';
+}
+function onCallbackToggle(){
+  const on=document.getElementById('cmpNeedsCallback').checked;
+  document.getElementById('cmpCallbackFields').style.display = on?'block':'none';
+  if(on) setTimeout(()=>{ const t=document.getElementById('cmpCallbackPhone'); if(t) t.focus(); },40);
+}
+
 // General / non-customer complaint: same type + notes flow, no client attached.
 async function openGeneralComplaintModal(){
   await ensureTaxonomies();
@@ -7232,6 +7278,7 @@ async function openGeneralComplaintModal(){
   document.getElementById('cmpNotes').value = '';
   document.getElementById('cmpDriverField').style.display = 'none';
   document.getElementById('cmpDriver').value = '';
+  resetCallbackFields();
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -7261,6 +7308,7 @@ async function openComplaintModal(clientId){
   document.getElementById('cmpNotes').value         = '';
   document.getElementById('cmpDriverField').style.display = 'none';
   document.getElementById('cmpDriver').value        = '';
+  resetCallbackFields();
   document.getElementById('complaintModal').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -7268,6 +7316,7 @@ function closeComplaintModal(){
   const modal = document.getElementById('complaintModal');
   modal.classList.remove('open');
   modal.dataset.general = '';
+  resetCallbackFields();
   document.body.style.overflow = '';
 }
 function onComplaintTypeChange(){
@@ -7340,7 +7389,17 @@ async function submitComplaint(){
     };
   }
 
-  const {error} = await db.from('complaints').insert({
+  // Follow-up call flag (optional). Stored in dedicated columns; if the DB
+  // migration hasn't been run yet the insert is retried without them so
+  // logging a complaint never breaks.
+  const needsCallback = document.getElementById('cmpNeedsCallback').checked;
+  const cbFields = needsCallback ? {
+    needs_callback: true,
+    callback_phone: (document.getElementById('cmpCallbackPhone').value || '').trim() || null,
+    callback_note:  (document.getElementById('cmpCallbackNote').value  || '').trim() || null,
+  } : {};
+
+  const baseRow = {
     ...row,
     type:           type,
     driver_name:    driverName,
@@ -7348,7 +7407,13 @@ async function submitComplaint(){
     logged_by:      loggedBy,
     status:         'new',
     routed_to_supervisor: SUP_AUTOROUTE_TYPES.includes(type),
-  });
+  };
+  let ins = await db.from('complaints').insert({ ...baseRow, ...cbFields });
+  if(ins.error && needsCallback && /callback|column|schema|does not exist/i.test(ins.error.message||'')){
+    ins = await db.from('complaints').insert(baseRow);   // pre-migration fallback
+    if(!ins.error) toast('Complaint saved, but the callback flag needs the DB migration to be stored', true);
+  }
+  const {error} = ins;
   if(error){ toast('Error: '+error.message); return; }
   closeComplaintModal();
   toast(SUP_AUTOROUTE_TYPES.includes(type)?'Complaint logged — routed to supervisors + David':'Complaint logged — sent to David\'s inbox', true);
@@ -7456,7 +7521,10 @@ function clearInboxWeek(){
 }
 
 async function openComplaintInbox(){
-  if(!userIsDavid()){ toast('David only'); return; }
+  if(!userCanViewComplaints()){ toast('No access'); return; }
+  // Office viewers: hide the type-management control (David/Chris only).
+  const mtBtn = document.getElementById('manageTypesBtn');
+  if(mtBtn) mtBtn.style.display = userCanActOnComplaints() ? '' : 'none';
   document.getElementById('complaintInbox').classList.add('open');
   document.body.style.overflow = 'hidden';
   const _today = new Date().toISOString().split('T')[0];
@@ -7506,6 +7574,9 @@ function userCanSupervise(){ return userIsSupervisor() || userIsDavid() || !!(cu
 function _supMe(){ return currentUser ? (currentUser.display_name || currentUser.username) : ''; }
 function supBroadcast(p){ try{ if(_complaintChannel) _complaintChannel.send({type:'broadcast',event:'sup',payload:p}); }catch(_){} }
 function complaintRoutedBroadcast(p){ try{ if(_complaintChannel) _complaintChannel.send({type:'broadcast',event:'routed',payload:p}); }catch(_){} }
+// Fired when a complaint that had a follow-up call attached is resolved — pings
+// everyone with console access so the callback isn't forgotten / re-done.
+function callbackResolvedBroadcast(p){ try{ if(_complaintChannel) _complaintChannel.send({type:'broadcast',event:'callback_resolved',payload:p}); }catch(_){} }
 function requestComplaintNotifPermission(){ try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(_){} }
 // Realtime ping (Supabase broadcast — no DB/replication needed). Supervisors get
 // buzzed when a complaint is routed to them; David/admin when one is solved or
@@ -7518,8 +7589,18 @@ function initComplaintRealtime(){
     _complaintChannel
       .on('broadcast',{event:'routed'}, ({payload})=>handleComplaintRouted(payload))
       .on('broadcast',{event:'sup'},    ({payload})=>handleSupEvent(payload))
+      .on('broadcast',{event:'callback_resolved'}, ({payload})=>handleCallbackResolved(payload))
       .subscribe();
   }catch(_){ _complaintChannel=null; }
+}
+// Everyone with console access (David/Chris + office viewers) is told when a
+// callback-flagged complaint gets resolved. The resolver themselves is skipped.
+function handleCallbackResolved(p){
+  if(!p || !userCanViewComplaints() || p.by===_supMe()) return;
+  const name=p.name||'a client';
+  toast('☎ Callback complaint resolved: '+name+(p.by?(' — by '+p.by):''), true);
+  try{ if('Notification' in window && Notification.permission==='granted') new Notification('☎ Callback complaint resolved', {body:name+(p.by?(' — '+p.by):''), tag:'helm-cbres-'+(p.id||Date.now())}); }catch(_){}
+  if(document.getElementById('complaintInbox').classList.contains('open')) loadInboxComplaints();
 }
 function handleComplaintRouted(p){
   if(!p || !userIsSupervisor()) return;
@@ -7760,6 +7841,7 @@ async function supResolve(id){
   toast('✓ Complaint resolved', true);
   logActivity('complaint_resolved', String(id));
   supBroadcast({kind:'resolved', id, by:me, name:(c.client_name||'')});   // pings David/admin
+  if(c.needs_callback){ callbackResolvedBroadcast({id, name:(c.client_name||''), by:me}); }   // pings everyone with console access
   _supPendingActions=[]; _supSelectedId=null;
   await loadSupervisorComplaints(); refreshSupervisorBadge(); refreshComplaintBadge();
 }
@@ -7789,6 +7871,7 @@ async function supReopen(id){
 }
 // David/admin: route a complaint into the supervisor queue (assigned to one, or the open pool).
 async function davidSendToSupervisor(id, assignee){
+  if(!userCanActOnComplaints()){ toast('View only'); return; }
   const me=_supMe(); const now=new Date().toISOString();
   const c=_inboxComplaints.find(x=>x.id===id);
   const prev = c ? (c.assigned_to||null) : null;
@@ -7903,7 +7986,9 @@ function renderInbox(){
   const chipsEl = document.getElementById('ccSubFilters');
   if(chipsEl){
     const chip=(key,label,n)=>`<button class="cc-chip ${_inboxFilter===key?'active':''}" onclick="setInboxFilter('${key}')">${esc(label)}<span class="cc-chip-n">${n}</span></button>`;
-    chipsEl.innerHTML = chip('all','All',all.length) + chip('ignored','Ignored',ignoredCount);
+    // ☎ Callbacks chip counts OUTSTANDING follow-up calls (unresolved/unignored) — the worklist.
+    const callbackOutstanding = all.filter(c=>c.needs_callback && complaintBucketOf(c)!=='resolved' && complaintBucketOf(c)!=='ignored').length;
+    chipsEl.innerHTML = chip('all','All',all.length) + chip('callback','☎ Callbacks',callbackOutstanding) + chip('ignored','Ignored',ignoredCount);
   }
 
   // ── View toggle: triage cards / case detail / reports ──────────────────────
@@ -7930,6 +8015,7 @@ function renderConsoleCards(){
     if(bucket==='resolved' || bucket==='avgresolve') return c.status==='resolved' && c.resolved_at && c.resolved_at>=wr.startISO && c.resolved_at<wr.endISO;
     if(bucket==='all')     return true;
     if(bucket==='ignored') return complaintBucketOf(c)==='ignored';
+    if(bucket==='callback') return !!c.needs_callback;   // every callback-flagged complaint
     return complaintBucketOf(c)===bucket;   // 'new' | 'open'
   });
   const q = _inboxSearch.trim().toLowerCase();
@@ -7937,12 +8023,17 @@ function renderConsoleCards(){
   if(bucket==='avgresolve')      rows.sort((a,b)=>((new Date(b.resolved_at)-new Date(b.logged_at))-(new Date(a.resolved_at)-new Date(a.logged_at))));   // slowest resolve first
   else if(bucket==='resolved')   rows.sort((a,b)=>new Date(b.resolved_at)-new Date(a.resolved_at));
   else if(bucket==='ignored')    rows.sort((a,b)=>new Date(b.ignored_at||b.logged_at)-new Date(a.ignored_at||a.logged_at));
+  else if(bucket==='callback')   rows.sort((a,b)=>{   // outstanding callbacks first, newest logged first within each
+    const done=c=>(complaintBucketOf(c)==='resolved'||complaintBucketOf(c)==='ignored')?1:0;
+    return done(a)-done(b) || (new Date(b.logged_at)-new Date(a.logged_at));
+  });
   else                           rows.sort((a,b)=>new Date(a.logged_at)-new Date(b.logged_at));   // new/open/all → oldest first (most urgent surfaces)
   if(!rows.length){
     const msg = bucket==='new' ? 'Nothing new to triage — you’re all caught up.'
       : bucket==='open' ? 'No open cases right now.'
       : (bucket==='resolved'||bucket==='avgresolve') ? 'Nothing resolved yet this week.'
       : bucket==='ignored' ? 'No ignored complaints.'
+      : bucket==='callback' ? 'No follow-up calls flagged.'
       : 'No complaints to show.';
     grid.innerHTML = `<div class="cc-empty">${esc(msg)}</div>`;
     return;
@@ -7973,8 +8064,13 @@ function ccCardHTML(c, bucket){
   const routed = c.routed_to_supervisor;
   const ribbon = routed ? `<div class="cc-routed-ribbon">👤 ${c.assigned_to?esc(c.assigned_to):'Supervisor pool'}</div>` : '';
   const subBits = `#${esc(c.client_id)}${(c.client_route!=null&&c.client_route!=='')?(' · R'+esc(c.client_route)):''}${c.driver_name?(' · '+esc(c.driver_name)):''}`;
+  // ☎ callback flag — solid when still outstanding, muted ✓ once the case is closed.
+  const cbDone = complaintBucketOf(c)==='resolved' || complaintBucketOf(c)==='ignored';
+  const cbChip = c.needs_callback
+    ? `<span title="Follow-up call requested" style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:8px;${cbDone?'background:#dcfce7;color:#166534;':'background:#dbeafe;color:#1e40af;'}">☎ CALLBACK${cbDone?' ✓':''}</span>`
+    : '';
   return `<div class="cc-card${routed?' routed':''}" style="border-left-color:${leftBorder};background:${bg};" onclick="selectInboxRow(${c.id})">
-    <div class="cc-card-top">${typeChip}${prioChip}<span style="margin-left:auto;">${agePill}</span></div>
+    <div class="cc-card-top">${typeChip}${cbChip}${prioChip}<span style="margin-left:auto;">${agePill}</span></div>
     <div class="cc-card-client">${esc(c.client_name||('Account '+c.client_id))}</div>
     <div class="cc-card-addr">${esc(c.client_address||'—')}</div>
     <div class="cc-card-sub">${subBits} ${coTag}</div>
@@ -8523,6 +8619,7 @@ function renderConsolePatterns(rows){
     <div style="display:flex;gap:10px;flex-wrap:wrap;">${card('By type',typeList)}${card('Top routes',topRoutes)}${card('Top drivers',topDrivers)}</div>`;
 }
 async function setComplaintPriority(id, val){
+  if(!userCanActOnComplaints()){ toast('View only'); return; }
   const {error}=await db.from('complaints').update({priority:val}).eq('id',id);
   if(error){ toast('Priority update failed: '+error.message); return; }
   const c=_inboxComplaints.find(x=>x.id===id); if(c) c.priority=val;
@@ -8551,6 +8648,7 @@ async function renderInboxDetail(c){
     return;
   }
   const when = c.logged_at ? new Date(c.logged_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+  const canAct = userCanActOnComplaints();   // office viewers see everything read-only
 
   // Build snapshot grid
   const days = c.client_days ? c.client_days.split(',').map(s=>s.trim()).filter(Boolean).join(', ') : '—';
@@ -8578,16 +8676,17 @@ async function renderInboxDetail(c){
       <div class="field"><label>Route / Days</label><div class="val">${esc(route)} · ${esc(days)}</div></div>
     </div>`;
 
-  // Action area depending on status
+  // Action area depending on status. Office viewers (canAct=false) get the log
+  // read-only and none of the mutating buttons.
   let actionArea = '';
   if(c.status === 'new'){
-    actionArea = `
+    actionArea = canAct ? `
       <div class="inbox-action-row">
         <button class="btn-case-open" onclick="openCase(${c.id})">▸ Open Case</button>
         <button class="btn-ignore" onclick="promptIgnoreComplaint(${c.id})">Ignore</button>
-      </div>`;
+      </div>` : '';
   } else if(c.status === 'case_open'){
-    actionArea = await renderCaseActionLog(c);
+    actionArea = await renderCaseActionLog(c, !canAct);
   } else if(c.status === 'resolved'){
     const resBy = c.resolved_by || '—';
     const resAt = c.resolved_at ? new Date(c.resolved_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
@@ -8597,9 +8696,9 @@ async function renderInboxDetail(c){
         <div class="resolution-display">${c.resolution_notes?esc(c.resolution_notes):'<em>No resolution notes recorded.</em>'}<div style="margin-top:6px;font-size:11px;color:var(--gray-500);">Resolved by ${esc(resBy)} on ${esc(resAt)}</div></div>
       </div>
       ${await renderCaseActionLog(c, true)}
-      <div class="inbox-action-row">
+      ${canAct ? `<div class="inbox-action-row">
         <button class="btn-case-open" onclick="reopenComplaint(${c.id})" style="background:var(--navy);">↩ Reopen &amp; add entries</button>
-      </div>`;
+      </div>` : ''}`;
   } else if(c.status === 'ignored'){
     const ignBy = c.ignored_by || '—';
     const ignAt = c.ignored_at ? new Date(c.ignored_at).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
@@ -8609,10 +8708,20 @@ async function renderInboxDetail(c){
         <div class="ignored-display">${c.ignored_reason?esc(c.ignored_reason):'<em>No reason recorded.</em>'}<div style="margin-top:6px;font-size:11px;color:var(--gray-500);font-style:normal;">By ${esc(ignBy)} on ${esc(ignAt)}</div></div>
       </div>
       ${await renderCaseActionLog(c, true)}
-      <div class="inbox-action-row">
+      ${canAct ? `<div class="inbox-action-row">
         <button class="btn-case-open" onclick="reopenComplaint(${c.id})" style="background:var(--navy);">↩ Reopen &amp; add entries</button>
-      </div>`;
+      </div>` : ''}`;
   }
+
+  // ☎ Follow-up-call banner — shown whenever a callback was requested.
+  const callbackBanner = c.needs_callback ? `
+    <div style="margin:10px 0;padding:11px 13px;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;">
+      <div style="font-weight:800;color:#1e40af;font-size:13px;">☎ Follow-up call requested${(c.status==='resolved')?' · <span style="color:#166534;">completed</span>':(c.status==='ignored')?' · <span style="color:var(--gray-500);">closed</span>':' · <span style="color:#b45309;">outstanding</span>'}</div>
+      ${c.callback_phone
+        ? `<div style="font-size:13px;margin-top:5px;">Call back at <b>${esc(c.callback_phone)}</b> <span style="color:var(--gray-500);font-size:11px;">(number the client gave)</span></div>`
+        : `<div style="font-size:12px;margin-top:5px;color:var(--gray-600);">Use the number on file${c.client_phone?(' — <b>'+esc(c.client_phone)+'</b>'):''}</div>`}
+      ${c.callback_note ? `<div style="font-size:13px;margin-top:5px;color:var(--gray-800);">${esc(c.callback_note)}</div>` : ''}
+    </div>` : '';
 
   wrap.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px;">
@@ -8621,18 +8730,21 @@ async function renderInboxDetail(c){
         <div class="id-row">
           <span class="acct">#${esc(c.client_id)}</span>
           <span>·</span>
-          <select class="cmp-type-edit" title="Change the complaint type — fixes a miscategorization" onchange="setComplaintType(${c.id}, this.value)">${typeOptsHtml}</select>
+          ${canAct
+            ? `<select class="cmp-type-edit" title="Change the complaint type — fixes a miscategorization" onchange="setComplaintType(${c.id}, this.value)">${typeOptsHtml}</select>`
+            : `<span class="action-tag at-complaint" style="font-size:11px;">${esc(complaintTypeLabel(c.type))}</span>`}
           <span class="status-pill-lg status-${c.status}">${c.status==='case_open'?'CASE OPEN':c.status.toUpperCase()}</span>
         </div>
         <div style="font-size:12px;color:var(--gray-500);">Logged by <strong>${esc(c.logged_by||'—')}</strong> on ${esc(when)}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
-        <button class="btn-edit-sm" onclick="emailComplaint(${c.id})" style="white-space:nowrap;">📧 Email complaint</button>
+        ${canAct ? `<button class="btn-edit-sm" onclick="emailComplaint(${c.id})" style="white-space:nowrap;">📧 Email complaint</button>` : ''}
         <button class="btn-edit-sm" onclick="printComplaintCase(${c.id})" style="white-space:nowrap;">Print</button>
       </div>
     </div>
     ${snapshot}
-    ${(c.status==='new'||c.status==='case_open') ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px 12px;background:#eef4ff;border:1px solid #c7ddff;border-radius:8px;">
+    ${callbackBanner}
+    ${(canAct && (c.status==='new'||c.status==='case_open')) ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px 12px;background:#eef4ff;border:1px solid #c7ddff;border-radius:8px;">
       <span style="font-size:12px;font-weight:700;color:var(--navy);">${c.assigned_to?'Reassign to:':'Assign to a supervisor:'}</span>
       <select id="sendSupSelect" style="font-size:12px;padding:5px 8px;border:1px solid var(--gray-300);border-radius:6px;">
         <option value=""${!c.assigned_to?' selected':''}>— Pool (any supervisor) —</option>
@@ -8800,6 +8912,7 @@ function closeResolveModal(){
   document.getElementById('resolveModal').classList.remove('open');
 }
 async function confirmResolveCase(){
+  if(!userCanActOnComplaints()){ toast('View only — you can’t resolve complaints'); return; }
   const complaintId = Number(document.getElementById('resolveModal').dataset.complaintId);
   const notes = document.getElementById('resolveNotes').value.trim();
   if(!notes){ toast('Add resolution notes'); return; }
@@ -8812,6 +8925,9 @@ async function confirmResolveCase(){
   await db.from('complaint_actions').insert({
     complaint_id: complaintId, action_type:'resolved', notes:notes, performed_by:by,
   });
+  // If this complaint had a follow-up call attached, ping everyone with console access.
+  const _cbRow = _inboxComplaints.find(x=>x.id===complaintId) || _supComplaints.find(x=>x.id===complaintId);
+  if(_cbRow && _cbRow.needs_callback){ callbackResolvedBroadcast({id:complaintId, name:_cbRow.client_name||'', by}); }
   closeResolveModal();
   toast('Case resolved', true);
   logActivity('complaint_resolved', String(complaintId));
@@ -8839,6 +8955,7 @@ async function confirmResolveCase(){
 }
 
 function promptIgnoreComplaint(complaintId){
+  if(!userCanActOnComplaints()){ toast('View only'); return; }
   const c = _inboxComplaints.find(x=>x.id===complaintId);
   if(!c) return;
   document.getElementById('ignoreModal').dataset.complaintId = complaintId;
@@ -17555,6 +17672,11 @@ function toast(msg,ok=false){
       document.getElementById('complaintInboxBtn').style.display='';
       startComplaintBadgePoll();
     }
+    // Office viewers (Esme/Jackie/Kobie): read-only complaint console — survives refresh.
+    if(!userIsDavid() && COMPLAINT_VIEW_USERS.includes(currentUser.username)){
+      document.getElementById('complaintInboxBtn').style.display='';
+    }
+    if(userCanViewComplaints()) initComplaintRealtime();
     // Bulky Pickups nav button — David + Chris + admin role (survives refresh).
     if(currentUser.username==='david' || currentUser.username==='chris' || currentUser.role==='admin'){
       document.getElementById('bulkyTabBtn').style.display='';
