@@ -7858,7 +7858,7 @@ async function supResolve(id){
   toast('✓ Complaint resolved', true);
   logActivity('complaint_resolved', String(id));
   supBroadcast({kind:'resolved', id, by:me, name:(c.client_name||'')});   // pings David/admin
-  if(callbackOutstanding(c)){ callbackResolvedBroadcast({id, name:(c.client_name||''), by:me}); }   // complaint closed but call still owed
+  if(callbackOutstanding(c) && !isTestComplaint(c)){ callbackResolvedBroadcast({id, name:(c.client_name||''), by:me}); }   // complaint closed but call still owed
   _supPendingActions=[]; _supSelectedId=null;
   await loadSupervisorComplaints(); refreshSupervisorBadge(); refreshComplaintBadge();
 }
@@ -7990,7 +7990,7 @@ function renderInbox(){
   const durs  = resolvedWkList.filter(c=>c.logged_at).map(c=>(new Date(c.resolved_at)-new Date(c.logged_at)));
   const avgMs = durs.length ? durs.reduce((s,x)=>s+x,0)/durs.length : null;
   const ignoredCount = all.filter(c=>complaintBucketOf(c)==='ignored').length;
-  const callbackCount = all.filter(callbackOutstanding).length;   // calls we still owe (incl. resolved complaints)
+  const callbackCount = all.filter(c=>callbackOutstanding(c) && !isTestComplaint(c)).length;   // calls we still owe (excl. QA/test client)
 
   const sbEl = document.getElementById('ccStatBoxes');
   if(sbEl){
@@ -8037,7 +8037,7 @@ function renderConsoleCards(){
     if(bucket==='resolved' || bucket==='avgresolve') return c.status==='resolved' && c.resolved_at && c.resolved_at>=wr.startISO && c.resolved_at<wr.endISO;
     if(bucket==='all')     return true;
     if(bucket==='ignored') return complaintBucketOf(c)==='ignored';
-    if(bucket==='callback') return callbackOutstanding(c);   // calls still owed (incl. resolved complaints)
+    if(bucket==='callback') return callbackOutstanding(c) && !isTestComplaint(c);   // calls still owed (excl. QA/test client)
     return complaintBucketOf(c)===bucket;   // 'new' | 'open'
   });
   const q = _inboxSearch.trim().toLowerCase();
@@ -8953,7 +8953,7 @@ async function confirmResolveCase(){
   // If this complaint still owes a follow-up call, nudge everyone with console
   // access — the complaint's closed but the client still needs to be called.
   const _cbRow = _inboxComplaints.find(x=>x.id===complaintId) || _supComplaints.find(x=>x.id===complaintId);
-  if(callbackOutstanding(_cbRow)){ callbackResolvedBroadcast({id:complaintId, name:_cbRow.client_name||'', by}); }
+  if(callbackOutstanding(_cbRow) && !isTestComplaint(_cbRow)){ callbackResolvedBroadcast({id:complaintId, name:_cbRow.client_name||'', by}); }
   closeResolveModal();
   toast('Case resolved', true);
   logActivity('complaint_resolved', String(complaintId));
