@@ -7133,6 +7133,7 @@ function caseActionLabel(v){
   if(v==='escalated') return 'Sent back to David';
   if(v==='routed')    return 'Sent to supervisor';
   if(v==='recategorized') return 'Re-categorized';
+  if(v==='callback_made') return 'Follow-up call made';
   if(v==='spoke_to_client')  return 'Spoke to Client';
   if(v==='contacted_office') return 'Contacted Office';
   if(v==='on_site_visit')    return 'On-site Visit';
@@ -7577,6 +7578,22 @@ function complaintRoutedBroadcast(p){ try{ if(_complaintChannel) _complaintChann
 // Fired when a complaint that had a follow-up call attached is resolved — pings
 // everyone with console access so the callback isn't forgotten / re-done.
 function callbackResolvedBroadcast(p){ try{ if(_complaintChannel) _complaintChannel.send({type:'broadcast',event:'callback_resolved',payload:p}); }catch(_){} }
+// Mark the follow-up call as actually made. Separate from resolving the complaint
+// (the call is usually made AFTER the complaint is closed). Allowed for anyone
+// with console access — the office callers are view-only for everything else.
+async function markCallbackDone(id){
+  if(!userCanViewComplaints()){ toast('No access'); return; }
+  const me = currentUser ? (currentUser.display_name||currentUser.username) : '';
+  const now = new Date().toISOString();
+  const {error} = await db.from('complaints').update({callback_done:true, callback_done_at:now, callback_done_by:me}).eq('id',id);
+  if(error){ toast('Error: '+error.message); return; }
+  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'callback_made', notes:'Follow-up call made', performed_by:me}); }catch(_){}
+  const c = _inboxComplaints.find(x=>x.id===id); if(c){ c.callback_done=true; c.callback_done_at=now; c.callback_done_by=me; }
+  const cs = _supComplaints.find(x=>x.id===id); if(cs){ cs.callback_done=true; cs.callback_done_at=now; cs.callback_done_by=me; }
+  toast('☎ Call marked as made', true);
+  logActivity('callback_made', String(id));
+  renderInbox();
+}
 function requestComplaintNotifPermission(){ try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); }catch(_){} }
 // Realtime ping (Supabase broadcast — no DB/replication needed). Supervisors get
 // buzzed when a complaint is routed to them; David/admin when one is solved or
@@ -7598,8 +7615,8 @@ function initComplaintRealtime(){
 function handleCallbackResolved(p){
   if(!p || !userCanViewComplaints() || p.by===_supMe()) return;
   const name=p.name||'a client';
-  toast('☎ Callback complaint resolved: '+name+(p.by?(' — by '+p.by):''), true);
-  try{ if('Notification' in window && Notification.permission==='granted') new Notification('☎ Callback complaint resolved', {body:name+(p.by?(' — '+p.by):''), tag:'helm-cbres-'+(p.id||Date.now())}); }catch(_){}
+  toast('☎ Call still owed — complaint resolved for '+name+(p.by?(' by '+p.by):'')+'. Make the callback.', true);
+  try{ if('Notification' in window && Notification.permission==='granted') new Notification('☎ Follow-up call still owed', {body:name+' — complaint resolved'+(p.by?(' by '+p.by):'')+', client still needs a call', tag:'helm-cbres-'+(p.id||Date.now())}); }catch(_){}
   if(document.getElementById('complaintInbox').classList.contains('open')) loadInboxComplaints();
 }
 function handleComplaintRouted(p){
@@ -7841,7 +7858,7 @@ async function supResolve(id){
   toast('✓ Complaint resolved', true);
   logActivity('complaint_resolved', String(id));
   supBroadcast({kind:'resolved', id, by:me, name:(c.client_name||'')});   // pings David/admin
-  if(c.needs_callback){ callbackResolvedBroadcast({id, name:(c.client_name||''), by:me}); }   // pings everyone with console access
+  if(callbackOutstanding(c)){ callbackResolvedBroadcast({id, name:(c.client_name||''), by:me}); }   // complaint closed but call still owed
   _supPendingActions=[]; _supSelectedId=null;
   await loadSupervisorComplaints(); refreshSupervisorBadge(); refreshComplaintBadge();
 }
@@ -7957,17 +7974,23 @@ function ccFmtDuration(ms){
   return (h/24).toFixed(1)+'d';
 }
 
+// A callback is OUTSTANDING (we still owe the client a call) whenever it was
+// flagged and hasn't been marked made — INDEPENDENT of whether the complaint
+// itself is resolved. Resolving the complaint does NOT make the call.
+function callbackOutstanding(c){ return !!(c && c.needs_callback && !c.callback_done); }
+
 function renderInbox(){
   const all = _inboxComplaints;
   const wr = inboxWeekRange(inboxMondayOf());
 
-  // ── 4 stat boxes — each click filters the grid ──────────────────────────
+  // ── stat boxes — each click filters the grid ────────────────────────────
   const newCount  = all.filter(c=>complaintBucketOf(c)==='new').length;
   const openCount = all.filter(c=>complaintBucketOf(c)==='open').length;
   const resolvedWkList = all.filter(c=>c.status==='resolved' && c.resolved_at && c.resolved_at>=wr.startISO && c.resolved_at<wr.endISO);
   const durs  = resolvedWkList.filter(c=>c.logged_at).map(c=>(new Date(c.resolved_at)-new Date(c.logged_at)));
   const avgMs = durs.length ? durs.reduce((s,x)=>s+x,0)/durs.length : null;
   const ignoredCount = all.filter(c=>complaintBucketOf(c)==='ignored').length;
+  const callbackCount = all.filter(callbackOutstanding).length;   // calls we still owe (incl. resolved complaints)
 
   const sbEl = document.getElementById('ccStatBoxes');
   if(sbEl){
@@ -7978,17 +8001,16 @@ function renderInbox(){
     sbEl.innerHTML =
       box('new', newCount, 'New') +
       box('open', openCount, 'Open') +
+      box('callback', callbackCount, '☎ Needs Callback') +
       box('resolved', resolvedWkList.length, 'Resolved this week') +
       box('avgresolve', avgMs==null?'—':ccFmtDuration(avgMs), 'Avg. resolve this week');
   }
 
-  // ── Low-key secondary chips: All / Ignored (the 4 boxes stay the headline) ──
+  // ── Low-key secondary chips: All / Ignored (the boxes stay the headline) ──
   const chipsEl = document.getElementById('ccSubFilters');
   if(chipsEl){
     const chip=(key,label,n)=>`<button class="cc-chip ${_inboxFilter===key?'active':''}" onclick="setInboxFilter('${key}')">${esc(label)}<span class="cc-chip-n">${n}</span></button>`;
-    // ☎ Callbacks chip counts OUTSTANDING follow-up calls (unresolved/unignored) — the worklist.
-    const callbackOutstanding = all.filter(c=>c.needs_callback && complaintBucketOf(c)!=='resolved' && complaintBucketOf(c)!=='ignored').length;
-    chipsEl.innerHTML = chip('all','All',all.length) + chip('callback','☎ Callbacks',callbackOutstanding) + chip('ignored','Ignored',ignoredCount);
+    chipsEl.innerHTML = chip('all','All',all.length) + chip('ignored','Ignored',ignoredCount);
   }
 
   // ── View toggle: triage cards / case detail / reports ──────────────────────
@@ -8015,7 +8037,7 @@ function renderConsoleCards(){
     if(bucket==='resolved' || bucket==='avgresolve') return c.status==='resolved' && c.resolved_at && c.resolved_at>=wr.startISO && c.resolved_at<wr.endISO;
     if(bucket==='all')     return true;
     if(bucket==='ignored') return complaintBucketOf(c)==='ignored';
-    if(bucket==='callback') return !!c.needs_callback;   // every callback-flagged complaint
+    if(bucket==='callback') return callbackOutstanding(c);   // calls still owed (incl. resolved complaints)
     return complaintBucketOf(c)===bucket;   // 'new' | 'open'
   });
   const q = _inboxSearch.trim().toLowerCase();
@@ -8023,17 +8045,14 @@ function renderConsoleCards(){
   if(bucket==='avgresolve')      rows.sort((a,b)=>((new Date(b.resolved_at)-new Date(b.logged_at))-(new Date(a.resolved_at)-new Date(a.logged_at))));   // slowest resolve first
   else if(bucket==='resolved')   rows.sort((a,b)=>new Date(b.resolved_at)-new Date(a.resolved_at));
   else if(bucket==='ignored')    rows.sort((a,b)=>new Date(b.ignored_at||b.logged_at)-new Date(a.ignored_at||a.logged_at));
-  else if(bucket==='callback')   rows.sort((a,b)=>{   // outstanding callbacks first, newest logged first within each
-    const done=c=>(complaintBucketOf(c)==='resolved'||complaintBucketOf(c)==='ignored')?1:0;
-    return done(a)-done(b) || (new Date(b.logged_at)-new Date(a.logged_at));
-  });
+  else if(bucket==='callback')   rows.sort((a,b)=>new Date(a.logged_at)-new Date(b.logged_at));   // oldest owed call first (most overdue)
   else                           rows.sort((a,b)=>new Date(a.logged_at)-new Date(b.logged_at));   // new/open/all → oldest first (most urgent surfaces)
   if(!rows.length){
     const msg = bucket==='new' ? 'Nothing new to triage — you’re all caught up.'
       : bucket==='open' ? 'No open cases right now.'
       : (bucket==='resolved'||bucket==='avgresolve') ? 'Nothing resolved yet this week.'
       : bucket==='ignored' ? 'No ignored complaints.'
-      : bucket==='callback' ? 'No follow-up calls flagged.'
+      : bucket==='callback' ? 'No outstanding follow-up calls — every owed call has been made.'
       : 'No complaints to show.';
     grid.innerHTML = `<div class="cc-empty">${esc(msg)}</div>`;
     return;
@@ -8064,10 +8083,10 @@ function ccCardHTML(c, bucket){
   const routed = c.routed_to_supervisor;
   const ribbon = routed ? `<div class="cc-routed-ribbon">👤 ${c.assigned_to?esc(c.assigned_to):'Supervisor pool'}</div>` : '';
   const subBits = `#${esc(c.client_id)}${(c.client_route!=null&&c.client_route!=='')?(' · R'+esc(c.client_route)):''}${c.driver_name?(' · '+esc(c.driver_name)):''}`;
-  // ☎ callback flag — solid when still outstanding, muted ✓ once the case is closed.
-  const cbDone = complaintBucketOf(c)==='resolved' || complaintBucketOf(c)==='ignored';
+  // ☎ callback flag — blue while the call is still owed, green ✓ once it's been
+  // marked made. Independent of whether the complaint itself is resolved.
   const cbChip = c.needs_callback
-    ? `<span title="Follow-up call requested" style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:8px;${cbDone?'background:#dcfce7;color:#166534;':'background:#dbeafe;color:#1e40af;'}">☎ CALLBACK${cbDone?' ✓':''}</span>`
+    ? `<span title="${c.callback_done?'Follow-up call made':'Follow-up call still owed'}" style="font-size:9px;font-weight:800;padding:1px 7px;border-radius:8px;${c.callback_done?'background:#dcfce7;color:#166534;':'background:#dbeafe;color:#1e40af;'}">☎ CALLBACK${c.callback_done?' ✓':''}</span>`
     : '';
   return `<div class="cc-card${routed?' routed':''}" style="border-left-color:${leftBorder};background:${bg};" onclick="selectInboxRow(${c.id})">
     <div class="cc-card-top">${typeChip}${cbChip}${prioChip}<span style="margin-left:auto;">${agePill}</span></div>
@@ -8713,10 +8732,16 @@ async function renderInboxDetail(c){
       </div>` : ''}`;
   }
 
-  // ☎ Follow-up-call banner — shown whenever a callback was requested.
+  // ☎ Follow-up-call banner — the call is its own task, tracked separately from
+  // whether the complaint is resolved. Anyone with console access (incl. the
+  // office callers) can mark the call made.
+  const cbMadeAt = c.callback_done_at ? new Date(c.callback_done_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
   const callbackBanner = c.needs_callback ? `
-    <div style="margin:10px 0;padding:11px 13px;background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;">
-      <div style="font-weight:800;color:#1e40af;font-size:13px;">☎ Follow-up call requested${(c.status==='resolved')?' · <span style="color:#166534;">completed</span>':(c.status==='ignored')?' · <span style="color:var(--gray-500);">closed</span>':' · <span style="color:#b45309;">outstanding</span>'}</div>
+    <div style="margin:10px 0;padding:11px 13px;background:${c.callback_done?'#f0fdf4':'#eff6ff'};border:1px solid ${c.callback_done?'#86efac':'#93c5fd'};border-radius:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="font-weight:800;color:${c.callback_done?'#166534':'#1e40af'};font-size:13px;">☎ Follow-up call ${c.callback_done?('made · <span style="font-weight:600;">'+esc(c.callback_done_by||'—')+(cbMadeAt?(' on '+esc(cbMadeAt)):'')+'</span>'):'<span style="color:#b45309;">still owed'+((c.status==='resolved'||c.status==='ignored')?' (complaint closed)':'')+'</span>'}</div>
+        ${(!c.callback_done && userCanViewComplaints()) ? `<button class="btn-edit-sm" onclick="markCallbackDone(${c.id})" style="background:#166534;color:#fff;border-color:#166534;white-space:nowrap;">✓ Mark call made</button>` : ''}
+      </div>
       ${c.callback_phone
         ? `<div style="font-size:13px;margin-top:5px;">Call back at <b>${esc(c.callback_phone)}</b> <span style="color:var(--gray-500);font-size:11px;">(number the client gave)</span></div>`
         : `<div style="font-size:12px;margin-top:5px;color:var(--gray-600);">Use the number on file${c.client_phone?(' — <b>'+esc(c.client_phone)+'</b>'):''}</div>`}
@@ -8925,9 +8950,10 @@ async function confirmResolveCase(){
   await db.from('complaint_actions').insert({
     complaint_id: complaintId, action_type:'resolved', notes:notes, performed_by:by,
   });
-  // If this complaint had a follow-up call attached, ping everyone with console access.
+  // If this complaint still owes a follow-up call, nudge everyone with console
+  // access — the complaint's closed but the client still needs to be called.
   const _cbRow = _inboxComplaints.find(x=>x.id===complaintId) || _supComplaints.find(x=>x.id===complaintId);
-  if(_cbRow && _cbRow.needs_callback){ callbackResolvedBroadcast({id:complaintId, name:_cbRow.client_name||'', by}); }
+  if(callbackOutstanding(_cbRow)){ callbackResolvedBroadcast({id:complaintId, name:_cbRow.client_name||'', by}); }
   closeResolveModal();
   toast('Case resolved', true);
   logActivity('complaint_resolved', String(complaintId));
