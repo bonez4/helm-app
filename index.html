@@ -197,6 +197,32 @@ body.theme-esme .btn-logout:hover{background:rgba(255,255,255,0.25);color:#fff;}
 body.theme-esme .live-label{color:rgba(255,255,255,0.75);}
 body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,0.35);}
 
+/* ── kobie Clemson Tigers theme: topbar takeover ───────────────
+   Clemson Orange #f66733 + Regalia Purple #522d80. */
+body.theme-kobie .topbar{
+  background:linear-gradient(90deg,#522d80 0%,#f66733 100%);
+  border-bottom:1px solid rgba(255,255,255,0.14);
+}
+body.theme-kobie .topbar-icon{background:rgba(255,255,255,0.18);}
+body.theme-kobie .topbar-name{color:#fff;letter-spacing:0;}
+body.theme-kobie .topbar-company{color:rgba(255,255,255,0.75);}
+body.theme-kobie .topbar-center{color:#fff;text-shadow:0 1px 3px rgba(82,45,128,0.55);}
+body.theme-kobie .btn-topbar-tool{
+  background:rgba(255,255,255,0.14);
+  border-color:rgba(255,255,255,0.28);
+  color:rgba(255,255,255,0.88);
+}
+body.theme-kobie .btn-topbar-tool:hover{background:rgba(255,255,255,0.26);color:#fff;}
+body.theme-kobie .btn-topbar-tool.tool-open{background:#fff;color:#f66733;border-color:#fff;}
+body.theme-kobie .btn-logout{
+  background:rgba(255,255,255,0.12);
+  border-color:rgba(255,255,255,0.26);
+  color:rgba(255,255,255,0.85);
+}
+body.theme-kobie .btn-logout:hover{background:rgba(255,255,255,0.25);color:#fff;}
+body.theme-kobie .live-label{color:rgba(255,255,255,0.8);}
+body.theme-kobie .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,0.35);}
+
 /* ── CONTACTS PANEL ──────────────────────────────── */
 .contacts-panel{
   position:fixed;top:80px;left:50%;transform:translateX(-50%);
@@ -1001,6 +1027,7 @@ body.theme-esme .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255,
   border:1.5px solid var(--navy);font-family:'DM Sans',sans-serif;
 }
 body.theme-esme .topbar-inbox-badge{border-color:#d81b60;}
+body.theme-kobie .topbar-inbox-badge{border-color:#f66733;}
 
 /* Supervisor queue — big obvious CTA pill for supervisors (David/admin keep the small icon) */
 .topbar-inbox .sup-cta-label{display:none;}
@@ -4246,21 +4273,31 @@ function logout() {
 // Per-user accent theming. Currently: esme gets pink; jackie gets a Jamaica topbar message.
 function applyUserTheme(user){
   const root = document.documentElement;
-  if(user && user.username === 'esme'){
+  const un = user ? user.username : '';
+  // Reset any previous per-user theme first, then apply the matching one.
+  document.body.classList.remove('theme-esme','theme-kobie');
+  root.style.removeProperty('--teal');
+  root.style.removeProperty('--teal-dim');
+  root.style.removeProperty('--teal-pale');
+  if(un === 'esme'){
     root.style.setProperty('--teal',      '#ec407a');
     root.style.setProperty('--teal-dim',  '#d81b60');
     root.style.setProperty('--teal-pale', '#fde4ed');
     document.body.classList.add('theme-esme');
-  } else {
-    root.style.removeProperty('--teal');
-    root.style.removeProperty('--teal-dim');
-    root.style.removeProperty('--teal-pale');
-    document.body.classList.remove('theme-esme');
+  } else if(un === 'kobie'){
+    // Clemson Tigers — Clemson Orange accent, Regalia Purple in the topbar gradient.
+    root.style.setProperty('--teal',      '#f66733');
+    root.style.setProperty('--teal-dim',  '#d9501c');
+    root.style.setProperty('--teal-pale', '#fdeae1');
+    document.body.classList.add('theme-kobie');
   }
   const center = document.getElementById('topbarCenter');
   if(center){
-    if(user && user.username === 'jackie'){
+    if(un === 'jackie'){
       center.innerHTML = '<span class="palm">\u{1F334}</span> wishing I was in Jamaica <span class="palm">\u{1F334}</span>';
+      center.style.display = 'flex';
+    } else if(un === 'kobie'){
+      center.innerHTML = '<span class="palm">\u{1F43E}</span> Go Tigers! <span class="palm">\u{1F405}</span>';
       center.style.display = 'flex';
     } else {
       center.innerHTML = '';

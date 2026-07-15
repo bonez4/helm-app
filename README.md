@@ -76,9 +76,10 @@ No build step. No npm. No framework. One file.
 
 **Layout:** Every signed-in user gets the **vertical left-side nav** layout (`body.layout-side`) — the topbar is `position:fixed` at the top, nav rail is `position:fixed` on the left, content fills the rest of the viewport. Login screen unaffected. (Was originally David-only, rolled out to everyone after the topbar inline-style bug was traced and fixed.)
 
-Per-user themes live in `applyUserTheme()`:
+Per-user themes live in `applyUserTheme()` (the function resets `theme-*` body classes + the `--teal*` vars first, then applies the match — add new ones there + a `body.theme-<user>` CSS block):
 - **esme** — pink accents + full pink gradient topbar
 - **jackie** — 🌴 "wishing I was in Jamaica" 🌴 in Pacifico italic across the topbar
+- **kobie** — Clemson Tigers: Regalia Purple → Clemson Orange gradient topbar, orange accents (`--teal` = `#f66733`), and 🐾 "Go Tigers!" 🐅 across the topbar
 
 ---
 
