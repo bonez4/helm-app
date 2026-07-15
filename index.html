@@ -3603,6 +3603,20 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
   </div>
 </div>
 
+<!-- ── SUPERVISOR: callback-aware confirm for Resolve / Send-back ──────
+     Sits ABOVE the supervisor queue (z-index) so it reads as a popup on top
+     of the solve screen. Body/footer are rendered by openSupCallbackModal(). -->
+<div class="helm-modal-backdrop" id="supCbModal" style="z-index:9600;" onclick="if(event.target===this)closeSupCallbackModal()">
+  <div class="helm-modal-sheet" onclick="event.stopPropagation()">
+    <div class="helm-modal-header" style="background:#1e40af;">
+      <h3 id="supCbTitle">Follow-up call</h3>
+      <button class="close-x" onclick="closeSupCallbackModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body" id="supCbBody" style="max-height:70vh;overflow:auto;"></div>
+    <div class="helm-modal-footer" id="supCbFooter"></div>
+  </div>
+</div>
+
 <!-- ── MANAGE COMPLAINT / NOTE TYPES (David + admin) ───────────────── -->
 <div class="helm-modal-backdrop" id="manageTypesModal" onclick="if(event.target===this)closeManageTypes()">
   <div class="helm-modal-sheet" onclick="event.stopPropagation()">
@@ -7756,6 +7770,7 @@ function supCardHtml(c){
     <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap;">
       <span class="action-tag at-complaint" style="font-size:10px;">${esc(complaintTypeLabel(c.type))}</span>
       <span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;${priorityChipStyle(prio)}">${prio.toUpperCase()}</span>
+      ${c.needs_callback?`<span title="${c.callback_done?'Follow-up call made':'Client asked for a call back — not made yet'}" style="font-size:10px;font-weight:800;padding:1px 7px;border-radius:8px;${c.callback_done?'background:#dcfce7;color:#166534;':'background:#dbeafe;color:#1e40af;'}">☎ CALLBACK${c.callback_done?' ✓':''}</span>`:''}
       ${!resolved?`<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:9px;${overdue?'background:#fee2e2;color:#991b1b;':'background:var(--gray-100);color:var(--gray-600);'}">${age}d</span>`:'<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:9px;background:#dcfce7;color:#166534;">resolved</span>'}
       ${(c.assigned_to&&_supView!=='mine')?`<span style="font-size:10px;color:var(--gray-500);">→ ${esc(c.assigned_to)}</span>`:''}
     </div>
@@ -7806,6 +7821,11 @@ async function renderSupervisorDetail(){
       ${c.driver_name?`<div><b>Driver:</b> <span style="color:#991b1b;font-weight:700;">${esc(c.driver_name)}</span></div>`:''}
     </div>
     <div style="background:#fef9e7;border-left:4px solid #f59e0b;border-radius:7px;padding:11px 13px;margin-bottom:16px;font-size:13.5px;line-height:1.55;"><b>Complaint:</b> ${esc(c.notes||'—')}</div>
+    ${c.needs_callback?`<div style="background:${c.callback_done?'#f0fdf4':'#eff6ff'};border-left:4px solid ${c.callback_done?'#16a34a':'#2563eb'};border-radius:7px;padding:11px 13px;margin-bottom:16px;font-size:13.5px;line-height:1.6;">
+      <b style="color:${c.callback_done?'#166534':'#1e40af'};">☎ Follow-up call ${c.callback_done?('made · '+esc(c.callback_done_by||'—')):'requested — NOT made yet'}</b>
+      ${!c.callback_done?`<div style="margin-top:4px;">Call back at ${supCbNumberHtml(c)}</div>`:''}
+      ${c.callback_note?`<div style="margin-top:4px;color:var(--gray-700);"><b>Callback note:</b> ${esc(c.callback_note)}</div>`:''}
+    </div>`:''}
     ${resolved ? `
       <div style="background:#dcfce7;border:1px solid #16a34a;border-radius:9px;padding:13px;font-size:13px;color:#14532d;"><b style="color:#166534;">✓ Resolved</b> by ${esc(c.resolved_by||'—')}${c.resolution_notes?`<div style="margin-top:5px;">${esc(c.resolution_notes)}</div>`:''}</div>
       <button class="btn-edit-sm" onclick="supReopen(${c.id})" style="margin-top:12px;">↩ Reopen</button>
@@ -7878,10 +7898,55 @@ async function supCommitPending(id){
   const dnAct=_supPendingActions.find(a=>a.value==='spoke_to_driver'&&a.driverName);
   if(dnAct && c && !c.driver_name){ try{ await db.from('complaints').update({driver_name:dnAct.driverName}).eq('id',id); c.driver_name=dnAct.driverName; }catch(_){} }
 }
+// The number to call back on: the one the client gave, else the number on file.
+function supCbNumberHtml(c){
+  const num = c.callback_phone || c.client_phone || '';
+  if(!num) return '<span style="color:var(--gray-500);">no number on file — check the account</span>';
+  const src = c.callback_phone ? 'the number the client gave' : 'the number on file';
+  return `<a href="tel:${esc(num)}" style="color:#1d4ed8;font-weight:800;">${esc(num)}</a> <span style="color:var(--gray-500);font-size:11.5px;">(${src})</span>`;
+}
+let _supCbId=null, _supCbMode=null;
+function closeSupCallbackModal(){ document.getElementById('supCbModal').classList.remove('open'); _supCbId=null; _supCbMode=null; }
+// Popup shown when a supervisor resolves / sends back a case. Surfaces the
+// callback number + the original complaint + the rep's callback note so nothing
+// is lost in the handoff. mode: 'resolve' | 'escalate'.
+function openSupCallbackModal(id, mode){
+  const c=_supComplaints.find(x=>x.id===id); if(!c) return;
+  _supCbId=id; _supCbMode=mode;
+  const owed = callbackOutstanding(c);
+  document.getElementById('supCbTitle').textContent = mode==='escalate' ? '↩ Send back to David' : '☎ Follow-up call still owed';
+  document.getElementById('supCbBody').innerHTML = `
+    ${owed?`<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:9px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-weight:800;color:#1e40af;font-size:13.5px;">☎ This client asked for a follow-up call — it has NOT been made yet.</div>
+      <div style="font-size:14px;margin-top:6px;">Call back at ${supCbNumberHtml(c)}</div>
+      ${c.callback_note?`<div style="font-size:13px;margin-top:6px;color:var(--gray-800);"><b>Callback note (from ${esc(c.logged_by||'the rep')}):</b> ${esc(c.callback_note)}</div>`:''}
+    </div>`:''}
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);font-weight:700;margin-bottom:5px;">Original complaint</div>
+    <div style="background:#fef9e7;border-left:4px solid #f59e0b;border-radius:7px;padding:10px 12px;font-size:13.5px;line-height:1.55;margin-bottom:14px;">${esc(c.notes||'—')}</div>
+    <div style="font-size:12px;color:var(--gray-500);margin-bottom:${mode==='escalate'?'12px':'0'};">${esc(c.client_name||('Account '+c.client_id))} · #${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}</div>
+    ${mode==='escalate'?`<div><label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);font-weight:700;margin-bottom:5px;">Why are you sending it back? (optional)</label>
+      <textarea id="supCbReason" placeholder="What does David need to know?" style="width:100%;min-height:70px;border:1px solid var(--gray-200);border-radius:9px;padding:10px;font-size:13px;font-family:inherit;box-sizing:border-box;"></textarea></div>`:''}
+    ${(owed && mode==='resolve')?`<div style="font-size:12px;color:var(--gray-600);">Resolving the complaint does not make the call — it stays on the <b>☎ Needs Callback</b> list until someone marks it made.</div>`:''}`;
+  document.getElementById('supCbFooter').innerHTML = mode==='escalate'
+    ? `<button class="btn-edit-sm" onclick="closeSupCallbackModal()">Cancel</button>
+       <button class="btn-edit-sm" onclick="supEscalateConfirm(${id})" style="background:var(--navy);color:#fff;border-color:var(--navy);padding:7px 18px;">↩ Send back to David</button>`
+    : `<button class="btn-edit-sm" onclick="closeSupCallbackModal()">Cancel</button>
+       <button class="btn-edit-sm" onclick="supResolveConfirm(${id})" style="background:#16a34a;color:#fff;border-color:#16a34a;padding:7px 18px;">✓ Resolve anyway</button>`;
+  document.getElementById('supCbModal').classList.add('open');
+}
+
+// Resolve — if a call is still owed, confirm through the popup first.
 async function supResolve(id){
-  const me=_supMe(); const c=_supComplaints.find(x=>x.id===id); if(!c) return;
+  const c=_supComplaints.find(x=>x.id===id); if(!c) return;
   const noteEl=document.getElementById('supNote'); const note=noteEl?noteEl.value.trim():'';
   if(!_supPendingActions.length && !note){ toast('Tap what you did, or add a note, before resolving'); return; }
+  if(callbackOutstanding(c)){ openSupCallbackModal(id,'resolve'); return; }
+  await supResolveConfirm(id);
+}
+async function supResolveConfirm(id){
+  closeSupCallbackModal();
+  const me=_supMe(); const c=_supComplaints.find(x=>x.id===id); if(!c) return;
+  const noteEl=document.getElementById('supNote'); const note=noteEl?noteEl.value.trim():'';
   const now=new Date().toISOString();
   const summary=_supPendingActions.map(a=>caseActionLabel(a.value)).join(' · ');
   await supCommitPending(id);                 // write the staged actions to the log first
@@ -7899,18 +7964,24 @@ async function supResolve(id){
   _supPendingActions=[]; _supSelectedId=null;
   await loadSupervisorComplaints(); refreshSupervisorBadge(); refreshComplaintBadge();
 }
-async function supEscalate(id){
+// Send back to David — always goes through the modal (replaces the old
+// prompt()), so the callback number + notes are on screen during the handoff.
+function supEscalate(id){ openSupCallbackModal(id,'escalate'); }
+async function supEscalateConfirm(id){
   const me=_supMe(); const c=_supComplaints.find(x=>x.id===id);
-  const reason=prompt('Send back to David — add a reason (optional):');
-  if(reason===null) return;
+  const reasonEl=document.getElementById('supCbReason');
+  const reason=reasonEl?reasonEl.value.trim():'';
+  closeSupCallbackModal();
   const noteEl=document.getElementById('supNote'); const note=noteEl?noteEl.value.trim():'';
   await supCommitPending(id);                 // don't lose staged actions on escalate
   const now=new Date().toISOString(); const patch={routed_to_supervisor:false, assigned_to:null};
   if(c && c.status==='new'){ patch.status='case_open'; patch.case_opened_at=now; patch.case_opened_by=me; }
   const {error}=await db.from('complaints').update(patch).eq('id',id);
   if(error){ toast('Error: '+error.message); return; }
-  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'escalated', notes:'Sent back to David'+(reason?': '+reason:'')+(note?(' — '+note):''), performed_by:me}); }catch(_){}
-  toast('Sent back to David', true);
+  // Carry the outstanding-callback fact into the handoff so David sees it in the log too.
+  const cbTail = callbackOutstanding(c) ? (' — ☎ follow-up call still owed'+((c.callback_phone||c.client_phone)?(' at '+(c.callback_phone||c.client_phone)):'')) : '';
+  try{ await db.from('complaint_actions').insert({complaint_id:id, action_type:'escalated', notes:'Sent back to David'+(reason?': '+reason:'')+(note?(' — '+note):'')+cbTail, performed_by:me}); }catch(_){}
+  toast(callbackOutstanding(c)?'Sent back to David — call still owed':'Sent back to David', true);
   logActivity('complaint_escalated', String(id));
   _supPendingActions=[]; _supSelectedId=null; await loadSupervisorComplaints(); refreshSupervisorBadge();
   supBroadcast({kind:'escalated', id, by:me, name:(c&&c.client_name)||''});
