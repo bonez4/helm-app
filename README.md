@@ -541,6 +541,7 @@ A dedicated workflow for tracking and resolving customer complaints. Complaints 
 - Notes textarea is **hidden until a type is chosen** (prevents rep from typing without classifying first)
 - **☎ Client needs a follow-up call** checkbox — flags that the client (or a caller on a number we don't have) requested a call back. Reveals an optional **callback number** (for when they're calling from a number not on file) and a **callback note** (what it's about). Works for both customer and general complaints. See **Follow-up calls** below.
 - On Submit: row inserted into `complaints` with `status='new'`; David's inbox badge increments
+- **Rep self-edit:** on a client's profile, the person who logged a complaint sees an **Edit** button on their own complaint row — but only while it's still `status='new'` (`complaintEditableByRep` = `logged_by`-matches-me AND untriaged). It reopens the same modal in edit mode (type / notes / driver / callback), does an UPDATE (not a new row), recomputes supervisor auto-routing if the type changed, and writes an `edited` action to the audit log. Once David opens/resolves/ignores it or a supervisor claims it, the Edit button disappears.
 
 **The Complaint Console — full page (David + Chris = full; Esme/Jackie/Kobie = view-only), rebuilt 2026-07:**
 The topbar complaint icon opens a **full-page Console** (no longer a modal). A red badge shows the count of `new` **& not-routed** complaints (polls every 60s + on tab focus). Four views, switched from buttons in the Console header:

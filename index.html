@@ -3527,7 +3527,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
     </div>
     <div class="helm-modal-footer">
       <button class="btn-edit-sm" onclick="closeComplaintModal()">Cancel</button>
-      <button class="btn-complaint" onclick="submitComplaint()" style="padding:7px 18px;">Submit Complaint</button>
+      <button id="cmpSubmitBtn" class="btn-complaint" onclick="submitComplaint()" style="padding:7px 18px;">Submit Complaint</button>
     </div>
   </div>
 </div>
@@ -5089,6 +5089,8 @@ function renderComplaintHistoryRow(c){
       <span class="action-tag at-complaint">COMPLAINT — ${esc(typeUpper)}</span>
       <span class="status-pill-sm status-${c.status}">${esc(statusLabel)}</span>
       ${driverChip}
+      ${c.needs_callback?`<span class="status-pill-sm" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;">☎ Callback</span>`:''}
+      ${complaintEditableByRep(c)?`<button onclick="openEditComplaintModal(${c.id})" title="Edit your complaint (only while it's new)" style="margin-left:auto;background:none;border:1px solid var(--gray-300);color:var(--gray-600);font-size:11px;font-weight:600;padding:2px 9px;border-radius:6px;cursor:pointer;font-family:inherit;">Edit</button>`:''}
     </div>
     ${c.notes?`<div class="note-row-body">${esc(c.notes)}</div>`:''}
     ${outcome}
@@ -7189,6 +7191,7 @@ function caseActionLabel(v){
   if(v==='routed')    return 'Sent to supervisor';
   if(v==='recategorized') return 'Re-categorized';
   if(v==='callback_made') return 'Follow-up call made';
+  if(v==='edited') return 'Edited by rep';
   if(v==='spoke_to_client')  return 'Spoke to Client';
   if(v==='contacted_office') return 'Contacted Office';
   if(v==='on_site_visit')    return 'On-site Visit';
@@ -7315,6 +7318,59 @@ function onCallbackToggle(){
   if(on) setTimeout(()=>{ const t=document.getElementById('cmpCallbackPhone'); if(t) t.focus(); },40);
 }
 
+// ── REP SELF-EDIT of a complaint they logged ──────────────────────────
+// The display name/username a complaint's logged_by is stored under (must
+// match how submitComplaint sets it).
+function myComplaintName(){ return currentUser ? (currentUser.display_name || currentUser.username) : ''; }
+function isMyComplaint(c){ return !!(c && c.logged_by && c.logged_by === myComplaintName()); }
+// A rep may edit ONLY their own complaint and ONLY while it's still 'new'
+// (untriaged). Once David opens/resolves/ignores it or a supervisor claims it
+// (status leaves 'new'), it locks so an edit can't rewrite an active case.
+function complaintEditableByRep(c){ return isMyComplaint(c) && c && c.status==='new'; }
+
+// Re-open the Log Complaint modal in EDIT mode, prefilled from the complaint.
+async function openEditComplaintModal(id){
+  const c = (clientNotes||[]).find(x=>x._kind==='complaint' && x.id===id);
+  if(!c){ toast('Complaint not found'); return; }
+  if(!complaintEditableByRep(c)){ toast('You can only edit your own complaint before it’s been worked'); return; }
+  await ensureTaxonomies();
+  const modal = document.getElementById('complaintModal');
+  const sel = document.getElementById('cmpTypeSelect');
+  if(sel){
+    sel.innerHTML = '<option value="">— Choose —</option>' + COMPLAINT_TYPES.map(t=>`<option value="${esc(t.value)}">${esc(t.label)}</option>`).join('');
+    // Keep the stored type selectable even if it's a hidden/custom taxonomy value.
+    if(c.type && !Array.from(sel.options).some(o=>o.value===c.type)){
+      const o=document.createElement('option'); o.value=c.type; o.textContent=complaintTypeLabel(c.type); sel.appendChild(o);
+    }
+  }
+  modal.dataset.general = '';
+  modal.dataset.editingId = String(id);
+  modal.dataset.clientId = c.client_id;
+  document.getElementById('cmpModalTitle').textContent = 'Edit Complaint';
+  document.getElementById('cmpSnapshot').style.display = '';
+  document.getElementById('cmpGeneralFields').style.display = 'none';
+  // Snapshot from the complaint's frozen-at-log-time fields.
+  document.getElementById('cmpName').textContent  = c.client_name || ('Account '+c.client_id);
+  document.getElementById('cmpAcct').textContent  = c.client_id;
+  document.getElementById('cmpAddr').textContent  = c.client_address || '—';
+  document.getElementById('cmpPhone').textContent = c.client_phone || 'No phone on file';
+  document.getElementById('cmpEmail').textContent = c.client_email || 'No email on file';
+  document.getElementById('cmpRoute').textContent = (c.client_route!=null && c.client_route!=='') ? ('Route '+c.client_route) : 'No route';
+  document.getElementById('cmpDays').textContent  = c.client_days || 'No pickup days set';
+  // Prefill the editable fields.
+  if(sel) sel.value = c.type || '';
+  document.getElementById('cmpNotes').value = c.notes || '';
+  onComplaintTypeChange();                          // reveals notes + (if needed) the driver field
+  document.getElementById('cmpDriver').value = c.driver_name || '';   // set AFTER (onChange can clear it)
+  document.getElementById('cmpNeedsCallback').checked = !!c.needs_callback;
+  document.getElementById('cmpCallbackPhone').value = c.callback_phone || '';
+  document.getElementById('cmpCallbackNote').value  = c.callback_note || '';
+  onCallbackToggle();
+  const btn = document.getElementById('cmpSubmitBtn'); if(btn) btn.textContent = 'Save Changes';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
 // General / non-customer complaint: same type + notes flow, no client attached.
 async function openGeneralComplaintModal(){
   await ensureTaxonomies();
@@ -7323,6 +7379,8 @@ async function openGeneralComplaintModal(){
   const modal = document.getElementById('complaintModal');
   modal.dataset.general = '1';
   modal.dataset.clientId = '';
+  modal.dataset.editingId = '';
+  const _sb0=document.getElementById('cmpSubmitBtn'); if(_sb0) _sb0.textContent='Submit Complaint';
   document.getElementById('cmpModalTitle').textContent = 'General Complaint';
   document.getElementById('cmpSnapshot').style.display = 'none';
   document.getElementById('cmpGeneralFields').style.display = 'block';
@@ -7346,8 +7404,10 @@ async function openComplaintModal(clientId){
   const cmpSel0 = document.getElementById('cmpTypeSelect');
   if(cmpSel0) cmpSel0.innerHTML = '<option value="">— Choose —</option>' + COMPLAINT_TYPES.map(t=>`<option value="${esc(t.value)}">${esc(t.label)}</option>`).join('');
   const days = c.service_day ? c.service_day.split(',').map(d=>d.trim()).filter(Boolean) : [];
-  // Reset general mode → this is a customer-tied complaint.
+  // Reset general + edit mode → this is a fresh customer-tied complaint.
   document.getElementById('complaintModal').dataset.general = '';
+  document.getElementById('complaintModal').dataset.editingId = '';
+  const _sb1=document.getElementById('cmpSubmitBtn'); if(_sb1) _sb1.textContent='Submit Complaint';
   document.getElementById('cmpModalTitle').textContent = 'Log Complaint';
   document.getElementById('cmpSnapshot').style.display = '';
   document.getElementById('cmpGeneralFields').style.display = 'none';
@@ -7372,6 +7432,8 @@ function closeComplaintModal(){
   const modal = document.getElementById('complaintModal');
   modal.classList.remove('open');
   modal.dataset.general = '';
+  modal.dataset.editingId = '';
+  const sb=document.getElementById('cmpSubmitBtn'); if(sb) sb.textContent='Submit Complaint';
   resetCallbackFields();
   document.body.style.overflow = '';
 }
@@ -7420,6 +7482,39 @@ async function submitComplaint(){
     if(!driverName){ toast('Enter the driver\'s name'); return; }
   }
   const loggedBy = currentUser ? (currentUser.display_name || currentUser.username) : '';
+  const needsCb = document.getElementById('cmpNeedsCallback').checked;
+  const cbPhone = needsCb ? ((document.getElementById('cmpCallbackPhone').value||'').trim()||null) : null;
+  const cbNote  = needsCb ? ((document.getElementById('cmpCallbackNote').value ||'').trim()||null) : null;
+
+  // ── EDIT mode: rep is fixing their own untriaged complaint (UPDATE, not INSERT) ──
+  const editingId = modal.dataset.editingId ? Number(modal.dataset.editingId) : null;
+  if(editingId){
+    const orig = (clientNotes||[]).find(x=>x._kind==='complaint' && x.id===editingId);
+    if(!orig || !complaintEditableByRep(orig)){ toast('This complaint can no longer be edited'); closeComplaintModal(); return; }
+    const routed = SUP_AUTOROUTE_TYPES.includes(type);
+    const patch = { type, driver_name:driverName, notes,
+      needs_callback:needsCb, callback_phone:cbPhone, callback_note:cbNote,
+      routed_to_supervisor:routed };
+    let upd = await db.from('complaints').update(patch).eq('id', editingId);
+    if(upd.error && /callback|column|schema|does not exist/i.test(upd.error.message||'')){
+      const { needs_callback, callback_phone, callback_note, ...noCb } = patch;   // pre-migration fallback
+      upd = await db.from('complaints').update(noCb).eq('id', editingId);
+      if(!upd.error) toast('Saved, but callback fields need the DB migration to be stored', true);
+    }
+    if(upd.error){ toast('Error: '+upd.error.message); return; }
+    try{ await db.from('complaint_actions').insert({complaint_id:editingId, action_type:'edited', notes:'Edited by '+loggedBy, performed_by:loggedBy}); }catch(_){}
+    closeComplaintModal();
+    toast('Complaint updated', true);
+    logActivity('complaint_edited', `${orig.client_id} ${type}`);
+    refreshComplaintBadge();
+    // If a type change newly routed it to the supervisor pool, ping them.
+    if(routed && !orig.routed_to_supervisor){ complaintRoutedBroadcast({id:editingId, assignee:null, name:orig.client_name||'', address:orig.client_address||''}); refreshSupervisorBadge(); }
+    if(activeClient && activeClient.client_id === orig.client_id){
+      const refreshed = await loadNotes(orig.client_id);
+      renderNotesTable(refreshed);
+    }
+    return;
+  }
 
   // Build the row — customer-tied vs. general/non-customer.
   let row;
@@ -7453,12 +7548,8 @@ async function submitComplaint(){
   // Follow-up call flag (optional). Stored in dedicated columns; if the DB
   // migration hasn't been run yet the insert is retried without them so
   // logging a complaint never breaks.
-  const needsCallback = document.getElementById('cmpNeedsCallback').checked;
-  const cbFields = needsCallback ? {
-    needs_callback: true,
-    callback_phone: (document.getElementById('cmpCallbackPhone').value || '').trim() || null,
-    callback_note:  (document.getElementById('cmpCallbackNote').value  || '').trim() || null,
-  } : {};
+  const needsCallback = needsCb;
+  const cbFields = needsCallback ? { needs_callback:true, callback_phone:cbPhone, callback_note:cbNote } : {};
 
   const baseRow = {
     ...row,
