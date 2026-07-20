@@ -5090,7 +5090,7 @@ function renderComplaintHistoryRow(c){
       <span class="status-pill-sm status-${c.status}">${esc(statusLabel)}</span>
       ${driverChip}
       ${c.needs_callback?`<span class="status-pill-sm" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;">☎ Callback</span>`:''}
-      ${complaintEditableByRep(c)?`<button onclick="openEditComplaintModal(${c.id})" title="Edit your complaint (only while it's new)" style="margin-left:auto;background:none;border:1px solid var(--gray-300);color:var(--gray-600);font-size:11px;font-weight:600;padding:2px 9px;border-radius:6px;cursor:pointer;font-family:inherit;">Edit</button>`:''}
+      ${complaintEditableByRep(c)?`<button onclick="openEditComplaintModal(${c.id})" title="Edit your complaint (until it's resolved or closed)" style="margin-left:auto;background:none;border:1px solid var(--gray-300);color:var(--gray-600);font-size:11px;font-weight:600;padding:2px 9px;border-radius:6px;cursor:pointer;font-family:inherit;">Edit</button>`:''}
     </div>
     ${c.notes?`<div class="note-row-body">${esc(c.notes)}</div>`:''}
     ${outcome}
@@ -7323,10 +7323,10 @@ function onCallbackToggle(){
 // match how submitComplaint sets it).
 function myComplaintName(){ return currentUser ? (currentUser.display_name || currentUser.username) : ''; }
 function isMyComplaint(c){ return !!(c && c.logged_by && c.logged_by === myComplaintName()); }
-// A rep may edit ONLY their own complaint and ONLY while it's still 'new'
-// (untriaged). Once David opens/resolves/ignores it or a supervisor claims it
-// (status leaves 'new'), it locks so an edit can't rewrite an active case.
-function complaintEditableByRep(c){ return isMyComplaint(c) && c && c.status==='new'; }
+// A rep may edit ONLY their own complaint, and only while it's still open —
+// 'new' (untriaged) or 'case_open' (being worked). Once it's 'resolved' or
+// 'ignored' it locks, so an edit can't rewrite a closed case's record.
+function complaintEditableByRep(c){ return isMyComplaint(c) && c && (c.status==='new' || c.status==='case_open'); }
 
 // Re-open the Log Complaint modal in EDIT mode, prefilled from the complaint.
 async function openEditComplaintModal(id){
@@ -7493,8 +7493,10 @@ async function submitComplaint(){
     if(!orig || !complaintEditableByRep(orig)){ toast('This complaint can no longer be edited'); closeComplaintModal(); return; }
     const routed = SUP_AUTOROUTE_TYPES.includes(type);
     const patch = { type, driver_name:driverName, notes,
-      needs_callback:needsCb, callback_phone:cbPhone, callback_note:cbNote,
-      routed_to_supervisor:routed };
+      needs_callback:needsCb, callback_phone:cbPhone, callback_note:cbNote };
+    // Only (re)route an UNTRIAGED complaint on a type change. An opened case may
+    // already be claimed/assigned — never yank it out from under a supervisor.
+    if(orig.status==='new'){ patch.routed_to_supervisor = routed; }
     let upd = await db.from('complaints').update(patch).eq('id', editingId);
     if(upd.error && /callback|column|schema|does not exist/i.test(upd.error.message||'')){
       const { needs_callback, callback_phone, callback_note, ...noCb } = patch;   // pre-migration fallback
@@ -7507,8 +7509,8 @@ async function submitComplaint(){
     toast('Complaint updated', true);
     logActivity('complaint_edited', `${orig.client_id} ${type}`);
     refreshComplaintBadge();
-    // If a type change newly routed it to the supervisor pool, ping them.
-    if(routed && !orig.routed_to_supervisor){ complaintRoutedBroadcast({id:editingId, assignee:null, name:orig.client_name||'', address:orig.client_address||''}); refreshSupervisorBadge(); }
+    // If a type change on an untriaged complaint newly routed it to the pool, ping supervisors.
+    if(orig.status==='new' && routed && !orig.routed_to_supervisor){ complaintRoutedBroadcast({id:editingId, assignee:null, name:orig.client_name||'', address:orig.client_address||''}); refreshSupervisorBadge(); }
     if(activeClient && activeClient.client_id === orig.client_id){
       const refreshed = await loadNotes(orig.client_id);
       renderNotesTable(refreshed);
