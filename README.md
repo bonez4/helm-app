@@ -168,7 +168,7 @@ Per-user themes live in `applyUserTheme()` (the function resets `theme-*` body c
 | client_id | TEXT | Client the complaint is about |
 | client_name / client_address / client_phone / client_email / client_route / client_days | snapshot fields | Frozen at time of logging so case files don't change if the client record changes later |
 | type | TEXT | Complaint-type value. Built-ins `DRIVER` / `BILLING` / `MISSED_STOP` / `OTHER`, but now **admin-managed** — custom types are added in `complaint_taxonomies` and stored here by their value. |
-| driver_name | TEXT | Required when the chosen type has `needs_driver=true` (built-in `DRIVER`, or any custom type flagged so). Plain text. Powers the Monthly Complaint Summary's driver sub-grouping. |
+| driver_name | TEXT | Required when the chosen type has `needs_driver=true` (built-in `DRIVER` **and `MISSED_STOP`** — the built-in flag is a floor a stale taxonomy row can't turn off — plus any custom type flagged so). For a Missed Stop the field asks for the driver who ran that route that day. Plain text. Powers the Monthly Complaint Summary's driver sub-grouping + the Drivers leaderboard. |
 | priority | TEXT | `urgent` / `high` / `normal` / `low` (default `normal`). Set by David in the Complaint Console; drives the sort + the triage strip. *(Requires user-applied `ALTER`.)* |
 | notes | TEXT | Rep's free-text description of the complaint |
 | logged_by | TEXT | Display name of the rep who logged it |

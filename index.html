@@ -3501,7 +3501,7 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         </select>
       </div>
       <div class="cmp-field" id="cmpDriverField" style="display:none">
-        <label>Driver involved *</label>
+        <label id="cmpDriverLabel">Driver involved *</label>
         <input type="text" id="cmpDriver" autocomplete="off" placeholder="Driver's name"/>
       </div>
       <div class="cmp-field cmp-field-notes" id="cmpNotesField">
@@ -7137,7 +7137,7 @@ ${sections}
 const BUILTIN_COMPLAINT_TYPES = [
   {value:'DRIVER',      label:'Driver',      needs_driver:true},
   {value:'BILLING',     label:'Billing',     needs_driver:false},
-  {value:'MISSED_STOP', label:'Missed Stop', needs_driver:false},
+  {value:'MISSED_STOP', label:'Missed Stop', needs_driver:true},
   {value:'OTHER',       label:'Other',       needs_driver:false},
 ];
 const BUILTIN_CASE_ACTION_TYPES = [
@@ -7169,8 +7169,12 @@ async function loadComplaintTaxonomies(){
   }catch(_){}
 }
 function complaintTypeNeedsDriver(v){
-  const t = COMPLAINT_TYPES.find(x=>x.value===v) || BUILTIN_COMPLAINT_TYPES.find(x=>x.value===v);
-  return !!(t && t.needs_driver);
+  // Built-in flag is a FLOOR: DRIVER + MISSED_STOP always capture the driver so
+  // we can see who's missing stops, even if a stale complaint_taxonomies row has
+  // needs_driver=false. Custom types honor their own DB flag.
+  const t = COMPLAINT_TYPES.find(x=>x.value===v);
+  const b = BUILTIN_COMPLAINT_TYPES.find(x=>x.value===v);
+  return !!((b && b.needs_driver) || (t && t.needs_driver));
 }
 function complaintTypeLabel(v){
   if(_typeLabelMap[v]) return _typeLabelMap[v];
@@ -7388,6 +7392,11 @@ function onComplaintTypeChange(){
   // Plain text input, no autosuggest (deliberate: the bla_staff roster only
   // covers some drivers and would mislead reps).
   if(complaintTypeNeedsDriver(sel.value)){
+    // Label reflects the type: a Missed Stop wants the driver who ran the route that day.
+    const lbl = document.getElementById('cmpDriverLabel');
+    if(lbl) lbl.textContent = sel.value==='MISSED_STOP' ? 'Driver (driver for the route that day) *' : 'Driver involved *';
+    const inp = document.getElementById('cmpDriver');
+    if(inp) inp.placeholder = sel.value==='MISSED_STOP' ? 'Who ran this route that day?' : "Driver's name";
     driverField.style.display = '';
     setTimeout(()=>{ if(driverInp) driverInp.focus(); }, 50);
   } else {
