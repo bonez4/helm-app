@@ -8170,6 +8170,40 @@ function complaintLiveRoute(c){
   return cl ? {client_route:cl.route, client_days:cl.service_day} : {client_route:c.client_route, client_days:c.client_days};
 }
 function complaintRouteLabelLive(c){ return complaintRouteLabel(complaintLiveRoute(c)); }
+
+// ── Driver-name normalization ──────────────────────────────────────────
+// Free-typed driver names vary in case/whitespace ("MARLON" vs "Marlon"), which
+// splits one driver into several report rows. Group case/whitespace-insensitively
+// and display ONE clean name (the most-used spelling; ties prefer a not-ALL-CAPS
+// version). No data migration — purely a reporting-side merge.
+function driverCanonKey(name){ return String(name||'').trim().replace(/\s+/g,' ').toLowerCase(); }
+function bestDriverSpelling(counts){
+  const arr=Object.keys(counts);
+  if(!arr.length) return '';
+  arr.sort((a,b)=>{
+    const d=counts[b]-counts[a]; if(d) return d;                       // most common spelling
+    const au=(a===a.toUpperCase())?1:0, bu=(b===b.toUpperCase())?1:0;
+    if(au!==bu) return au-bu;                                          // prefer NOT all-caps
+    return a.localeCompare(b);
+  });
+  return arr[0];
+}
+// Group complaint rows by driver → { displayName: [rows] }. blankLabel (if given)
+// buckets driver-less rows under that label; otherwise they're dropped.
+function groupByDriver(rows, blankLabel){
+  const byKey={};
+  rows.forEach(c=>{
+    const raw=(c.driver_name||'').trim().replace(/\s+/g,' ');
+    const k=raw?driverCanonKey(raw):'';
+    if(!raw && !blankLabel) return;
+    const g=(byKey[k]=byKey[k]||{counts:{}, list:[]});
+    if(raw) g.counts[raw]=(g.counts[raw]||0)+1;
+    g.list.push(c);
+  });
+  const out={};
+  Object.keys(byKey).forEach(k=>{ out[(k===''?blankLabel:bestDriverSpelling(byKey[k].counts))]=byKey[k].list; });
+  return out;
+}
 function complaintBucketOf(c){
   if(c.status==='resolved') return 'resolved';
   if(c.status==='ignored')  return 'ignored';
@@ -8578,8 +8612,7 @@ function drvData(){
   let rows=_inboxComplaints.filter(c=>c.driver_name && String(c.driver_name).trim() && !isTestComplaint(c));
   if(_drvFrom) rows=rows.filter(c=>c.logged_at && c.logged_at >= _drvFrom+'T00:00:00');
   if(_drvTo)   rows=rows.filter(c=>c.logged_at && c.logged_at <= _drvTo+'T23:59:59.999');
-  const byDriver={};
-  rows.forEach(c=>{ const d=String(c.driver_name).trim(); (byDriver[d]=byDriver[d]||[]).push(c); });
+  const byDriver=groupByDriver(rows);   // merge case/whitespace variants of a driver's name
   const drivers=Object.keys(byDriver).map(driver=>{
     const list=byDriver[driver];
     const byType={}; list.forEach(c=>{ byType[c.type]=(byType[c.type]||0)+1; });
@@ -8687,8 +8720,7 @@ function ciData(){
   const repeatComplaints=repeat.reduce((s,c)=>s+c.count,0);
   const byRoute={};
   rows.forEach(c=>{ const k=complaintRouteLabelLive(c); (byRoute[k]=byRoute[k]||[]).push(c); });   // CURRENT route, not the log-time snapshot
-  const byDriver={};
-  rows.forEach(c=>{ const dn=(c.driver_name||'').trim(); if(dn) (byDriver[dn]=byDriver[dn]||[]).push(c); });
+  const byDriver=groupByDriver(rows);   // case/whitespace-insensitive merge of driver spellings
   const byType={}; rows.forEach(c=>byType[c.type]=(byType[c.type]||0)+1);
   return {rows, open, resolvedN, ignored, avgMs, clients, repeat, repeatComplaints, byRoute, byDriver, byType};
 }
@@ -8735,7 +8767,7 @@ function renderComplaintInsights(){
     const rows=(_ciDrill.kind==='client'
       ? d.rows.filter(c=>c.client_id===_ciDrill.key)
       : _ciDrill.kind==='driver'
-      ? d.rows.filter(c=>(c.driver_name||'').trim()===_ciDrill.key)
+      ? d.rows.filter(c=>driverCanonKey(c.driver_name)===driverCanonKey(_ciDrill.key))
       : d.rows.filter(c=>complaintRouteLabelLive(c)===_ciDrill.key))
       .slice().sort((a,b)=>(b.logged_at||'').localeCompare(a.logged_at||''));
     const rowHtml=rows.map(c=>{
@@ -8899,7 +8931,8 @@ function renderConsolePatterns(rows){
   const el=document.getElementById('consolePatterns'); if(!el) return;
   if(!rows.length){ el.innerHTML=''; return; }
   const byType={},byRoute={},byDriver={};
-  rows.forEach(c=>{ byType[c.type]=(byType[c.type]||0)+1; const rk=(c.client_route!=null&&c.client_route!=='')?('Route '+c.client_route):'No route'; byRoute[rk]=(byRoute[rk]||0)+1; if(c.driver_name) byDriver[c.driver_name]=(byDriver[c.driver_name]||0)+1; });
+  rows.forEach(c=>{ byType[c.type]=(byType[c.type]||0)+1; const rk=complaintRouteLabelLive(c); byRoute[rk]=(byRoute[rk]||0)+1; });
+  { const dg=groupByDriver(rows); Object.keys(dg).forEach(k=>byDriver[k]=dg[k].length); }   // deduped driver counts
   const typeList=COMPLAINT_TYPES.map(t=>[t.label,byType[t.value]||0]).filter(x=>x[1]>0);
   Object.keys(byType).forEach(v=>{ if(!COMPLAINT_TYPES.some(t=>t.value===v)) typeList.push([complaintTypeLabel(v),byType[v]]); });
   const topRoutes=Object.entries(byRoute).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -11025,11 +11058,7 @@ function renderMonthlySection(type, rows){
   // For DRIVER type, sub-group by driver_name. Other types stay flat.
   let body = '';
   if(complaintTypeNeedsDriver(type)){
-    const byDriver = {};
-    rows.forEach(c => {
-      const k = (c.driver_name||'').trim() || '(No driver named)';
-      (byDriver[k] = byDriver[k] || []).push(c);
-    });
+    const byDriver = groupByDriver(rows, '(No driver named)');   // merge case/whitespace variants
     // Sort drivers by complaint count desc, then name asc
     const drivers = Object.keys(byDriver).sort((a,b) => {
       const d = byDriver[b].length - byDriver[a].length;
@@ -11111,8 +11140,7 @@ async function printMonthlySummary(){
       return `<h2>${esc(complaintTypeLabel(type).toUpperCase())} (0)</h2><p class="empty">No complaints in this category this month.</p>`;
     }
     if(complaintTypeNeedsDriver(type)){
-      const byDriver = {};
-      rows.forEach(c => { const k = (c.driver_name||'').trim() || '(No driver named)'; (byDriver[k]=byDriver[k]||[]).push(c); });
+      const byDriver = groupByDriver(rows, '(No driver named)');   // merge case/whitespace variants
       const drivers = Object.keys(byDriver).sort((a,b) => (byDriver[b].length-byDriver[a].length) || a.localeCompare(b));
       return `<h2>${esc(complaintTypeLabel(type).toUpperCase())} (${rows.length})</h2>` +
         drivers.map(d => {
