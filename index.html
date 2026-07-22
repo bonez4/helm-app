@@ -7632,6 +7632,7 @@ let _crFrom = null, _crTo = null;
 let _drvFrom = null, _drvTo = null, _drvSelected = null;
 // Complaint Insights dashboard state
 let _ciFrom = null, _ciTo = null, _ciDrill = null, _ciCharts = [];
+let _ciRouteLB = [], _ciDriverLB = [];   // cached route/driver leaderboards for index-based drill-through
 const PRIORITY_RANK = {urgent:0, high:1, normal:2, low:3};
 
 // ISO Monday string for the week containing the given date (or today by default).
@@ -8155,6 +8156,17 @@ function complaintRouteLabel(c){
   const letters=String(c.client_days||'').split(',').map(d=>_CMP_DAY_LETTER[d.trim().toLowerCase()]).filter(Boolean).join('/');
   return letters ? (letters+'-'+nn) : ('R'+nn);
 }
+// Resolve a complaint's CURRENT route/days from the live client record (post the
+// Santos route import), so reports reflect the latest routing instead of the
+// route frozen on the complaint at log time. Falls back to the snapshot for
+// general/non-customer complaints or clients no longer on file.
+function complaintLiveRoute(c){
+  if(!c || isGeneralComplaint(c)) return {client_route:(c&&c.client_route), client_days:(c&&c.client_days)};
+  const cl = (typeof clients!=='undefined' && clients)
+    ? (clients.find(x=>x.client_id===String(c.client_id)) || clients.find(x=>x.client_id===getBaseId(String(c.client_id)))) : null;
+  return cl ? {client_route:cl.route, client_days:cl.service_day} : {client_route:c.client_route, client_days:c.client_days};
+}
+function complaintRouteLabelLive(c){ return complaintRouteLabel(complaintLiveRoute(c)); }
 function complaintBucketOf(c){
   if(c.status==='resolved') return 'resolved';
   if(c.status==='ignored')  return 'ignored';
@@ -8360,7 +8372,7 @@ function crData(){
 function crTime(ts){ if(!ts) return '—'; const d=new Date(ts); return _crMode==='daily' ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
 function crTypeChip(c){ return `<span class="action-tag at-complaint" style="font-size:9.5px;">${esc(complaintTypeLabel(c.type))}</span>`; }
 function crClientCell(c){ return `<div class="cr-cl">${esc(c.client_name||('Acct '+c.client_id))}</div><div class="cr-cl-sub">#${esc(c.client_id)}${c.client_address?(' · '+esc(c.client_address)):''}${(c.driver_name)?(' · '+esc(c.driver_name)):''}</div>`; }
-function crRoute(c){ return (c.client_route!=null&&c.client_route!=='')?esc(complaintRouteLabel(c)):'—'; }
+function crRoute(c){ const lr=complaintLiveRoute(c); return (lr.client_route!=null&&lr.client_route!=='')?esc(complaintRouteLabel(lr)):'—'; }
 function crStatusChip(c){
   const b=complaintBucketOf(c);
   if(b==='resolved') return '<span class="cr-pill cr-res">Resolved</span>';
@@ -8642,6 +8654,10 @@ function ciPreset(days){ const e=new Date(), s=new Date(); s.setDate(s.getDate()
 function ciThisYear(){ const n=new Date(); _ciFrom=n.getFullYear()+'-01-01'; _ciTo=n.toISOString().split('T')[0]; renderComplaintInsights(); }
 function ciDrillClientByIdx(i){ const c=ciData().repeat[i]; if(c){ _ciDrill={kind:'client', key:c.client_id, label:(c.name||('Acct '+c.client_id))}; renderComplaintInsights(); } }
 function ciDrillRoute(key){ _ciDrill={kind:'route', key, label:key}; renderComplaintInsights(); }
+function ciDrillDriver(key){ _ciDrill={kind:'driver', key, label:key}; renderComplaintInsights(); }
+// Index-based drills (leaderboard rows) — avoids escaping route/driver keys in onclick.
+function ciDrillRouteIdx(i){ const e=_ciRouteLB[i]; if(e){ _ciDrill={kind:'route', key:e.k, label:e.k}; renderComplaintInsights(); } }
+function ciDrillDriverIdx(i){ const e=_ciDriverLB[i]; if(e){ _ciDrill={kind:'driver', key:e.k, label:e.k}; renderComplaintInsights(); } }
 function ciClearDrill(){ _ciDrill=null; renderComplaintInsights(); }
 
 function ciData(){
@@ -8657,8 +8673,8 @@ function ciData(){
   // General/non-customer complaints share one sentinel acct — keep them out of
   // the per-customer + repeat-customer grouping so they don't look like one
   // client with many complaints. (They still count in totals, types, routes.)
-  rows.forEach(c=>{ if(isGeneralComplaint(c)) return; const k=c.client_id; (byClientMap[k]=byClientMap[k]||{client_id:k,name:c.client_name,address:c.client_address,route:c.client_route,list:[]}).list.push(c); });
-  const clients=Object.values(byClientMap).map(o=>({ ...o, count:o.list.length, routeLabel:complaintRouteLabel(o.list[0]),
+  rows.forEach(c=>{ if(isGeneralComplaint(c)) return; const k=c.client_id; (byClientMap[k]=byClientMap[k]||{client_id:k,name:c.client_name,address:c.client_address,route:complaintLiveRoute(c).client_route,list:[]}).list.push(c); });
+  const clients=Object.values(byClientMap).map(o=>({ ...o, count:o.list.length, routeLabel:complaintRouteLabelLive(o.list[0]),
     open:o.list.filter(c=>{ const b=complaintBucketOf(c); return b==='new'||b==='open'; }).length,
     resolved:o.list.filter(c=>c.status==='resolved').length,
     byType:(()=>{ const t={}; o.list.forEach(c=>t[c.type]=(t[c.type]||0)+1); return t; })(),
@@ -8667,9 +8683,11 @@ function ciData(){
   const repeat=clients.filter(c=>c.count>=2);
   const repeatComplaints=repeat.reduce((s,c)=>s+c.count,0);
   const byRoute={};
-  rows.forEach(c=>{ const k=complaintRouteLabel(c); (byRoute[k]=byRoute[k]||[]).push(c); });
+  rows.forEach(c=>{ const k=complaintRouteLabelLive(c); (byRoute[k]=byRoute[k]||[]).push(c); });   // CURRENT route, not the log-time snapshot
+  const byDriver={};
+  rows.forEach(c=>{ const dn=(c.driver_name||'').trim(); if(dn) (byDriver[dn]=byDriver[dn]||[]).push(c); });
   const byType={}; rows.forEach(c=>byType[c.type]=(byType[c.type]||0)+1);
-  return {rows, open, resolvedN, ignored, avgMs, clients, repeat, repeatComplaints, byRoute, byType};
+  return {rows, open, resolvedN, ignored, avgMs, clients, repeat, repeatComplaints, byRoute, byDriver, byType};
 }
 
 // Time series of complaints per period (weekly when the span ≤120d, else monthly),
@@ -8713,7 +8731,9 @@ function renderComplaintInsights(){
   if(_ciDrill){
     const rows=(_ciDrill.kind==='client'
       ? d.rows.filter(c=>c.client_id===_ciDrill.key)
-      : d.rows.filter(c=>complaintRouteLabel(c)===_ciDrill.key))
+      : _ciDrill.kind==='driver'
+      ? d.rows.filter(c=>(c.driver_name||'').trim()===_ciDrill.key)
+      : d.rows.filter(c=>complaintRouteLabelLive(c)===_ciDrill.key))
       .slice().sort((a,b)=>(b.logged_at||'').localeCompare(a.logged_at||''));
     const rowHtml=rows.map(c=>{
       const when=c.logged_at?new Date(c.logged_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
@@ -8721,21 +8741,54 @@ function renderComplaintInsights(){
       return `<tr onclick="crOpenCase(${c.id})"><td class="nw">${esc(when)}</td><td>${crTypeChip(c)}</td><td>${crClientCell(c)}</td><td class="nw">${crRoute(c)}</td><td class="cr-note">${esc(c.notes||'—')}</td><td class="nw">${crStatusChip(c)}</td><td class="cr-note">${res}</td></tr>`;
     }).join('');
     body.innerHTML=`<button class="btn-edit-sm" onclick="ciClearDrill()" style="margin-bottom:12px;">&larr; Back to insights</button>
-      <div class="cr-sec-hdr"><span>${_ciDrill.kind==='client'?'🔁':'🛣'} ${esc(_ciDrill.label)} — ${rows.length} complaint${rows.length===1?'':'s'}</span></div>
+      <div class="cr-sec-hdr"><span>${_ciDrill.kind==='client'?'🔁':_ciDrill.kind==='driver'?'🚚':'🛣'} ${esc(_ciDrill.label)} — ${rows.length} complaint${rows.length===1?'':'s'}</span></div>
       <div class="cr-tablewrap"><table class="cr-table"><thead><tr><th>Logged</th><th>Type</th><th>Client</th><th>Rt</th><th>Complaint</th><th>Status</th><th>Resolution</th></tr></thead><tbody>${rowHtml}</tbody></table></div>`;
     return;
   }
 
-  // ── Dashboard: KPIs + charts + repeat-customer table ──
+  // ── Dashboard: KPIs + route/driver leaderboards + charts + repeat-customer table ──
   const kpi=(v,l)=>`<div class="cr-kpi"><div class="cr-kpi-v">${esc(String(v))}</div><div class="cr-kpi-l">${esc(l)}</div></div>`;
   const kpis=`<div class="cr-summary">${
     kpi(d.rows.length,'Complaints')+kpi(d.open,'Open now')+kpi(d.resolvedN,'Resolved')+
     kpi(d.avgMs==null?'—':ccFmtDuration(d.avgMs),'Avg resolve')+kpi(d.repeat.length,'Repeat clients')+
     kpi(d.rows.length?Math.round(d.repeatComplaints/d.rows.length*100)+'%':'—','From repeat clients')}</div>`;
+
+  // ── Route + Driver trend leaderboards (most complaints → least; trend = second
+  //    half of the range vs the first half; ▲ rising is bad/red, ▼ falling good/green) ──
+  const _dts=d.rows.map(c=>c.logged_at).filter(Boolean).sort();
+  const _mid=_dts.length>=2 ? new Date((Date.parse(_dts[0])+Date.parse(_dts[_dts.length-1]))/2).toISOString() : null;
+  const trendArrow=(list)=>{
+    if(!_mid || list.length<2) return '<span style="color:var(--gray-300)">–</span>';
+    let e=0,l=0; list.forEach(c=>{ if(c.logged_at){ (c.logged_at>=_mid)?l++:e++; } });
+    if(l>e) return '<span title="Rising vs earlier in range" style="color:#dc2626;font-weight:800">▲</span>';
+    if(l<e) return '<span title="Falling vs earlier in range" style="color:#16a34a;font-weight:800">▼</span>';
+    return '<span title="Steady" style="color:var(--gray-400)">–</span>';
+  };
+  _ciRouteLB  = Object.entries(d.byRoute).map(([k,list])=>({k,list,count:list.length,open:list.filter(c=>{const b=complaintBucketOf(c);return b==='new'||b==='open';}).length})).sort((a,b)=>b.count-a.count);
+  _ciDriverLB = Object.entries(d.byDriver).map(([k,list])=>({k,list,count:list.length,open:list.filter(c=>{const b=complaintBucketOf(c);return b==='new'||b==='open';}).length})).sort((a,b)=>b.count-a.count);
+  const lbTable=(title,icon,arr,drillFn,unitCol)=>{
+    const rows = arr.slice(0,8).map((e,i)=>`<tr onclick="${drillFn}(${i})" style="cursor:pointer">
+        <td class="nw" style="color:var(--gray-400)">${i+1}</td>
+        <td style="font-weight:600">${esc(e.k)}</td>
+        <td class="nw" style="font-weight:800;font-size:15px;color:var(--navy)">${e.count}</td>
+        <td class="nw" style="color:var(--gray-500)">${e.open} open</td>
+        <td class="nw" style="text-align:center;font-size:14px">${trendArrow(e.list)}</td>
+      </tr>`).join('');
+    return `<div style="flex:1;min-width:260px">
+      <div class="cr-sec-hdr"><span>${icon} ${title} — click to drill</span><span class="cr-sec-n">${arr.length}</span></div>
+      <div class="cr-tablewrap"><table class="cr-table"><thead><tr><th>#</th><th>${unitCol}</th><th>Complaints</th><th>Open</th><th>Trend</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5" class="cr-sec-empty" style="text-align:center">None in this range</td></tr>`}</tbody></table></div>
+    </div>`;
+  };
+  const leaderboards=`<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;">
+    ${lbTable('Routes with the most complaints','🛣',_ciRouteLB,'ciDrillRouteIdx','Route')}
+    ${lbTable('Drivers with the most complaints','🚚',_ciDriverLB,'ciDrillDriverIdx','Driver')}
+  </div>`;
   const charts=`<div class="ci-charts">
     <div class="ci-chartcard ci-span2"><div class="ci-chart-title">Complaints over time</div><div class="ci-canvas-wrap"><canvas id="ciTrend"></canvas></div></div>
     <div class="ci-chartcard"><div class="ci-chart-title">By type</div><div class="ci-canvas-wrap"><canvas id="ciType"></canvas></div></div>
     <div class="ci-chartcard ci-span3"><div class="ci-chart-title">By route — click a bar to drill in</div><div class="ci-canvas-wrap tall"><canvas id="ciRoute"></canvas></div></div>
+    <div class="ci-chartcard ci-span3"><div class="ci-chart-title">By driver — click a bar to drill in</div><div class="ci-canvas-wrap tall"><canvas id="ciDriver"></canvas></div></div>
   </div>`;
   const repeatRows=d.repeat.map((c,i)=>{
     const cls=c.count>=3?'ci-rep3':'ci-rep2';
@@ -8752,7 +8805,7 @@ function renderComplaintInsights(){
   const repeatTable=`<div class="cr-sec-hdr"><span>🔁 Repeat customers (2+ complaints) — click a row</span><span class="cr-sec-n">${d.repeat.length}</span></div>${
     d.repeat.length ? `<div class="cr-tablewrap"><table class="cr-table"><thead><tr><th>Client</th><th>Rt</th><th>#</th><th>Types</th><th>Status</th><th>Last</th></tr></thead><tbody>${repeatRows}</tbody></table></div>`
     : `<div class="cr-sec-empty">No repeat customers in this range — nobody has 2+ complaints.</div>`}`;
-  body.innerHTML=kpis+charts+repeatTable;
+  body.innerHTML=kpis+leaderboards+charts+repeatTable;
   if(!d.rows.length){ body.insertAdjacentHTML('afterbegin','<div class="cr-empty" style="margin-bottom:14px;">No complaints in this range.</div>'); }
 
   // ── Build the live charts ──
@@ -8778,6 +8831,14 @@ function renderComplaintInsights(){
     options:{ indexAxis:'y',responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false}},
       onClick:(e,els)=>{ if(els&&els.length){ ciDrillRoute(re[els[0].index][0]); } },
+      scales:{x:{beginAtZero:true,ticks:{precision:0,font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}},y:{ticks:{font:{size:11}},grid:{display:false}}}} })); }
+  const driverEl=document.getElementById('ciDriver');
+  const de=Object.entries(d.byDriver).map(([r,l])=>[r,l.length]).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  if(driverEl && window.Chart){ _ciCharts.push(new Chart(driverEl,{ type:'bar',
+    data:{ labels:de.map(e=>e[0]), datasets:[{data:de.map(e=>e[1]),backgroundColor:'#f97316',borderRadius:4}] },
+    options:{ indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      onClick:(e,els)=>{ if(els&&els.length){ ciDrillDriver(de[els[0].index][0]); } },
       scales:{x:{beginAtZero:true,ticks:{precision:0,font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}},y:{ticks:{font:{size:11}},grid:{display:false}}}} })); }
 }
 
