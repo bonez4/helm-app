@@ -7998,8 +7998,11 @@ async function supCommitPending(id){
   if(!_supPendingActions.length) return;
   const rows=_supPendingActions.map(a=>({complaint_id:id, action_type:a.value, notes:(a.value==='spoke_to_driver'&&a.driverName)?('Driver: '+a.driverName):null, performed_by:me}));
   try{ await db.from('complaint_actions').insert(rows); }catch(_){}
-  const dnAct=_supPendingActions.find(a=>a.value==='spoke_to_driver'&&a.driverName);
-  if(dnAct && c && !c.driver_name){ try{ await db.from('complaints').update({driver_name:dnAct.driverName}).eq('id',id); c.driver_name=dnAct.driverName; }catch(_){} }
+  // NOTE: "Spoke to Driver" names the driver DISPATCHED TO FIX the issue, not the
+  // driver the complaint is about. We deliberately do NOT promote it to
+  // complaints.driver_name — that field is only the "Driver involved" entered at
+  // log time — so the driver leaderboard counts culprits, not fixers. The
+  // spoke-to driver stays in the action log above ("Driver: <name>").
 }
 // The number to call back on: the one the client gave, else the number on file.
 function supCbNumberHtml(c){
