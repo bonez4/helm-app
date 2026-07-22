@@ -8169,7 +8169,13 @@ function complaintLiveRoute(c){
     ? (clients.find(x=>x.client_id===String(c.client_id)) || clients.find(x=>x.client_id===getBaseId(String(c.client_id)))) : null;
   return cl ? {client_route:cl.route, client_days:cl.service_day} : {client_route:c.client_route, client_days:c.client_days};
 }
-function complaintRouteLabelLive(c){ return complaintRouteLabel(complaintLiveRoute(c)); }
+// Routes are COMPANY-SCOPED: Reis Route 8 and Santos Route 8 are different routes.
+// Prefix the label with the company so they never share a report bucket.
+function complaintRouteLabelLive(c){
+  const base = complaintRouteLabel(complaintLiveRoute(c));
+  const co = (c && !isGeneralComplaint(c)) ? getCompany(c.client_id).name : '';
+  return co ? (co+' · '+base) : base;   // e.g. "REIS · t/f-08" vs "SANTOS · t/f-08"
+}
 
 // ── Driver-name normalization ──────────────────────────────────────────
 // Free-typed driver names vary in case/whitespace ("MARLON" vs "Marlon"), which
@@ -9671,7 +9677,7 @@ async function printComplaintDay(){
   list.forEach(c=>{
     if(statusCounts.hasOwnProperty(c.status)) statusCounts[c.status]++;
     byType[c.type]=(byType[c.type]||0)+1;
-    const rk=(c.client_route!=null&&c.client_route!=='')?('Route '+c.client_route):'No route'; byRoute[rk]=(byRoute[rk]||0)+1;
+    const rk=complaintRouteLabelLive(c); byRoute[rk]=(byRoute[rk]||0)+1;   // company-scoped, current route
   });
   const typeOrder = COMPLAINT_TYPES.map(t=>t.value); Object.keys(byType).forEach(v=>{ if(typeOrder.indexOf(v)<0) typeOrder.push(v); });
   const typeLis = typeOrder.filter(t=>byType[t]).map(t=>`<li><strong>${byType[t]}</strong> ${esc(complaintTypeLabel(t))}</li>`).join('') || '<li>—</li>';
@@ -11015,7 +11021,7 @@ function renderMonthlySummary(){
   const byType = {};
   data.forEach(c => { const k=c.type||'OTHER'; (byType[k]=byType[k]||[]).push(c); });
   const byRoute = {};
-  data.forEach(c => { const k=complaintRouteLabel(c); byRoute[k]=(byRoute[k]||0)+1; });
+  data.forEach(c => { const k=complaintRouteLabelLive(c); byRoute[k]=(byRoute[k]||0)+1; });   // company-scoped, current route
   const routeKeys = Object.keys(byRoute).sort((a,b)=> (byRoute[b]-byRoute[a]) || a.localeCompare(b));
 
   let html = `
@@ -11131,7 +11137,7 @@ async function printMonthlySummary(){
   const byType = {};
   data.forEach(c => { const k=c.type||'OTHER'; (byType[k]=byType[k]||[]).push(c); });
   const byRoute = {};
-  data.forEach(c => { const k=complaintRouteLabel(c); byRoute[k]=(byRoute[k]||0)+1; });
+  data.forEach(c => { const k=complaintRouteLabelLive(c); byRoute[k]=(byRoute[k]||0)+1; });   // company-scoped, current route
   const routeKeys = Object.keys(byRoute).sort((a,b)=> (byRoute[b]-byRoute[a]) || a.localeCompare(b));
 
   const sectionHTML = (type) => {
