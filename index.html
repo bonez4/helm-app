@@ -7853,16 +7853,22 @@ function supResReviewedSet(){ try{ return new Set(JSON.parse(localStorage.getIte
 function supResSetReviewed(id, on){ const s=supResReviewedSet(); on?s.add(id):s.delete(id); try{ localStorage.setItem('helm_sup_res_reviewed', JSON.stringify([...s])); }catch(_){} }
 function isSupervisorResolved(c){
   if(!c || c.status!=='resolved' || !c.resolved_by) return false;
-  if(_supervisors && _supervisors.length) return _supervisors.some(s=>(s.display_name||s.username)===c.resolved_by);
-  return !!c.routed_to_supervisor && !['David','Chris','david','chris'].includes(c.resolved_by);   // fallback if roster not loaded
+  // Either the resolver is on the supervisor roster, OR (robustly) the complaint
+  // was routed to a supervisor and resolved by someone who isn't David/Chris.
+  const byRoster   = !!(_supervisors && _supervisors.some(s=>(s.display_name||s.username)===c.resolved_by));
+  const byRouted   = !!c.routed_to_supervisor && !['David','Chris','david','chris'].includes(c.resolved_by);
+  return byRoster || byRouted;
 }
-const _SUP_RES_COLS='id,client_id,client_name,client_address,client_phone,type,driver_name,notes,logged_by,logged_at,resolved_by,resolved_at,resolution_notes,routed_to_supervisor,needs_callback,callback_phone,callback_note';
 async function loadSupResList(){
+  // select('*') — do NOT couple this to optional columns (e.g. the callback
+  // columns); an explicit list 400s the whole query if any column is missing,
+  // which would silently leave the R inbox empty.
   try{
-    const {data}=await db.from('complaints').select(_SUP_RES_COLS)
+    const {data,error}=await db.from('complaints').select('*')
       .eq('status','resolved').eq('routed_to_supervisor',true).order('resolved_at',{ascending:false}).limit(300);
+    if(error){ console.warn('supRes load error:', error.message); _supResList=[]; return _supResList; }
     _supResList=(data||[]).filter(c=>isSupervisorResolved(c) && !isTestComplaint(c));
-  }catch(_){ _supResList=[]; }
+  }catch(e){ console.warn('supRes load exception:', e); _supResList=[]; }
   return _supResList;
 }
 async function refreshSupResBadge(){
