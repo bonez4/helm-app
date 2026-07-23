@@ -3334,6 +3334,10 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
         <span class="sup-cta-label">Complaint Queue</span>
         <span id="supervisorBadge" class="topbar-inbox-badge" style="display:none">0</span>
       </button>
+      <button id="supResBtn" class="topbar-inbox" style="display:none" onclick="openSupResReview()" title="Supervisor resolutions to review" aria-label="Supervisor resolutions to review">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span id="supResBadge" class="topbar-inbox-badge" style="display:none">0</span>
+      </button>
       <div class="live-dot"></div>
       <div class="live-label" id="topbarUser"></div>
       <button class="btn-logout" onclick="logout()">Sign out</button>
@@ -3600,6 +3604,19 @@ body.layout-side .ap-top{position:sticky; top:44px; z-index:5;}
       <button class="close-x" onclick="closeSupervisorQueue()" aria-label="Close" style="color:#fff;">&times;</button>
     </div>
     <div class="helm-modal-body" id="supervisorBody" style="max-height:78vh;overflow:auto;"></div>
+  </div>
+</div>
+
+<!-- ── SUPERVISOR RESOLUTIONS REVIEW (David only) — collects complaints a
+     supervisor resolved so David reads their notes + checks each off. -->
+<div class="helm-modal-backdrop" id="supResModal" onclick="if(event.target===this)closeSupResReview()">
+  <div class="helm-modal-sheet wide helm-inbox-sheet" onclick="event.stopPropagation()">
+    <div class="helm-modal-header" style="background:#166534;">
+      <h3>✓ Supervisor Resolutions</h3>
+      <div id="supResTabs" style="margin-left:auto;margin-right:10px;display:flex;gap:6px;"></div>
+      <button class="close-x" onclick="closeSupResReview()" aria-label="Close">&times;</button>
+    </div>
+    <div class="helm-modal-body" id="supResBody" style="max-height:80vh;overflow:auto;"></div>
   </div>
 </div>
 
@@ -4243,6 +4260,11 @@ async function login() {
     // Complaint inbox icon + badge poll (David + Chris).
     document.getElementById('complaintInboxBtn').style.display='';
     startComplaintBadgePoll();
+  }
+  // Supervisor-resolutions review icon + badge — David only.
+  if(data.username==='david'){
+    document.getElementById('supResBtn').style.display='';
+    startSupResBadgePoll();
   }
   // Office viewers (Esme/Jackie/Kobie): read-only complaint console access —
   // show the console icon (no badge poll; that's David's triage counter).
@@ -7794,6 +7816,8 @@ function handleSupEvent(p){
       : p.kind==='claimed' ? 'A supervisor claimed a complaint' : 'Complaint update';
     toast(label, true);
     if(p.kind==='resolved' || p.kind==='escalated'){ try{ if('Notification' in window && Notification.permission==='granted') new Notification(p.kind==='resolved'?'✓ Complaint resolved':'↩ Complaint escalated back to you', {body:(p.name||'')+(p.by?(' — '+p.by):''), tag:'helm-'+p.kind+'-'+(p.id||Date.now())}); }catch(_){} }
+    // Bump David's supervisor-resolutions review badge the moment one is resolved.
+    if(p.kind==='resolved' && userIsDavidOnly()) refreshSupResBadge();
   }
 }
 
@@ -7817,6 +7841,98 @@ function startSupervisorBadgePoll(){
   if(_supBadgeTimer) clearInterval(_supBadgeTimer);
   _supBadgeTimer=setInterval(refreshSupervisorBadge, 60000);
   window.addEventListener('focus', refreshSupervisorBadge);
+}
+
+// ── SUPERVISOR RESOLUTIONS REVIEW (David only) ────────────────────────────────
+// A persistent place for David to read every complaint a supervisor resolved +
+// their resolution note, and check each one off, so nothing gets lost mid-week.
+// Reviewed-state is kept per David in localStorage (no DB migration).
+let _supResList=[], _supResView='toreview', _supResBadgeTimer=null;
+function userIsDavidOnly(){ return !!(currentUser && currentUser.username==='david'); }
+function supResReviewedSet(){ try{ return new Set(JSON.parse(localStorage.getItem('helm_sup_res_reviewed')||'[]')); }catch(_){ return new Set(); } }
+function supResSetReviewed(id, on){ const s=supResReviewedSet(); on?s.add(id):s.delete(id); try{ localStorage.setItem('helm_sup_res_reviewed', JSON.stringify([...s])); }catch(_){} }
+function isSupervisorResolved(c){
+  if(!c || c.status!=='resolved' || !c.resolved_by) return false;
+  if(_supervisors && _supervisors.length) return _supervisors.some(s=>(s.display_name||s.username)===c.resolved_by);
+  return !!c.routed_to_supervisor && !['David','Chris','david','chris'].includes(c.resolved_by);   // fallback if roster not loaded
+}
+const _SUP_RES_COLS='id,client_id,client_name,client_address,client_phone,type,driver_name,notes,logged_by,logged_at,resolved_by,resolved_at,resolution_notes,routed_to_supervisor,needs_callback,callback_phone,callback_note';
+async function loadSupResList(){
+  try{
+    const {data}=await db.from('complaints').select(_SUP_RES_COLS)
+      .eq('status','resolved').eq('routed_to_supervisor',true).order('resolved_at',{ascending:false}).limit(300);
+    _supResList=(data||[]).filter(c=>isSupervisorResolved(c) && !isTestComplaint(c));
+  }catch(_){ _supResList=[]; }
+  return _supResList;
+}
+async function refreshSupResBadge(){
+  if(!userIsDavidOnly()) return;
+  await loadSupResList();
+  const rev=supResReviewedSet();
+  const n=_supResList.filter(c=>!rev.has(c.id)).length;
+  const badge=document.getElementById('supResBadge'); if(!badge) return;
+  if(n>0){ badge.textContent=n>99?'99+':String(n); badge.style.display='flex'; } else badge.style.display='none';
+}
+function startSupResBadgePoll(){
+  if(!userIsDavidOnly()) return;
+  refreshSupResBadge();
+  if(_supResBadgeTimer) clearInterval(_supResBadgeTimer);
+  _supResBadgeTimer=setInterval(refreshSupResBadge, 60000);
+  window.addEventListener('focus', refreshSupResBadge);
+}
+async function openSupResReview(){
+  if(!userIsDavidOnly()){ toast('David only'); return; }
+  document.getElementById('supResModal').classList.add('open');
+  document.body.style.overflow='hidden';
+  document.getElementById('supResBody').innerHTML='<div style="padding:30px;text-align:center;color:var(--gray-400);">Loading…</div>';
+  await loadSupResList();
+  renderSupResReview();
+}
+function closeSupResReview(){ document.getElementById('supResModal').classList.remove('open'); document.body.style.overflow=''; refreshSupResBadge(); }
+function supResSetView(v){ _supResView=v; renderSupResReview(); }
+function supResToggle(id, on){ supResSetReviewed(id,on); renderSupResReview(); refreshSupResBadge(); }
+async function supResOpenCase(id){ closeSupResReview(); await openComplaintInbox(); _consoleMode='triage'; _inboxFilter='resolved'; _inboxSelectedId=id; renderInbox(); }
+function renderSupResReview(){
+  const rev=supResReviewedSet();
+  const toReview=_supResList.filter(c=>!rev.has(c.id));
+  const reviewed=_supResList.filter(c=>rev.has(c.id));
+  const list=_supResView==='reviewed'?reviewed:_supResView==='all'?_supResList:toReview;
+  const tabsEl=document.getElementById('supResTabs');
+  if(tabsEl){
+    const tab=(k,label,n)=>`<button class="btn-edit-sm" onclick="supResSetView('${k}')" style="${_supResView===k?'background:#fff;color:#166534;border-color:#fff;':'background:rgba(255,255,255,.16);color:#fff;border-color:rgba(255,255,255,.4);'}">${label} ${n}</button>`;
+    tabsEl.innerHTML=tab('toreview','To review',toReview.length)+tab('reviewed','Reviewed',reviewed.length)+tab('all','All',_supResList.length);
+  }
+  const body=document.getElementById('supResBody'); if(!body) return;
+  if(!list.length){
+    body.innerHTML=`<div style="padding:44px;text-align:center;color:var(--gray-400);font-style:italic;">${_supResView==='toreview'?'All caught up — no supervisor resolutions left to review. 🎉':'Nothing here.'}</div>`;
+    return;
+  }
+  body.innerHTML=list.map(c=>{
+    const co=getCompany(c.client_id); const coTag=co.name?`<span class="company-tag ${co.cls}">${co.name}</span>`:'';
+    const when=c.resolved_at?new Date(c.resolved_at).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+    const isRev=rev.has(c.id);
+    return `<div style="border:1px solid var(--gray-200);border-left:4px solid ${isRev?'#9ca3af':'#166534'};border-radius:10px;padding:13px 15px;margin-bottom:12px;background:${isRev?'#fafafa':'#fff'};">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+        <span class="action-tag at-complaint" style="font-size:10px;">${esc(complaintTypeLabel(c.type))}</span>
+        ${c.driver_name?`<span class="status-pill-sm" style="background:#fff7ed;color:#9a3412;border:1px solid #ea580c;">Driver: ${esc(c.driver_name)}</span>`:''}
+        ${c.needs_callback?`<span class="status-pill-sm" style="background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;">☎ Callback</span>`:''}
+        ${coTag}
+        <span style="margin-left:auto;font-size:12px;color:#166534;font-weight:700;">✓ ${esc(c.resolved_by||'—')} · ${esc(when)}</span>
+      </div>
+      <div style="font-weight:800;color:var(--navy);font-size:15px;">${esc(c.client_name||('Account '+c.client_id))} <span style="font-weight:500;color:var(--gray-400);font-size:12px;">#${esc(c.client_id)} · ${esc(complaintRouteLabelLive(c))}</span></div>
+      <div style="font-size:12.5px;color:var(--gray-600);margin:3px 0 8px;"><b>Complaint:</b> ${esc(c.notes||'—')}</div>
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:9px 12px;font-size:13.5px;color:#14532d;line-height:1.5;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#166534;font-weight:800;margin-bottom:3px;">Resolution note</div>
+        ${c.resolution_notes?esc(c.resolution_notes):'<em style="color:var(--gray-400);">No note recorded.</em>'}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        ${isRev
+          ? `<button class="btn-edit-sm" onclick="supResToggle(${c.id},false)">↩ Mark unreviewed</button>`
+          : `<button class="btn-edit-sm" onclick="supResToggle(${c.id},true)" style="background:#166534;color:#fff;border-color:#166534;">✓ Mark reviewed</button>`}
+        <button class="btn-edit-sm" onclick="supResOpenCase(${c.id})">Open full case →</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function openSupervisorQueue(){
@@ -18005,6 +18121,11 @@ function toast(msg,ok=false){
       // Complaint inbox icon + badge poll (David + Chris) — survives refresh too.
       document.getElementById('complaintInboxBtn').style.display='';
       startComplaintBadgePoll();
+    }
+    // Supervisor-resolutions review icon + badge — David only (survives refresh).
+    if(currentUser.username==='david'){
+      document.getElementById('supResBtn').style.display='';
+      startSupResBadgePoll();
     }
     // Office viewers (Esme/Jackie/Kobie): read-only complaint console — survives refresh.
     if(!userIsDavid() && COMPLAINT_VIEW_USERS.includes(currentUser.username)){
