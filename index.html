@@ -8873,6 +8873,50 @@ function ciTimeSeries(rows){
   return { labels:allKeys.map(labelOf), open:allKeys.map(k=>counts[k].open), resolved:allKeys.map(k=>counts[k].resolved), ignored:allKeys.map(k=>counts[k].ignored) };
 }
 
+// Contiguous complaint counts per week (Mon-start) and per calendar month, from
+// the first complaint to now — powers the Week-over-week / Month-over-month
+// tables. Independent of the Insights date-range filter (always a rolling view).
+function ciWoWMoM(){
+  const rows=_inboxComplaints.filter(c=>!isTestComplaint(c) && c.logged_at);
+  if(!rows.length) return {weeks:[],months:[]};
+  const times=rows.map(c=>new Date(c.logged_at).getTime());
+  const start=new Date(Math.min(...times)), end=new Date();
+  const wkKeyOf=d=>{ const m=new Date(d); const off=m.getDay()===0?-6:1-m.getDay(); m.setDate(m.getDate()+off); m.setHours(0,0,0,0); return m.toISOString().slice(0,10); };
+  const wkCount={}, moCount={};
+  rows.forEach(c=>{ const d=new Date(c.logged_at); const wk=wkKeyOf(d); wkCount[wk]=(wkCount[wk]||0)+1; const mk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); moCount[mk]=(moCount[mk]||0)+1; });
+  const weeks=[]; let cur=new Date(start); { const off=cur.getDay()===0?-6:1-cur.getDay(); cur.setDate(cur.getDate()+off); cur.setHours(0,0,0,0); }
+  let guard=0;
+  while(cur<=end && guard++<520){ const k=cur.toISOString().slice(0,10); const we=new Date(cur); we.setDate(we.getDate()+6);
+    weeks.push({key:k, label:cur.toLocaleDateString('en-US',{month:'short',day:'numeric'})+'–'+we.toLocaleDateString('en-US',{month:'short',day:'numeric'}), count:wkCount[k]||0}); cur.setDate(cur.getDate()+7); }
+  const months=[]; let mc=new Date(start.getFullYear(), start.getMonth(), 1); guard=0;
+  while(mc<=end && guard++<240){ const k=mc.getFullYear()+'-'+String(mc.getMonth()+1).padStart(2,'0'); months.push({key:k, label:mc.toLocaleDateString('en-US',{month:'short',year:'numeric'}), count:moCount[k]||0}); mc.setMonth(mc.getMonth()+1); }
+  return {weeks, months};
+}
+function ciWoWMoMHtml(){
+  const {weeks,months}=ciWoWMoM();
+  const table=(title,arr,take)=>{
+    const recent=arr.slice(-take);   // last N periods, chronological
+    const rowsHtml=recent.map((p,i)=>{
+      const prev=i>0?recent[i-1].count:null;
+      const dl=prev==null?null:(p.count-prev);
+      const arrow=dl==null?'<span style="color:var(--gray-300)">–</span>'
+        : dl>0?`<span style="color:#dc2626;font-weight:700">▲ +${dl}</span>`
+        : dl<0?`<span style="color:#16a34a;font-weight:700">▼ ${dl}</span>`
+        : '<span style="color:var(--gray-400)">no change</span>';
+      return {p,arrow};
+    }).reverse();   // show most-recent first
+    return `<div style="flex:1;min-width:240px;">
+      <div class="cr-sec-hdr"><span>${title}</span><span class="cr-sec-n">${recent.reduce((s,p)=>s+p.count,0)}</span></div>
+      <div class="cr-tablewrap"><table class="cr-table"><thead><tr><th>Period</th><th>Complaints</th><th>vs prior</th></tr></thead>
+      <tbody>${rowsHtml.map(({p,arrow})=>`<tr><td class="nw">${esc(p.label)}</td><td class="nw" style="font-weight:800;font-size:15px;color:var(--navy);">${p.count}</td><td class="nw">${arrow}</td></tr>`).join('') || '<tr><td colspan="3" class="cr-sec-empty" style="text-align:center">No complaints yet</td></tr>'}</tbody></table></div>
+    </div>`;
+  };
+  return `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;">
+    ${table('📅 Week over week (last 12 weeks)',weeks,12)}
+    ${table('🗓 Month over month (last 12 months)',months,12)}
+  </div>`;
+}
+
 function renderComplaintInsights(){
   _ciCharts.forEach(c=>{ try{ c.destroy(); }catch(_){} }); _ciCharts=[];
   const fb=document.getElementById('ciFilter');
@@ -8968,7 +9012,7 @@ function renderComplaintInsights(){
   const repeatTable=`<div class="cr-sec-hdr"><span>🔁 Repeat customers (2+ complaints) — click a row</span><span class="cr-sec-n">${d.repeat.length}</span></div>${
     d.repeat.length ? `<div class="cr-tablewrap"><table class="cr-table"><thead><tr><th>Client</th><th>Rt</th><th>#</th><th>Types</th><th>Status</th><th>Last</th></tr></thead><tbody>${repeatRows}</tbody></table></div>`
     : `<div class="cr-sec-empty">No repeat customers in this range — nobody has 2+ complaints.</div>`}`;
-  body.innerHTML=kpis+leaderboards+charts+repeatTable;
+  body.innerHTML=kpis+ciWoWMoMHtml()+leaderboards+charts+repeatTable;
   if(!d.rows.length){ body.insertAdjacentHTML('afterbegin','<div class="cr-empty" style="margin-bottom:14px;">No complaints in this range.</div>'); }
 
   // ── Build the live charts ──
