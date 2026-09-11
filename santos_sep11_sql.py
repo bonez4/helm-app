@@ -9,7 +9,7 @@ Supabase SQL editor. Every section is idempotent and independently runnable.
     3. Name fixes               (PDF wins; NetWork is the billing system)
     4. Pickup-day fixes         (PDF wins where the PDF has days; HELM kept where PDF is blank)
     5. Classification + rates   (account_type / role / master / rate1-5 from the PDF, all matched)
-  Downloads/santos_sep11_status.sql   (separate — depends on the '*' = dormant reading)
+  Downloads/santos_sep11_status.sql   (separate so it can be run on its own)
     6. Starred + Active   -> Inactive
     7. Unstarred + Inactive -> Active   (Paused left alone)
 
@@ -87,12 +87,12 @@ for r in pdf_only:
     addr = r['address']
     if PLACEHOLDER_ADDR.match(addr) or r['role'] == 'master':
         addr = ''
-    ins.append(f"({q(r['acct'])}, {q(r['name'])}, {q(addr)}, {q(r['days'])}, 'Active', "
+    ins.append(f"({q(r['acct'])}, {q(r['name'])}, {q(addr)}, {q(r['days'])}, {q('Inactive' if r['star'] else 'Active')}, "
                f"{q(r['type']) if r['type'] != 'house' else 'NULL'}, {q(r['role']) if r['type'] != 'house' else 'NULL'}, "
                f"{q(r['master']) if r['role'] == 'sub' else 'NULL'}, "
                + ', '.join(num(r[f'rate{n}']) for n in range(1, 6)) + ")")
 stats['insert'] = len(ins)
-out.append(f"\n-- ===== 1. INSERT {len(ins)} accounts in NetWork but not in HELM (skipped placeholders {sorted(SKIP_INSERT)}) =====\n"
+out.append(f"\n-- ===== 1. INSERT {len(ins)} accounts in NetWork but not in HELM (skipped placeholders {sorted(SKIP_INSERT)}; starred -> Inactive) =====\n"
            "INSERT INTO clients (client_id, client_name, address, service_day, status, account_type, account_role, master_account_id, rate1, rate2, rate3, rate4, rate5) VALUES\n"
            + ',\n'.join(ins) + "\nON CONFLICT (client_id) DO NOTHING;\n")
 
@@ -173,8 +173,8 @@ open(OUT, 'w', encoding='utf-8').write(''.join(out))
 # ---- 6/7. Status (separate file) ----
 starred = [r['acct'] for r in matched if r['star']]
 unstarred = [r['acct'] for r in matched if not r['star'] and r['type'] != 'house']
-st = [f"-- Santos status sync — ASSUMES '*' in the NetWork All-Accounts export = dormant/closed account.\n"
-      f"-- Do not run until that reading is confirmed. Idempotent; Paused accounts are never touched.\n",
+st = [f"-- Santos status sync — '*' in the NetWork All-Accounts export = account currently inactive (confirmed 2026-09-11).\n"
+      f"-- Idempotent; Paused accounts are never touched.\n",
       f"\n-- ===== 6. Starred in NetWork ({len(starred)}) -> Inactive (only rows currently Active) =====\n"
       f"UPDATE clients SET status = 'Inactive' WHERE status = 'Active' AND client_id IN (\n"
       + ',\n'.join('  ' + ', '.join(q(a) for a in starred[i:i + 12]) for i in range(0, len(starred), 12)) + "\n);\n",
