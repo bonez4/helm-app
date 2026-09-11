@@ -4,7 +4,7 @@ santos_sep11_parse.py — parse Downloads/AllSantosAcctsSep11.pdf (East End Rubb
 
 Based on parse_pdf()/classify() in import_active_accounts.py, with one fix:
 in this export a starred account renders as a single glued token
-("320368*RAMA"), which the original ACCT_RE (^\d{6}\*?$) never matched, so
+("320368*RAMA"), which the original ACCT_RE (six digits + optional star) never matched, so
 every starred account (~950 of 3,140) was silently skipped. This parser splits
 that token into acct / star / class. It also captures the extra fields this
 export carries: start date, TTL rate, the S flag column, and the
