@@ -128,6 +128,7 @@ Per-user themes live in `applyUserTheme()` (the function resets `theme-*` body c
 | action | TEXT | `Skip Day`, `1XER`, `1X WK`, `2X WK`, `3X WK`, `LPU`, `Special Pickup`, `Complaint`, `Misc` |
 | action_date | DATE | Date the action applies (nullable for Misc) |
 | note | TEXT | Free-text content |
+| edited_at / edited_by | TIMESTAMPTZ / TEXT | Set when a note is edited in place via the ✎ button (shows an "edited" marker). *(User-applied `ALTER` — [sql_note_edits.sql](sql_note_edits.sql); edits still save without it.)* |
 
 **`rolloffs`** — Construction dumpster tracking
 | Column | Type | Notes |
@@ -458,6 +459,7 @@ All tables are RLS-enabled and **locked to authenticated only** (`FOR ALL TO aut
 - **Edit Client** button sits on the top-right of the info column, in line with the address/email block (above the divider that precedes the Pickup Days tiles). **Log Complaint** is a red button at the bottom right of the info column where Edit Client used to be.
 - **Complaint entries appear in the Notes history alongside regular notes** — same chronological timeline. They render with a red left border + pink background tint, a `COMPLAINT — TYPE` chip, and a small status pill (NEW / CASE OPEN / RESOLVED / IGNORED). If the case was resolved, a green resolution footer shows who resolved it and the resolution notes; if ignored, a gray footer shows the ignore reason. **The rep who logged a complaint gets an Edit button on their own entry while it's still open (`new`/`case_open`)** — see Rep self-edit in the Complaint Pipeline. Gives reps a single "what's happened with this client" view when the client calls in.
 - Inline Yes/No delete confirmation on notes
+- **Edit a note in place (✎ button on each note row)** — swaps the row for an inline editor with the same three fields as the Add form (action / date / text); Enter saves, Esc cancels. `saveNoteEdit` UPDATEs the existing row, so the note keeps its id, timestamp and author and every report that reads `notes` (Daily Action / Notes Added / Everything / Driver Comments) just sees the corrected values. Editing never auto-shifts client status (only a new note does) and complaints stay on their own edit flow. Stamps `edited_at`/`edited_by` + an "edited" marker when [sql_note_edits.sql](sql_note_edits.sql) has been applied.
 
 ### Add Client (all users)
 - Company picker (REIS / SANTOS) required before any other fields
@@ -483,6 +485,7 @@ All tables are RLS-enabled and **locked to authenticated only** (`FOR ALL TO aut
 Seven cards on the Reports tab (the last two are gated to David + Esme):
 
 1. **Daily Action Report** — actionable notes for a specific date
+   - **Company picker next to the date (Both / Reis / Santos)** — Both is the original layout (REIS, SANTOS, Other sections); Reis or Santos generates that company's items only. The choice carries through to **Print Report** (title, header line and the per-action summary are scoped too). `reportCompanyScope` / `reportCompanySections`.
    - Split by REIS / SANTOS / Other (first-digit classification)
    - **Grouped by Route** within each company (Route 1, Route 2, … Route 14, then "No Route Assigned"); rows sorted by account # within a route
    - **Per-day route resolution:** the route used for grouping is looked up in `route_assignments` for `(client_id, day_of_week_of_action_date)`; falls back to `clients.route` if no per-day override exists. Same for the inline `📋` route_note. So a multi-day client with Mon=R4 / Wed=R2 / Sat=R2 (e.g. acct 208849) has its Mon notes land under R4 and its Wed/Sat notes under R2, automatically.
@@ -1262,6 +1265,10 @@ ALTER TABLE complaints ADD COLUMN IF NOT EXISTS callback_done_by TEXT;
 -- ⚠️ If the "R" (Supervisor Resolutions) inbox or ☎ callback features look empty/unsaved,
 -- this migration likely was NOT run in the live DB — run sql_complaint_callbacks.sql.
 
+-- Note edit-tracking (user-applied ALTERs — sql_note_edits.sql). Optional: edits save without them.
+ALTER TABLE notes ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
+ALTER TABLE notes ADD COLUMN IF NOT EXISTS edited_by TEXT;
+
 -- One-time migration of legacy "Complaint - X" notes into the new complaints table.
 -- Each migrated complaint lands with status='new' so it shows up in David's inbox
 -- the first time he opens it after this SQL runs.
@@ -1360,6 +1367,8 @@ Open items deliberately on hold. Pick these back up when relevant — listed in 
 ## Recent Major Changes
 
 Older entries are intentionally terse — full detail lives in git history. The most recent week is given fuller context.
+
+- **2026-09-17 — Daily Action Report company picker + editable client notes.** (1) **Both / Reis / Santos** select next to the report date; Reis or Santos generates (and prints) only that company's items, Both is unchanged. (2) **✎ Edit on every note row** in the client-card history: inline editor for action / date / text, saves in place (same row id, timestamp, author — reports unaffected), no status auto-shift on edit. Optional `edited_at` / `edited_by` stamp + "edited" marker via [sql_note_edits.sql](sql_note_edits.sql).
 
 - **2026-09-11 — Complaint system: routes, drivers, callbacks-as-tasks, trends, review inbox.** (1) **Santos routes imported** (~2,800 accounts + 48 new clients) from the external Delta-Waste feed via Supabase SQL — routes are the ops-system's, not native to HELM (see `project_santos_routes` memory). (2) **Callback = its own task**: `callback_done`/`_at`/`_by` columns, **✓ Mark call made**, a **☎ Needs Callback** stat card counting owed calls regardless of resolution; resolve-nudge for calls still owed. (3) **Missed Stop now requires the "Driver involved"** at log time (floor in `complaintTypeNeedsDriver`); the supervisor **"Spoke to Driver" fixer is no longer counted** as a complaint driver (+ one-time SQL cleanup); driver names **deduped case/whitespace-insensitively** (`groupByDriver`). (4) **Per-route + per-driver trend leaderboards + Week-over-week / Month-over-month tables** in Insights; **routes are company-scoped** (`REIS · t/f-08` ≠ `SANTOS · t/f-08`) and resolved from the client's **current** route. (5) **Rep self-edit** of own open complaints; **Reassign/Unassign** in the console; **acct-# deep-link** to the client card in a new tab. (6) **Office view-only console** for Esme/Jackie/Kobie; **David-only "R" Supervisor Resolutions review inbox** (localStorage review-state). (7) **REIS·BOTH·SANTOS client-search scope toggle**; **kobie Clemson theme**; **⚠ General Complaint** (non-customer) button. **⚠ Requires `sql_complaint_callbacks.sql` to be applied** — if the R inbox / callback features look empty, that migration wasn't run.
 

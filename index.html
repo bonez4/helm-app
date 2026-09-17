@@ -693,6 +693,17 @@ body.theme-kobie .live-dot{background:#fff;box-shadow:0 0 0 2px rgba(255,255,255
 .note-del-confirm span{font-size:10px;color:var(--gray-400);}
 .note-del-yes{background:var(--err-text);border:none;color:#fff;font-size:10px;padding:1px 6px;border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;}
 .note-del-no{background:none;border:1px solid var(--gray-200);color:var(--gray-400);font-size:10px;padding:1px 6px;border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.note-edit{background:none;border:none;color:var(--gray-300);font-size:12px;cursor:pointer;padding:0 2px;margin-left:auto;line-height:1;transition:color .15s;}
+.note-edit:hover{color:var(--teal);}
+.note-edit + .note-del,.note-edit + .note-del-confirm{margin-left:0;}
+.note-edited{font-size:9px;color:var(--gray-400);font-style:italic;}
+.note-edit-form{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px;}
+.note-edit-form select,.note-edit-form input{font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 6px;border:1px solid var(--gray-200);border-radius:4px;background:var(--gray-50);color:var(--gray-800);}
+.note-edit-form select:focus,.note-edit-form input:focus{border-color:var(--teal);background:white;outline:none;}
+.note-edit-form input[type=text]{flex:1;min-width:140px;font-family:'Courier New',monospace;font-size:12px;}
+.note-edit-save{background:var(--teal);border:none;color:#fff;font-size:10px;font-weight:600;padding:4px 9px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.note-edit-save:hover{background:var(--teal-dim);}
+.note-edit-cancel{background:none;border:1px solid var(--gray-200);color:var(--gray-400);font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .btn-edit-sm{background:none;border:1px solid var(--gray-200);color:var(--gray-500);font-size:11px;padding:3px 10px;border-radius:var(--radius-sm);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
 .btn-edit-sm:hover{border-color:var(--teal);color:var(--teal);}
 .note-row-body{font-family:'Courier New',monospace;font-size:12px;color:var(--gray-800);line-height:1.4;word-break:break-word;}
@@ -5053,31 +5064,112 @@ function renderNotesTable(items){
     if(item._kind === 'complaint') return renderComplaintHistoryRow(item);
     return renderNoteHistoryRow(item);
   }).join('');
-  // Event delegation — inline confirm replaces × button on first click.
-  // Only regular notes have a × button; complaints stay read-only in this view.
+  // Event delegation — inline confirm replaces × button on first click; the
+  // ✎ button swaps the row for an inline editor. Only regular notes have these
+  // controls; complaints stay read-only in this view (they edit via their modal).
   wrap.onclick=function(e){
     const btn=e.target.closest('.note-del');
     const yes=e.target.closest('.note-del-yes');
     const no=e.target.closest('.note-del-no');
+    const ed=e.target.closest('.note-edit');
+    const save=e.target.closest('.note-edit-save');
+    const cancel=e.target.closest('.note-edit-cancel');
     if(btn){
       const noteId=btn.dataset.noteId;
       btn.outerHTML=`<div class="note-del-confirm"><span>Delete?</span><button class="note-del-yes" data-note-id="${noteId}">Yes</button><button class="note-del-no">No</button></div>`;
     } else if(yes){
       deleteNote(yes.dataset.noteId);
-    } else if(no){
-      // Reset — re-render to restore × button
+    } else if(no||cancel){
+      // Reset — re-render to restore the row
       renderNotesTable(clientNotes);
+    } else if(ed){
+      startNoteEdit(ed.dataset.noteId);
+    } else if(save){
+      saveNoteEdit(save.dataset.noteId);
     }
   };
 }
 
+// ── EDIT NOTE (inline) ────────────────────────────────────────────────
+// Swap a history row for an editor holding the same three fields the Add form
+// has (action / date / text). Saving UPDATEs the existing row in place — the
+// note keeps its id, created_at and author, so every report that reads notes
+// (Daily Action / Notes Added / Everything / route resolution) sees the fixed
+// values with no other change. Editing never auto-shifts client status (only
+// a fresh note does that) and never touches complaints.
+function startNoteEdit(noteId){
+  const n=clientNotes.find(x=>x._kind==='note' && String(x.id)===String(noteId));
+  const row=document.querySelector(`#notesTableWrap .note-row[data-note-id="${noteId}"]`);
+  if(!n||!row) return;
+  const actType=ACTION_TYPES.find(a=>a.value===n.action);
+  const known=!!actType;
+  const opts=ACTION_TYPES.map(a=>`<option value="${esc(a.value)}"${a.value===n.action?' selected':''}>${esc(a.label)}</option>`).join('')
+    +(known?'':`<option value="${esc(n.action)}" selected>${esc(n.action)}</option>`);
+  const needsDate=known?!!actType.needsDate:!!n.action_date;
+  row.innerHTML=`
+    <div class="note-row-header">
+      <span class="note-meta">${fmtTimestamp(n.created_at)}</span>
+      <span class="note-user">${esc(n.user_id)||''}</span>
+      <span class="note-edited">editing</span>
+    </div>
+    <div class="note-edit-form">
+      <select class="note-edit-action" onchange="toggleNoteEditDate('${noteId}')">${opts}</select>
+      <input type="date" class="note-edit-date" value="${esc(n.action_date||'')}" style="${needsDate?'':'display:none'}"/>
+      <input type="text" class="note-edit-text" value="${esc(n.note||'')}" placeholder="Note…"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();saveNoteEdit('${noteId}');}else if(event.key==='Escape'){event.preventDefault();renderNotesTable(clientNotes);}"/>
+      <button class="note-edit-save" data-note-id="${noteId}">Save</button>
+      <button class="note-edit-cancel" type="button">Cancel</button>
+    </div>`;
+  const t=row.querySelector('.note-edit-text'); if(t){ t.focus(); t.setSelectionRange(t.value.length,t.value.length); }
+}
+
+function toggleNoteEditDate(noteId){
+  const row=document.querySelector(`#notesTableWrap .note-row[data-note-id="${noteId}"]`);
+  if(!row) return;
+  const sel=row.querySelector('.note-edit-action'), d=row.querySelector('.note-edit-date');
+  const a=ACTION_TYPES.find(x=>x.value===sel.value);
+  d.style.display=(a&&a.needsDate)?'':'none';
+}
+
+async function saveNoteEdit(noteId){
+  if(!activeClient) return;
+  const orig=clientNotes.find(x=>x._kind==='note' && String(x.id)===String(noteId));
+  const row=document.querySelector(`#notesTableWrap .note-row[data-note-id="${noteId}"]`);
+  if(!orig||!row) return;
+  const action=row.querySelector('.note-edit-action').value;
+  const actType=ACTION_TYPES.find(a=>a.value===action);
+  const needsDate=actType?!!actType.needsDate:!!orig.action_date;
+  const actionDate=needsDate?(row.querySelector('.note-edit-date').value||null):null;
+  const noteText=row.querySelector('.note-edit-text').value.trim();
+  if(needsDate&&!actionDate){ toast('Select a date for this action'); return; }
+  if(action===orig.action && (actionDate||null)===(orig.action_date||null) && noteText===(orig.note||'')){
+    renderNotesTable(clientNotes); return;
+  }
+  const who=currentUser?currentUser.display_name:'';
+  const patch={action, action_date:actionDate, note:noteText};
+  // edited_at / edited_by are optional columns (sql_note_edits.sql). If the
+  // migration hasn't been run yet, save the note without them.
+  let {error}=await db.from('notes').update({...patch, edited_at:new Date().toISOString(), edited_by:who}).eq('id',noteId);
+  if(error && /edited_(at|by)/i.test(error.message||'')){
+    ({error}=await db.from('notes').update(patch).eq('id',noteId));
+  }
+  if(error){ toast('Error: '+error.message); return; }
+  toast('Note updated',true);
+  logActivity('note_edited', action+' on '+activeClient.client_id);
+  const notes=await loadNotes(activeClient.client_id);
+  renderNotesTable(notes);
+}
+
 function renderNoteHistoryRow(n){
-  return `<div class="note-row">
+  const edited=n.edited_at?`<span class="note-edited" title="Edited ${esc(fmtTimestamp(n.edited_at))}${n.edited_by?' by '+esc(n.edited_by):''}">edited</span>`:'';
+  return `<div class="note-row" data-note-id="${n.id}">
     <div class="note-row-header">
       <span class="note-meta">${fmtTimestamp(n.created_at)}</span>
       <span class="note-user">${esc(n.user_id)||''}</span>
       <span class="action-tag ${actionTagClass(n.action)}">${esc(n.action)}</span>
       ${n.action_date?`<span style="font-size:10px;color:var(--teal);font-weight:600">${fmtDate(n.action_date)}</span>`:''}
+      ${edited}
+      <button class="note-edit" data-note-id="${n.id}" title="Edit note">&#9998;</button>
       <button class="note-del" data-note-id="${n.id}" title="Delete note">&times;</button>
     </div>
     ${n.note?`<div class="note-row-body">${esc(n.note)}</div>`:''}
@@ -5554,6 +5646,14 @@ function renderReport(){
           <label>Report Date</label>
           <input type="date" id="reportDate" value="${today}" style="width:160px"/>
         </div>
+        <div class="form-group" style="margin-bottom:0;flex:0 0 auto">
+          <label>Company</label>
+          <select id="reportCompany" style="width:120px">
+            <option value="BOTH">Both</option>
+            <option value="REIS">Reis</option>
+            <option value="SANTOS">Santos</option>
+          </select>
+        </div>
         <button class="btn-add" onclick="generateReport()">Generate Report</button>
       </div>
       <div id="reportResults"></div>
@@ -5928,9 +6028,28 @@ function fetchReportData(notesData,skipsData,date){
   return {data,grouped};
 }
 
+// Daily Action Report company scope. 'BOTH' = every section (REIS / SANTOS /
+// Other, the original layout); 'REIS' or 'SANTOS' = that company's items only.
+const REPORT_COMPANY_LABEL = {BOTH:'', REIS:'REIS', SANTOS:'SANTOS'};
+function reportCompanyScope(items, co){
+  if(!co || co==='BOTH') return items;
+  return items.filter(n=>getCompany(n.client_id).name===co);
+}
+function reportCompanySections(co){
+  const all=[
+    {key:'REIS',label:'REIS',cls:'co-reis',filter:n=>getCompany(n.client_id).name==='REIS'},
+    {key:'SANTOS',label:'SANTOS',cls:'co-santos',filter:n=>getCompany(n.client_id).name==='SANTOS'},
+    {key:'OTHER',label:'Other',cls:'',filter:n=>{const c=getCompany(n.client_id).name;return c!=='REIS'&&c!=='SANTOS';}}
+  ];
+  return (!co || co==='BOTH') ? all : all.filter(c=>c.key===co);
+}
+
 async function generateReport(){
   const date=document.getElementById('reportDate').value;
   if(!date){toast('Select a date');return;}
+  const coSel=document.getElementById('reportCompany');
+  const company=(coSel&&coSel.value)||'BOTH';
+  const coLabel=REPORT_COMPANY_LABEL[company]||'';
   const results=document.getElementById('reportResults');
   results.innerHTML='<div class="loading">Loading…</div>';
 
@@ -5942,24 +6061,20 @@ async function generateReport(){
   const {data:skipsData}=await db.from('skips').select('*').eq('skip_week',date);
 
   // Complaints are hidden from this report — they only surface on the Complaint Report.
-  const {data,grouped}=fetchReportData(filterDailyActionNotes(notesData),skipsData,date);
+  const data=reportCompanyScope(fetchReportData(filterDailyActionNotes(notesData),skipsData,date).data, company);
 
   if(!data.length){
-    results.innerHTML='<div class="empty-state">No action items for '+fmtDate(date)+'</div>';
+    results.innerHTML='<div class="empty-state">No '+(coLabel?coLabel+' ':'')+'action items for '+fmtDate(date)+'</div>';
     return;
   }
 
   // Split data by company (first-digit classification: 2xxxxx=REIS, 3xxxxx=SANTOS)
-  const companies=[
-    {key:'REIS',label:'REIS',cls:'co-reis',filter:n=>getCompany(n.client_id).name==='REIS'},
-    {key:'SANTOS',label:'SANTOS',cls:'co-santos',filter:n=>getCompany(n.client_id).name==='SANTOS'},
-    {key:'OTHER',label:'Other',cls:'',filter:n=>{const c=getCompany(n.client_id).name;return c!=='REIS'&&c!=='SANTOS';}}
-  ];
+  const companies=reportCompanySections(company);
 
   let html=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:6px">
-      <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)} — ${data.length} item${data.length!==1?'s':''}</div>
-      <button class="btn-add" onclick="printReport('${date}')" style="white-space:nowrap">Print Report</button>
+      <div style="font-size:14px;font-weight:700;color:var(--navy)">${fmtDate(date)}${coLabel?' — '+coLabel:''} — ${data.length} item${data.length!==1?'s':''}</div>
+      <button class="btn-add" onclick="printReport('${date}','${company}')" style="white-space:nowrap">Print Report</button>
     </div>`;
 
   companies.forEach(comp=>{
@@ -6009,23 +6124,24 @@ async function generateReport(){
   });
 
   results.innerHTML=html;
-  logActivity('report_generated', date);
+  logActivity('report_generated', date+(coLabel?' '+coLabel:''));
 }
 
-function printReport(date){
+function printReport(date, company){
+  company=company||'BOTH';
+  const coLabel=REPORT_COMPANY_LABEL[company]||'';
   Promise.all([
     db.from('notes').select('*').eq('action_date',date).order('action').order('created_at'),
     db.from('skips').select('*').eq('skip_week',date)
   ]).then(([{data:notesData},{data:skipsData}])=>{
-    const {data,grouped}=fetchReportData(filterDailyActionNotes(notesData),skipsData,date);
+    const data=reportCompanyScope(fetchReportData(filterDailyActionNotes(notesData),skipsData,date).data, company);
     if(!data.length) return;
 
-    const companies=[
-      {key:'REIS',label:'REIS',filter:n=>getCompany(n.client_id).name==='REIS'},
-      {key:'SANTOS',label:'SANTOS',filter:n=>getCompany(n.client_id).name==='SANTOS'},
-      {key:'OTHER',label:'Other',filter:n=>{const c=getCompany(n.client_id).name;return c!=='REIS'&&c!=='SANTOS';}}
-    ];
+    const companies=reportCompanySections(company);
 
+    // Per-action summary line, recomputed on the company-scoped set
+    const grouped={};
+    data.forEach(n=>{ (grouped[n.action]=grouped[n.action]||[]).push(n); });
     const summary=Object.entries(grouped).map(([a,n])=>`${a}: ${n.length}`).join(' &nbsp;·&nbsp; ');
 
     let sections='';
@@ -6060,7 +6176,7 @@ function printReport(date){
     const win=window.open('','_blank');
     win.document.write(`<!DOCTYPE html>
 <html><head><meta charset="UTF-8"/>
-<title>HELM Action Report — ${fmtDate(date)}</title>
+<title>HELM Action Report — ${fmtDate(date)}${coLabel?' — '+coLabel:''}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#000;padding:18px;}
@@ -6078,8 +6194,8 @@ h2{background:#0f1f3d;color:white;padding:6px 10px;font-size:13px;margin:14px 0 
 @media print{body{padding:0;font-size:13px;}td{padding:8px 7px;font-size:13px;overflow-wrap:break-word;}@page{margin:0.5in;}}
 </style></head><body>
 <div class="header">
-  <h1>HELM — Daily Action Report</h1>
-  <div class="sub">Date: <span>${fmtDate(date)}</span> &nbsp;·&nbsp; Total: <span>${data.length} items</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
+  <h1>HELM — Daily Action Report${coLabel?' — '+coLabel:''}</h1>
+  <div class="sub">Date: <span>${fmtDate(date)}</span>${coLabel?' &nbsp;·&nbsp; Company: <span>'+coLabel+'</span>':''} &nbsp;·&nbsp; Total: <span>${data.length} items</span> &nbsp;·&nbsp; Printed: <span>${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</span></div>
 </div>
 <div class="summary">${summary}</div>
 ${sections}
